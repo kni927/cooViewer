@@ -11,35 +11,28 @@ permissions:
 
 jobs:
   build:
-    name: Build default scheme using xcodebuild command
+    name: Build and release
     runs-on: macos-latest
 
     steps:
-    - name: Checkout
-      uses: actions/checkout@v4
-      with:
-        submodules: recursive
-    - name: Show Xcode version
-      run: xcodebuild -version
-    - name: Build
-      run: xcodebuild -configuration Deployment
-    - name: Zip files
-      run: (cd build/Deployment/; zip -ry cooViewer.app.zip cooViewer.app)
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
 
-    - name: Upload binaries to release
-      uses: svenstaro/upload-release-action@v2
-      with:
-        repo_token: ${{ secrets.GITHUB_TOKEN }}
-        file: build/Deployment/cooViewer.app.zip
-        tag: ${{ github.ref }}
-        overwrite: true
+      - name: Show Xcode version
+        run: xcodebuild -version
 
-    - name: Delete older releases
-      uses: jay2610/delete-older-releases@1.0.0
-      with:
-        keep_latest: 1
-        delete_tags: true
-        delete_type: 'release'
-        target_branch: 'master'
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build
+        run: xcodebuild -configuration Deployment
+
+      - name: Zip app
+        run: |
+          cd build/Deployment
+          zip -ry cooViewer.app.zip cooViewer.app
+
+      - name: Create GitHub Release and upload binary
+        uses: softprops/action-gh-release@v2
+        with:
+          files: build/Deployment/cooViewer.app.zip
+          generate_release_notes: true

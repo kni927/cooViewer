@@ -1,28 +1,32 @@
-name: Xcode Build and Upload
+name: Xcode Build and Upload Artifact
 
 on:
   workflow_dispatch:
 
 jobs:
   build:
-    name: Build default scheme using xcodebuild command
+    name: Build and upload artifact
     runs-on: macos-latest
 
     steps:
-    - name: Checkout
-      uses: actions/checkout@v4
-      with:
-        submodules: recursive
-    - name: Select Xcode version
-      run: sudo xcode-select -s '/Applications/Xcode_14.3.1.app/Contents/Developer'
-    - name: Show Xcode version
-      run: xcodebuild -version
-    - name: Build
-      run: xcodebuild -configuration Deployment -sdk macosx13.3
-    - name: Tar files
-      run: (cd build/Deployment/; tar -cvf ../../cooViewer.app.tar cooViewer.app)
-    - name: Upload artifact
-      uses: actions/upload-artifact@v4
-      with:
-        name: cooViewer.app.tar
-        path: cooViewer.app.tar
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Show Xcode version
+        run: xcodebuild -version
+
+      - name: Build
+        run: xcodebuild -configuration Deployment
+
+      - name: Zip app
+        run: |
+          cd build/Deployment
+          zip -ry cooViewer.app.zip cooViewer.app
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: cooViewer.app.zip
+          path: build/Deployment/cooViewer.app.zip
