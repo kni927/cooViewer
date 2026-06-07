@@ -73,6 +73,31 @@ Built via GitHub Actions using Xcode with `-sdk macosx` flag.
 
 > The binary is **unsigned**. macOS Gatekeeper will block the first launch — right-click the app and choose **Open** to bypass the warning.
 
+### First Launch After Downloading
+
+This app is **not signed with an Apple Developer ID and not notarized** (that
+requires a paid Apple Developer Program membership, which this project does
+not currently have). Because of this, macOS quarantines the downloaded `.app`
+and may show repeated security warnings — or even repeated folder-access
+permission prompts — every time you launch it or open files from a new
+location.
+
+After unzipping the downloaded archive, run the following in Terminal to
+remove the quarantine attribute and move the app into `/Applications`:
+
+```bash
+xattr -cr cooViewer.app
+mv cooViewer.app /Applications/
+```
+
+Alternatively, you can launch it for the first time by **right-clicking the
+app in Finder and choosing "Open"**, then confirming the dialog.
+
+Doing this once (and keeping the app in `/Applications`) avoids macOS
+re-randomizing the app's run location on every launch (a.k.a. *Gatekeeper App
+Translocation*), which is also what allows folder-access permissions to be
+remembered between launches instead of being re-requested every time.
+
 ## Upstream / Credits
 
 This fork is based on [tak758/cooViewer](https://github.com/tak758/cooViewer), which itself merges improvements from:
