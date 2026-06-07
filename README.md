@@ -27,6 +27,24 @@ Right-clicking on the image opens a context menu with a **Save Image...** item.
 <!-- Screenshot placeholder -->
 <!-- ![Right-click save](docs/screenshots/save-menu.png) -->
 
+### Fewer macOS Folder-Access Permission Prompts
+Previously, opening any book triggered an immediate scan of its **parent folder**
+(to build the "Open from same folder" menu and to detect whether the book had
+moved), which could cause macOS to show a folder-access permission dialog every
+time you opened a file from a new location — even if you never used that menu.
+
+This fork now builds that menu **lazily**, only when you actually open
+**File → Open from same folder**, so the parent folder is touched on demand
+instead of on every file open / app activation.
+
+> Note: if you're running a binary downloaded from GitHub Releases and still see
+> permission prompts repeatedly, that's most likely **Gatekeeper / App
+> Translocation** (unsigned apps launched from a quarantined location run from a
+> randomized read-only path each time, so macOS can't remember folder grants).
+> Moving the app to `/Applications` and/or removing the quarantine attribute
+> (`xattr -cr /Applications/cooViewer.app`) usually resolves it. See
+> `docs/known-issues.md` for details.
+
 ---
 
 ## Requirements

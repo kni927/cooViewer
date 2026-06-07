@@ -41,9 +41,19 @@ static const int DIALOG_CANCEL	= 129;
 	//composeLock = [[NSLock allocWithZone:NULL] init];
 	
 	[imageView setTarget:self];
-	
-	
-	
+
+	/* "Open from same folder" submenu is populated lazily (on menuNeedsUpdate:)
+	   to avoid touching the parent folder — and triggering macOS folder-access
+	   permission prompts — every time a book is opened. We keep one persistent
+	   NSMenu instance here so its delegate survives across refreshes. */
+	if (![openSameFolderMenuItem submenu]) {
+		[openSameFolderMenuItem setSubmenu:[[[NSMenu alloc] init] autorelease]];
+	}
+	[[openSameFolderMenuItem submenu] setAutoenablesItems:NO];
+	[[openSameFolderMenuItem submenu] setDelegate:self];
+
+
+
 	defaults = [NSUserDefaults standardUserDefaults];	
 	
 #pragma mark default
@@ -751,7 +761,10 @@ static const int DIALOG_CANCEL	= 129;
 			currentBookPath = oldBookPath;
 			currentBookName = oldBookName;
 			currentBookAlias = oldBookAlias;
-			[self setSameFolderMenu];
+			/* "Open from same folder" submenu is now refreshed lazily via
+			   menuNeedsUpdate: (see setSameFolderMenu:) — not eagerly here —
+			   to avoid hitting the parent folder (and triggering macOS folder
+			   access prompts) on every book open. */
 		} else {
 			[currentBookPath release];
 			[currentBookName release];
@@ -873,7 +886,8 @@ static const int DIALOG_CANCEL	= 129;
 		[currentBookSetting removeAllObjects];
 		[imageLoader release];
 	}
-	[self setSameFolderMenu];
+	/* See note above: "Open from same folder" submenu refresh is deferred to
+	   menuNeedsUpdate: so we don't touch the parent folder on every open. */
 	if (oldBookPath != nil) {
 		[oldBookPath release];
 		[oldBookName release];
@@ -2376,19 +2390,19 @@ static const int DIALOG_CANCEL	= 129;
 }
 -(void)setSameFolderMenu:(BOOL)force
 {
+	NSMenu *menu = [openSameFolderMenuItem submenu];
 	if (currentBookPath == nil) {
-		NSMenu *menu = [[[NSMenu alloc] init] autorelease];
-		[openSameFolderMenuItem setSubmenu: menu];
+		[menu removeAllItems];
 		return;
 	}
 	NSString *tmpCurrentPath = [self pathFromAliasData:currentBookAlias];
 	NSString *tmpCurrentBookName = [tmpCurrentPath lastPathComponent];
 	NSString *superPath = [tmpCurrentPath stringByDeletingLastPathComponent];
-	
+
 	BOOL updateMenu = NO;
-	if ([[openSameFolderMenuItem submenu] numberOfItems] == 0) {	
+	if ([menu numberOfItems] == 0) {
 		updateMenu = YES;
-	} else if (![[[[[openSameFolderMenuItem submenu] itemAtIndex:0] representedObject] stringByDeletingLastPathComponent]  isEqualToString:superPath]) {
+	} else if (![[[[menu itemAtIndex:0] representedObject] stringByDeletingLastPathComponent]  isEqualToString:superPath]) {
 		updateMenu = YES;
 	} else if (force) {
 		updateMenu = YES;
@@ -2396,9 +2410,8 @@ static const int DIALOG_CANCEL	= 129;
 	if (updateMenu) {
         NSMutableArray *superDirectoryArray = [NSMutableArray arrayWithArray:[[NSFileManager defaultManager] contentsOfDirectoryAtPath:superPath error:nil]];
 		[superDirectoryArray sortUsingSelector:@selector(finderCompareS:)];
-		
-		NSMenu *menu = [[[NSMenu alloc] init] autorelease];
-		[menu setAutoenablesItems:NO];
+
+		[menu removeAllItems];
 		NSEnumerator *enumerator = [superDirectoryArray objectEnumerator];
 		id object;
 		while (object = [enumerator nextObject]) {
@@ -2430,15 +2443,13 @@ static const int DIALOG_CANCEL	= 129;
 				}
 			}
 		}
-		[openSameFolderMenuItem setSubmenu: menu];
 		[lastSameFolderMenuUpdate release];
 		lastSameFolderMenuUpdate = [[NSDate date] retain];
 	} else {
 		if (oldBookPath==nil) {
 			return;
-		}		
-		//NSMenu *menu = [[[NSMenu alloc] init] autorelease];
-		NSEnumerator *enumerator = [[[openSameFolderMenuItem submenu] itemArray] objectEnumerator];
+		}
+		NSEnumerator *enumerator = [[menu itemArray] objectEnumerator];
 		id object;
 		int setStateCount = 0;
 		while (object = [enumerator nextObject]) {
@@ -3021,7 +3032,27 @@ static const int DIALOG_CANCEL	= 129;
 	[defaults synchronize];
 }
 - (void)applicationDidBecomeActive:(NSNotification *)aNotification {
-	[self checkCurrentFolderUpdated];
+	/* checkCurrentFolderUpdated stats the parent folder of the current book
+	   (and may re-enumerate it via setSameFolderMenu:). Doing that every time
+	   the app regains focus hits the parent folder constantly and can trigger
+	   macOS folder-access permission prompts repeatedly. It's now run lazily,
+	   right before the "Open from same folder" submenu is actually shown —
+	   see menuNeedsUpdate:. */
+}
+
+#pragma mark NSMenuDelegate
+
+- (void)menuNeedsUpdate:(NSMenu *)menu
+{
+	if (menu == [openSameFolderMenuItem submenu]) {
+		/* Both of these touch the parent folder of the current book
+		   (contentsOfDirectoryAtPath: / attributesOfItemAtPath:). Doing this
+		   only when the user is about to open this submenu — rather than on
+		   every book open or app activation — keeps macOS folder-access
+		   permission prompts limited to actual use of the feature. */
+		[self checkCurrentFolderUpdated];
+		[self setSameFolderMenu:NO];
+	}
 }
 
 

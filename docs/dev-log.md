@@ -159,6 +159,77 @@ git submodule update --init --recursive
 
 ---
 
+### Repeated macOS Folder-Access Permission Prompts on `File > Open...`
+
+**Symptom:** Opening a comic from a new folder via `File > Open...` (or
+recent items / bookmarks) showed a macOS "would like to access files in
+folder ..." permission dialog every single time — even though Full Disk
+Access was already granted.
+
+**Investigation:** The app is **not sandboxed** (no `.entitlements`, no
+`com.apple.security.*` keys) and uses no `NSURL` security-scoped
+bookmarks/resources — `currentBookPath` is stored as a plain path string
+(plus a legacy Carbon `AliasHandle`/`FSRef`-based alias for "follow if
+moved" support, see `pathFromAliasData:` / `aliasFromPath:`). So this isn't
+an App Sandbox entitlement problem; it's the regular macOS TCC
+"folder access" prompt for non-sandboxed apps (Catalina+).
+
+The actual trigger turned out to be **eager parent-folder access right
+after opening a book**:
+- `setSameFolderMenu:` (builds the **Open from same folder** submenu) called
+  `[[NSFileManager defaultManager] contentsOfDirectoryAtPath:superPath ...]`
+  on the **parent directory** of the opened file, plus `fileExistsAtPath:`
+  for every entry — and this ran immediately inside `openPage:last:`
+  (i.e. on every single book open), not only when the user opened that menu.
+- `checkCurrentFolderUpdated` additionally called
+  `attributesOfItemAtPath:[superPath stringByResolvingSymlinksInPath]`
+  on the same parent directory every time the app became active
+  (`applicationDidBecomeActive:`).
+
+Since `NSOpenPanel` only grants access to the item the user explicitly
+picked (not its parent directory), this immediate "scope expansion" to the
+parent folder is what macOS was prompting about — and it fired on a normal
+open flow regardless of whether the user ever used the
+"Open from same folder" feature.
+
+**Fix — make parent-folder access lazy (on-demand only):**
+- `Controller` now conforms to `NSMenuDelegate`; a single persistent `NSMenu`
+  is created for `openSameFolderMenuItem`'s submenu in `awakeFromNib` (with
+  `setDelegate:self`), instead of being recreated and swapped in via
+  `setSubmenu:` on every refresh (which would have dropped the delegate).
+- `setSameFolderMenu:` was rewritten to mutate that existing submenu in
+  place (`removeAllItems` + rebuild) rather than allocating a new `NSMenu`.
+- New `menuNeedsUpdate:` delegate method runs `checkCurrentFolderUpdated`
+  and `setSameFolderMenu:NO` **only when the user is about to open the
+  "Open from same folder" submenu** — i.e. right before it's displayed.
+- Removed the eager `[self setSameFolderMenu]` calls from `openPage:last:`
+  (fired on every book open) and the `checkCurrentFolderUpdated` call from
+  `applicationDidBecomeActive:` (fired on every app activation).
+
+**Result:** macOS now only asks for folder access when the user actually
+opens **File → Open from same folder** for a given parent folder — not on
+every `File > Open...`, recent-item open, or app focus change.
+
+**Caveat:** If the binary was downloaded from GitHub Releases (unsigned /
+ad-hoc signed) and launched from a quarantined location, **Gatekeeper App
+Translocation** can still cause repeated prompts regardless of this fix —
+because the app runs from a different randomized read-only path on each
+launch, so macOS can't persist folder grants tied to it. Moving the app to
+`/Applications` and/or `xattr -cr` on the `.app` works around this. Proper
+Developer ID signing + notarization is the real long-term fix; ad-hoc
+signing alone does not help (see `docs/known-issues.md`).
+
+**Files changed:**
+- `Controller.h` — added `<NSMenuDelegate>` conformance
+- `Controller.m`
+  - `awakeFromNib` — create persistent submenu, set delegate
+  - `setSameFolderMenu:` — mutate existing submenu instead of replacing it
+  - new `menuNeedsUpdate:` — lazy trigger for folder access
+  - `openPage:last:` — removed eager `setSameFolderMenu` calls (×2)
+  - `applicationDidBecomeActive:` — removed eager `checkCurrentFolderUpdated` call
+
+---
+
 ## Housekeeping
 
 - Renamed `ﾇPRODUCTNAMEﾈ-Info.plist` → `$(PRODUCTNAME)-Info.plist` then deleted (unused artifact, not referenced in project, content outdated)

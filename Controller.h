@@ -16,7 +16,7 @@
 @class RemoteControl;
 @class MultiClickRemoteBehavior;
 
-@interface Controller : NSObject
+@interface Controller : NSObject <NSMenuDelegate>
 {
 	RemoteControl *remoteControl;
 	MultiClickRemoteBehavior* remoteControlBehavior;
