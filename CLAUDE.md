@@ -44,3 +44,7 @@ Note: No automated tests. Verify behavior manually.
 ## Commit Rules
 - Prefix: feat: / fix: / refactor: / docs:
 - One commit per feature recommended
+
+## Development Log
+See `docs/dev-log.md` for a full history of changes made to this fork,
+including implementation details, bug fixes, architecture notes, and release workflow.
