@@ -1,15 +1,15 @@
 # CLAUDE.md
 
-## プロジェクト概要
-cooViewer — macOS向けシンプルコミックビューワー（Objective-C / Cocoa）
+## Project Overview
+cooViewer — A simple comic viewer for macOS (Objective-C / Cocoa)
 
-## 技術スタック
+## Tech Stack
 - Language: Objective-C
 - Framework: Cocoa (AppKit)
 - Build: Xcode / xcodebuild
-- Submodules: XADMaster（アーカイブ展開）、UniversalDetector（文字コード検出）
+- Submodules: XADMaster (archive extraction), UniversalDetector (character encoding detection)
 
-## セットアップ
+## Setup
 ```bash
 git clone --recursive https://github.com/<yourname>/cooViewer.git
 cd cooViewer
@@ -17,30 +17,30 @@ xcodebuild -configuration Deployment
 open build/Deployment/cooViewer.app
 ```
 
-## ビルドコマンド
+## Build Commands
 ```bash
-xcodebuild -configuration Deployment   # リリースビルド
-xcodebuild -configuration Debug        # デバッグビルド
+xcodebuild -configuration Deployment   # release build
+xcodebuild -configuration Debug        # debug build
 ```
-※ テスト自動化なし。動作確認は手動。
+Note: No automated tests. Verify behavior manually.
 
-## 主要ファイル
-- Controller.m / Controller.h       — メインコントローラー（ページ制御・UI全般）
-- Controller_input.m                — キー・マウス入力処理
-- CustomImageView.m / .h            — 画像表示View
-- AccessoryView.m / .h              — ページバー（下部HUD）
-- COImageLoader.m / .h              — 画像・アーカイブ読み込み
+## Key Files
+- Controller.m / Controller.h       — Main controller (page control, UI)
+- Controller_input.m                — Keyboard and mouse input handling
+- CustomImageView.m / .h            — Image display view
+- AccessoryView.m / .h              — Page bar (bottom HUD)
+- COImageLoader.m / .h              — Image and archive loading
 
-## コーディングルール
-- Objective-C (MRC / ARC混在に注意。基本MRC)
-- IBOutlet / IBAction の変更はInterface Builder (.xib) も合わせて編集すること
-- NSUserDefaults のキー追加時はawakeFromNib内でdefault値を登録する
-- ローカライズ文字列はen.lproj / ja.lproj の Localizable.strings に追加する
+## Coding Rules
+- Objective-C (be careful with MRC/ARC mixing; MRC is the baseline)
+- When changing IBOutlet / IBAction, also update the Interface Builder file (.xib)
+- When adding NSUserDefaults keys, register default values inside awakeFromNib
+- Add localized strings to Localizable.strings in both en.lproj and ja.lproj
 
-## 変更禁止
-- XADMaster/, UniversalDetector/ — サブモジュール。直接編集しない
-- MainMenu~.nib — レガシーnib。触らない
+## Do Not Modify
+- XADMaster/, UniversalDetector/ — Submodules. Do not edit directly.
+- MainMenu~.nib — Legacy nib. Leave it alone.
 
-## コミットルール
-- prefix: feat: / fix: / refactor: / docs:
-- 1機能1コミット推奨
+## Commit Rules
+- Prefix: feat: / fix: / refactor: / docs:
+- One commit per feature recommended
