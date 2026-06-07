@@ -58,7 +58,7 @@ static const int DIALOG_CANCEL	= 129;
 	}
 	openLastFolder = YES;
 	fullscreen = YES;
-	wheelSensitivity = 1.0;
+	wheelSensitivity = 0.1;  // default: highest sensitivity (slider at max/high)
 	
 	[appDefault setObject:[NSNumber numberWithBool:openLastFolder] forKey:@"OpenLastFolder"];
 	[appDefault setObject:[NSNumber numberWithBool:fullscreen] forKey:@"Fullscreen"];
@@ -71,6 +71,7 @@ static const int DIALOG_CANCEL	= 129;
 		
 	[appDefault setObject:[NSNumber numberWithBool:YES] forKey:@"ShowPageBar"];
 	[appDefault setObject:[NSNumber numberWithBool:YES] forKey:@"ShowNumber"];
+	[appDefault setObject:[NSNumber numberWithBool:YES] forKey:@"ShowResolution"];
 	
 	[appDefault setObject:[NSNumber numberWithInt:10] forKey:@"OpenRecentLimit"];
 	
@@ -232,6 +233,7 @@ static const int DIALOG_CANCEL	= 129;
 	}
 	
 	numberSwitch = [defaults boolForKey:@"ShowNumber"];
+	resolutionSwitch = [defaults boolForKey:@"ShowResolution"];
 	maxEnlargement = (int)[defaults integerForKey:@"MaxEnlargement"];
 	
 	
@@ -1970,21 +1972,15 @@ static const int DIALOG_CANCEL	= 129;
 	}
 	
 	pageBar = [defaults boolForKey:@"ShowPageBar"];
-	if (numberSwitch != [defaults boolForKey:@"ShowNumber"]) {
-		if (numberSwitch) {
+	BOOL newNumberSwitch = [defaults boolForKey:@"ShowNumber"];
+	BOOL newResolutionSwitch = [defaults boolForKey:@"ShowResolution"];
+	if (numberSwitch != newNumberSwitch || resolutionSwitch != newResolutionSwitch) {
+		numberSwitch = newNumberSwitch;
+		resolutionSwitch = newResolutionSwitch;
+		if (!numberSwitch) {
 			[imageView setPageString:nil];
-			numberSwitch = NO;
 		} else {
-			if (!secondImage) {
-				int i = nowPage - 1;
-				[imageView setPageString:[NSString stringWithFormat:@"#%d/%d (%@)",nowPage,(int)[completeMutableArray count],[[completeMutableArray objectAtIndex:i] lastPathComponent]]];
-				numberSwitch = YES;
-			} else if (secondImage) {
-				int i = nowPage - 1;
-				int iS = i - 1;
-				[imageView setPageString:[NSString stringWithFormat:@"#%d-%d/%d (%@ / %@)",i,nowPage,(int)[completeMutableArray count],[[completeMutableArray objectAtIndex:iS] lastPathComponent],[[completeMutableArray objectAtIndex:i] lastPathComponent]]];
-				numberSwitch = YES;
-			}
+			[self setPageTextField];
 		}
 	}
 	
@@ -2542,19 +2538,36 @@ static const int DIALOG_CANCEL	= 129;
 	[imageView setPageString:[self pageTextFieldString]];
 }
 
+- (NSString*)pixelSizeStringForImage:(NSImage*)image
+{
+	if (!image || !resolutionSwitch) return @"";
+	NSArray *reps = [image representations];
+	for (NSImageRep *rep in reps) {
+		NSInteger w = [rep pixelsWide];
+		NSInteger h = [rep pixelsHigh];
+		if (w > 0 && h > 0) {
+			return [NSString stringWithFormat:@" %ldx%ld", (long)w, (long)h];
+		}
+	}
+	return @"";
+}
+
 - (NSString*)pageTextFieldString
 {
-	if (numberSwitch && nowPage >= 0) {
+	if (numberSwitch && nowPage > 0) {
 		if (!secondImage) {
 			int i = nowPage - 1;
-			return [NSString stringWithFormat:@"#%d/%d (%@)",nowPage,(int)[completeMutableArray count],[[completeMutableArray objectAtIndex:i] lastPathComponent]];
+			NSString *res = [self pixelSizeStringForImage:firstImage];
+			return [NSString stringWithFormat:@"#%d/%d (%@)%@",nowPage,(int)[completeMutableArray count],[[completeMutableArray objectAtIndex:i] lastPathComponent],res];
 		} else if (secondImage) {
 			int i = nowPage - 1;
 			int iS = i - 1;
+			NSString *res1 = [self pixelSizeStringForImage:firstImage];
+			NSString *res2 = [self pixelSizeStringForImage:secondImage];
 			if (readMode == 1 || readMode == 3) {
-				return [NSString stringWithFormat:@"#%d-%d/%d (%@ | %@)",i,nowPage,(int)[completeMutableArray count],[[completeMutableArray objectAtIndex:iS] lastPathComponent],[[completeMutableArray objectAtIndex:i] lastPathComponent]];
+				return [NSString stringWithFormat:@"#%d-%d/%d (%@%@ | %@%@)",i,nowPage,(int)[completeMutableArray count],[[completeMutableArray objectAtIndex:iS] lastPathComponent],res1,[[completeMutableArray objectAtIndex:i] lastPathComponent],res2];
 			} else {
-				return [NSString stringWithFormat:@"#%d-%d/%d (%@ | %@)",i,nowPage,(int)[completeMutableArray count],[[completeMutableArray objectAtIndex:i] lastPathComponent],[[completeMutableArray objectAtIndex:iS] lastPathComponent]];
+				return [NSString stringWithFormat:@"#%d-%d/%d (%@%@ | %@%@)",i,nowPage,(int)[completeMutableArray count],[[completeMutableArray objectAtIndex:i] lastPathComponent],res2,[[completeMutableArray objectAtIndex:iS] lastPathComponent],res1];
 			}
 		}
 	}
@@ -3107,6 +3120,47 @@ static const int DIALOG_CANCEL	= 129;
 		par = 0.0;
 	}
 	return par;
+}
+
+-(NSString*)currentImagePath
+{
+	if (nowPage > 0 && nowPage <= (int)[completeMutableArray count]) {
+		return [completeMutableArray objectAtIndex:nowPage - 1];
+	}
+	return nil;
+}
+
+-(NSDictionary*)imageInfoForClickPoint:(NSPoint)windowPoint
+{
+	if (nowPage <= 0 || nowPage > (int)[completeMutableArray count]) return nil;
+	if (!secondImage) {
+		NSString *path = [completeMutableArray objectAtIndex:nowPage - 1];
+		return [NSDictionary dictionaryWithObjectsAndKeys:path, @"path", firstImage, @"image", nil];
+	}
+	// 2-page: map click position to the correct page image.
+	// composeImage calls returnComposeImage(secondImage, firstImage):
+	//   readMode 0,2 (RTL): image1(secondImage) drawn LEFT, image2(firstImage) drawn RIGHT
+	//   readMode 1,3 (LTR): image2(firstImage) drawn LEFT, image1(secondImage) drawn RIGHT
+	NSRect contentFrame = [[window contentView] frame];
+	float centerX = contentFrame.origin.x + contentFrame.size.width / 2.0f;
+	BOOL clickedLeft = (windowPoint.x < centerX);
+	BOOL firstOnLeft = (readMode == 1 || readMode == 3);
+	int i = nowPage - 1;  // secondImage index
+	int iS = i - 1;       // firstImage index
+	if (iS < 0) {
+		return [NSDictionary dictionaryWithObjectsAndKeys:
+			[completeMutableArray objectAtIndex:i], @"path", secondImage, @"image", nil];
+	}
+	NSString *path;
+	NSImage *image;
+	if (clickedLeft == firstOnLeft) {
+		path  = [completeMutableArray objectAtIndex:iS];
+		image = firstImage;
+	} else {
+		path  = [completeMutableArray objectAtIndex:i];
+		image = secondImage;
+	}
+	return [NSDictionary dictionaryWithObjectsAndKeys:path, @"path", image, @"image", nil];
 }
 
 -(int)nowPage

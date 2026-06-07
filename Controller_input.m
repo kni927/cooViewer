@@ -1901,34 +1901,39 @@ static BOOL appleRemoteHoldDown = NO;
 	}
 	
 	if (wheelSensitivity == 0.0) {
+		wheelDeltaAccum = 0.0;
 		return;
 	}
-	float wheelCount = [event deltaY];
-	
-	float temp = wheelSensitivity;
-	if (wheelCount < 0) {
-		temp = -1*wheelSensitivity;
-		if (wheelCount <= temp) {
-			if (wheelUpTimer) {
-				return;
-			} else {
-				wheelDownTimer = [NSTimer scheduledTimerWithTimeInterval:0.0 target:self
-																selector:@selector(wheelDown)
-																userInfo:NULL
-																 repeats:NO];
-			}
+
+	// Reset accumulator on momentum-phase events to avoid unintended page turns
+	// after the user stops physically scrolling.
+	if ([event momentumPhase] != NSEventPhaseNone) {
+		wheelDeltaAccum = 0.0;
+		return;
+	}
+
+	// Accumulate deltaY so that precision-scroll devices (e.g. MX Anywhere 3S)
+	// that send small fractional values per notch are handled correctly.
+	wheelDeltaAccum += [event deltaY];
+
+	if (wheelDeltaAccum <= -wheelSensitivity) {
+		wheelDeltaAccum = 0.0;
+		if (wheelUpTimer) {
+			return;
 		}
-	} else {
-		if (wheelCount >= temp) {
-			if (wheelDownTimer) {
-				return;
-			} else {
-				wheelUpTimer = [NSTimer scheduledTimerWithTimeInterval:0.0 target:self
-															  selector:@selector(wheelUp)
-															  userInfo:NULL
-															   repeats:NO];
-			}
+		wheelDownTimer = [NSTimer scheduledTimerWithTimeInterval:0.0 target:self
+														selector:@selector(wheelDown)
+														userInfo:NULL
+														 repeats:NO];
+	} else if (wheelDeltaAccum >= wheelSensitivity) {
+		wheelDeltaAccum = 0.0;
+		if (wheelDownTimer) {
+			return;
 		}
+		wheelUpTimer = [NSTimer scheduledTimerWithTimeInterval:0.0 target:self
+													  selector:@selector(wheelUp)
+													  userInfo:NULL
+													   repeats:NO];
 	}
 }
 

@@ -116,6 +116,7 @@
 	BOOL timerSwitch;
 	//BOOL loopSwitch;
 	BOOL numberSwitch;
+	BOOL resolutionSwitch;
 	BOOL fitMode;
 	
 	
@@ -124,6 +125,7 @@
 	
 	float sliderValue;
 	int nowPage;
+	float wheelDeltaAccum;
 	
 	
 	//NSRect fullscreenRect;
@@ -245,6 +247,8 @@
 - (float)nowPar;
 - (int)nowPage;
 - (int)pageCount;
+- (NSString*)currentImagePath;
+- (NSDictionary*)imageInfoForClickPoint:(NSPoint)windowPoint;
 - (NSArray*)bookmarkArray;
 - (id)openSameFolderMenuItem;
 - (int)sortMode;

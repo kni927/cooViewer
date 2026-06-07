@@ -3,7 +3,7 @@ name: Xcode Build and Release
 on:
   push:
     tags:
-      - '[0-9][0-9][0-9][0-9]-[0-9][0-9]'
+      - 'v*'
   workflow_dispatch:
 
 jobs:
@@ -16,12 +16,10 @@ jobs:
       uses: actions/checkout@v4
       with:
         submodules: recursive
-    - name: Select Xcode version
-      run: sudo xcode-select -s '/Applications/Xcode_14.3.1.app/Contents/Developer'
     - name: Show Xcode version
       run: xcodebuild -version
     - name: Build
-      run: xcodebuild -configuration Deployment -sdk macosx13.3
+      run: xcodebuild -configuration Deployment
     - name: Zip files
       run: (cd build/Deployment/; zip -ry cooViewer.app.zip cooViewer.app)
 

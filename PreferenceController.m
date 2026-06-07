@@ -979,6 +979,11 @@ static const int DIALOG_CANCEL	= 129;
 	} else {
 		[showPageBarCheck setState:NSOffState];
 	}
+	if ([defaults boolForKey:@"ShowResolution"]) {
+		[showResolutionCheck setState:NSOnState];
+	} else {
+		[showResolutionCheck setState:NSOffState];
+	}
 	
 	if ([defaults boolForKey:@"PageNumAutoHide"]) {
 		[pageNumAutoHideCheck setState:NSOnState];
@@ -1468,7 +1473,8 @@ static const int DIALOG_CANCEL	= 129;
 			[defaults setBool:YES forKey:@"ShowNumber"];
 		} else {
 			[defaults setBool:NO forKey:@"ShowNumber"];
-		}	
+		}
+		[defaults setBool:([showResolutionCheck state]==NSOnState) forKey:@"ShowResolution"];	
 		/*pageBar*/
 		//NSDictionary *pageBarDic;
 		[defaults setInteger:[accessorySettingView pageBarPosition] forKey:@"PageBarPosition"];
@@ -1769,6 +1775,16 @@ static const int DIALOG_CANCEL	= 129;
 	[mouseTableView reloadData];
 }
 
+
+- (void)tabView:(NSTabView *)tabView didSelectTabViewItem:(NSTabViewItem *)tabViewItem
+{
+	// Force redraw of the newly selected tab's content view.
+	// Without this, some tabs (e.g. Input) render as a blank black area
+	// because the resize animation in willSelectTabViewItem: doesn't
+	// trigger a proper redisplay of the incoming tab's content.
+	[[tabViewItem view] setNeedsDisplay:YES];
+	[tabView display];
+}
 
 - (void)tabView:(NSTabView *)tabView willSelectTabViewItem:(NSTabViewItem *)tabViewItem
 {

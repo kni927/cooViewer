@@ -94,6 +94,7 @@
 	
     IBOutlet id showPageNumCheck;
     IBOutlet id showPageBarCheck;
+    IBOutlet id showResolutionCheck;
 	
     IBOutlet id accessorySettingPanel;
     IBOutlet id accessorySettingView;

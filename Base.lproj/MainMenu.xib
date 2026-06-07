@@ -1001,6 +1001,14 @@ go to the last page always.</string>
                                                             <font key="font" metaFont="system"/>
                                                         </buttonCell>
                                                     </button>
+                                                    <button fixedFrame="YES" translatesAutoresizingMaskIntoConstraints="NO" id="5001">
+                                                        <rect key="frame" x="240" y="90" width="120" height="18"/>
+                                                        <autoresizingMask key="autoresizingMask"/>
+                                                        <buttonCell key="cell" type="check" title="Resolution" bezelStyle="regularSquare" imagePosition="left" alignment="left" inset="2" id="5002">
+                                                            <behavior key="behavior" changeContents="YES" doesNotDimImage="YES" lightByContents="YES"/>
+                                                            <font key="font" metaFont="system"/>
+                                                        </buttonCell>
+                                                    </button>
                                                     <button verticalHuggingPriority="750" fixedFrame="YES" translatesAutoresizingMaskIntoConstraints="NO" id="2861">
                                                         <rect key="frame" x="7" y="60" width="100" height="28"/>
                                                         <autoresizingMask key="autoresizingMask"/>
@@ -2978,6 +2986,7 @@ Gw
                 <outlet property="screenCacheTextField" destination="2059" id="2091"/>
                 <outlet property="showPageBarCheck" destination="2838" id="2841"/>
                 <outlet property="showPageNumCheck" destination="2839" id="2840"/>
+                <outlet property="showResolutionCheck" destination="5001" id="5003"/>
                 <outlet property="showThumbnailCheck" destination="2105" id="2107"/>
                 <outlet property="singleSettingTextField" destination="1064" id="1686"/>
                 <outlet property="slideshowSlider" destination="473" id="1713"/>

@@ -108,6 +108,67 @@
 	return nil;
 }
 
+- (NSMenu *)menu
+{
+	NSMenu *base = [super menu];
+	if (![self image]) return base;
+	NSDictionary *info = [target imageInfoForClickPoint:oldPoint];
+	NSMenu *menu = base ? [[base copy] autorelease] : [[[NSMenu alloc] initWithTitle:@""] autorelease];
+	NSMenuItem *item = [[[NSMenuItem alloc] initWithTitle:NSLocalizedString(@"Save Image...", @"")
+												   action:@selector(saveCurrentImage:)
+											keyEquivalent:@""] autorelease];
+	[item setTarget:self];
+	[item setRepresentedObject:info];
+	[menu addItem:item];
+	return menu;
+}
+
+- (void)saveCurrentImage:(id)sender
+{
+	NSDictionary *info = [sender representedObject];
+	NSString *srcPath = info ? [info objectForKey:@"path"] : [target currentImagePath];
+	NSImage *srcImage = info ? [info objectForKey:@"image"] : [self image];
+
+	NSSavePanel *panel = [NSSavePanel savePanel];
+	NSString *suggestedName = (srcPath && [srcPath lastPathComponent]) ? [srcPath lastPathComponent] : @"image.png";
+	[panel setNameFieldStringValue:suggestedName];
+
+	if ([panel runModal] != NSOKButton) return;
+
+	NSString *destPath = [[panel URL] path];
+
+	if (srcPath && [[NSFileManager defaultManager] fileExistsAtPath:srcPath]) {
+		// Original file on disk — copy as-is (preserves format including WebP, etc.)
+		if ([[NSFileManager defaultManager] fileExistsAtPath:destPath]) {
+			[[NSFileManager defaultManager] removeItemAtPath:destPath error:nil];
+		}
+		NSError *error = nil;
+		if (![[NSFileManager defaultManager] copyItemAtPath:srcPath toPath:destPath error:&error]) {
+			NSRunAlertPanel(@"Error", [error localizedDescription], @"OK", nil, nil);
+		}
+	} else {
+		// In-memory / archive image — re-encode from the individual page NSImage
+		if (!srcImage) {
+			NSRunAlertPanel(@"Error", @"No image available to save.", @"OK", nil, nil);
+			return;
+		}
+		NSData *tiffData = [srcImage TIFFRepresentation];
+		NSBitmapImageRep *rep = [NSBitmapImageRep imageRepWithData:tiffData];
+		NSString *ext = [[destPath pathExtension] lowercaseString];
+		NSData *outData = nil;
+		if ([ext isEqualToString:@"jpg"] || [ext isEqualToString:@"jpeg"]) {
+			outData = [rep representationUsingType:NSJPEGFileType properties:nil];
+		} else if ([ext isEqualToString:@"tif"] || [ext isEqualToString:@"tiff"]) {
+			outData = tiffData;
+		} else {
+			outData = [rep representationUsingType:NSPNGFileType properties:nil];
+		}
+		if (![outData writeToFile:destPath atomically:YES]) {
+			NSRunAlertPanel(@"Error", @"Could not write image file.", @"OK", nil, nil);
+		}
+	}
+}
+
 - (void)mouseMoved:(NSEvent *)theEvent
 {	
 	[self drawLoupe];
@@ -266,14 +327,6 @@
 -(void)rightMouseDown:(NSEvent *)event
 {
 	[self mouseDown:event];
-	/*
-	rightClick = YES;
-	time = [event timestamp];
-	cursorMoved = NSMakePoint(0,0);
-	oldPoint=[event locationInWindow];
-	
-	[super rightMouseDown:event];
-	*/
 }
 
 - (void)rightMouseDragged:(NSEvent *)theEvent
