@@ -250,6 +250,13 @@ signing alone does not help (see `docs/known-issues.md`).
 ```bash
 git add -A
 git commit -m "feat: ..."
+
+# Bump CURRENT_PROJECT_VERSION in cooViewer.xcodeproj/project.pbxproj
+# (all 5 build configs) to match the new tag — e.g. 1.X.Y — so the
+# About dialog / CFBundleVersion reflect the actual released version
+# instead of going stale (it was stuck at the original 1.2b25 for a
+# long time). Commit that change too, then:
+
 git tag v1.X.Y
 git push origin master
 git push origin v1.X.Y
