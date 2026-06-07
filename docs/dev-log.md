@@ -2,7 +2,7 @@
 
 Fork base: [tak758/cooViewer](https://github.com/tak758/cooViewer)  
 Fork repo: [kni927/cooViewer](https://github.com/kni927/cooViewer)  
-Released as: `v1.3.0`
+Released as: `v1.3.3`
 
 ---
 
