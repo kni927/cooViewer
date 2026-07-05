@@ -1,58 +1,61 @@
-# cooViewer (kni927 fork)
+# cooViewer
 
-A simple macOS comic/manga viewer, forked from [tak758/cooViewer](https://github.com/tak758/cooViewer).
+A maintained fork of the original **cooViewer** by **coo-ona**.
 
-## Added in This Fork
+This project continues development of cooViewer while preserving its lightweight design and usability. It includes bug fixes, macOS compatibility improvements, and a small number of practical enhancements.
+
+## Original Project
+
+The original application was created by **coo-ona**.
+
+Repository:
+https://github.com/coo-ona/cooViewer
+
+This fork is based on the maintained fork by **tak758**, which incorporates improvements from several contributors.
+
+Many thanks to everyone who has contributed to keeping cooViewer alive.
+
+---
+
+## Changes in This Fork
 
 ### Image Resolution Display
+
 The page bar (bottom HUD) now shows the pixel dimensions of the current image alongside the page number and filename.
 
-- Single page: `#5/42 (page005.jpg) 1600x1080`
-- Spread (two pages): `#4-5/42 (page004.jpg 800x600 | page005.jpg 800x600)`
+* Single page: `#5/42 (page005.jpg) 1600x1080`
+* Spread (two pages): `#4-5/42 (page004.jpg 800x600 | page005.jpg 800x600)`
 
 Resolution can be toggled independently under **Preferences → Appearance → Page Number → Resolution**.
 
 <!-- Screenshot placeholder -->
-<!-- ![Resolution display](docs/screenshots/resolution.png) -->
 
 ### Right-Click → Save Image...
+
 Right-clicking on the image opens a context menu with a **Save Image...** item.
 
-- Saves the file as-is when the source exists on disk (no re-encoding — WebP stays WebP, JPEG stays JPEG, etc.)
-- Falls back to PNG/JPEG/TIFF re-encoding when the image lives only in memory (e.g. direct archive read)
-- In two-page spread mode, saves the page that was actually clicked — not always the same page
+* Saves the original file whenever possible (no re-encoding)
+* Falls back to PNG/JPEG/TIFF when the image exists only in memory
+* Correctly saves the page that was clicked in two-page spread mode
 
-> **Setup required:** In **Preferences → Input (Mouse)**, assign a mouse button action to **Contextual Menu**. Right-clicking will then show the Save Image... menu item.
+> **Setup:** Assign a mouse button to **Contextual Menu** in **Preferences → Input (Mouse)**.
 
 <!-- Screenshot placeholder -->
-<!-- ![Right-click save](docs/screenshots/save-menu.png) -->
 
-### Fewer macOS Folder-Access Permission Prompts
-Previously, opening any book triggered an immediate scan of its **parent folder**
-(to build the "Open from same folder" menu and to detect whether the book had
-moved), which could cause macOS to show a folder-access permission dialog every
-time you opened a file from a new location — even if you never used that menu.
+### Reduced macOS Folder Permission Prompts
 
-This fork now builds that menu **lazily**, only when you actually open
-**File → Open from same folder**, so the parent folder is touched on demand
-instead of on every file open / app activation.
+The "Open from same folder" menu is now built lazily instead of scanning the parent directory every time a book is opened. This significantly reduces unnecessary macOS folder permission prompts.
 
-> Note: if you're running a binary downloaded from GitHub Releases and still see
-> permission prompts repeatedly, that's most likely **Gatekeeper / App
-> Translocation** (unsigned apps launched from a quarantined location run from a
-> randomized read-only path each time, so macOS can't remember folder grants).
-> Moving the app to `/Applications` and/or removing the quarantine attribute
-> (`xattr -cr /Applications/cooViewer.app`) usually resolves it. See
-> `docs/known-issues.md` for details.
+For downloaded binaries, Gatekeeper App Translocation may still cause repeated permission requests until the quarantine attribute is removed.
 
 ---
 
 ## Requirements
 
-| Item | Minimum |
-|---|---|
-| macOS | 10.13 High Sierra |
-| Architecture | x86\_64, Apple Silicon (Universal Binary) |
+| Item         | Minimum                                  |
+| ------------ | ---------------------------------------- |
+| macOS        | 10.13 High Sierra                        |
+| Architecture | Universal Binary (Intel & Apple Silicon) |
 
 ## Building
 
@@ -63,51 +66,51 @@ xcodebuild -configuration Deployment
 open build/Deployment/cooViewer.app
 ```
 
-Submodules ([XADMaster](https://github.com/tak758/XADMaster), UniversalDetector) are required — make sure to clone with `--recursive` or run `git submodule update --init --recursive` after cloning.
+If you cloned without `--recursive`, run:
 
-## Pre-built Binary
+```bash
+git submodule update --init --recursive
+```
 
-Download the latest universal binary from [Releases](https://github.com/kni927/cooViewer/releases/latest).
+---
 
-Built via GitHub Actions using Xcode with `-sdk macosx` flag.
+## Downloads
 
-> The binary is **unsigned**. macOS Gatekeeper will block the first launch — right-click the app and choose **Open** to bypass the warning.
+Download the latest release from GitHub Releases.
 
-### First Launch After Downloading
+The application is currently **unsigned and not notarized**. On first launch, macOS Gatekeeper may block the application.
 
-This app is **not signed with an Apple Developer ID and not notarized** (that
-requires a paid Apple Developer Program membership, which this project does
-not currently have). Because of this, macOS quarantines the downloaded `.app`
-and may show repeated security warnings — or even repeated folder-access
-permission prompts — every time you launch it or open files from a new
-location.
-
-After unzipping the downloaded archive, run the following in Terminal to
-remove the quarantine attribute and move the app into `/Applications`:
+After extracting the archive:
 
 ```bash
 xattr -cr cooViewer.app
 mv cooViewer.app /Applications/
 ```
 
-Alternatively, you can launch it for the first time by **right-clicking the
-app in Finder and choosing "Open"**, then confirming the dialog.
+Alternatively, right-click the application in Finder and choose **Open** once.
 
-Doing this once (and keeping the app in `/Applications`) avoids macOS
-re-randomizing the app's run location on every launch (a.k.a. *Gatekeeper App
-Translocation*), which is also what allows folder-access permissions to be
-remembered between launches instead of being re-requested every time.
+Installing the app into `/Applications` and removing the quarantine attribute also prevents Gatekeeper App Translocation from causing repeated folder permission prompts.
 
-## Upstream / Credits
+---
 
-This fork is based on [tak758/cooViewer](https://github.com/tak758/cooViewer), which itself merges improvements from:
+## Credits
 
-- [plife18/cooViewer:custom](https://github.com/plife18/cooViewer/tree/custom) — Monterey/arm64 support, XADMaster submodule, Big Sur icon, fullscreen margin fix
-- [u39ueda:fix/pagebar_minus_index_exception](https://github.com/u39ueda/cooViewer/tree/fix/pagebar_minus_index_exception) — page bar crash fix
-- [u39ueda:feature/image_dpi](https://github.com/u39ueda/cooViewer/tree/feature/image_dpi) — ignore DPI setting
+This fork is based on:
 
-Original application by [coo-ona/cooViewer](https://github.com/coo-ona/cooViewer).
+* tak758/cooViewer
+* plife18/cooViewer
+* u39ueda/cooViewer
+
+Original application by **coo-ona**.
+
+---
 
 ## License
 
-See [Licence.txt](Licence.txt), [Licence_RemoteControlWrapper.txt](Licence_RemoteControlWrapper.txt), and [Licence_xad.txt](Licence_xad.txt).
+This project is distributed under the same licenses as the upstream project.
+
+See:
+
+* `Licence.txt`
+* `Licence_RemoteControlWrapper.txt`
+* `Licence_xad.txt`
