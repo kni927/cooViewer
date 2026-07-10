@@ -73,3 +73,7 @@ iOSInjectionProject/
 
 # Notarization
 *.app.zip
+
+# Generated test archives
+/tests/fixtures/generated/*
+!/tests/fixtures/generated/.gitkeep

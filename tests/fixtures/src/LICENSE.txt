@@ -1,0 +1,15 @@
+cooViewer CC0 Test Book
+
+Files:
+- 001.png  2000 × 1400
+- 002.jpg  1200 × 1800
+- 003.png  1600 × 2400
+- 004.jpg   800 × 1200
+
+License:
+CC0 1.0 Universal (CC0 1.0) Public Domain Dedication
+
+This test material was created specifically for software display verification.
+You may copy, modify, distribute, and use it without permission or attribution.
+
+https://creativecommons.org/publicdomain/zero/1.0/
