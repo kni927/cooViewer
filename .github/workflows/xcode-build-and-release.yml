@@ -11,7 +11,7 @@ permissions:
 env:
   APP_PATH: build/Deployment/cooViewer.app
   ZIP_PATH: build/Deployment/cooViewer.app.zip
-  SIGNING_IDENTITY: Developer ID Application: Kuniharu Nishimura (87B58V226A)
+  SIGNING_IDENTITY: "Developer ID Application: Kuniharu Nishimura (87B58V226A)"
 
 jobs:
   build:
