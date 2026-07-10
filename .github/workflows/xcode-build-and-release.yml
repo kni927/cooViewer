@@ -1,6 +1,7 @@
 name: Xcode Build and Release
 
 on:
+  workflow_dispatch:
   push:
     tags:
       - "v*"
@@ -98,7 +99,7 @@ jobs:
             --key-id "$APP_STORE_CONNECT_KEY_ID" \
             --issuer "$APP_STORE_CONNECT_ISSUER_ID" \
             --wait
-            
+
       - name: Staple and validate
         run: |
           xcrun stapler staple "$APP_PATH"
@@ -111,6 +112,7 @@ jobs:
           ditto -c -k --keepParent "$APP_PATH" "$ZIP_PATH"
 
       - name: Create GitHub Release and upload binary
+        if: startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v2
         with:
           files: ${{ env.ZIP_PATH }}
