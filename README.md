@@ -76,20 +76,27 @@ git submodule update --init --recursive
 
 ## Downloads
 
-Download the latest release from GitHub Releases.
-
-The application is currently **unsigned and not notarized**. On first launch, macOS Gatekeeper may block the application.
-
-After extracting the archive:
+### Homebrew (Recommended)
 
 ```bash
-xattr -cr cooViewer.app
+brew install --cask kni927/tap/cooviewer
+```
+
+### GitHub Release
+
+Alternatively, download the latest release from GitHub Releases.
+
+The application is **Developer ID signed and Apple notarized**.
+
+After extracting the archive, move the application to `/Applications`:
+
+```bash
 mv cooViewer.app /Applications/
 ```
 
-Alternatively, right-click the application in Finder and choose **Open** once.
+If macOS displays a security prompt the first time you open the application, simply choose **Open**. This should only be required once.
 
-Installing the app into `/Applications` and removing the quarantine attribute also prevents Gatekeeper App Translocation from causing repeated folder permission prompts.
+Installing the application in `/Applications` also avoids Gatekeeper App Translocation, preventing repeated folder permission prompts when using features such as **Open from same folder**.
 
 ---
 
