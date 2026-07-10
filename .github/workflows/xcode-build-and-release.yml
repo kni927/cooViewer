@@ -3,15 +3,19 @@ name: Xcode Build and Release
 on:
   push:
     tags:
-      - 'v*'
-  workflow_dispatch:
+      - "v*"
 
 permissions:
   contents: write
 
+env:
+  APP_PATH: build/Deployment/cooViewer.app
+  ZIP_PATH: build/Deployment/cooViewer.app.zip
+  SIGNING_IDENTITY: Developer ID Application: Kuniharu Nishimura (87B58V226A)
+
 jobs:
   build:
-    name: Build and release
+    name: Build, notarize, and release
     runs-on: macos-latest
 
     steps:
@@ -20,19 +24,84 @@ jobs:
         with:
           submodules: recursive
 
+      - name: Import Developer ID certificate
+        env:
+          CERTIFICATE_BASE64: ${{ secrets.DEVELOPER_ID_APPLICATION_P12 }}
+          CERTIFICATE_PASSWORD: ${{ secrets.DEVELOPER_ID_APPLICATION_PASSWORD }}
+          KEYCHAIN_PASSWORD: temporary-keychain-password
+        run: |
+          set -euo pipefail
+
+          CERTIFICATE_PATH="$RUNNER_TEMP/developer-id.p12"
+          KEYCHAIN_PATH="$RUNNER_TEMP/app-signing.keychain-db"
+
+          echo "$CERTIFICATE_BASE64" | base64 --decode > "$CERTIFICATE_PATH"
+
+          security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+
+          security import "$CERTIFICATE_PATH" \
+            -P "$CERTIFICATE_PASSWORD" \
+            -A \
+            -t cert \
+            -f pkcs12 \
+            -k "$KEYCHAIN_PATH"
+
+          security set-key-partition-list \
+            -S apple-tool:,apple:,codesign: \
+            -k "$KEYCHAIN_PASSWORD" \
+            "$KEYCHAIN_PATH"
+
+          security list-keychain -d user -s "$KEYCHAIN_PATH"
+
       - name: Show Xcode version
         run: xcodebuild -version
 
       - name: Build
         run: xcodebuild -configuration Deployment
 
-      - name: Zip app
+      - name: Sign app
         run: |
-          cd build/Deployment
-          zip -ry cooViewer.app.zip cooViewer.app
+          codesign \
+            --force \
+            --deep \
+            --timestamp \
+            --options runtime \
+            --sign "$SIGNING_IDENTITY" \
+            "$APP_PATH"
+
+          codesign --verify --deep --strict --verbose=2 "$APP_PATH"
+
+      - name: Create archive for notarization
+        run: |
+          ditto -c -k --keepParent "$APP_PATH" "$ZIP_PATH"
+
+      - name: Notarize
+        env:
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APP_SPECIFIC_PASSWORD: ${{ secrets.APP_SPECIFIC_PASSWORD }}
+          TEAM_ID: ${{ secrets.TEAM_ID }}
+        run: |
+          xcrun notarytool submit "$ZIP_PATH" \
+            --apple-id "$APPLE_ID" \
+            --password "$APP_SPECIFIC_PASSWORD" \
+            --team-id "$TEAM_ID" \
+            --wait
+
+      - name: Staple and validate
+        run: |
+          xcrun stapler staple "$APP_PATH"
+          xcrun stapler validate "$APP_PATH"
+          spctl --assess --type execute --verbose=4 "$APP_PATH"
+
+      - name: Create final release archive
+        run: |
+          rm "$ZIP_PATH"
+          ditto -c -k --keepParent "$APP_PATH" "$ZIP_PATH"
 
       - name: Create GitHub Release and upload binary
         uses: softprops/action-gh-release@v2
         with:
-          files: build/Deployment/cooViewer.app.zip
+          files: ${{ env.ZIP_PATH }}
           generate_release_notes: true
