@@ -76,7 +76,7 @@ git submodule update --init --recursive
 
 ## Downloads
 
-### Homebrew (Recommended)
+### Homebrew
 
 ```bash
 brew install --cask kni927/tap/cooviewer
@@ -84,7 +84,7 @@ brew install --cask kni927/tap/cooviewer
 
 ### GitHub Release
 
-Alternatively, download the latest release from GitHub Releases.
+Download the latest release from GitHub Releases.
 
 The application is **Developer ID signed and Apple notarized**.
 
@@ -99,6 +99,14 @@ If macOS displays a security prompt the first time you open the application, sim
 Installing the application in `/Applications` also avoids Gatekeeper App Translocation, preventing repeated folder permission prompts when using features such as **Open from same folder**.
 
 ---
+
+### Test Book
+
+A four-page CC0 test book is available for verifying page order,
+mixed image dimensions, scaling, fine lines, halftones, crosshatching,
+and Japanese and English text rendering.
+
+[Download the cooViewer Test Book](https://github.com/kni927/cooViewer/releases/latest/download/cooViewer-test-book.cbz)
 
 ## Credits
 

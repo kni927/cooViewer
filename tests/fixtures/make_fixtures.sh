@@ -38,6 +38,7 @@ done
 
 rm -rf "$OUT_DIR"
 mkdir -p "$OUT_DIR" "$WORK_DIR"
+touch "$OUT_DIR/.gitkeep"
 
 cleanup() {
     rm -rf "$WORK_DIR"
