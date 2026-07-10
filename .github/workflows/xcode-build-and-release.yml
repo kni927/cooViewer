@@ -54,6 +54,10 @@ jobs:
             "$KEYCHAIN_PATH"
 
           security list-keychain -d user -s "$KEYCHAIN_PATH"
+          
+      - name: List signing identities
+        run: |
+          security find-identity -v -p codesigning
 
       - name: Show Xcode version
         run: xcodebuild -version
