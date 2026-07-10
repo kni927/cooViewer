@@ -1,15 +1,20 @@
 name: Xcode Build and Release
 
 on:
+  workflow_dispatch:
   release:
-    types: [published]
+    types:
+      - published
+
+permissions:
+  contents: read
 
 jobs:
   build:
     runs-on: macos-latest
 
     steps:
-      - name: Checkout
+      - name: Checkout repository
         uses: actions/checkout@v4
 
       - name: Show Xcode version
