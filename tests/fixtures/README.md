@@ -53,6 +53,28 @@ Japanese filename fixtures use the following names:
 3. `003_網点とカケアミ.png`
 4. `004_拡大縮小.jpg`
 
+## Baseline results — 2026-07-11
+
+Manual check of every archive in `generated/` against the current
+Deployment build (v1.3.6 + resource consolidation, commit `ded598e`),
+opened in the app; page names/order read from the page-bar HUD.
+
+| Archive | Opens | Filenames correct | Page order correct |
+|---|---|---|---|
+| test.zip | ✓ | ✓ (001.png–004.jpg) | ✓ (1→2/3 spread→4) |
+| test.cbz | ✓ | ✓ | ✓ |
+| test.tar | ✓ | ✓ | ✓ |
+| test.7z | ✓ | ✓ | ✓ |
+| test.cbr | ✓ | ✓ | ✓ |
+| test_utf8.zip | ✓ | ✓ UTF-8 Japanese decoded | ✓ |
+| test_utf8.7z | ✓ | ✓ UTF-8 Japanese decoded | ✓ (pages 1–3 verified) |
+| test_utf8.cbr | ✓ | ✓ UTF-8 Japanese decoded | ✓ |
+| test_sjis.zip | ✓ | ✓ CP932 detected & decoded | ✓ |
+
+CP932/UTF-8 filename decoding is performed inside XADMaster via
+UniversalDetector — relevant baseline for any future submodule swap
+(see `docs/audit-20260711.md` §2b).
+
 ## License
 
 The source images are released under CC0 1.0 Universal.
