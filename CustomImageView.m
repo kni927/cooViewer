@@ -144,12 +144,18 @@
 		}
 		NSError *error = nil;
 		if (![[NSFileManager defaultManager] copyItemAtPath:srcPath toPath:destPath error:&error]) {
-			NSRunAlertPanel(@"Error", [error localizedDescription], @"OK", nil, nil);
+			NSAlert *alert = [[[NSAlert alloc] init] autorelease];
+			[alert setMessageText:@"Error"];
+			[alert setInformativeText:[error localizedDescription]];
+			[alert runModal];
 		}
 	} else {
 		// In-memory / archive image — re-encode from the individual page NSImage
 		if (!srcImage) {
-			NSRunAlertPanel(@"Error", @"No image available to save.", @"OK", nil, nil);
+			NSAlert *alert = [[[NSAlert alloc] init] autorelease];
+			[alert setMessageText:@"Error"];
+			[alert setInformativeText:@"No image available to save."];
+			[alert runModal];
 			return;
 		}
 		NSData *tiffData = [srcImage TIFFRepresentation];
@@ -164,7 +170,10 @@
 			outData = [rep representationUsingType:NSPNGFileType properties:nil];
 		}
 		if (![outData writeToFile:destPath atomically:YES]) {
-			NSRunAlertPanel(@"Error", @"Could not write image file.", @"OK", nil, nil);
+			NSAlert *alert = [[[NSAlert alloc] init] autorelease];
+			[alert setMessageText:@"Error"];
+			[alert setInformativeText:@"Could not write image file."];
+			[alert runModal];
 		}
 	}
 }

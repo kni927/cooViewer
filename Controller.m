@@ -930,14 +930,13 @@ static const int DIALOG_CANCEL	= 129;
 			}
 		}
 		if (goToLastPageMode==0 && page) {
-			int result = (int)NSRunAlertPanel(NSLocalizedString(@"Go to the last page",@""),
-										 NSLocalizedString(@"Do you want to go to %i page?",@""),
-										 NSLocalizedString(@"OK",@""), 
-										 NSLocalizedString(@"Cancel",@""), 
-										 nil,page+1);
-			
-			if(result == NSAlertDefaultReturn || result == NSAlertFirstButtonReturn) {			
-			} else {
+			NSAlert *alert = [[[NSAlert alloc] init] autorelease];
+			[alert setMessageText:NSLocalizedString(@"Go to the last page",@"")];
+			[alert setInformativeText:[NSString stringWithFormat:NSLocalizedString(@"Do you want to go to %i page?",@""),page+1]];
+			[alert addButtonWithTitle:NSLocalizedString(@"OK",@"")];
+			[alert addButtonWithTitle:NSLocalizedString(@"Cancel",@"")];
+
+			if([alert runModal] != NSAlertFirstButtonReturn) {
 				page = 0;
 			}
 		}
@@ -3081,19 +3080,17 @@ static const int DIALOG_CANCEL	= 129;
 {
 	if (openLinkMode==2) return;
 	
-	int result;
+	NSModalResponse result = NSAlertFirstButtonReturn;
 	if (openLinkMode==0) {
-		result = (int)NSRunAlertPanel(NSLocalizedString(@"Open URL",@""),
-									 NSLocalizedString(@"Open '%@' in default browser?",@""),
-									 NSLocalizedString(@"OK",@""), 
-									 NSLocalizedString(@"Cancel",@""), 
-									 nil,
-                                     url);
-	} else {
-		result = NSAlertDefaultReturn;
+		NSAlert *alert = [[[NSAlert alloc] init] autorelease];
+		[alert setMessageText:NSLocalizedString(@"Open URL",@"")];
+		[alert setInformativeText:[NSString stringWithFormat:NSLocalizedString(@"Open '%@' in default browser?",@""),url]];
+		[alert addButtonWithTitle:NSLocalizedString(@"OK",@"")];
+		[alert addButtonWithTitle:NSLocalizedString(@"Cancel",@"")];
+		result = [alert runModal];
 	}
-	
-	if(result == NSAlertDefaultReturn || result == NSAlertFirstButtonReturn) {
+
+	if(result == NSAlertFirstButtonReturn) {
 		 [[NSWorkspace sharedWorkspace] openURL:url];
 	}
 }
@@ -3517,14 +3514,13 @@ static const int DIALOG_CANCEL	= 129;
 			temp = [self pathFromAliasData:[[newDic objectForKey:tempKey] objectForKey:@"alias"]];
 			if ([[temp lastPathComponent] isEqualToString:[path lastPathComponent]] && ![[NSFileManager defaultManager] fileExistsAtPath:temp]) {
 				
-				int result = (int)NSRunAlertPanel(NSLocalizedString(@"Setting is not found",@""),
-											 NSLocalizedString(@"Setting of %@ is not found.\nDo you want to use a setting of %@ ?",@""),
-											 NSLocalizedString(@"OK",@""), 
-											 NSLocalizedString(@"Cancel",@""), 
-											 nil,
-                                             path,temp);
-				
-				if(result == NSAlertDefaultReturn || result == NSAlertFirstButtonReturn) {
+				NSAlert *alert = [[[NSAlert alloc] init] autorelease];
+				[alert setMessageText:NSLocalizedString(@"Setting is not found",@"")];
+				[alert setInformativeText:[NSString stringWithFormat:NSLocalizedString(@"Setting of %@ is not found.\nDo you want to use a setting of %@ ?",@""),path,temp]];
+				[alert addButtonWithTitle:NSLocalizedString(@"OK",@"")];
+				[alert addButtonWithTitle:NSLocalizedString(@"Cancel",@"")];
+
+				if([alert runModal] == NSAlertFirstButtonReturn) {
 					/*LastPagesの修正*/
 					int lastPagesIndex;
 					id lastPage = [self searchFromLastPages:temp index:&lastPagesIndex];
@@ -3601,18 +3597,17 @@ static const int DIALOG_CANCEL	= 129;
 		BOOL updateMenu = NO;
 		if (![oldSuperPath isEqualToString:superPath]) {
 			
-			int result;
+			NSModalResponse result = NSAlertFirstButtonReturn;
 			if (changeCurrentFolderMode==0) {
-				result = (int)NSRunAlertPanel(NSLocalizedString(@"Change current folder",@""),
-											 NSLocalizedString(@"The current opening book was moved. Are you sure you want to change current folder?",@""),
-											 NSLocalizedString(@"OK",@""), 
-											 NSLocalizedString(@"Cancel",@""), 
-											 nil);
-			} else {
-				result = NSAlertDefaultReturn;
+				NSAlert *alert = [[[NSAlert alloc] init] autorelease];
+				[alert setMessageText:NSLocalizedString(@"Change current folder",@"")];
+				[alert setInformativeText:NSLocalizedString(@"The current opening book was moved. Are you sure you want to change current folder?",@"")];
+				[alert addButtonWithTitle:NSLocalizedString(@"OK",@"")];
+				[alert addButtonWithTitle:NSLocalizedString(@"Cancel",@"")];
+				result = [alert runModal];
 			}
-			
-			if(result == NSAlertDefaultReturn || result == NSAlertFirstButtonReturn) {
+
+			if(result == NSAlertFirstButtonReturn) {
 				updateMenu = YES;
 			} else {
 				NSEnumerator *enumerator = [[[openSameFolderMenuItem submenu] itemArray] objectEnumerator];

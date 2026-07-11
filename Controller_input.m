@@ -3083,14 +3083,13 @@ static NSTimer* dontSleepTimer = nil;
 }
 - (void)trashFile:(NSString*)path
 {
-	int result = (int)NSRunAlertPanel(NSLocalizedString(@"Move to Trash",@""),
-								 NSLocalizedString(@"Do you really want to move %@ to the trash?",@""),
-								 NSLocalizedString(@"OK",@""), 
-								 NSLocalizedString(@"Cancel",@""), 
-								 nil,
-                                 [path lastPathComponent]);
-	
-	if(result == NSAlertDefaultReturn || result == NSAlertFirstButtonReturn) {
+	NSAlert *alert = [[[NSAlert alloc] init] autorelease];
+	[alert setMessageText:NSLocalizedString(@"Move to Trash",@"")];
+	[alert setInformativeText:[NSString stringWithFormat:NSLocalizedString(@"Do you really want to move %@ to the trash?",@""),[path lastPathComponent]]];
+	[alert addButtonWithTitle:NSLocalizedString(@"OK",@"")];
+	[alert addButtonWithTitle:NSLocalizedString(@"Cancel",@"")];
+
+	if([alert runModal] == NSAlertFirstButtonReturn) {
 		BOOL b = NO;
 		b = [[NSWorkspace sharedWorkspace] performFileOperation:NSWorkspaceRecycleOperation
 														 source:[path stringByDeletingLastPathComponent]
