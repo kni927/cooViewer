@@ -108,9 +108,21 @@ jobs:
 
       - name: Create final release archive
         run: |
+          set -euo pipefail
+
           rm "$ZIP_PATH"
-          ditto -c -k --keepParent "$APP_PATH" "$ZIP_PATH"
-      
+
+          # Tag pushes get a tag-named zip (cooViewer-v1.4.0.zip);
+          # workflow_dispatch runs have no tag, fall back to -dev.
+          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+            FINAL_ZIP_PATH="build/Deployment/cooViewer-${GITHUB_REF_NAME}.zip"
+          else
+            FINAL_ZIP_PATH="build/Deployment/cooViewer-dev.zip"
+          fi
+
+          ditto -c -k --keepParent "$APP_PATH" "$FINAL_ZIP_PATH"
+          echo "FINAL_ZIP_PATH=$FINAL_ZIP_PATH" >> "$GITHUB_ENV"
+
       - name: Build test book
         run: |
           cd tests/fixtures/src
@@ -121,6 +133,6 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           files: |
-            ${{ env.ZIP_PATH }}
+            ${{ env.FINAL_ZIP_PATH }}
             tests/fixtures/cooViewer-test-book.cbz
           generate_release_notes: true
