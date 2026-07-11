@@ -1469,8 +1469,6 @@
 	</array>
 	<key>CFBundleExecutable</key>
 	<string>cooViewer</string>
-	<key>CFBundleIconFile</key>
-	<string>icon.icns</string>
 	<key>CFBundleIdentifier</key>
 	<string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
 	<key>CFBundleInfoDictionaryVersion</key>

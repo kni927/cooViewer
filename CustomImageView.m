@@ -1579,8 +1579,7 @@ NSTimeInterval elapsed=0;
 	[crossCursor release];
 	crossCursor = nil;
 	if (lensWindow || [accessoryView isMouseInPageBar]) {
-		NSImage *cursorImage = [[[NSImage alloc] initWithContentsOfFile:
-			[[NSBundle mainBundle] pathForResource:@"cross" ofType:@"tiff"]] autorelease];
+		NSImage *cursorImage = [NSImage imageNamed:@"cross"];
 		crossCursor = [[NSCursor alloc] initWithImage:cursorImage
 											  hotSpot:NSMakePoint(7,8)];
 		[crossCursor set];

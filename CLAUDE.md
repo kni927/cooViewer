@@ -35,7 +35,8 @@ Note: No automated tests. Verify behavior manually.
 - Objective-C (be careful with MRC/ARC mixing; MRC is the baseline)
 - When changing IBOutlet / IBAction, also update the Interface Builder file (.xib)
 - When adding NSUserDefaults keys, register default values inside awakeFromNib
-- Add localized strings to Localizable.strings in both en.lproj and ja.lproj
+- Add localized strings to Localizable.strings in both Resources/en.lproj and Resources/ja.lproj
+- Images/icons live in Assets.xcassets (load with [NSImage imageNamed:]); other bundle resources (xibs, strings, document icons, etc.) live in Resources/
 
 ## Do Not Modify
 - XADMaster/, UniversalDetector/ — Submodules. Do not edit directly.

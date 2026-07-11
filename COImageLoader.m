@@ -213,7 +213,7 @@ static NSArray *_COImageLoader_archiveTypes=nil;
 			return image;
 		}
 	}
-	return [[[NSImage allocWithZone:NULL] initWithContentsOfFile:[[NSBundle mainBundle] pathForResource:@"broken" ofType:@"png"]] autorelease];
+	return [NSImage imageNamed:@"broken"];
 	return nil;
 }
 

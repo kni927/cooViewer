@@ -13,7 +13,7 @@ Released as: `v1.3.3`
 - macOS target: 10.13 High Sierra+
 - Submodules: XADMaster, UniversalDetector (init with `git clone --recursive`)
 - Preferences are stored in NSUserDefaults; new keys must be registered in `awakeFromNib`
-- IBOutlet/IBAction changes require editing `Base.lproj/MainMenu.xib` as well
+- IBOutlet/IBAction changes require editing `Resources/Base.lproj/MainMenu.xib` as well
 
 ---
 
@@ -280,7 +280,7 @@ git push origin v1.X.Y
 | Bottom HUD (page bar, page string) | `AccessoryView.m` |
 | Image / archive loading | `COImageLoader.m` |
 | Preferences UI logic | `PreferenceController.m` |
-| Preferences UI layout | `Base.lproj/MainMenu.xib` |
+| Preferences UI layout | `Resources/Base.lproj/MainMenu.xib` |
 
 **Mouse action flow:**
 ```

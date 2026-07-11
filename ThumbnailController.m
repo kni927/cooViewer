@@ -140,7 +140,7 @@
 		[[[NSColor blackColor] colorWithAlphaComponent:0.8] set];
 		[bezier fill];
 		
-		NSImage *image = [[[NSImage alloc] initWithContentsOfFile:[[NSBundle mainBundle] pathForResource:@"bookmark" ofType:@"tiff"]] autorelease];
+		NSImage *image = [NSImage imageNamed:@"bookmark"];
 		
 		[image drawInRect:rect
 				 fromRect:NSMakeRect(0,0,[image size].width,[image size].height)
