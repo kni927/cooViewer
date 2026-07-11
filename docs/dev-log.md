@@ -236,6 +236,36 @@ signing alone does not help (see `docs/known-issues.md`).
 - Translated `CLAUDE.md` from Japanese to English
 - Added `README.md` (English, with feature descriptions, build instructions, upstream credits)
 
+### v1.3.7 — audit quick wins (2026-07-11)
+
+Pre-work before the libunarr migration (v1.4.0). **v1.3.7 is the last
+version with LhA/LZH support** (see `docs/release-notes-v1.3.7.md`).
+Based on the findings in `docs/audit-20260711.md`:
+
+- **fix: XADWrapper/XADItem retain cycle** — items retained their
+  wrapper while the wrapper's array retained the items, leaking the
+  whole XADArchive graph on every archive open (verified with
+  `leaks(1)`: 1267 leaks/762 KB → 0 XAD objects). Also removed a bogus
+  `[archive init]` in `-dealloc` and autoreleased items on insert.
+  XADItem now holds a non-retained back-reference; safe because items
+  never outlive the wrapper's contentArray.
+- **refactor: dead files removed** — `COImageLoader_temp.m`,
+  `Controller.m_1.xcclassmodel/`, `Resources/version.plist`,
+  `Resources/info copy.plist`, `Resources/icon2.icns`,
+  `Resources/icon_orig.icns`. `ja.xliff` removed from the Resources
+  build phase (was shipped inside the app bundle; file kept in
+  `localize/`). `INFOPLIST_FILE` case fixed (`info.plist` →
+  `Info.plist`) for case-sensitive file systems.
+- **refactor: NSRunAlertPanel → NSAlert** (8 sites; OK stays the
+  default first button). `NSBeginAlertSheet` and the Carbon Alias
+  Manager deferred to their own tasks.
+
+Earlier the same day (also in v1.3.7): resource consolidation into
+`Assets.xcassets` + `Resources/` — AppIcon migrated from loose
+`icon.icns` (asset catalogs reject TIFF, so UI TIFFs were converted
+losslessly to PNG; `empty.png` must stay a loose file because
+COImageLoader uses its file path as a page entry).
+
 ---
 
 ## Release / CI
