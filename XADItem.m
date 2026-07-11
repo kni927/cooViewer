@@ -16,15 +16,14 @@
     self = [super init];
     if (self) {
 		path=[inStr retain];
-		wrapper = [inWrapper retain];
+		wrapper = inWrapper;	//非保持(wrapperのcontentArrayがitemを保持しているため、retainすると循環参照でリークする)
 	}
     return self;
 }
 - (void)dealloc
 {
 	if(path)[path release];
-	if(wrapper)[wrapper release];
-	
+
 	[super dealloc];
 }
 

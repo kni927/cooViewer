@@ -26,7 +26,7 @@
         for (i=0; i<[archive numberOfEntries]; i++) {
             [contentIndexArray addObject:[archive nameOfEntry:i]];
             if (![archive entryIsDirectory:i] && [archive sizeOfEntry:i] != 0) {
-                [contentArray addObject:[[XADItem alloc] initWithPath:[archive nameOfEntry:i] andWrapper:self]];
+                [contentArray addObject:[[[XADItem alloc] initWithPath:[archive nameOfEntry:i] andWrapper:self] autorelease]];
             } else {
                 //NSLog(@"isdir %@",[archive nameOfEntry:i]);
             }
@@ -52,7 +52,7 @@
 		for (i=0; i<[archive numberOfEntries]; i++) {
 			[contentIndexArray addObject:[archive nameOfEntry:i]];
 			if (![archive entryIsDirectory:i] && [archive sizeOfEntry:i] != 0) {
-				[contentArray addObject:[[XADItem alloc] initWithPath:[archive nameOfEntry:i] andWrapper:self]];
+				[contentArray addObject:[[[XADItem alloc] initWithPath:[archive nameOfEntry:i] andWrapper:self] autorelease]];
 			} else {
 				//NSLog(@"isdir %@",[archive nameOfEntry:i]);
 			}
@@ -63,7 +63,6 @@
 
 - (void)dealloc
 {
-	[archive init];
 	if(archive)[archive release];
 	if(filePath)[filePath release];
 	if(contentArray)[contentArray release];
