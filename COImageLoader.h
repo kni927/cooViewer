@@ -4,23 +4,20 @@
 
 @interface COImageLoader : NSObject {
 	BOOL inTempDir;
-	BOOL rightPassward;
-	
+
 	NSMutableArray *thumbnailArray;
-	
+
 	id controller;
-	
+
 	NSString *tempDir;
 	NSMutableArray *inArchiveArray;
-	
+
 	NSString *filePath;
 	NSString *displayPath;
 	NSMutableArray *contentPathArray;
 	NSMutableArray *rawContentPathArray;
 	NSMutableDictionary *contentPathDic;
-	
-	//NSStringEncoding	nameEncoding;
-	NSString *password;
+
 	id archiveContainer;
 	id subArchiveContainer;
 	NSArray *filterArray;
@@ -52,15 +49,6 @@
 
 //file名のsort済みarray
 - (NSMutableArray*)pathArray;
-
-//pass付きか否か
-- (BOOL)crypted;
-- (NSString *)password;
-- (void)setPassword:(NSString *)inStr;
-
-//間違ってたらNO
-- (BOOL)checkPassword;
-- (BOOL)checkAndSetPassword:(NSString *)newPassword;
 
 //(-1=err),0=dir,1=zip,2=rar,3=savedSearch,4=pdf
 - (int)mode;

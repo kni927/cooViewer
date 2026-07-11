@@ -750,7 +750,7 @@ static const int DIALOG_CANCEL	= 129;
 	COImageLoader *newImageLoader = [[COImageLoader alloc] initWithPath:currentBookPath readSubFolder:readSubFolder controller:self];
 
 	//NSLog(@"controller mode=%i count=%i",[newImageLoader mode],[newImageLoader itemCount]);
-	if (!newImageLoader || ![newImageLoader checkPassword] || [newImageLoader mode] < 0 || [newImageLoader itemCount] < 1) {
+	if (!newImageLoader || [newImageLoader mode] < 0 || [newImageLoader itemCount] < 1) {
 		/*表示出来ない時は元に戻す*/
 		[newImageLoader release];
 		if ([imageView image]) {
@@ -1127,25 +1127,28 @@ static const int DIALOG_CANCEL	= 129;
     */
 	
 }
-- (void)askInArchivePassword:(COImageLoader*)loader
+/* Archive open progress (COArchive extracts everything up front).
+ * Keeps the spinner drawn and lets Esc cancel the open; other input
+ * events arriving during the load are swallowed. */
+- (BOOL)archiveReadProgress:(long long)done total:(long long)total
 {
-	int passPanelResult;
-	[passPanel setTitle:[[loader displayPath] lastPathComponent]];
-	passPanelResult = (int)[NSApp runModalForWindow:passPanel];
-	[passPanel orderOut:self];
-	if (passPanelResult == DIALOG_CANCEL) {
-		[passPanel setTitle:@"Password"];
-		return;
-	}
-	if (passPanelResult == DIALOG_OK) {
-		[passPanel setTitle:@"Password"];
-		if (![loader checkAndSetPassword:[passTextField stringValue]]) {
-			//NSLog(@"dialog_ok wrongPass");
-			[self askInArchivePassword:loader];
-			return;
+	NSTimeInterval now = [NSDate timeIntervalSinceReferenceDate];
+	if (now - lastArchiveProgressPump < 0.05) return YES;
+	lastArchiveProgressPump = now;
+
+	NSEvent *ev;
+	while ((ev = [NSApp nextEventMatchingMask:NSEventMaskAny
+	                                untilDate:nil
+	                                   inMode:NSEventTrackingRunLoopMode
+	                                  dequeue:YES])) {
+		if ([ev type] == NSEventTypeKeyDown && [ev keyCode] == 53 /*Esc*/) {
+			return NO;
 		}
 	}
+	[progressIndicator displayIfNeeded];
+	return YES;
 }
+/* shared modal helpers (used by the Preferences window's OK/Cancel) */
 - (IBAction)sheetOk:(id)sender{[NSApp stopModalWithCode:DIALOG_OK];}
 - (IBAction)sheetCancel:(id)sender{[NSApp stopModalWithCode:DIALOG_CANCEL];}
 

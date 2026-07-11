@@ -1901,8 +1901,6 @@ Gw
                 <outlet property="imageView" destination="263" id="504"/>
                 <outlet property="openRecentMenuItem" destination="2024" id="2045"/>
                 <outlet property="openSameFolderMenuItem" destination="846" id="847"/>
-                <outlet property="passPanel" destination="742" id="751"/>
-                <outlet property="passTextField" destination="747" id="752"/>
                 <outlet property="prefController" destination="1673" id="1675"/>
                 <outlet property="progressIndicator" destination="2051" id="2052"/>
                 <outlet property="thumController" destination="1113" id="1117"/>
@@ -2185,65 +2183,6 @@ Gw
                 </menuItem>
             </items>
         </menu>
-        <window title="Password" allowsToolTipsWhenApplicationIsInactive="NO" autorecalculatesKeyViewLoop="NO" hidesOnDeactivate="YES" releasedWhenClosed="NO" visibleAtLaunch="NO" animationBehavior="default" id="742" userLabel="PassPanel" customClass="NSPanel">
-            <windowStyleMask key="styleMask" titled="YES"/>
-            <windowPositionMask key="initialPositionMask" leftStrut="YES" rightStrut="YES" topStrut="YES" bottomStrut="YES"/>
-            <rect key="contentRect" x="120" y="507" width="391" height="107"/>
-            <rect key="screenRect" x="0.0" y="0.0" width="2560" height="1415"/>
-            <view key="contentView" id="743">
-                <rect key="frame" x="0.0" y="0.0" width="391" height="107"/>
-                <autoresizingMask key="autoresizingMask"/>
-                <subviews>
-                    <button verticalHuggingPriority="750" fixedFrame="YES" translatesAutoresizingMaskIntoConstraints="NO" id="744">
-                        <rect key="frame" x="299" y="12" width="78" height="32"/>
-                        <autoresizingMask key="autoresizingMask"/>
-                        <buttonCell key="cell" type="push" title="OK" bezelStyle="rounded" alignment="center" borderStyle="border" inset="2" id="4329">
-                            <behavior key="behavior" pushIn="YES" lightByBackground="YES" lightByGray="YES"/>
-                            <font key="font" metaFont="system"/>
-                            <string key="keyEquivalent" base64-UTF8="YES">
-DQ
-</string>
-                        </buttonCell>
-                        <connections>
-                            <action selector="sheetOk:" target="484" id="749"/>
-                        </connections>
-                    </button>
-                    <button verticalHuggingPriority="750" fixedFrame="YES" translatesAutoresizingMaskIntoConstraints="NO" id="745">
-                        <rect key="frame" x="202" y="12" width="97" height="32"/>
-                        <autoresizingMask key="autoresizingMask"/>
-                        <buttonCell key="cell" type="push" title="Cancel" bezelStyle="rounded" alignment="center" borderStyle="border" inset="2" id="4330">
-                            <behavior key="behavior" pushIn="YES" lightByBackground="YES" lightByGray="YES"/>
-                            <font key="font" metaFont="system"/>
-                            <string key="keyEquivalent" base64-UTF8="YES">
-Gw
-</string>
-                        </buttonCell>
-                        <connections>
-                            <action selector="sheetCancel:" target="484" id="750"/>
-                        </connections>
-                    </button>
-                    <textField verticalHuggingPriority="750" fixedFrame="YES" translatesAutoresizingMaskIntoConstraints="NO" id="747">
-                        <rect key="frame" x="80" y="60" width="291" height="22"/>
-                        <autoresizingMask key="autoresizingMask"/>
-                        <textFieldCell key="cell" scrollable="YES" lineBreakMode="clipping" selectable="YES" editable="YES" sendsActionOnEndEditing="YES" state="on" borderStyle="bezel" alignment="left" drawsBackground="YES" id="4331">
-                            <font key="font" metaFont="system"/>
-                            <color key="textColor" name="controlTextColor" catalog="System" colorSpace="catalog"/>
-                            <color key="backgroundColor" name="textBackgroundColor" catalog="System" colorSpace="catalog"/>
-                        </textFieldCell>
-                    </textField>
-                    <textField verticalHuggingPriority="750" horizontalCompressionResistancePriority="250" fixedFrame="YES" translatesAutoresizingMaskIntoConstraints="NO" id="748">
-                        <rect key="frame" x="5" y="62" width="70" height="14"/>
-                        <autoresizingMask key="autoresizingMask"/>
-                        <textFieldCell key="cell" sendsActionOnEndEditing="YES" alignment="right" title="Password:" id="4332">
-                            <font key="font" metaFont="smallSystem"/>
-                            <color key="textColor" name="controlTextColor" catalog="System" colorSpace="catalog"/>
-                            <color key="backgroundColor" name="controlColor" catalog="System" colorSpace="catalog"/>
-                        </textFieldCell>
-                    </textField>
-                </subviews>
-            </view>
-            <point key="canvasLocation" x="140.5" y="1995.5"/>
-        </window>
         <window title="Panel" allowsToolTipsWhenApplicationIsInactive="NO" autorecalculatesKeyViewLoop="NO" hidesOnDeactivate="YES" releasedWhenClosed="NO" visibleAtLaunch="NO" animationBehavior="default" id="772" userLabel="FullImagePanel" customClass="FullImagePanel">
             <windowStyleMask key="styleMask" titled="YES" closable="YES" resizable="YES" utility="YES"/>
             <windowPositionMask key="initialPositionMask" leftStrut="YES" rightStrut="YES" topStrut="YES" bottomStrut="YES"/>

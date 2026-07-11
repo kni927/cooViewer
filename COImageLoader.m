@@ -1,5 +1,4 @@
-#import "XADWrapper.h"
-#import "XADItem.h"
+#import "COArchive.h"
 #import "Controller.h"
 #import "COImageLoader.h"
 
@@ -57,19 +56,17 @@ static NSArray *_COImageLoader_archiveTypes=nil;
 	
 	self = [super init];
     if (self) {
-		rightPassward = NO;
 		controller = ctr;
 		tempDir = nil;
 		inTempDir = NO;
 		inArchiveArray = [[NSMutableArray alloc] init];
-		
+
 		NSMutableArray *tempArray = [NSMutableArray arrayWithArray:[COImageLoader fileTypes]];
 		[tempArray addObjectsFromArray:[NSImage imageFileTypes]];
-		
+
 		filterArray = [[NSArray arrayWithArray:tempArray] retain];
 		readSubFolder=boo;
 		mode=-1;
-		password=nil;
 		filePath=[path retain];
 		displayPath = [dispPath retain];
 		archiveContainer = nil;
@@ -103,7 +100,6 @@ static NSArray *_COImageLoader_archiveTypes=nil;
 	if(inArchiveArray)[inArchiveArray release];
 	if(filePath)[filePath release];
 	if(displayPath)[displayPath release];
-	if(password)[password release];
 	if(archiveContainer)[archiveContainer release];
 	if(subArchiveContainer)[subArchiveContainer release];
 	if(contentPathArray)[contentPathArray release];
@@ -167,10 +163,6 @@ static NSArray *_COImageLoader_archiveTypes=nil;
 	return NO;
 }
 
-- (NSString *)password
-{
-	return password;
-}
 - (NSMutableArray*)pathArray
 {
 	return contentPathArray;
@@ -307,53 +299,6 @@ static NSArray *_COImageLoader_archiveTypes=nil;
 }
 #pragma mark -
 
-- (BOOL)crypted
-{
-	if (mode==2)
-		return [archiveContainer crypted];
-	
-	return NO;
-}
-
-- (void)setPassword:(NSString *)inStr
-{
-	if (mode==2) {
-		if(password)[password release];
-		password=nil;
-		if(inStr){
-			password=[inStr retain];
-			[archiveContainer setPassword:password];
-		}
-	}
-}
-
-- (BOOL)checkPassword
-{
-	if (rightPassward || !(mode==2) || ![self crypted]) return YES;
-	if (password==nil) return NO;
-	
-	NSData *tempData = [[[archiveContainer contents] objectAtIndex:0] data];
-	//tempData = nil;
-	if (!tempData || [tempData length]<=0 || [[[archiveContainer contents] objectAtIndex:0] path]==nil) {
-		if (mode == 2) {
-			if (![[archiveContainer archive] describeLastError]) {
-				rightPassward = YES;
-				return YES;
-			}
-		}
-	} else {
-		rightPassward = YES;
-		return YES;
-	}
-	return NO;
-}
-
-- (BOOL)checkAndSetPassword:(NSString *)newPassword
-{
-	[self setPassword:newPassword];
-	return [self checkPassword];
-}
-
 - (BOOL)isInTempDir
 {
 	if (inTempDir) return YES;
@@ -385,7 +330,18 @@ static NSArray *_COImageLoader_archiveTypes=nil;
 		
 	} else if([[COImageLoader archiveTypes] containsObject:[[filePath pathExtension] lowercaseString]]) {
 		mode=2;
-        archiveContainer=[[XADWrapper alloc] initWithPath:filePath];
+		archiveContainer=[[COArchive alloc] initWithPath:filePath
+			progress:^BOOL(long long done, long long total) {
+				if (controller && [controller respondsToSelector:@selector(archiveReadProgress:total:)])
+					return [controller archiveReadProgress:done total:total];
+				return YES;
+			}];
+		if ([archiveContainer cancelled]) {
+			mode = -1;
+			return;
+		}
+		if ([archiveContainer lastError])
+			NSLog(@"COImageLoader: %@: %@", filePath, [archiveContainer lastError]);
 		[self checkArchiveContainer:0];
 		return;
 		
@@ -476,33 +432,15 @@ static NSArray *_COImageLoader_archiveTypes=nil;
 
 - (BOOL)checkArchiveContainer:(int)index
 {
+	if ([archiveContainer crypted] && [[archiveContainer contents] count] == 0) {
+		//パスワード付きアーカイブは非対応(v1.4.0でサポート終了)
+		mode = -1;
+		return NO;
+	}
 	if ([[archiveContainer contents] count] == 0) {
         return NO;
 	}
-	if ([[[archiveContainer contents] objectAtIndex:index] path] == nil) {
-		if (password) [archiveContainer setPassword:password];
-	}
-	
-	if (![self checkPassword]) [controller askInArchivePassword:self];	//pass聞きに行く
-	if (![self checkPassword]) return NO;	//諦めた
-	
-	if ([self crypted] && !rightPassward) {
-		NSData* tempData = [[[archiveContainer contents] objectAtIndex:index] data];
-		//tempData = nil;
-		if (!tempData || [tempData length]<=0 || [[[archiveContainer contents] objectAtIndex:0] path]==nil) {
-			if (mode == 2) {
-				if (![[archiveContainer archive] describeLastError]) {
-					rightPassward = YES;
-				}
-			}
-			if (!rightPassward || [[[archiveContainer contents] objectAtIndex:index] path]==nil) {
-				//NSLog(@"noPassArchive_no");
-				mode = -1;
-				return NO;
-			}
-		}
-	}
-	
+
 	[rawContentPathArray removeAllObjects];
 	[contentPathArray removeAllObjects];
 	[contentPathDic removeAllObjects];
@@ -516,29 +454,24 @@ static NSArray *_COImageLoader_archiveTypes=nil;
 		if (path) {
 			[rawContentPathArray addObject:path];
 			if([[COImageLoader fileTypes] containsObject:[[path pathExtension] lowercaseString]]){
-				if ([self checkPassword]) {
-					if (![self uncompressToTempDir:path]) {
-						return NO;
-					}
-					COImageLoader *inLoader = [[[COImageLoader alloc] initWithPath:[tempDir stringByAppendingPathComponent:path]
-																	   displayPath:[displayPath stringByAppendingPathComponent:path]
-																	 readSubFolder:NO
-																		controller:controller] autorelease];
-					[inLoader setInTempDir:YES];
-					[pathArray addObjectsFromArray:[inLoader pathArray]];
-					[inArchiveArray addObject:inLoader];
+				if (![self uncompressToTempDir:path]) {
+					return NO;
 				}
+				COImageLoader *inLoader = [[[COImageLoader alloc] initWithPath:[tempDir stringByAppendingPathComponent:path]
+																   displayPath:[displayPath stringByAppendingPathComponent:path]
+																 readSubFolder:NO
+																	controller:controller] autorelease];
+				[inLoader setInTempDir:YES];
+				[pathArray addObjectsFromArray:[inLoader pathArray]];
+				[inArchiveArray addObject:inLoader];
 			} else {
 				NSString *inPath = [NSString stringWithFormat:@"%@/%@",displayPath,path];
 				[pathArray addObject:inPath];
 				[contentPathDic setObject:path forKey:inPath];
 			}
-		} else {
 		}
 	}
-	
-	
-	
+
 	[contentPathArray addObjectsFromArray:[pathArray pathsMatchingExtensions:filterArray]];
 	[contentPathArray sortUsingSelector:@selector(finderCompareS:)];
 	//NSLog(@"%@",contentPathDic);

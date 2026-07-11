@@ -21,10 +21,6 @@
 		373D353A130F075E0037F8DD /* GlobalKeyboardDevice.m in Sources */ = {isa = PBXBuildFile; fileRef = 373D3538130F075E0037F8DD /* GlobalKeyboardDevice.m */; };
 		3740B9351311708D0084326B /* Localizable.strings in Resources */ = {isa = PBXBuildFile; fileRef = 3740B9341311708D0084326B /* Localizable.strings */; };
 		37AD8316131AA9E600F0123C /* Quartz.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 37AD8315131AA9E600F0123C /* Quartz.framework */; settings = {ATTRIBUTES = (Weak, ); }; };
-		37BB532C1312C017001710B4 /* UniversalDetector.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 37BB532B1312C017001710B4 /* UniversalDetector.framework */; };
-		37BB53461312C01C001710B4 /* XADMaster.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 37BB53451312C01C001710B4 /* XADMaster.framework */; };
-		37BB54D21312CADE001710B4 /* XADMaster.framework in CopyFiles */ = {isa = PBXBuildFile; fileRef = 37BB53451312C01C001710B4 /* XADMaster.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, ); }; };
-		37BB54D31312CADE001710B4 /* UniversalDetector.framework in CopyFiles */ = {isa = PBXBuildFile; fileRef = 37BB532B1312C017001710B4 /* UniversalDetector.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, ); }; };
 		7601F5F807D5508700457A5B /* CustomImageView.h in Headers */ = {isa = PBXBuildFile; fileRef = 7601F5F607D5508700457A5B /* CustomImageView.h */; };
 		7601F5F907D5508700457A5B /* CustomImageView.m in Sources */ = {isa = PBXBuildFile; fileRef = 7601F5F707D5508700457A5B /* CustomImageView.m */; };
 		761B469E0D61E95D00667B2A /* AccessoryView.h in Headers */ = {isa = PBXBuildFile; fileRef = 761B469C0D61E95D00667B2A /* AccessoryView.h */; };
@@ -37,10 +33,6 @@
 		7621F56D08C571A1006A9301 /* Credits.rtf in Resources */ = {isa = PBXBuildFile; fileRef = 76181B7D08BE17BC000A527E /* Credits.rtf */; };
 		762259630D426E3800161AC8 /* NSNumberFormatter_Adding.h in Headers */ = {isa = PBXBuildFile; fileRef = 762259610D426E3800161AC8 /* NSNumberFormatter_Adding.h */; };
 		762259640D426E3800161AC8 /* NSNumberFormatter_Adding.m in Sources */ = {isa = PBXBuildFile; fileRef = 762259620D426E3800161AC8 /* NSNumberFormatter_Adding.m */; };
-		76225B4F0D435F9400161AC8 /* XADWrapper.h in Headers */ = {isa = PBXBuildFile; fileRef = 76225B4D0D435F9400161AC8 /* XADWrapper.h */; };
-		76225B500D435F9400161AC8 /* XADWrapper.m in Sources */ = {isa = PBXBuildFile; fileRef = 76225B4E0D435F9400161AC8 /* XADWrapper.m */; };
-		76225CA40D43756000161AC8 /* XADItem.h in Headers */ = {isa = PBXBuildFile; fileRef = 76225CA20D43756000161AC8 /* XADItem.h */; };
-		76225CA50D43756000161AC8 /* XADItem.m in Sources */ = {isa = PBXBuildFile; fileRef = 76225CA30D43756000161AC8 /* XADItem.m */; };
 		76344C0A09595C74003761DA /* COImageLoader.h in Headers */ = {isa = PBXBuildFile; fileRef = 76344C0809595C74003761DA /* COImageLoader.h */; };
 		76344C0B09595C74003761DA /* COImageLoader.m in Sources */ = {isa = PBXBuildFile; fileRef = 76344C0909595C74003761DA /* COImageLoader.m */; };
 		763759390C3913050047DF92 /* ThumbnailMatrix.h in Headers */ = {isa = PBXBuildFile; fileRef = 763759370C3913050047DF92 /* ThumbnailMatrix.h */; };
@@ -125,8 +117,6 @@
 			files = (
 				AC0DE0071CA7A106A55E7500 /* libarchive.13.dylib in CopyFiles */,
 				AC0DE0081CA7A106A55E7500 /* libuchardet.0.dylib in CopyFiles */,
-				37BB54D21312CADE001710B4 /* XADMaster.framework in CopyFiles */,
-				37BB54D31312CADE001710B4 /* UniversalDetector.framework in CopyFiles */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -150,8 +140,6 @@
 		373D3537130F075E0037F8DD /* GlobalKeyboardDevice.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = GlobalKeyboardDevice.h; sourceTree = "<group>"; };
 		373D3538130F075E0037F8DD /* GlobalKeyboardDevice.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = GlobalKeyboardDevice.m; sourceTree = "<group>"; };
 		37AD8315131AA9E600F0123C /* Quartz.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Quartz.framework; path = /System/Library/Frameworks/Quartz.framework; sourceTree = "<absolute>"; };
-		37BB532B1312C017001710B4 /* UniversalDetector.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; path = UniversalDetector.framework; sourceTree = "<group>"; };
-		37BB53451312C01C001710B4 /* XADMaster.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; path = XADMaster.framework; sourceTree = "<group>"; };
 		7601F5F607D5508700457A5B /* CustomImageView.h */ = {isa = PBXFileReference; fileEncoding = 0; lastKnownFileType = sourcecode.c.h; path = CustomImageView.h; sourceTree = "<group>"; };
 		7601F5F707D5508700457A5B /* CustomImageView.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = CustomImageView.m; sourceTree = "<group>"; };
 		76181B7D08BE17BC000A527E /* Credits.rtf */ = {isa = PBXFileReference; lastKnownFileType = text.rtf; name = Credits.rtf; path = Resources/Credits.rtf; sourceTree = "<group>"; };
@@ -163,10 +151,6 @@
 		761C25AC0D5F4D9F0038687B /* NSBezierPath_Adding.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = NSBezierPath_Adding.m; sourceTree = "<group>"; };
 		762259610D426E3800161AC8 /* NSNumberFormatter_Adding.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = NSNumberFormatter_Adding.h; sourceTree = "<group>"; };
 		762259620D426E3800161AC8 /* NSNumberFormatter_Adding.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = NSNumberFormatter_Adding.m; sourceTree = "<group>"; };
-		76225B4D0D435F9400161AC8 /* XADWrapper.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = XADWrapper.h; sourceTree = "<group>"; };
-		76225B4E0D435F9400161AC8 /* XADWrapper.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = XADWrapper.m; sourceTree = "<group>"; };
-		76225CA20D43756000161AC8 /* XADItem.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = XADItem.h; sourceTree = "<group>"; };
-		76225CA30D43756000161AC8 /* XADItem.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = XADItem.m; sourceTree = "<group>"; };
 		76344C0809595C74003761DA /* COImageLoader.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = COImageLoader.h; sourceTree = "<group>"; };
 		76344C0909595C74003761DA /* COImageLoader.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = COImageLoader.m; sourceTree = "<group>"; };
 		763759370C3913050047DF92 /* ThumbnailMatrix.h */ = {isa = PBXFileReference; fileEncoding = 0; lastKnownFileType = sourcecode.c.h; path = ThumbnailMatrix.h; sourceTree = "<group>"; };
@@ -256,8 +240,6 @@
 				7644B3240D6EE315007C8AFD /* System.framework in Frameworks */,
 				7644B3260D6EE322007C8AFD /* IOKit.framework in Frameworks */,
 				7644B3370D6EE434007C8AFD /* Carbon.framework in Frameworks */,
-				37BB53461312C01C001710B4 /* XADMaster.framework in Frameworks */,
-				37BB532C1312C017001710B4 /* UniversalDetector.framework in Frameworks */,
 				37AD8316131AA9E600F0123C /* Quartz.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -283,8 +265,6 @@
 		1058C7A0FEA54F0111CA2CBB /* Linked Frameworks */ = {
 			isa = PBXGroup;
 			children = (
-				37BB53451312C01C001710B4 /* XADMaster.framework */,
-				37BB532B1312C017001710B4 /* UniversalDetector.framework */,
 				1058C7A1FEA54F0111CA2CBB /* Cocoa.framework */,
 			);
 			name = "Linked Frameworks";
@@ -418,10 +398,6 @@
 			children = (
 				AC0DE0091CA7A106A55E7500 /* COArchive.h */,
 				AC0DE00A1CA7A106A55E7500 /* COArchive.m */,
-				76225CA20D43756000161AC8 /* XADItem.h */,
-				76225CA30D43756000161AC8 /* XADItem.m */,
-				76225B4D0D435F9400161AC8 /* XADWrapper.h */,
-				76225B4E0D435F9400161AC8 /* XADWrapper.m */,
 			);
 			name = archive;
 			sourceTree = "<group>";
@@ -602,8 +578,6 @@
 				7696BFDD0C369D6F0081E12E /* COPopUpTextField.h in Headers */,
 				763759390C3913050047DF92 /* ThumbnailMatrix.h in Headers */,
 				762259630D426E3800161AC8 /* NSNumberFormatter_Adding.h in Headers */,
-				76225B4F0D435F9400161AC8 /* XADWrapper.h in Headers */,
-				76225CA40D43756000161AC8 /* XADItem.h in Headers */,
 				761C25AD0D5F4D9F0038687B /* NSBezierPath_Adding.h in Headers */,
 				767EEA210D5F6C8800522A56 /* NSAttributedString_Adding.h in Headers */,
 				761B469E0D61E95D00667B2A /* AccessoryView.h in Headers */,
@@ -626,7 +600,6 @@
 			isa = PBXNativeTarget;
 			buildConfigurationList = 762F248A0899B2FD00419EAA /* Build configuration list for PBXNativeTarget "cooViewer" */;
 			buildPhases = (
-				CEB3DF8B28B4D9EB0096478C /* ShellScript */,
 				766DEF5607E5CDD80039AAD0 /* Headers */,
 				8D11072C0486CEB800E47090 /* Sources */,
 				8D11072E0486CEB800E47090 /* Frameworks */,
@@ -697,25 +670,6 @@
 		};
 /* End PBXResourcesBuildPhase section */
 
-/* Begin PBXShellScriptBuildPhase section */
-		CEB3DF8B28B4D9EB0096478C /* ShellScript */ = {
-			isa = PBXShellScriptBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			inputFileListPaths = (
-			);
-			inputPaths = (
-			);
-			outputFileListPaths = (
-			);
-			outputPaths = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-			shellPath = /bin/sh;
-			shellScript = "# Type a script or drag a script file from your workspace to insert its path.\ncd XADMaster\nxcodebuild -scheme XADMaster -configuration Release CONFIGURATION_BUILD_DIR=../ clean build\n\n";
-		};
-/* End PBXShellScriptBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
 		8D11072C0486CEB800E47090 /* Sources */ = {
@@ -745,8 +699,6 @@
 				7637593A0C3913050047DF92 /* ThumbnailMatrix.m in Sources */,
 				763EFA1C0D3B27FB0014522D /* ThumbnailController.m in Sources */,
 				762259640D426E3800161AC8 /* NSNumberFormatter_Adding.m in Sources */,
-				76225B500D435F9400161AC8 /* XADWrapper.m in Sources */,
-				76225CA50D43756000161AC8 /* XADItem.m in Sources */,
 				761C25AE0D5F4D9F0038687B /* NSBezierPath_Adding.m in Sources */,
 				767EEA220D5F6C8800522A56 /* NSAttributedString_Adding.m in Sources */,
 				761B469F0D61E95D00667B2A /* AccessoryView.m in Sources */,

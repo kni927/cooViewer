@@ -99,9 +99,8 @@
 	IBOutlet id openSameFolderMenuItem;
 	
 	
-	IBOutlet id passPanel;
-    IBOutlet id passTextField;
-	
+	NSTimeInterval lastArchiveProgressPump;
+
     //IBOutlet id pageTextField;
 	
     IBOutlet id imageView;
@@ -175,7 +174,7 @@
 - (void)openFromOpenRecent:(id)sender;
 - (void)openPage:(int)page last:(BOOL)last;
 
-- (void)askInArchivePassword:(COImageLoader*)loader;
+- (BOOL)archiveReadProgress:(long long)done total:(long long)total;
 - (IBAction)sheetCancel:(id)sender;
 - (IBAction)sheetOk:(id)sender;
 
