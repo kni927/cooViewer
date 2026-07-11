@@ -110,10 +110,17 @@ jobs:
         run: |
           rm "$ZIP_PATH"
           ditto -c -k --keepParent "$APP_PATH" "$ZIP_PATH"
+      
+      - name: Build test book
+        run: |
+          cd tests/fixtures/src
+          zip -X ../cooViewer-test-book.cbz 001.png 002.jpg 003.png 004.jpg
 
       - name: Create GitHub Release and upload binary
         if: startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v2
         with:
-          files: ${{ env.ZIP_PATH }}
+          files: |
+            ${{ env.ZIP_PATH }}
+            tests/fixtures/cooViewer-test-book.cbz
           generate_release_notes: true
