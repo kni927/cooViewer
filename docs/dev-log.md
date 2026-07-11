@@ -236,6 +236,40 @@ signing alone does not help (see `docs/known-issues.md`).
 - Translated `CLAUDE.md` from Japanese to English
 - Added `README.md` (English, with feature descriptions, build instructions, upstream credits)
 
+### v1.4.0 — libarchive + uchardet migration (2026-07-11)
+
+Replaced the XADMaster/UniversalDetector submodules with vendored
+libarchive v3.8.4 + uchardet universal dylibs (spike reports:
+`docs/spike-libunarr-20260711.md` NO-GO, `docs/spike-libarchive-20260711.md`
+GO). Phased work, one commit per phase:
+
+1. **Vendoring** — `vendor/build-libs.sh` (pinned upstream commits,
+   SDK-only deps, @rpath install names), Xcode link + Copy Files to
+   Contents/Frameworks, CI builds the libs behind actions/cache keyed
+   on the script hash.
+2. **COArchive** — new engine, extract-all-to-memory (NSData per
+   entry, matching how COImageLoader consumes pages), archive-wide
+   uchardet name detection with pathname_utf8 fast path, corrupt
+   entries skipped, progress + Esc cancel fed by
+   archive_filter_bytes. Gate: `tests/engine/run_tests.sh` verifies
+   names/order/SHA-256 for all fixtures — ALL PASS.
+3. **Swap & removal** — COImageLoader wired to COArchive; submodules,
+   XADWrapper/XADItem, password UI (PassPanel) and Licence_xad.txt
+   removed; Info.plist document types pruned 65→20.
+   CRITICAL detail: `main.m` calls `setlocale(LC_ALL, "en_US.UTF-8")`
+   before NSApplicationMain — without it libarchive's zip reader
+   corrupts CP932 filenames (0x5C trail bytes). Note that
+   `sheetOk:`/`sheetCancel:` were kept: the Preferences window's
+   OK/Cancel buttons share them.
+4. **Release prep** — 1.4.0, release notes `docs/release-notes-v1.4.0.md`.
+
+Dropped: LhA/LZH, StuffIt, password-protected and multi-volume
+archives (v1.3.7 is the legacy option). Note: RAR5 is NOT new —
+XADMaster already read it (the spike used XADMaster extraction as
+the RAR5 byte-compare reference); the engine swap is for long-term
+maintainability, with zip/rar5/7z/tar output verified byte-identical
+to v1.3.7.
+
 ### v1.3.7 — audit quick wins (2026-07-11)
 
 Pre-work before the libunarr migration (v1.4.0). **v1.3.7 is the last
