@@ -7,6 +7,8 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		AC0DE00B1CA7A106A55E7500 /* COArchive.h in Headers */ = {isa = PBXBuildFile; fileRef = AC0DE0091CA7A106A55E7500 /* COArchive.h */; };
+		AC0DE00C1CA7A106A55E7500 /* COArchive.m in Sources */ = {isa = PBXBuildFile; fileRef = AC0DE00A1CA7A106A55E7500 /* COArchive.m */; };
 		AC0DE0051CA7A106A55E7500 /* libarchive.13.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = AC0DE0031CA7A106A55E7500 /* libarchive.13.dylib */; };
 		AC0DE0061CA7A106A55E7500 /* libuchardet.0.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = AC0DE0041CA7A106A55E7500 /* libuchardet.0.dylib */; };
 		AC0DE0071CA7A106A55E7500 /* libarchive.13.dylib in CopyFiles */ = {isa = PBXBuildFile; fileRef = AC0DE0031CA7A106A55E7500 /* libarchive.13.dylib */; settings = {ATTRIBUTES = (CodeSignOnCopy, ); }; };
@@ -131,6 +133,8 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		AC0DE0091CA7A106A55E7500 /* COArchive.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = COArchive.h; sourceTree = "<group>"; };
+		AC0DE00A1CA7A106A55E7500 /* COArchive.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = COArchive.m; sourceTree = "<group>"; };
 		AC0DE0031CA7A106A55E7500 /* libarchive.13.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; name = libarchive.13.dylib; path = vendor/lib/libarchive.13.dylib; sourceTree = "<group>"; };
 		AC0DE0041CA7A106A55E7500 /* libuchardet.0.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; name = libuchardet.0.dylib; path = vendor/lib/libuchardet.0.dylib; sourceTree = "<group>"; };
 		AC0DE0011CA7A106A55E7500 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
@@ -412,6 +416,8 @@
 		768626690951473D006BFAAC /* archive */ = {
 			isa = PBXGroup;
 			children = (
+				AC0DE0091CA7A106A55E7500 /* COArchive.h */,
+				AC0DE00A1CA7A106A55E7500 /* COArchive.m */,
 				76225CA20D43756000161AC8 /* XADItem.h */,
 				76225CA30D43756000161AC8 /* XADItem.m */,
 				76225B4D0D435F9400161AC8 /* XADWrapper.h */,
@@ -573,6 +579,7 @@
 			isa = PBXHeadersBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				AC0DE00B1CA7A106A55E7500 /* COArchive.h in Headers */,
 				76F0929A07DBF79E00643E4F /* BookmarkController.h in Headers */,
 				76EA136607E3FC39008EB0E1 /* BookmarkPanel.h in Headers */,
 				76B19AC307C9C15A00A6FB97 /* Controller.h in Headers */,
@@ -716,6 +723,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				8D11072D0486CEB800E47090 /* main.m in Sources */,
+				AC0DE00C1CA7A106A55E7500 /* COArchive.m in Sources */,
 				76B19AC407C9C15A00A6FB97 /* Controller.m in Sources */,
 				768E1DED07CC6B740023AF61 /* CustomWindow.m in Sources */,
 				7601F5F907D5508700457A5B /* CustomImageView.m in Sources */,
