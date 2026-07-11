@@ -62,6 +62,7 @@ For downloaded binaries, Gatekeeper App Translocation may still cause repeated p
 ```bash
 git clone --recursive https://github.com/kni927/cooViewer.git
 cd cooViewer
+vendor/build-libs.sh          # one-time: builds vendored libarchive + uchardet (needs cmake)
 xcodebuild -configuration Deployment
 open build/Deployment/cooViewer.app
 ```
@@ -71,6 +72,12 @@ If you cloned without `--recursive`, run:
 ```bash
 git submodule update --init --recursive
 ```
+
+`vendor/build-libs.sh` builds pinned releases of
+[libarchive](https://github.com/libarchive/libarchive) and
+[uchardet](https://www.freedesktop.org/wiki/Software/uchardet/) as
+universal dylibs into `vendor/lib/` (gitignored). Re-run it only when
+the script changes.
 
 ---
 
@@ -129,3 +136,5 @@ See:
 * `Licence.txt`
 * `Licence_RemoteControlWrapper.txt`
 * `Licence_xad.txt`
+* `Licence_libarchive.txt` (bundled libarchive, BSD)
+* `Licence_uchardet.txt` (bundled uchardet, MPL 1.1)

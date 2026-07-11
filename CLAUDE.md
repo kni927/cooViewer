@@ -13,6 +13,7 @@ cooViewer — A simple comic viewer for macOS (Objective-C / Cocoa)
 ```bash
 git clone --recursive https://github.com/<yourname>/cooViewer.git
 cd cooViewer
+vendor/build-libs.sh   # one-time: vendored libarchive + uchardet (needs cmake)
 xcodebuild -configuration Deployment
 open build/Deployment/cooViewer.app
 ```

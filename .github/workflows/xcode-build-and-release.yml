@@ -25,6 +25,19 @@ jobs:
         with:
           submodules: recursive
 
+      - name: Restore vendored libs cache
+        id: vendored-libs
+        uses: actions/cache@v4
+        with:
+          path: |
+            vendor/lib
+            vendor/include
+          key: vendored-libs-${{ runner.os }}-${{ hashFiles('vendor/build-libs.sh') }}
+
+      - name: Build vendored libs
+        if: steps.vendored-libs.outputs.cache-hit != 'true'
+        run: vendor/build-libs.sh
+
       - name: Import Developer ID certificate
         env:
           CERTIFICATE_BASE64: ${{ secrets.DEVELOPER_ID_APPLICATION_P12 }}
