@@ -288,7 +288,7 @@ git commit -m "feat: ..."
 # long time). Commit that change too, then:
 
 git tag v1.X.Y
-git push origin master
+git push origin main
 git push origin v1.X.Y
 # GitHub Actions builds and publishes the release in ~10 min
 ```
