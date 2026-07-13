@@ -236,6 +236,16 @@ signing alone does not help (see `docs/KNOWN_ISSUES.md`).
 - Translated `CLAUDE.md` from Japanese to English
 - Added `README.md` (English, with feature descriptions, build instructions, upstream credits)
 
+### Source tree reorganization — phase 3: Sources/ (2026-07-14)
+
+Pure reorg, no logic change: all 74 root-level `.h`/`.m` files moved
+into `Sources/` (flat layout) via `git mv`; `project.pbxproj` path
+references updated to match. `cooViewer_Prefix.pch` stays at root
+(not in scope). Quote-includes (`#import "X.h"`) kept resolving
+unchanged since every source moved together. Sequenced ahead of the
+RAR lazy-extraction task so that diff stays clean against the new
+paths. Details: `docs/tasks/2026-07-14-01-sources-reorg.md`.
+
 ### Lazy zip extraction — phase 2: libzip reader + dispatch (2026-07-13)
 
 zip/cbz now open through COZipArchive (libzip): central directory

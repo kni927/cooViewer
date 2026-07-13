@@ -27,8 +27,8 @@ EOF
 
 clang -O2 \
     -I "$REPO_ROOT/vendor/include" \
-    -I "$REPO_ROOT" \
-    "$ENGINE_DIR/test_coarchive.m" "$REPO_ROOT/COArchive.m" "$REPO_ROOT/COZipArchive.m" \
+    -I "$REPO_ROOT/Sources" \
+    "$ENGINE_DIR/test_coarchive.m" "$REPO_ROOT/Sources/COArchive.m" "$REPO_ROOT/Sources/COZipArchive.m" \
     "$REPO_ROOT/vendor/lib/libarchive.13.dylib" \
     "$REPO_ROOT/vendor/lib/libuchardet.0.dylib" \
     "$REPO_ROOT/vendor/lib/libzip.5.dylib" \
