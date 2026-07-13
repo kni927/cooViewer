@@ -38,6 +38,14 @@ jobs:
         if: steps.vendored-libs.outputs.cache-hit != 'true'
         run: vendor/build-libs.sh
 
+      # Gate: archive engine tests (names incl. CP932, order, payload
+      # SHA-256). zip/cbz fixtures exercise the libzip lazy path; 7z/rar
+      # fixtures are skipped on runners without those tools.
+      - name: Run archive engine tests
+        run: |
+          tests/fixtures/make_fixtures.sh
+          tests/engine/run_tests.sh
+
       - name: Import Developer ID certificate
         env:
           CERTIFICATE_BASE64: ${{ secrets.DEVELOPER_ID_APPLICATION_P12 }}

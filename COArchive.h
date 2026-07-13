@@ -5,6 +5,11 @@
 //  libarchive-based archive engine (replaces XADWrapper/XADMaster).
 //
 //  Design (docs/spike-libarchive-20260711.md, TASK v1.4.0):
+//  - Format dispatch: initWithPath: returns a COZipArchive (libzip
+//    lazy per-entry reader, see COZipArchive.h) for .zip/.cbz files
+//    whose central directory is readable; everything below describes
+//    the libarchive full-extraction path used for all other formats
+//    (and as the fallback when zip_open fails).
 //  - Opening an archive reads it sequentially and extracts every
 //    usable entry into memory (NSData per entry). This matches how
 //    COImageLoader consumes pages (-[entry data] -> NSImage

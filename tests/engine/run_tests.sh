@@ -10,7 +10,7 @@ SRC="$REPO_ROOT/tests/fixtures/src"
 OUT="$ENGINE_DIR/out"
 mkdir -p "$OUT"
 
-[ -f "$REPO_ROOT/vendor/lib/libarchive.13.dylib" ] ||
+[ -f "$REPO_ROOT/vendor/lib/libarchive.13.dylib" ] && [ -f "$REPO_ROOT/vendor/lib/libzip.5.dylib" ] ||
     { echo "run vendor/build-libs.sh first" >&2; exit 1; }
 [ -f "$GEN/test.zip" ] ||
     { echo "run tests/fixtures/make_fixtures.sh first" >&2; exit 1; }
@@ -28,9 +28,10 @@ EOF
 clang -O2 \
     -I "$REPO_ROOT/vendor/include" \
     -I "$REPO_ROOT" \
-    "$ENGINE_DIR/test_coarchive.m" "$REPO_ROOT/COArchive.m" \
+    "$ENGINE_DIR/test_coarchive.m" "$REPO_ROOT/COArchive.m" "$REPO_ROOT/COZipArchive.m" \
     "$REPO_ROOT/vendor/lib/libarchive.13.dylib" \
     "$REPO_ROOT/vendor/lib/libuchardet.0.dylib" \
+    "$REPO_ROOT/vendor/lib/libzip.5.dylib" \
     -framework Foundation -framework CoreFoundation \
     -Wl,-rpath,"$REPO_ROOT/vendor/lib" \
     -o "$OUT/test_coarchive"

@@ -6,6 +6,7 @@
 //
 
 #import "COArchive.h"
+#import "COZipArchive.h"
 #import <CoreFoundation/CoreFoundation.h>
 #include <archive.h>
 #include <archive_entry.h>
@@ -91,6 +92,25 @@
 
 - (id)initWithPath:(NSString *)path progress:(COArchiveProgress)progress
 {
+	// format dispatch: zip/cbz go to the libzip lazy reader
+	// (COZipArchive). If libzip cannot open the file (corrupt or
+	// partial central directory), fall through to the libarchive
+	// full-extraction path below.
+	if ([self isMemberOfClass:[COArchive class]]) {
+		NSString *ext = [[path pathExtension] lowercaseString];
+		if ([ext isEqualToString:@"zip"] || [ext isEqualToString:@"cbz"]) {
+			COZipArchive *z = [[COZipArchive alloc] initWithPath:path
+			                                            progress:progress];
+			if ([z zipOpened]) {
+				[self release];
+				return z;
+			}
+			NSLog(@"COArchive: libzip cannot open %@ (%@); falling back to libarchive",
+			      path, [z lastError]);
+			[z release];
+		}
+	}
+
 	self = [super init];
 	if (self) {
 		filePath = [path retain];
