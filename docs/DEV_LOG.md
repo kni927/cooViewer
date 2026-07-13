@@ -236,6 +236,20 @@ signing alone does not help (see `docs/KNOWN_ISSUES.md`).
 - Translated `CLAUDE.md` from Japanese to English
 - Added `README.md` (English, with feature descriptions, build instructions, upstream credits)
 
+### Lazy zip extraction — phase 2: libzip reader + dispatch (2026-07-13)
+
+zip/cbz now open through COZipArchive (libzip): central directory
+only at open, per-entry on-demand decode with a 256 MB NSCache, serial
+read queue, next-entry prefetch. COArchive dispatches by extension and
+falls back to libarchive when zip_open fails; other formats unchanged.
+On a 1.9 GB / 200-entry CBZ: open 6.1 s → 0.004 s, footprint after
+open 3772 MB → 2.2 MB, bounded ~400 MB during read-through. The
+libzip path is locale-independent (CP932 verified under LC_ALL=C);
+main.m's setlocale stays for the libarchive path. Corrupt zip entries
+are now detected at read time (broken-image placeholder) instead of
+being dropped at open. CI runs the engine tests now. Details:
+`docs/tasks/2026-07-13-02-libzip-reader.md`.
+
 ### Lazy zip extraction — phase 1: vendored libzip (2026-07-13)
 
 First phase of restoring per-entry lazy extraction for zip/cbz after

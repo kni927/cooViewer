@@ -2,6 +2,8 @@
 
 ## Workflow
 
+* The project owner defines tasks.
+* Do not redefine, extend, or split tasks on your own.
 * Architecture, requirements, and design direction are decided through chat.
 * Implementation is driven by `TASK.md` at the repository root.
 * Read `TASK.md` before making changes.
@@ -13,11 +15,9 @@
 
 ## Task Completion
 
-A task is considered finished when its requested work has been attempted,
-verified as far as reasonably possible, and its result has been documented.
+A task is considered finished when you stop work and report the result to the project owner.
 
-A task may be finished even if it is not fully successful. In that case,
-record the failure, limitation, or newly discovered follow-up work.
+A task may be finished even if it is not fully successful. In that case, record the failure, limitations, and any newly discovered follow-up work.
 
 Before archiving `TASK.md`, append the following sections:
 
@@ -51,20 +51,20 @@ Before archiving `TASK.md`, append the following sections:
 - Write `None` if there are no suggestions.
 ```
 
-When the task is finished:
+When reporting back:
 
-1. Append the implementation result and verification summary to `TASK.md`.
+1. Append the implementation result to `TASK.md`.
 2. Record unresolved actionable problems in `docs/KNOWN_ISSUES.md` when appropriate.
 3. Update `docs/DEV_LOG.md` when the task represents meaningful project progress.
 4. Update `docs/DECISIONS.md` when a lasting design or architectural decision was made.
 5. Archive `TASK.md` as:
    `docs/tasks/YYYY-MM-DD-NN-description.md`
-6. Do not leave `TASK.md` in the repository.
+6. Do not leave `TASK.md` in the repository after reporting.
 
 Use a two-digit sequence number starting at `01` for each date.
 
-A failed or partially completed task is still archived. Any further work must
-be defined as a new `TASK.md` after review and discussion in chat.
+Do not redefine, extend, or split a task on your own.
+Any further work must be recorded as follow-up suggestions and handled as a new `TASK.md` after review by the project owner.
 
 ## Scope Control
 
