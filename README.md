@@ -62,14 +62,15 @@ For downloaded binaries, Gatekeeper App Translocation may still cause repeated p
 ```bash
 git clone https://github.com/kni927/cooViewer.git
 cd cooViewer
-vendor/build-libs.sh          # one-time: builds vendored libarchive + uchardet (needs cmake)
+vendor/build-libs.sh          # one-time: builds vendored libarchive + uchardet + libzip (needs cmake)
 xcodebuild -configuration Deployment
 open build/Deployment/cooViewer.app
 ```
 
 `vendor/build-libs.sh` builds pinned releases of
-[libarchive](https://github.com/libarchive/libarchive) and
-[uchardet](https://www.freedesktop.org/wiki/Software/uchardet/) as
+[libarchive](https://github.com/libarchive/libarchive),
+[uchardet](https://www.freedesktop.org/wiki/Software/uchardet/), and
+[libzip](https://libzip.org/) as
 universal dylibs into `vendor/lib/` (gitignored). Re-run it only when
 the script changes.
 
@@ -131,3 +132,4 @@ See:
 * `Licence_RemoteControlWrapper.txt`
 * `Licence_libarchive.txt` (bundled libarchive, BSD)
 * `Licence_uchardet.txt` (bundled uchardet, MPL 1.1)
+* `Licence_libzip.txt` (bundled libzip, BSD-3-Clause)

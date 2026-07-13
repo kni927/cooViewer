@@ -13,6 +13,8 @@
 		AC0DE0061CA7A106A55E7500 /* libuchardet.0.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = AC0DE0041CA7A106A55E7500 /* libuchardet.0.dylib */; };
 		AC0DE0071CA7A106A55E7500 /* libarchive.13.dylib in CopyFiles */ = {isa = PBXBuildFile; fileRef = AC0DE0031CA7A106A55E7500 /* libarchive.13.dylib */; settings = {ATTRIBUTES = (CodeSignOnCopy, ); }; };
 		AC0DE0081CA7A106A55E7500 /* libuchardet.0.dylib in CopyFiles */ = {isa = PBXBuildFile; fileRef = AC0DE0041CA7A106A55E7500 /* libuchardet.0.dylib */; settings = {ATTRIBUTES = (CodeSignOnCopy, ); }; };
+		AC0DE00E1CA7A106A55E7500 /* libzip.5.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = AC0DE00D1CA7A106A55E7500 /* libzip.5.dylib */; };
+		AC0DE00F1CA7A106A55E7500 /* libzip.5.dylib in CopyFiles */ = {isa = PBXBuildFile; fileRef = AC0DE00D1CA7A106A55E7500 /* libzip.5.dylib */; settings = {ATTRIBUTES = (CodeSignOnCopy, ); }; };
 		AC0DE0021CA7A106A55E7500 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = AC0DE0011CA7A106A55E7500 /* Assets.xcassets */; };
 		0B13173F24CF1B0400A17553 /* NSImage_Adding.h in Headers */ = {isa = PBXBuildFile; fileRef = 0B13173D24CF1B0400A17553 /* NSImage_Adding.h */; };
 		0B13174024CF1B0400A17553 /* NSImage_Adding.m in Sources */ = {isa = PBXBuildFile; fileRef = 0B13173E24CF1B0400A17553 /* NSImage_Adding.m */; };
@@ -117,6 +119,7 @@
 			files = (
 				AC0DE0071CA7A106A55E7500 /* libarchive.13.dylib in CopyFiles */,
 				AC0DE0081CA7A106A55E7500 /* libuchardet.0.dylib in CopyFiles */,
+				AC0DE00F1CA7A106A55E7500 /* libzip.5.dylib in CopyFiles */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -127,6 +130,7 @@
 		AC0DE00A1CA7A106A55E7500 /* COArchive.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = COArchive.m; sourceTree = "<group>"; };
 		AC0DE0031CA7A106A55E7500 /* libarchive.13.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; name = libarchive.13.dylib; path = vendor/lib/libarchive.13.dylib; sourceTree = "<group>"; };
 		AC0DE0041CA7A106A55E7500 /* libuchardet.0.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; name = libuchardet.0.dylib; path = vendor/lib/libuchardet.0.dylib; sourceTree = "<group>"; };
+		AC0DE00D1CA7A106A55E7500 /* libzip.5.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; name = libzip.5.dylib; path = vendor/lib/libzip.5.dylib; sourceTree = "<group>"; };
 		AC0DE0011CA7A106A55E7500 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		089C165DFE840E0CC02AAC07 /* InfoPlist.strings */ = {isa = PBXFileReference; fileEncoding = 10; lastKnownFileType = text.plist.strings; name = InfoPlist.strings; path = Resources/InfoPlist.strings; sourceTree = "<group>"; };
 		0B13173D24CF1B0400A17553 /* NSImage_Adding.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = NSImage_Adding.h; sourceTree = "<group>"; };
@@ -236,6 +240,7 @@
 			files = (
 				AC0DE0051CA7A106A55E7500 /* libarchive.13.dylib in Frameworks */,
 				AC0DE0061CA7A106A55E7500 /* libuchardet.0.dylib in Frameworks */,
+				AC0DE00E1CA7A106A55E7500 /* libzip.5.dylib in Frameworks */,
 				8D11072F0486CEB800E47090 /* Cocoa.framework in Frameworks */,
 				7644B3240D6EE315007C8AFD /* System.framework in Frameworks */,
 				7644B3260D6EE322007C8AFD /* IOKit.framework in Frameworks */,
@@ -327,6 +332,7 @@
 			children = (
 				AC0DE0031CA7A106A55E7500 /* libarchive.13.dylib */,
 				AC0DE0041CA7A106A55E7500 /* libuchardet.0.dylib */,
+				AC0DE00D1CA7A106A55E7500 /* libzip.5.dylib */,
 				37AD8315131AA9E600F0123C /* Quartz.framework */,
 				7644B3360D6EE433007C8AFD /* Carbon.framework */,
 				7644B3250D6EE322007C8AFD /* IOKit.framework */,

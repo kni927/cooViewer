@@ -22,6 +22,10 @@ UCHARDET_COMMIT="06029ec3340cdf6bf9a6a537dafb3f39eda0560e"     # master, post v0
 UCHARDET_DYLIB="libuchardet.0.dylib"
 UCHARDET_BUILT="libuchardet.0.0.8.dylib"
 
+LIBZIP_REPO="https://github.com/nih-at/libzip.git"
+LIBZIP_COMMIT="6f8a0cdd24a0dc6cce9dac4a7679da784ab124ea"       # v1.11.4
+LIBZIP_DYLIB="libzip.5.dylib"
+
 set -euo pipefail
 
 VENDOR_DIR="$(cd "$(dirname "$0")" && pwd)"
@@ -76,13 +80,31 @@ cp "$SRC_DIR/uchardet-build/src/$UCHARDET_BUILT" "$LIB_DIR/$UCHARDET_DYLIB"
 cp "$SRC_DIR/uchardet/src/uchardet.h" "$INC_DIR/"
 
 #
+# libzip — zlib/bzip2 from the SDK only. Crypto backends are disabled
+# (encrypted zip entries are unsupported by the app), and lzma/zstd
+# compression methods are disabled so the universal link cannot pick up
+# arm64-only Homebrew dylibs. The soname symlink is dereferenced with
+# cp -L so the copy is robust against upstream VERSION bumps.
+#
+checkout "$LIBZIP_REPO" "$LIBZIP_COMMIT" "$SRC_DIR/libzip"
+cmake -S "$SRC_DIR/libzip" -B "$SRC_DIR/libzip-build" "${CMAKE_FLAGS[@]}" \
+    -DBUILD_TOOLS=OFF -DBUILD_REGRESS=OFF -DBUILD_EXAMPLES=OFF \
+    -DBUILD_DOC=OFF -DBUILD_OSSFUZZ=OFF \
+    -DENABLE_COMMONCRYPTO=OFF -DENABLE_GNUTLS=OFF -DENABLE_MBEDTLS=OFF \
+    -DENABLE_OPENSSL=OFF -DENABLE_WINDOWS_CRYPTO=OFF \
+    -DENABLE_BZIP2=ON -DENABLE_LZMA=OFF -DENABLE_ZSTD=OFF
+cmake --build "$SRC_DIR/libzip-build" --target zip
+cp -L "$SRC_DIR/libzip-build/lib/$LIBZIP_DYLIB" "$LIB_DIR/$LIBZIP_DYLIB"
+cp "$SRC_DIR/libzip/lib/zip.h" "$SRC_DIR/libzip-build/zipconf.h" "$INC_DIR/"
+
+#
 # sanity checks: universal + expected install names
 #
-for lib in "$LIB_DIR/$LIBARCHIVE_DYLIB" "$LIB_DIR/$UCHARDET_DYLIB"; do
+for lib in "$LIB_DIR/$LIBARCHIVE_DYLIB" "$LIB_DIR/$UCHARDET_DYLIB" "$LIB_DIR/$LIBZIP_DYLIB"; do
     lipo "$lib" -verify_arch arm64 x86_64 ||
         { echo "ERROR: $lib is not universal" >&2; exit 1; }
 done
-for name in "$LIBARCHIVE_DYLIB" "$UCHARDET_DYLIB"; do
+for name in "$LIBARCHIVE_DYLIB" "$UCHARDET_DYLIB" "$LIBZIP_DYLIB"; do
     actual=$(otool -D "$LIB_DIR/$name" | tail -1)
     [ "$actual" = "@rpath/$name" ] ||
         { echo "ERROR: $name install_name is '$actual', expected '@rpath/$name'" >&2; exit 1; }
