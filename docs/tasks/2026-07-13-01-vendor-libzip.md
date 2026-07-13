@@ -89,3 +89,65 @@ full-extraction path and are out of scope.
   as in v1.4.0.
 - Record numbers (open time before/after, peak RSS) in the
   Implementation Result section.
+
+## Implementation Result
+
+**Status:** Partially completed
+
+Phase 1 (vendoring) only. The libzip reader path, on-demand entry
+cache, and format dispatch were intentionally deferred to a follow-up
+task per the project owner's instruction.
+
+### Changes
+
+- `vendor/build-libs.sh`: added libzip pinned to v1.11.4
+  (`6f8a0cdd24a0dc6cce9dac4a7679da784ab124ea`), built as a universal
+  (arm64 + x86_64) dylib with install name `@rpath/libzip.5.dylib`.
+  Crypto backends disabled (encrypted zip entries are unsupported by
+  the app); lzma/zstd disabled so only SDK zlib/bzip2 are linked and
+  arm64-only Homebrew dylibs cannot leak into the universal link.
+  `zip.h`/`zipconf.h` copied into `vendor/include/`; lipo and
+  install_name sanity checks extended to the third library.
+- `cooViewer.xcodeproj`: link `libzip.5.dylib` and copy it into
+  `Contents/Frameworks` with CodeSignOnCopy, same pattern as
+  libarchive/uchardet.
+- `Licence_libzip.txt` (BSD-3-Clause) added; README build and license
+  sections updated.
+- CI: no workflow change needed — the vendored-libs cache key is
+  `hashFiles('vendor/build-libs.sh')`, so the libzip addition
+  invalidates the cache automatically.
+- Commits: `550ba9b` (phase 1), plus `18f8739` (workflow docs +
+  dev-log/known-issues filename fixes, requested alongside this task).
+
+### Verification
+
+- Build: `vendor/build-libs.sh` builds all three libs; Deployment
+  build succeeds; app binary loads `@rpath/libzip.5.dylib` in both
+  arch slices; bundled dylib is universal, ad-hoc signed, and depends
+  only on `/usr/lib` system libs (verified with otool/lipo/codesign).
+- Tests: no code path uses libzip yet, so the engine test suite is
+  unaffected.
+- Manual verification: app launches and quits cleanly with the new
+  dylib bundled.
+- Not performed: everything requiring the reader path — open-time /
+  memory measurements against the ~2 GB CBZ baseline, CP932 fixture
+  check on the libzip path, non-zip regression pass. Deferred with
+  the reader implementation.
+
+### Remaining Issues
+
+- None in the vendored phase itself. The v1.4.0 regression this task
+  targets (open time / peak memory scaling with archive size for
+  zip/cbz) remains until the reader path lands.
+
+### Follow-up Suggestions
+
+- Implement the libzip reader path, on-demand NSCache/LRU entry
+  cache, and `.zip`/`.cbz` dispatch (phases 2+, to be defined in a
+  new TASK.md).
+- While wiring the reader, verify the `setlocale(LC_ALL,
+  "en_US.UTF-8")` workaround in `main.m` is indeed unnecessary on the
+  libzip path (`ZIP_FL_ENC_RAW` should bypass it) before considering
+  its removal — libarchive still needs it for non-zip formats.
+- rar lazy extraction as a separate follow-up (already noted as out
+  of scope).

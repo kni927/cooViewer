@@ -236,6 +236,15 @@ signing alone does not help (see `docs/KNOWN_ISSUES.md`).
 - Translated `CLAUDE.md` from Japanese to English
 - Added `README.md` (English, with feature descriptions, build instructions, upstream credits)
 
+### Lazy zip extraction — phase 1: vendored libzip (2026-07-13)
+
+First phase of restoring per-entry lazy extraction for zip/cbz after
+the v1.4.0 libarchive migration regressed open time / peak memory on
+large archives. libzip v1.11.4 is now vendored via
+`vendor/build-libs.sh` and bundled like libarchive/uchardet; the
+reader path and on-demand cache follow in a separate task. Details:
+`docs/tasks/2026-07-13-01-vendor-libzip.md`.
+
 ### v1.4.0 — libarchive + uchardet migration (2026-07-11)
 
 Replaced the XADMaster/UniversalDetector submodules with vendored
