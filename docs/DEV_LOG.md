@@ -217,7 +217,7 @@ because the app runs from a different randomized read-only path on each
 launch, so macOS can't persist folder grants tied to it. Moving the app to
 `/Applications` and/or `xattr -cr` on the `.app` works around this. Proper
 Developer ID signing + notarization is the real long-term fix; ad-hoc
-signing alone does not help (see `docs/known-issues.md`).
+signing alone does not help (see `docs/KNOWN_ISSUES.md`).
 
 **Files changed:**
 - `Controller.h` — added `<NSMenuDelegate>` conformance

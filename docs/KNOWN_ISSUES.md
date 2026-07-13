@@ -96,7 +96,7 @@ mouse-action machinery used by other cases.
   not obvious from the surrounding code.
 - `CustomImageView` overrides `-menu` (not `menuForEvent:`) specifically so
   that this path returns the Save Image... context menu — see Feature #2 in
-  `docs/dev-log.md`.
+  `docs/DEV_LOG.md`.
 - **Do not** override `menuForEvent:`, change `rightMouseDown:` to call
   `super`, or "simplify" the case 59 branch to match the other cases without
   thorough manual testing — earlier attempts in this vein broke the existing
@@ -120,7 +120,7 @@ of the currently open book — a location the user did not explicitly pick via
 
 - These are now triggered **only** from `menuNeedsUpdate:` (an
   `NSMenuDelegate` method), i.e. right before the "Open from same folder"
-  submenu is actually displayed — see the dev-log entry "Repeated macOS
+  submenu is actually displayed — see the `docs/DEV_LOG.md` entry "Repeated macOS
   Folder-Access Permission Prompts on `File > Open...`".
 - **Do not** call `setSameFolderMenu:` / `checkCurrentFolderUpdated` eagerly
   again from `openPage:last:` or `applicationDidBecomeActive:` (or any other
@@ -218,7 +218,7 @@ TCC ties "allow this app to access folder X" grants to the app's code
 signature/identity. An ad-hoc signature is derived from the binary's content
 hash, so it changes on every rebuild — macOS then treats each new build as a
 "different app" and re-prompts for folders it already granted access to
-before. (See the dev-log entry on lazy parent-folder access — that fix
+before. (See the `docs/DEV_LOG.md` entry on lazy parent-folder access — that fix
 reduces *how often* the app touches folders it wasn't explicitly granted, but
 can't fix this identity-churn problem.)
 
