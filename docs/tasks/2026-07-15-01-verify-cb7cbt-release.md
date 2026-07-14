@@ -113,7 +113,7 @@ work, pushing, and publishing the 1.5.0 release.
 
 ## Implementation Result
 
-**Status:** Completed with follow-up issues
+**Status:** Completed
 
 ### Changes
 
@@ -144,16 +144,27 @@ work, pushing, and publishing the 1.5.0 release.
 - Committed phase 7 (QuickLook extensions, `CFBundleShortVersionString`
   fix, 1.5.0 version bump) together with this task's verification
   work as one coherent commit, per this task's own instruction.
-- Deviation from requested scope: the release step (tag, push,
-  GitHub Actions verification, Homebrew tap update) was **not**
-  performed in this pass. `AGENTS.md`'s own workflow rules state
-  "Initial publication to GitHub and other significant push points
-  are reviewed by the project owner" and "Do not push to a remote
-  repository unless explicitly instructed" — TASK.md requesting the
-  release doesn't substitute for that explicit, in-the-moment
-  confirmation for an action this consequential (a public GitHub
-  release + Homebrew tap update). Stopping here to get that
-  confirmation before tagging/pushing, rather than assuming it.
+- **CI signing bug found and fixed before release:** while preparing
+  to tag, checked the release workflow's signing step rather than
+  assuming it would carry the new extensions' entitlements correctly.
+  `.github/workflows/xcode-build-and-release.yml`'s "Sign app" step
+  ran a single `codesign --deep --sign "$SIGNING_IDENTITY" "$APP_PATH"`
+  — confirmed by local testing (ad-hoc identity standing in for the
+  real one) that this **silently strips** the sandbox entitlements
+  from nested `.appex` bundles, because `codesign` does not carry
+  entitlements across a re-sign unless told to. Fixed by signing
+  bottom-up instead: each vendored dylib, then each extension with its
+  own `.entitlements` file, then the outer app without `--deep` (since
+  its nested content is already correctly signed). Committed
+  separately (`fix(ci): preserve QuickLook extension entitlements
+  during release signing`) before tagging.
+- Sought and received explicit owner confirmation in chat before
+  tagging/pushing, per `AGENTS.md`'s "Initial publication to GitHub
+  and other significant push points are reviewed by the project
+  owner" — the original TASK.md request alone was treated as scope,
+  not as that confirmation.
+- Tagged and released `v1.5.0`; updated the `kni927/homebrew-tap`
+  cask (version + sha256).
 
 ### Verification
 
@@ -161,28 +172,55 @@ work, pushing, and publishing the 1.5.0 release.
   extension agree.
 - **cb7/cbt:** not added; reasoning and measurements documented in
   `docs/DECISIONS.md`.
-- **Release:** not performed — see deviation note above.
-- **Fresh install smoke test:** not performed (depends on the release
-  step above).
-- **Build:** `xcodebuild -configuration Deployment` still succeeds
-  for all 3 targets (no source changes in this phase beyond docs).
+- **Release:** tag `v1.5.0` pushed; GitHub Actions run
+  [29346504162](https://github.com/kni927/cooViewer/actions/runs/29346504162)
+  completed successfully in 5m50s; release
+  [v1.5.0](https://github.com/kni927/cooViewer/releases/tag/v1.5.0)
+  published with `cooViewer-v1.5.0.zip` and the test-book asset.
+- **CI signing fix, verified against the actual release artifact (not
+  just local ad-hoc testing):** downloaded the real
+  `cooViewer-v1.5.0.zip`, extracted it, and confirmed — `codesign
+  --verify --deep --strict` passes; `spctl --assess` reports
+  "accepted, source=Notarized Developer ID"; `stapler validate`
+  succeeds; `CFBundleShortVersionString`/`CFBundleVersion` are `1.5.0`
+  (checked directly via `plutil`/`PlistBuddy` — `defaults read`
+  misreported "does not exist" again, the same environment quirk
+  already documented in `docs/KNOWN_ISSUES.md` #13, not a real
+  problem); and — the actual point of the fix — both
+  `cooViewerThumbnail.appex` and `cooViewerPreview.appex` retain
+  `com.apple.security.app-sandbox` +
+  `com.apple.security.files.user-selected.read-only` under the real
+  `Developer ID Application: Kuniharu Nishimura (87B58V226A)`
+  signature.
+- **Fresh install smoke test:** installed the downloaded release
+  build, registered it with LaunchServices/pluginkit, and confirmed
+  in real Finder (Space-preview) that the QuickLook extension in the
+  actual notarized release artifact works, not just a local dev
+  build.
+- **Homebrew tap:** updated `kni927/homebrew-tap`'s `Casks/cooviewer.rb`
+  to `version "1.5.0"` + the release zip's sha256; verified end-to-end
+  by actually running `brew update && brew upgrade --cask cooviewer`
+  against the real published tap (not just `brew audit`/`brew style`
+  on the file) — it correctly resolved and upgraded the on-disk
+  `/Applications/cooViewer.app` from 1.4.0 to 1.5.0, which was then
+  re-registered and re-verified the same way (entitlements intact,
+  QuickLook working).
+- **Build:** `xcodebuild -configuration Deployment` succeeds for all 3
+  targets.
 
 ### Remaining Issues
 
-None blocking for the work actually done in this phase. The release
-itself (tag, push, GitHub Actions, Homebrew tap, fresh-install smoke
-test) remains outstanding, pending explicit owner confirmation — see
-Follow-up Suggestions.
+None.
 
 ### Follow-up Suggestions
 
-- Get explicit go-ahead to tag `v1.5.0`, push, and verify the GitHub
-  Actions release workflow, then update the Homebrew tap and do the
-  fresh-install smoke test — this is the immediate next step, not a
-  deferred idea.
 - Consider `.cbt` (tar) support as a future phase: needs a new
   `COTarArchive` lazy reader (tar's simplicity makes this a
   self-contained, low-risk addition, unlike `.cb7`).
 - `.cb7` (7z) support would be a project on the scale of the RAR
   lazy-reading work (phases 1–6), not a quick follow-up — revisit only
   if there's real demand.
+- The CI signing bug found here (`--deep` re-sign silently dropping
+  nested entitlements) was specific to this project's new extension
+  targets, but worth remembering for any future target that ships its
+  own `.entitlements` file.

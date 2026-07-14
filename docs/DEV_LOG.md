@@ -541,6 +541,19 @@ git push origin v1.X.Y
 - `v1.x.y` — bug fixes only
 - `v2.0.0` — breaking changes / major UI overhaul
 
+**Signing gotcha (found in the 1.5.0 release, phase 8):** if any target
+ships its own `.entitlements` file (as the QuickLook extensions do,
+since phase 7), do **not** sign the whole app with a single
+`codesign --deep --sign <identity>` pass — `codesign` does not carry
+entitlements across a re-sign unless told to, so `--deep` silently
+strips nested targets' entitlements even though the command "succeeds"
+with no warning. Sign bottom-up instead: nested dylibs, then each
+entitled target with its own `--entitlements <file>`, then the outer
+app without `--deep`. See the "Sign app" step in
+`xcode-build-and-release.yml` and
+`docs/tasks/2026-07-15-01-verify-cb7cbt-release.md` for the verified
+fix.
+
 ---
 
 ## Architecture Notes (for future reference)
