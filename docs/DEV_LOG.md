@@ -236,6 +236,31 @@ signing alone does not help (see `docs/KNOWN_ISSUES.md`).
 - Translated `CLAUDE.md` from Japanese to English
 - Added `README.md` (English, with feature descriptions, build instructions, upstream credits)
 
+### Solid RAR open-time investigation — phase 5 (2026-07-14)
+
+Diagnostic task, no code change: why does phase 4's solid RAR open
+take ~13s (same order as v1.3.7's XADMaster) when v1.3.7 showed page
+1 in under a second? Set up a `git worktree` at tag `v1.3.7` to
+compare directly. Root cause, confirmed from both sides' source and
+an instrumented progress trace: vendored libarchive's RAR5 reader
+implements `archive_read_data_skip()` for solid archives by actually
+calling its decompressor and discarding the output
+(`archive_read_support_format_rar5.c` — `skip_mode` only disables
+checksum verification, not the LZ decode); XADMaster's
+`XADRAR5Parser.m` `-skipBlock:` instead does a raw
+`seekToFileOffset:` based on the header's declared block size, never
+touching a decompressor during enumeration, solid or not. This is a
+genuine libarchive API/design limitation, not a bug or a missed flag
+in `CORarArchive`. A real fix would mean writing a from-scratch
+RAR4/RAR5 header-only block parser (mirroring XADMaster's strategy)
+for the index pass alone — judged out of scope for this diagnostic
+task per its own "stop and report back if more involved than
+expected" instruction. No fix implemented; recommended as a phase 6
+if wanted, plus a cheap interim idea (wire the existing byte-progress
+callback into a determinate "Loading… NN%" indicator instead of an
+indeterminate spinner). Details:
+`docs/tasks/2026-07-14-03-solid-rar-investigation.md`.
+
 ### RAR partial lazy extraction — phase 4 (2026-07-14)
 
 Extended the lazy-archive approach from zip (phase 2, libzip) to
