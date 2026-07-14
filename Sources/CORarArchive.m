@@ -6,6 +6,7 @@
 //
 
 #import "CORarArchive.h"
+#import "CORarHeaderIndex.h"
 #include <archive_entry.h>
 #include <uchardet.h>
 #include <string.h>
@@ -61,7 +62,8 @@
 @end
 
 @interface CORarArchive (private)
-- (void)indexArchiveWithProgress:(COArchiveProgress)progress;
+- (BOOL)indexArchiveViaHeaderParser;
+- (void)indexArchiveViaLibarchiveWithProgress:(COArchiveProgress)progress;
 - (NSData *)readEntryOnQueue:(NSUInteger)ordinal;
 - (void)prefetchAfterArrayIndex:(NSUInteger)arrayIndex;
 - (void)invalidateCursor;
@@ -91,14 +93,100 @@
 /* Called once from COArchive's designated initializer, on the
  * initializing (main) thread — see the Thread safety note in
  * CORarArchive.h for why this must not be dispatched to a background
- * queue. */
+ * queue. Tries the fast, header-only parser first (phase 6); falls
+ * back to the libarchive-based scan (phase 4) if it declines to
+ * handle this archive for any reason. */
 - (void)readArchiveWithProgress:(COArchiveProgress)progress
 {
 	readQueue = dispatch_queue_create("cooViewer.CORarArchive.read", DISPATCH_QUEUE_SERIAL);
 	dataCache = [[NSCache alloc] init];
 	[dataCache setName:@"CORarArchive.dataCache"];
 	[dataCache setTotalCostLimit:CO_RAR_CACHE_LIMIT];
-	[self indexArchiveWithProgress:progress];
+
+	if ([self indexArchiveViaHeaderParser]) {
+		rarOpened = YES;
+		return;
+	}
+
+	// clean slate: the header parser may have partially set crypted/
+	// lastError before declining; the libarchive scan determines
+	// these fresh and independently
+	crypted = NO;
+	[lastError release];
+	lastError = nil;
+	[contentArray removeAllObjects];
+
+	[self indexArchiveViaLibarchiveWithProgress:progress];
+}
+
+/* Fast path (phase 6): enumerate entries via CORarParseHeadersAtPath
+ * (raw file-offset seeks, no decompression — see CORarHeaderIndex.h)
+ * instead of walking the archive through libarchive. Returns NO if
+ * the header-only parser declined (wrong signature, encrypted
+ * headers, multi-volume, malformed data, or zero usable entries),
+ * in which case the caller falls back to the libarchive-based scan.
+ * Never invokes progress or supports cancellation: like COZipArchive's
+ * central-directory read, this is expected to complete in well under
+ * a second regardless of archive size. */
+- (BOOL)indexArchiveViaHeaderParser
+{
+	BOOL headerCrypted = NO;
+	NSArray *headerEntries = CORarParseHeadersAtPath(filePath, &headerCrypted);
+	if (!headerEntries) return NO;
+
+	NSMutableData *allRaw = [NSMutableData data];
+	BOOL allHaveUTF8 = YES;
+	for (CORarHeaderEntry *he in headerEntries) {
+		if (he->utf8Name) continue;
+		allHaveUTF8 = NO;
+		if (he->rawName) {
+			[allRaw appendData:he->rawName];
+			[allRaw appendBytes:"\n" length:1];
+		}
+	}
+
+	// archive-level encoding decision: uchardet once over every raw
+	// name (same policy as the libarchive path and COZipArchive)
+	NSString *charset = nil;
+	if (!allHaveUTF8 && [allRaw length] > 0) {
+		uchardet_t ud = uchardet_new();
+		uchardet_handle_data(ud, [allRaw bytes], [allRaw length]);
+		uchardet_data_end(ud);
+		if (uchardet_get_n_candidates(ud) > 0) {
+			const char *cs = uchardet_get_encoding(ud, 0);
+			if (cs && *cs)
+				charset = [NSString stringWithUTF8String:cs];
+		}
+		uchardet_delete(ud);
+	}
+
+	NSUInteger streamOrdinal = 0;
+	for (CORarHeaderEntry *he in headerEntries) {
+		NSUInteger thisOrdinal = streamOrdinal++;
+		NSString *name;
+		if (allHaveUTF8) {
+			name = he->utf8Name;
+		} else {
+			name = [self decodeName:he->rawName fallback:he->utf8Name charset:charset];
+		}
+		if (!name) continue;	// ordinal still consumed; matches the libarchive path's policy
+		CORarEntry *e = [[[CORarEntry alloc] initWithPath:name
+		                                             owner:self
+		                                           ordinal:thisOrdinal] autorelease];
+		e->arrayIndex = [contentArray count];
+		[contentArray addObject:e];
+	}
+
+	if ([contentArray count] == 0) {
+		// nothing usable (e.g. every entry was encrypted): let the
+		// libarchive fallback have a try too, on the off chance it
+		// disagrees; harmless either way since this case is rare
+		[contentArray removeAllObjects];
+		return NO;
+	}
+
+	crypted = headerCrypted;
+	return YES;
 }
 
 static struct archive *CORarOpenStream(NSString *filePath)
@@ -132,7 +220,7 @@ static BOOL CORarEntryIsAppleDouble(struct archive_entry *entry)
 	return strncmp(base, "._", 2) == 0;
 }
 
-- (void)indexArchiveWithProgress:(COArchiveProgress)progress
+- (void)indexArchiveViaLibarchiveWithProgress:(COArchiveProgress)progress
 {
 	struct stat st;
 	long long fileSize = 0;

@@ -122,6 +122,17 @@ python3 \
     "$OUT_DIR/test_sjis.zip"
 
 #
+# RAR4 (legacy, STORE method) — no fixture-generation tool for this
+# format is available (modern rar/unrar only create RAR5), so this is
+# hand-written directly; needs no external tool, always generated.
+#
+
+python3 \
+    "$SCRIPT_DIR/make_rar4_fixture.py" \
+    "$SRC_DIR" \
+    "$OUT_DIR/test_rar4.cbr"
+
+#
 # Checksums
 #
 

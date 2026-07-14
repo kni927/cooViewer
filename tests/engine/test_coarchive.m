@@ -120,8 +120,30 @@ int main(int argc, char **argv)
 
         // --- positive matrix ---
         for (NSString *f in @[ @"test.zip", @"test.cbz", @"test.tar",
-                               @"test.7z", @"test.cbr" ])
+                               @"test.7z", @"test.cbr", @"test_rar4.cbr" ])
             testArchive([gen stringByAppendingPathComponent:f], asciiNames, srcHashes);
+
+        // --- RAR4 (legacy) via the phase 6 header-only fast path:
+        // hand-written fixture (no generator tool available for this
+        // format), STORE method. Confirms the from-scratch RAR4
+        // parser in CORarHeaderIndex.m — informed by XADRARParser.m
+        // but unverified against any real-world RAR4 archive — at
+        // least gets the basic single-volume, non-Unicode,
+        // non-encrypted case right, cross-checked against
+        // libarchive's own RAR4 reader for the decode side. ---
+        {
+            NSString *p = [gen stringByAppendingPathComponent:@"test_rar4.cbr"];
+            printf("test_rar4.cbr fast-path check\n");
+            __block int calls = 0;
+            COArchive *ar = [[[COArchive alloc] initWithPath:p
+                progress:^BOOL(long long done, long long total) {
+                    calls++;
+                    return YES;
+                }] autorelease];
+            check(calls == 0, @"RAR4 header-parser fast path should not invoke progress");
+            check([ar isKindOfClass:[CORarArchive class]], @"test_rar4.cbr not on CORarArchive path");
+            check([ar itemCount] == 4, @"RAR4 fast-path entry count");
+        }
 
         for (NSString *f in @[ @"test_utf8.zip", @"test_utf8.7z",
                                @"test_utf8.cbr", @"test_sjis.zip" ])
@@ -339,27 +361,32 @@ int main(int argc, char **argv)
             check(![ar3 cancelled], @"zip open must not be cancellable");
             check([ar3 itemCount] == 4, @"zip open with cancel-progress entry count");
 
-            // rar path: the index pass is a real (skip-only) scan of
-            // the whole stream, so progress fires and cancel works,
-            // unlike zip's instant open
+            // rar path (phase 6): the header-only fast path is
+            // expected to win for a plain single-volume RAR5 fixture
+            // like test.cbr, so — like zip's instant open — progress
+            // never fires and cancel is a no-op. (The libarchive
+            // fallback this path replaces *did* support progress/
+            // cancel, same as test.tar above; that fallback code is
+            // unchanged and still exercised whenever the header
+            // parser declines — see the mislabeled.cbr test above,
+            // which forces the fallback via a non-RAR .cbr file.)
             NSString *rp = [gen stringByAppendingPathComponent:@"test.cbr"];
             if ([[NSFileManager defaultManager] fileExistsAtPath:rp]) {
                 __block int rcalls = 0;
                 COArchive *ar4 = [[[COArchive alloc] initWithPath:rp
                     progress:^BOOL(long long done, long long total) {
                         rcalls++;
-                        check(done > 0 && total > 0 && done <= total, @"rar progress bounds");
                         return YES;
                     }] autorelease];
-                check(rcalls > 0, @"rar progress callback never called");
-                check([ar4 itemCount] == 4, @"rar progress run entry count");
+                check(rcalls == 0, @"rar header-parser fast path should not invoke progress");
+                check([ar4 itemCount] == 4, @"rar fast-path entry count");
 
                 COArchive *ar5 = [[[COArchive alloc] initWithPath:rp
                     progress:^BOOL(long long done, long long total) {
-                        return NO;	// cancel immediately
+                        return NO;	// would cancel, but the fast path can't be cancelled
                     }] autorelease];
-                check([ar5 cancelled], @"rar cancel flag not set");
-                check([ar5 itemCount] == 0, @"cancelled rar open must yield no entries");
+                check(![ar5 cancelled], @"rar fast-path open must not be cancellable");
+                check([ar5 itemCount] == 4, @"rar fast-path open with cancel-progress entry count");
             }
         }
 

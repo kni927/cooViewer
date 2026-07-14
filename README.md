@@ -133,3 +133,5 @@ See:
 * `Licence_libarchive.txt` (bundled libarchive, BSD)
 * `Licence_uchardet.txt` (bundled uchardet, MPL 1.1)
 * `Licence_libzip.txt` (bundled libzip, BSD-3-Clause)
+* `Licence_xadmaster.txt` (RAR header-parsing logic derived from
+  XADMaster, LGPL 2.1-or-later — see `Sources/CORarHeaderIndex.h`)

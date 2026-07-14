@@ -3,19 +3,36 @@
 //  cooViewer
 //
 //  libarchive-based partial-lazy reader for rar/cbr archives
-//  (RAR-partial-lazy phase 4).
+//  (RAR-partial-lazy phase 4; index pass replaced in phase 6).
 //
-//  Design (docs/tasks/... phase 4 TASK):
-//  - libarchive's RAR reader is a streaming API: it cannot seek to an
-//    arbitrary entry the way libzip can. What it can do cheaply is
-//    archive_read_data_skip(), which advances past an entry's
-//    compressed data without fully decoding it.
-//  - Open performs one skip-only pass over the whole stream
-//    (archive_read_next_header + archive_read_data_skip for every
-//    entry) to build the entry index (name, ordinal) without
-//    decoding any entry data. This is RAR's equivalent of reading
-//    zip's central directory, at the cost of one skip pass instead
-//    of a free lookup.
+//  Design (docs/tasks/... phase 4 TASK, phase 6 TASK):
+//  - Phase 4: libarchive's RAR reader is a streaming API: it cannot
+//    seek to an arbitrary entry the way libzip can. What it can do
+//    cheaply is archive_read_data_skip(), which advances past an
+//    entry's compressed data without fully decoding it — except,
+//    phase 5's investigation found, for *solid* RAR5 archives, where
+//    libarchive's skip is implemented by actually running the
+//    decompressor and discarding the output (see
+//    docs/tasks/2026-07-14-03-solid-rar-investigation.md).
+//  - Phase 6 (see CORarHeaderIndex.h) replaced the open-time index
+//    pass with a fast, header-only parser (raw file-offset seeks,
+//    informed by XADMaster's pre-libarchive strategy) that never
+//    invokes a decompressor, solid or not. That parser is a pure
+//    optional fast path in front of the still-present libarchive
+//    scan below, which now serves only as the fallback when the fast
+//    parser declines (wrong signature, header encryption,
+//    multi-volume, malformed data, or an untested RAR4 name
+//    encoding — see CORarHeaderIndex.h for the exact list). The text
+//    below still describes that fallback path accurately; it is
+//    otherwise unchanged from phase 4.
+//  - The libarchive-based fallback: open performs one skip-only pass
+//    over the whole stream (archive_read_next_header +
+//    archive_read_data_skip for every entry) to build the entry
+//    index (name, ordinal) without decoding any entry data. This is
+//    RAR's equivalent of reading zip's central directory, at the
+//    cost of one skip pass instead of a free lookup (and, for solid
+//    archives, at the cost phase 5 diagnosed — which is exactly why
+//    phase 6 exists).
 //  - Entry data is decoded on demand through a second, independent
 //    "cursor" archive_read stream. The cursor tracks the ordinal of
 //    the next qualifying entry it will encounter (-cursorNext).
@@ -47,17 +64,21 @@
 //    on a private dispatch queue instead, since -data is called from
 //    COImageLoader's lookahead/prefetch threads as well as the main
 //    thread.
-//  - Filename encoding: same policy as COArchive/COZipArchive — raw
-//    header bytes (archive_entry_pathname) and libarchive's UTF-8
-//    conversion (archive_entry_pathname_utf8) are collected for
-//    every entry during the index pass; if any entry lacks a UTF-8
-//    conversion, uchardet runs ONCE over every entry's concatenated
-//    raw bytes and the shared COArchive decodeName:fallback:charset:
-//    routine picks the final name. This path still depends on the
-//    process locale exactly as before (see main.m) — libarchive's
-//    RAR reader (unlike libzip) performs its own raw-to-UTF8
-//    conversion internally, so the setlocale workaround remains
-//    required here.
+//  - Filename encoding (libarchive fallback path): same policy as
+//    COArchive/COZipArchive — raw header bytes
+//    (archive_entry_pathname) and libarchive's UTF-8 conversion
+//    (archive_entry_pathname_utf8) are collected for every entry
+//    during the index pass; if any entry lacks a UTF-8 conversion,
+//    uchardet runs ONCE over every entry's concatenated raw bytes
+//    and the shared COArchive decodeName:fallback:charset: routine
+//    picks the final name. This path still depends on the process
+//    locale exactly as before (see main.m) — libarchive's RAR reader
+//    (unlike libzip) performs its own raw-to-UTF8 conversion
+//    internally, so the setlocale workaround remains required here.
+//    The phase 6 header-only parser reuses the same
+//    decodeName:fallback:charset: routine and uchardet policy, but
+//    supplies its own raw bytes / UTF-8 names directly from the
+//    parsed headers — see CORarHeaderIndex.h.
 //  - Skipped entries match COArchive: directories, zero-byte
 //    entries, AppleDouble ("._*") sidecars; encrypted entries set
 //    -crypted = YES and are skipped (unrar decryption was never
@@ -79,9 +100,12 @@
 //    -rarOpened is already YES by then, so whatever entries the
 //    index pass collected before hitting the error are kept, same
 //    partial-results philosophy as the base COArchive path.
-//  - The open-progress callback is invoked during the index pass
-//    (skip-only, so it completes far faster than full decode did)
-//    and open can still be cancelled.
+//  - The open-progress callback is only invoked when the libarchive
+//    fallback index pass runs (open can be cancelled in that case,
+//    same as phase 4); the phase 6 header-only fast path never calls
+//    it and cannot be cancelled, matching COZipArchive's precedent —
+//    it is expected to finish in well under a second regardless of
+//    archive size.
 //
 //  Do not instantiate directly: COArchive's initializer dispatches
 //  .rar/.cbr files here.

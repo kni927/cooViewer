@@ -13,6 +13,8 @@
 		AC0DE0131CA7A106A55E7500 /* COZipArchive.m in Sources */ = {isa = PBXBuildFile; fileRef = AC0DE0111CA7A106A55E7500 /* COZipArchive.m */; };
 		AC0DE0161CA7A106A55E7500 /* CORarArchive.h in Headers */ = {isa = PBXBuildFile; fileRef = AC0DE0141CA7A106A55E7500 /* CORarArchive.h */; };
 		AC0DE0171CA7A106A55E7500 /* CORarArchive.m in Sources */ = {isa = PBXBuildFile; fileRef = AC0DE0151CA7A106A55E7500 /* CORarArchive.m */; };
+		AC0DE01A1CA7A106A55E7500 /* CORarHeaderIndex.h in Headers */ = {isa = PBXBuildFile; fileRef = AC0DE0181CA7A106A55E7500 /* CORarHeaderIndex.h */; };
+		AC0DE01B1CA7A106A55E7500 /* CORarHeaderIndex.m in Sources */ = {isa = PBXBuildFile; fileRef = AC0DE0191CA7A106A55E7500 /* CORarHeaderIndex.m */; };
 		AC0DE0051CA7A106A55E7500 /* libarchive.13.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = AC0DE0031CA7A106A55E7500 /* libarchive.13.dylib */; };
 		AC0DE0061CA7A106A55E7500 /* libuchardet.0.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = AC0DE0041CA7A106A55E7500 /* libuchardet.0.dylib */; };
 		AC0DE0071CA7A106A55E7500 /* libarchive.13.dylib in CopyFiles */ = {isa = PBXBuildFile; fileRef = AC0DE0031CA7A106A55E7500 /* libarchive.13.dylib */; settings = {ATTRIBUTES = (CodeSignOnCopy, ); }; };
@@ -136,6 +138,8 @@
 		AC0DE0111CA7A106A55E7500 /* COZipArchive.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = Sources/COZipArchive.m; sourceTree = "<group>"; };
 		AC0DE0141CA7A106A55E7500 /* CORarArchive.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = Sources/CORarArchive.h; sourceTree = "<group>"; };
 		AC0DE0151CA7A106A55E7500 /* CORarArchive.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = Sources/CORarArchive.m; sourceTree = "<group>"; };
+		AC0DE0181CA7A106A55E7500 /* CORarHeaderIndex.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = Sources/CORarHeaderIndex.h; sourceTree = "<group>"; };
+		AC0DE0191CA7A106A55E7500 /* CORarHeaderIndex.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = Sources/CORarHeaderIndex.m; sourceTree = "<group>"; };
 		AC0DE0031CA7A106A55E7500 /* libarchive.13.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; name = libarchive.13.dylib; path = vendor/lib/libarchive.13.dylib; sourceTree = "<group>"; };
 		AC0DE0041CA7A106A55E7500 /* libuchardet.0.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; name = libuchardet.0.dylib; path = vendor/lib/libuchardet.0.dylib; sourceTree = "<group>"; };
 		AC0DE00D1CA7A106A55E7500 /* libzip.5.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; name = libzip.5.dylib; path = vendor/lib/libzip.5.dylib; sourceTree = "<group>"; };
@@ -416,6 +420,8 @@
 				AC0DE0111CA7A106A55E7500 /* COZipArchive.m */,
 				AC0DE0141CA7A106A55E7500 /* CORarArchive.h */,
 				AC0DE0151CA7A106A55E7500 /* CORarArchive.m */,
+				AC0DE0181CA7A106A55E7500 /* CORarHeaderIndex.h */,
+				AC0DE0191CA7A106A55E7500 /* CORarHeaderIndex.m */,
 			);
 			name = archive;
 			sourceTree = "<group>";
@@ -576,6 +582,7 @@
 				AC0DE00B1CA7A106A55E7500 /* COArchive.h in Headers */,
 				AC0DE0121CA7A106A55E7500 /* COZipArchive.h in Headers */,
 				AC0DE0161CA7A106A55E7500 /* CORarArchive.h in Headers */,
+				AC0DE01A1CA7A106A55E7500 /* CORarHeaderIndex.h in Headers */,
 				76F0929A07DBF79E00643E4F /* BookmarkController.h in Headers */,
 				76EA136607E3FC39008EB0E1 /* BookmarkPanel.h in Headers */,
 				76B19AC307C9C15A00A6FB97 /* Controller.h in Headers */,
@@ -700,6 +707,7 @@
 				AC0DE00C1CA7A106A55E7500 /* COArchive.m in Sources */,
 				AC0DE0131CA7A106A55E7500 /* COZipArchive.m in Sources */,
 				AC0DE0171CA7A106A55E7500 /* CORarArchive.m in Sources */,
+				AC0DE01B1CA7A106A55E7500 /* CORarHeaderIndex.m in Sources */,
 				76B19AC407C9C15A00A6FB97 /* Controller.m in Sources */,
 				768E1DED07CC6B740023AF61 /* CustomWindow.m in Sources */,
 				7601F5F907D5508700457A5B /* CustomImageView.m in Sources */,
