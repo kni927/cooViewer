@@ -89,13 +89,28 @@ jobs:
 
       - name: Sign app
         run: |
-          codesign \
-            --force \
-            --deep \
-            --timestamp \
-            --options runtime \
-            --sign "$SIGNING_IDENTITY" \
-            "$APP_PATH"
+          set -euo pipefail
+
+          # Sign bottom-up rather than a single `--deep` pass: codesign
+          # does not carry entitlements across a re-sign unless told to,
+          # so a blanket `--deep --sign` on the whole app silently strips
+          # the QuickLook extensions' sandbox entitlements (confirmed by
+          # local testing — see docs/tasks/2026-07-15-01-verify-cb7cbt-release.md).
+          for dylib in \
+            "$APP_PATH"/Contents/Frameworks/*.dylib \
+            "$APP_PATH"/Contents/PlugIns/cooViewerThumbnail.appex/Contents/Frameworks/*.dylib \
+            "$APP_PATH"/Contents/PlugIns/cooViewerPreview.appex/Contents/Frameworks/*.dylib; do
+            codesign --force --timestamp --options runtime --sign "$SIGNING_IDENTITY" "$dylib"
+          done
+
+          codesign --force --timestamp --options runtime \
+            --entitlements ThumbnailExtension/ThumbnailExtension.entitlements \
+            --sign "$SIGNING_IDENTITY" "$APP_PATH/Contents/PlugIns/cooViewerThumbnail.appex"
+          codesign --force --timestamp --options runtime \
+            --entitlements PreviewExtension/PreviewExtension.entitlements \
+            --sign "$SIGNING_IDENTITY" "$APP_PATH/Contents/PlugIns/cooViewerPreview.appex"
+
+          codesign --force --timestamp --options runtime --sign "$SIGNING_IDENTITY" "$APP_PATH"
 
           codesign --verify --deep --strict --verbose=2 "$APP_PATH"
 
