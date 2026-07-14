@@ -322,3 +322,16 @@ diagnostic logging in place. `application:openFile:`
   look, from the user's perspective, identical to "nothing happened,"
   matching the reported symptom. Worth surfacing an error here if the
   report recurs and a failing file/location can be identified.
+- **Phase 10 follow-up:** chat investigation pinpointed
+  `com.apple.quarantine` as the differentiator between failing and
+  working files. Still could not reproduce: tested the exact same
+  file with its quarantine attribute intentionally left in place, a
+  pre-phase-7 build via `git worktree`, freshly-applied quarantine
+  attributes (new UUID, never opened) on both small and 1.4 GB files,
+  and the real Developer-ID-signed/notarized `/Applications` release
+  build — six variations total, all switched documents correctly. See
+  `docs/tasks/2026-07-15-03-quarantine-doubleclick-investigation.md`.
+  If this recurs, get a live, step-by-step narrated repro (exact file,
+  exact click sequence, any dialogs seen) rather than reasoning from a
+  chat description after the fact — this investigation had no actual
+  failure to observe or log.
