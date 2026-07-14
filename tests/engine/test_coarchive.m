@@ -1,17 +1,24 @@
 /*
- * test_coarchive — engine gate harness for COArchive/COZipArchive.
+ * test_coarchive — engine gate harness for
+ * COArchive/COZipArchive/CORarArchive.
  *
  * Runs COArchive against every fixture archive and verifies:
  *   - entry count and entry order (archive order)
  *   - decoded entry names against the baseline in
  *     tests/fixtures/README.md (ASCII and Japanese UTF-8/CP932)
  *   - SHA-256 of every entry payload against tests/fixtures/src
- *   - zip/cbz dispatch to the libzip lazy reader (COZipArchive),
- *     other formats stay on the libarchive path
+ *   - zip/cbz dispatch to the libzip lazy reader (COZipArchive) and
+ *     rar/cbr dispatch to the partial-lazy reader (CORarArchive);
+ *     7z/tar stay on the full-extraction libarchive path
  *   - the libzip path is locale-independent (CP932 names survive a
  *     forced C locale; the libarchive zip reader needed the UTF-8
  *     locale workaround in main.m)
- *   - graceful handling of truncated and bit-flipped archives
+ *   - solid RAR archives decode correctly (in their own, re-ordered
+ *     stream order — solid compression reorders entries for a better
+ *     ratio)
+ *   - RAR backward page navigation (the cursor can only skip forward,
+ *     so paging backwards must reopen and fast-forward from the start)
+ *   - graceful handling of truncated and bit-flipped zip/rar archives
  *
  * usage: test_coarchive <fixtures-generated-dir> <fixtures-src-dir>
  * exit code: number of failed checks (0 = all pass)
@@ -22,6 +29,7 @@
 #include <objc/runtime.h>
 #import "COArchive.h"
 #import "COZipArchive.h"
+#import "CORarArchive.h"
 
 static int failures = 0;
 
@@ -55,11 +63,15 @@ static void testArchive(NSString *path, NSArray *names, NSArray *srcHashes)
     printf("%s\n", [[path lastPathComponent] UTF8String]);
     COArchive *ar = [[[COArchive alloc] initWithPath:path] autorelease];
 
-    // dispatch check: zip/cbz must take the libzip lazy path, every
-    // other format must stay on the libarchive path
+    // dispatch check: zip/cbz -> COZipArchive, rar/cbr -> CORarArchive,
+    // everything else stays on the base libarchive full-extraction path
     NSString *ext = [[path pathExtension] lowercaseString];
     BOOL wantZip = [ext isEqualToString:@"zip"] || [ext isEqualToString:@"cbz"];
+    BOOL wantRar = [ext isEqualToString:@"rar"] || [ext isEqualToString:@"cbr"];
     check([ar isKindOfClass:[COZipArchive class]] == wantZip,
+          [NSString stringWithFormat:@"dispatch: %@ opened as %s",
+           [path lastPathComponent], class_getName([ar class])]);
+    check([ar isKindOfClass:[CORarArchive class]] == wantRar,
           [NSString stringWithFormat:@"dispatch: %@ opened as %s",
            [path lastPathComponent], class_getName([ar class])]);
 
@@ -114,6 +126,50 @@ int main(int argc, char **argv)
         for (NSString *f in @[ @"test_utf8.zip", @"test_utf8.7z",
                                @"test_utf8.cbr", @"test_sjis.zip" ])
             testArchive([gen stringByAppendingPathComponent:f], jpNames, srcHashes);
+
+        // --- solid RAR: entries come back in the archive's own
+        // (reordered) stream order, not source order — rar -s picked
+        // 002,004,001,003 for this fixture's compression ratio
+        {
+            NSArray *solidOrder = @[ @1, @3, @0, @2 ];
+            NSMutableArray *solidNames = [NSMutableArray array];
+            NSMutableArray *solidHashes = [NSMutableArray array];
+            for (NSNumber *i in solidOrder) {
+                [solidNames addObject:[asciiNames objectAtIndex:[i unsignedIntegerValue]]];
+                [solidHashes addObject:[srcHashes objectAtIndex:[i unsignedIntegerValue]]];
+            }
+            testArchive([gen stringByAppendingPathComponent:@"test_solid.cbr"],
+                        solidNames, solidHashes);
+        }
+
+        // --- RAR backward page navigation: the cursor can only skip
+        // forward through the stream, so requesting an earlier entry
+        // than the cursor's current position must reopen and
+        // fast-forward from the start. Exercise both the "continue
+        // forward" and "reopen" paths on both non-solid and solid. ---
+        for (NSString *f in @[ @"test.cbr", @"test_solid.cbr" ]) {
+            NSString *p = [gen stringByAppendingPathComponent:f];
+            if (![[NSFileManager defaultManager] fileExistsAtPath:p]) continue;
+            printf("%s backward navigation\n", [f UTF8String]);
+            COArchive *ar = [[[COArchive alloc] initWithPath:p] autorelease];
+            if ([ar itemCount] != 4) {
+                check(NO, [NSString stringWithFormat:@"%@: expected 4 entries for nav test", f]);
+                continue;
+            }
+            NSArray *srcByName = [asciiNames count] == 4 ? asciiNames : nil;
+            int order[] = { 3, 0, 2, 1 };
+            int k;
+            for (k = 0; k < 4; k++) {
+                COArchiveEntry *e = [[ar contents] objectAtIndex:order[k]];
+                NSUInteger want = [srcByName indexOfObject:[e path]];
+                check(want != NSNotFound,
+                      [NSString stringWithFormat:@"%@: unexpected name %@", f, [e path]]);
+                if (want == NSNotFound) continue;
+                check([sha256([e data]) isEqualToString:[srcHashes objectAtIndex:want]],
+                      [NSString stringWithFormat:@"%@: nav sha mismatch at array index %d",
+                       f, order[k]]);
+            }
+        }
 
         // --- locale independence of the libzip path: CP932 names must
         // decode correctly even under the C locale (the libarchive zip
@@ -176,6 +232,82 @@ int main(int argc, char **argv)
             }
         }
 
+        // --- mislabeled file: a zip renamed to .cbr must fail the
+        // RAR signature check and fall back to the libarchive
+        // full-extraction path (which detects zip from content,
+        // regardless of extension), exactly like the base COArchive
+        // path already does for e.g. 7z misnamed as .tar ---
+        {
+            NSString *src = [gen stringByAppendingPathComponent:@"test.zip"];
+            NSString *p = [gen stringByAppendingPathComponent:@"mislabeled.cbr"];
+            [[NSFileManager defaultManager] removeItemAtPath:p error:nil];
+            if ([[NSFileManager defaultManager] copyItemAtPath:src toPath:p error:nil]) {
+                printf("mislabeled.cbr (zip renamed to .cbr)\n");
+                COArchive *ar = [[[COArchive alloc] initWithPath:p] autorelease];
+                check(![ar isKindOfClass:[CORarArchive class]],
+                      @"mislabeled zip-as-cbr did not fall back to libarchive");
+                check([ar itemCount] == 4,
+                      [NSString stringWithFormat:@"mislabeled.cbr entry count %d (lastError=%@)",
+                       [ar itemCount], [ar lastError]]);
+            } else {
+                check(NO, @"could not create mislabeled.cbr fixture");
+            }
+        }
+
+        // --- corruption: truncated rar (RAR5 signature intact, rest
+        // cut off). The index pass opens the stream fine (the
+        // signature is at the very start) but the skip-only header
+        // scan hits truncated data partway through the first entry,
+        // so at most one (unreadable) entry is listed and lastError
+        // is set. Unlike zip, CORarArchive has no fallback path. ---
+        {
+            NSString *p = [gen stringByAppendingPathComponent:@"corrupt_truncated.cbr"];
+            if ([[NSFileManager defaultManager] fileExistsAtPath:p]) {
+                printf("corrupt_truncated.cbr\n");
+                COArchive *ar = [[[COArchive alloc] initWithPath:p] autorelease];
+                check([ar isKindOfClass:[CORarArchive class]],
+                      @"truncated rar did not open on the CORarArchive path");
+                check([ar itemCount] <= 1, @"truncated rar yielded too many entries");
+                check([ar lastError] != nil, @"truncated rar should set lastError");
+            } else {
+                printf("corrupt_truncated.cbr: SKIP (rar not installed)\n");
+            }
+        }
+
+        // --- corruption: bit-flipped entry #1 (002.jpg) payload
+        // inside test.cbr's compressed stream. The index pass only
+        // skips entry data (never decodes it), so all 4 entries are
+        // still listed correctly; the corrupt entry is detected at
+        // read time (-data == nil) and the surrounding entries stay
+        // readable — fast-forwarding past a corrupt entry only needs
+        // to skip it, not decode it. ---
+        {
+            NSString *p = [gen stringByAppendingPathComponent:@"corrupt_bitflip.cbr"];
+            if ([[NSFileManager defaultManager] fileExistsAtPath:p]) {
+                printf("corrupt_bitflip.cbr\n");
+                COArchive *ar = [[[COArchive alloc] initWithPath:p] autorelease];
+                check([ar isKindOfClass:[CORarArchive class]],
+                      @"bitflip rar did not open on the CORarArchive path");
+                check([ar itemCount] == 4,
+                      [NSString stringWithFormat:@"bitflip rar: expected 4 listed entries, got %d",
+                       [ar itemCount]]);
+                int i;
+                for (i = 0; i < [ar itemCount] && i < 4; i++) {
+                    COArchiveEntry *e = [[ar contents] objectAtIndex:i];
+                    check([[e path] isEqualToString:[asciiNames objectAtIndex:i]],
+                          [NSString stringWithFormat:@"bitflip rar name #%d = %@", i, [e path]]);
+                    if (i == 1) {	// the fixture flips bytes inside 002.jpg's compressed stream
+                        check([e data] == nil, @"bitflip rar: corrupt entry must yield nil data");
+                    } else {
+                        check([sha256([e data]) isEqualToString:[srcHashes objectAtIndex:i]],
+                              [NSString stringWithFormat:@"bitflip rar sha #%d", i]);
+                    }
+                }
+            } else {
+                printf("corrupt_bitflip.cbr: SKIP (rar not installed)\n");
+            }
+        }
+
         // --- progress + cancellation (libarchive path; the zip lazy
         // path never invokes progress and cannot be cancelled) ---
         {
@@ -206,6 +338,29 @@ int main(int argc, char **argv)
                 }] autorelease];
             check(![ar3 cancelled], @"zip open must not be cancellable");
             check([ar3 itemCount] == 4, @"zip open with cancel-progress entry count");
+
+            // rar path: the index pass is a real (skip-only) scan of
+            // the whole stream, so progress fires and cancel works,
+            // unlike zip's instant open
+            NSString *rp = [gen stringByAppendingPathComponent:@"test.cbr"];
+            if ([[NSFileManager defaultManager] fileExistsAtPath:rp]) {
+                __block int rcalls = 0;
+                COArchive *ar4 = [[[COArchive alloc] initWithPath:rp
+                    progress:^BOOL(long long done, long long total) {
+                        rcalls++;
+                        check(done > 0 && total > 0 && done <= total, @"rar progress bounds");
+                        return YES;
+                    }] autorelease];
+                check(rcalls > 0, @"rar progress callback never called");
+                check([ar4 itemCount] == 4, @"rar progress run entry count");
+
+                COArchive *ar5 = [[[COArchive alloc] initWithPath:rp
+                    progress:^BOOL(long long done, long long total) {
+                        return NO;	// cancel immediately
+                    }] autorelease];
+                check([ar5 cancelled], @"rar cancel flag not set");
+                check([ar5 itemCount] == 0, @"cancelled rar open must yield no entries");
+            }
         }
 
         printf(failures ? "\n%d FAILURE(S)\n" : "\nALL PASS\n", failures);

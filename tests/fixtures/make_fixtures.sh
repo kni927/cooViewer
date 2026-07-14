@@ -74,9 +74,11 @@ if command_optional rar; then
     (
         cd "$SRC_DIR"
         rar a -idq "$OUT_DIR/test.cbr" "${SOURCE_FILES[@]}"
+        # -s: solid archive, for the RAR partial-lazy reader's solid path
+        rar a -idq -s "$OUT_DIR/test_solid.cbr" "${SOURCE_FILES[@]}"
     )
 else
-    echo "Skip: test.cbr (rar not installed)"
+    echo "Skip: test.cbr / test_solid.cbr (rar not installed)"
 fi
 
 #

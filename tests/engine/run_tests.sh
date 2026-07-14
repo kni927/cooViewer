@@ -25,10 +25,23 @@ for off in range(2000, 2100):   # inside entry #1's deflate stream
 open(sys.argv[2], "wb").write(bytes(data))
 EOF
 
+# corrupt variants, derived from test.cbr (rar-only, optional like test.cbr)
+if [ -f "$GEN/test.cbr" ]; then
+    head -c 50000 "$GEN/test.cbr" > "$GEN/corrupt_truncated.cbr"
+    python3 - "$GEN/test.cbr" "$GEN/corrupt_bitflip.cbr" <<'EOF'
+import sys
+data = bytearray(open(sys.argv[1], "rb").read())
+for off in range(150000, 150100):   # inside entry #2's compressed stream
+    data[off] ^= 0xFF
+open(sys.argv[2], "wb").write(bytes(data))
+EOF
+fi
+
 clang -O2 \
     -I "$REPO_ROOT/vendor/include" \
     -I "$REPO_ROOT/Sources" \
     "$ENGINE_DIR/test_coarchive.m" "$REPO_ROOT/Sources/COArchive.m" "$REPO_ROOT/Sources/COZipArchive.m" \
+    "$REPO_ROOT/Sources/CORarArchive.m" \
     "$REPO_ROOT/vendor/lib/libarchive.13.dylib" \
     "$REPO_ROOT/vendor/lib/libuchardet.0.dylib" \
     "$REPO_ROOT/vendor/lib/libzip.5.dylib" \

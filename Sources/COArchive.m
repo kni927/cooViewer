@@ -7,6 +7,7 @@
 
 #import "COArchive.h"
 #import "COZipArchive.h"
+#import "CORarArchive.h"
 #import <CoreFoundation/CoreFoundation.h>
 #include <archive.h>
 #include <archive_entry.h>
@@ -93,9 +94,12 @@
 - (id)initWithPath:(NSString *)path progress:(COArchiveProgress)progress
 {
 	// format dispatch: zip/cbz go to the libzip lazy reader
-	// (COZipArchive). If libzip cannot open the file (corrupt or
-	// partial central directory), fall through to the libarchive
-	// full-extraction path below.
+	// (COZipArchive); rar/cbr go to the libarchive-based partial-lazy
+	// reader (CORarArchive). If either fails to open (corrupt/partial
+	// zip central directory, or a RAR signature check failure — e.g.
+	// a mislabeled non-RAR file with a .cbr extension), fall through
+	// to the libarchive full-extraction path below, which supports
+	// every format and will succeed if the file is readable at all.
 	if ([self isMemberOfClass:[COArchive class]]) {
 		NSString *ext = [[path pathExtension] lowercaseString];
 		if ([ext isEqualToString:@"zip"] || [ext isEqualToString:@"cbz"]) {
@@ -108,6 +112,16 @@
 			NSLog(@"COArchive: libzip cannot open %@ (%@); falling back to libarchive",
 			      path, [z lastError]);
 			[z release];
+		} else if ([ext isEqualToString:@"rar"] || [ext isEqualToString:@"cbr"]) {
+			CORarArchive *r = [[CORarArchive alloc] initWithPath:path
+			                                            progress:progress];
+			if ([r rarOpened]) {
+				[self release];
+				return r;
+			}
+			NSLog(@"COArchive: CORarArchive cannot open %@ (%@); falling back to libarchive",
+			      path, [r lastError]);
+			[r release];
 		}
 	}
 
