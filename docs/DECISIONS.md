@@ -41,10 +41,11 @@ bigger decision requiring fresh review, not an extension of this one.
 
 **Licensing consequence:** Because the reimplemented code is a
 derivative of XADMaster's LGPL-2.1-or-later source, `CORarHeaderIndex.h`
-carries an LGPL-2.1-or-later notice and `Licence_xadmaster.txt` was
-added. cooViewer statically compiles this code into the app binary
-(no separate dylib) — the phase 6 task doc flags this as unresolved
-by non-lawyer assessment (compliance likely satisfied because the
+carries an LGPL-2.1-or-later notice and
+`docs/licenses/License_xadmaster.txt` was added. cooViewer statically
+compiles this code into the app binary (no separate dylib) — the
+phase 6 task doc flags this as unresolved by non-lawyer assessment
+(compliance likely satisfied because the
 whole project is already open source and buildable from this
 repository) rather than guessed away; revisit before any
 closed-source or object-only distribution change.

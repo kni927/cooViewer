@@ -245,7 +245,7 @@ phase 4 libarchive-based scan. The new parser walks the file via raw
 `fseeko`/`fread` only — no decompression anywhere — reimplementing
 just the block-header-walking *knowledge* from XADMaster's
 `XADRARParser.m`/`XADRAR5Parser.m` (LGPL-2.1-or-later, MacPaw Inc.;
-`Licence_xadmaster.txt`) rather than restoring XADMaster's own
+`docs/licenses/License_xadmaster.txt`) rather than restoring XADMaster's own
 CSHandle/XADArchiveParser class hierarchy. Bails to the libarchive
 fallback on anything it can't confidently handle: header encryption,
 multi-volume archives, and (RAR4 only) `LHD_UNICODE`-flagged names,

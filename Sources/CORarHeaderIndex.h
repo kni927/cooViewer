@@ -18,7 +18,8 @@
 //  This library is distributed in the hope that it will be useful,
 //  but WITHOUT ANY WARRANTY; without even the implied warranty of
 //  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
-//  Lesser General Public License (Licence_xadmaster.txt) for details.
+//  Lesser General Public License (docs/licenses/License_xadmaster.txt)
+//  for details.
 //
 //  Design (docs/tasks/... phase 6 TASK; root cause: phase 5,
 //  docs/tasks/2026-07-14-03-solid-rar-investigation.md):
@@ -33,9 +34,9 @@
 //  - This file reimplements *only* that seek-based enumeration
 //    strategy (informed by / derived from XADMaster's
 //    XADRARParser.m and XADRAR5Parser.m, MacPaw Inc.,
-//    LGPL-2.1-or-later — see Licence_xad.txt), as small,
-//    self-contained C/Foundation code matching cooViewer's existing
-//    style (COArchive.m/COZipArchive.m), rather than reusing
+//    LGPL-2.1-or-later — see docs/licenses/License_xadmaster.txt), as
+//    small, self-contained C/Foundation code matching cooViewer's
+//    existing style (COArchive.m/COZipArchive.m), rather than reusing
 //    XADMaster's own CSHandle/XADArchiveParser/XADPath class
 //    hierarchy, which pulls in ~3500 lines of infrastructure (input
 //    handles, decryption, decompression engines) this project has no

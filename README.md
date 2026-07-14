@@ -128,10 +128,10 @@ This project is distributed under the same licenses as the upstream project.
 
 See:
 
-* `Licence.txt`
-* `Licence_RemoteControlWrapper.txt`
-* `Licence_libarchive.txt` (bundled libarchive, BSD)
-* `Licence_uchardet.txt` (bundled uchardet, MPL 1.1)
-* `Licence_libzip.txt` (bundled libzip, BSD-3-Clause)
-* `Licence_xadmaster.txt` (RAR header-parsing logic derived from
+* `LICENSE.txt`
+* `docs/licenses/License_RemoteControlWrapper.txt`
+* `docs/licenses/License_libarchive.txt` (bundled libarchive, BSD)
+* `docs/licenses/License_uchardet.txt` (bundled uchardet, MPL 1.1)
+* `docs/licenses/License_libzip.txt` (bundled libzip, BSD-3-Clause)
+* `docs/licenses/License_xadmaster.txt` (RAR header-parsing logic derived from
   XADMaster, LGPL 2.1-or-later — see `Sources/CORarHeaderIndex.h`)
