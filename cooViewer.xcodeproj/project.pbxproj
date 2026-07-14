@@ -15,6 +15,8 @@
 		AC0DE0171CA7A106A55E7500 /* CORarArchive.m in Sources */ = {isa = PBXBuildFile; fileRef = AC0DE0151CA7A106A55E7500 /* CORarArchive.m */; };
 		AC0DE01A1CA7A106A55E7500 /* CORarHeaderIndex.h in Headers */ = {isa = PBXBuildFile; fileRef = AC0DE0181CA7A106A55E7500 /* CORarHeaderIndex.h */; };
 		AC0DE01B1CA7A106A55E7500 /* CORarHeaderIndex.m in Sources */ = {isa = PBXBuildFile; fileRef = AC0DE0191CA7A106A55E7500 /* CORarHeaderIndex.m */; };
+		AC0DE01E1CA7A106A55E7500 /* COCoverExtractor.h in Headers */ = {isa = PBXBuildFile; fileRef = AC0DE01C1CA7A106A55E7500 /* COCoverExtractor.h */; };
+		AC0DE01F1CA7A106A55E7500 /* COCoverExtractor.m in Sources */ = {isa = PBXBuildFile; fileRef = AC0DE01D1CA7A106A55E7500 /* COCoverExtractor.m */; };
 		AC0DE0051CA7A106A55E7500 /* libarchive.13.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = AC0DE0031CA7A106A55E7500 /* libarchive.13.dylib */; };
 		AC0DE0061CA7A106A55E7500 /* libuchardet.0.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = AC0DE0041CA7A106A55E7500 /* libuchardet.0.dylib */; };
 		AC0DE0071CA7A106A55E7500 /* libarchive.13.dylib in CopyFiles */ = {isa = PBXBuildFile; fileRef = AC0DE0031CA7A106A55E7500 /* libarchive.13.dylib */; settings = {ATTRIBUTES = (CodeSignOnCopy, ); }; };
@@ -114,7 +116,59 @@
 		A39D6C3323BEB590002FD912 /* LoupeView.h in Headers */ = {isa = PBXBuildFile; fileRef = A39D6C3223BEB590002FD912 /* LoupeView.h */; };
 		A39D6C3523BEB597002FD912 /* LoupeView.m in Sources */ = {isa = PBXBuildFile; fileRef = A39D6C3423BEB597002FD912 /* LoupeView.m */; };
 		E412D4A223BE1A7400CDEAB5 /* MainMenu.xib in Resources */ = {isa = PBXBuildFile; fileRef = E412D4A023BE1A7400CDEAB5 /* MainMenu.xib */; };
+		8E4B34E6312F418BB4839E56 /* ThumbnailProvider.m in Sources */ = {isa = PBXBuildFile; fileRef = 07ECD17BB50C4F1FA98B3ABB /* ThumbnailProvider.m */; };
+		48655072BE0C4F3F96E08C8C /* COArchive.m in Sources */ = {isa = PBXBuildFile; fileRef = AC0DE00A1CA7A106A55E7500 /* COArchive.m */; };
+		3EFABE9EC3DA4111A39DF578 /* COZipArchive.m in Sources */ = {isa = PBXBuildFile; fileRef = AC0DE0111CA7A106A55E7500 /* COZipArchive.m */; };
+		87C031F5FE5B46798636FD78 /* CORarArchive.m in Sources */ = {isa = PBXBuildFile; fileRef = AC0DE0151CA7A106A55E7500 /* CORarArchive.m */; };
+		370EC8F83FCF4E319DB91790 /* CORarHeaderIndex.m in Sources */ = {isa = PBXBuildFile; fileRef = AC0DE0191CA7A106A55E7500 /* CORarHeaderIndex.m */; };
+		C2FF623190494318B2932271 /* NSString_Compare.m in Sources */ = {isa = PBXBuildFile; fileRef = 76705AE50885785900FEF4E2 /* NSString_Compare.m */; };
+		51AE1711748744F5B42BCE74 /* COCoverExtractor.m in Sources */ = {isa = PBXBuildFile; fileRef = AC0DE01D1CA7A106A55E7500 /* COCoverExtractor.m */; };
+		CA7E59319FEC471FA5975FB2 /* libarchive.13.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = AC0DE0031CA7A106A55E7500 /* libarchive.13.dylib */; };
+		15CD0A3AC9EA438E998AA39A /* libuchardet.0.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = AC0DE0041CA7A106A55E7500 /* libuchardet.0.dylib */; };
+		88E148EA5120479487F739A7 /* libzip.5.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = AC0DE00D1CA7A106A55E7500 /* libzip.5.dylib */; };
+		A0E00E1617574E38994BFEE3 /* Cocoa.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 1058C7A1FEA54F0111CA2CBB /* Cocoa.framework */; };
+		E5FCEC6ED0BB4A3386C0E8E8 /* Carbon.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 7644B3360D6EE433007C8AFD /* Carbon.framework */; };
+		C7739B52434049498ECBBEA3 /* QuickLookThumbnailing.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 229B154471EC44F0A013598F /* QuickLookThumbnailing.framework */; };
+		4EF013EF2E86443690A31BC6 /* UniformTypeIdentifiers.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 0ADC6000316D4F61B5768EF4 /* UniformTypeIdentifiers.framework */; };
+		98DE75533A764D5AB7C6E587 /* libarchive.13.dylib in CopyFiles */ = {isa = PBXBuildFile; fileRef = AC0DE0031CA7A106A55E7500 /* libarchive.13.dylib */; settings = {ATTRIBUTES = (CodeSignOnCopy, ); }; };
+		359538D8B0C847519F363BE3 /* libuchardet.0.dylib in CopyFiles */ = {isa = PBXBuildFile; fileRef = AC0DE0041CA7A106A55E7500 /* libuchardet.0.dylib */; settings = {ATTRIBUTES = (CodeSignOnCopy, ); }; };
+		4526D6FCC9CB4BF5BA52F549 /* libzip.5.dylib in CopyFiles */ = {isa = PBXBuildFile; fileRef = AC0DE00D1CA7A106A55E7500 /* libzip.5.dylib */; settings = {ATTRIBUTES = (CodeSignOnCopy, ); }; };
+		60026B2BFF7D4D4D9943D528 /* cooViewerThumbnail.appex in Embed App Extensions */ = {isa = PBXBuildFile; fileRef = 53A19F2E2E1548FD959D957B /* cooViewerThumbnail.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		577366DB9AB9427F85F5F007 /* PreviewProvider.m in Sources */ = {isa = PBXBuildFile; fileRef = E163B10A5BF54083A96D9968 /* PreviewProvider.m */; };
+		F080045D457A4DEAAEAC3C74 /* COArchive.m in Sources */ = {isa = PBXBuildFile; fileRef = AC0DE00A1CA7A106A55E7500 /* COArchive.m */; };
+		D650E65DCA93447D9779BB4D /* COZipArchive.m in Sources */ = {isa = PBXBuildFile; fileRef = AC0DE0111CA7A106A55E7500 /* COZipArchive.m */; };
+		0A77C81CFDE5403995AC100D /* CORarArchive.m in Sources */ = {isa = PBXBuildFile; fileRef = AC0DE0151CA7A106A55E7500 /* CORarArchive.m */; };
+		8D877C2FF7ED42DC81910754 /* CORarHeaderIndex.m in Sources */ = {isa = PBXBuildFile; fileRef = AC0DE0191CA7A106A55E7500 /* CORarHeaderIndex.m */; };
+		F4BAAE007DC94E6BBE6527C5 /* NSString_Compare.m in Sources */ = {isa = PBXBuildFile; fileRef = 76705AE50885785900FEF4E2 /* NSString_Compare.m */; };
+		655B810AD80D4545B6CE2FDE /* COCoverExtractor.m in Sources */ = {isa = PBXBuildFile; fileRef = AC0DE01D1CA7A106A55E7500 /* COCoverExtractor.m */; };
+		B5EDC7D238774776853C74D1 /* libarchive.13.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = AC0DE0031CA7A106A55E7500 /* libarchive.13.dylib */; };
+		63FE3C6F964F4F1C848E74ED /* libuchardet.0.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = AC0DE0041CA7A106A55E7500 /* libuchardet.0.dylib */; };
+		DF5F63EC23E44D768C26FD86 /* libzip.5.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = AC0DE00D1CA7A106A55E7500 /* libzip.5.dylib */; };
+		BEAF807CABB94F2D8A4038EA /* Cocoa.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 1058C7A1FEA54F0111CA2CBB /* Cocoa.framework */; };
+		839AE799A3874564A6724511 /* Carbon.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 7644B3360D6EE433007C8AFD /* Carbon.framework */; };
+		C0E4A8F14A0B499ABBA63D42 /* Quartz.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 37AD8315131AA9E600F0123C /* Quartz.framework */; };
+		B5D9FFBC53144E49BE004950 /* libarchive.13.dylib in CopyFiles */ = {isa = PBXBuildFile; fileRef = AC0DE0031CA7A106A55E7500 /* libarchive.13.dylib */; settings = {ATTRIBUTES = (CodeSignOnCopy, ); }; };
+		86F06586FD9347F3BACF6D8F /* libuchardet.0.dylib in CopyFiles */ = {isa = PBXBuildFile; fileRef = AC0DE0041CA7A106A55E7500 /* libuchardet.0.dylib */; settings = {ATTRIBUTES = (CodeSignOnCopy, ); }; };
+		1DE9E57F88B540C3A703AAB5 /* libzip.5.dylib in CopyFiles */ = {isa = PBXBuildFile; fileRef = AC0DE00D1CA7A106A55E7500 /* libzip.5.dylib */; settings = {ATTRIBUTES = (CodeSignOnCopy, ); }; };
+		76400562AA4545BBBD8A56B0 /* cooViewerPreview.appex in Embed App Extensions */ = {isa = PBXBuildFile; fileRef = 3D2CBF9AC0D94D0481FAE2AA /* cooViewerPreview.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 /* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		8202C8A121654BC9B9D876B3 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 29B97313FDCFA39411CA2CEA /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 8CAA1E1B5AE44BAD8DE94782;
+			remoteInfo = cooViewerThumbnail;
+		};
+		AF2E6AA064B24DEFBDF617BC /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 29B97313FDCFA39411CA2CEA /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 72C0BFF2F95F490AA291EC21;
+			remoteInfo = cooViewerPreview;
+		};
+/* End PBXContainerItemProxy section */
 
 /* Begin PBXCopyFilesBuildPhase section */
 		76494FA507F72BC400B932D2 /* CopyFiles */ = {
@@ -129,6 +183,42 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		FCDBD0A8479D48DCB8ADBB31 /* Embed App Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				60026B2BFF7D4D4D9943D528 /* cooViewerThumbnail.appex in Embed App Extensions */,
+				76400562AA4545BBBD8A56B0 /* cooViewerPreview.appex in Embed App Extensions */,
+			);
+			name = "Embed App Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		4C8E1FEEBF6A45CAA4E6D47E /* CopyFiles */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 10;
+			files = (
+				98DE75533A764D5AB7C6E587 /* libarchive.13.dylib in CopyFiles */,
+				359538D8B0C847519F363BE3 /* libuchardet.0.dylib in CopyFiles */,
+				4526D6FCC9CB4BF5BA52F549 /* libzip.5.dylib in CopyFiles */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		2BB7D63926284EF19C4B89F9 /* CopyFiles */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 10;
+			files = (
+				B5D9FFBC53144E49BE004950 /* libarchive.13.dylib in CopyFiles */,
+				86F06586FD9347F3BACF6D8F /* libuchardet.0.dylib in CopyFiles */,
+				1DE9E57F88B540C3A703AAB5 /* libzip.5.dylib in CopyFiles */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
@@ -140,6 +230,8 @@
 		AC0DE0151CA7A106A55E7500 /* CORarArchive.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = Sources/CORarArchive.m; sourceTree = "<group>"; };
 		AC0DE0181CA7A106A55E7500 /* CORarHeaderIndex.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = Sources/CORarHeaderIndex.h; sourceTree = "<group>"; };
 		AC0DE0191CA7A106A55E7500 /* CORarHeaderIndex.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = Sources/CORarHeaderIndex.m; sourceTree = "<group>"; };
+		AC0DE01C1CA7A106A55E7500 /* COCoverExtractor.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = Sources/COCoverExtractor.h; sourceTree = "<group>"; };
+		AC0DE01D1CA7A106A55E7500 /* COCoverExtractor.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = Sources/COCoverExtractor.m; sourceTree = "<group>"; };
 		AC0DE0031CA7A106A55E7500 /* libarchive.13.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; name = libarchive.13.dylib; path = vendor/lib/libarchive.13.dylib; sourceTree = "<group>"; };
 		AC0DE0041CA7A106A55E7500 /* libuchardet.0.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; name = libuchardet.0.dylib; path = vendor/lib/libuchardet.0.dylib; sourceTree = "<group>"; };
 		AC0DE00D1CA7A106A55E7500 /* libzip.5.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; name = libzip.5.dylib; path = vendor/lib/libzip.5.dylib; sourceTree = "<group>"; };
@@ -243,6 +335,18 @@
 		A39D6C8823BF85C4002FD912 /* ja */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = ja; path = Resources/ja.lproj/Localizable.strings; sourceTree = "<group>"; };
 		A39D6C8923BF85D6002FD912 /* ja */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = ja; path = Resources/ja.lproj/MainMenu.strings; sourceTree = "<group>"; };
 		A39D6C8A23BF8667002FD912 /* Base */ = {isa = PBXFileReference; lastKnownFileType = file.xib; name = Base; path = Resources/Base.lproj/MainMenu.xib; sourceTree = "<group>"; };
+		4C480DEC52894A9BBE3FB769 /* ThumbnailProvider.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = ThumbnailProvider.h; sourceTree = "<group>"; };
+		07ECD17BB50C4F1FA98B3ABB /* ThumbnailProvider.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = ThumbnailProvider.m; sourceTree = "<group>"; };
+		539E48837DCD4FEEBFDDBEC0 /* Info.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		700E39FCBE1D43219FB7D230 /* ThumbnailExtension.entitlements */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.entitlements; path = ThumbnailExtension.entitlements; sourceTree = "<group>"; };
+		229B154471EC44F0A013598F /* QuickLookThumbnailing.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = QuickLookThumbnailing.framework; path = /System/Library/Frameworks/QuickLookThumbnailing.framework; sourceTree = "<absolute>"; };
+		0ADC6000316D4F61B5768EF4 /* UniformTypeIdentifiers.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = UniformTypeIdentifiers.framework; path = /System/Library/Frameworks/UniformTypeIdentifiers.framework; sourceTree = "<absolute>"; };
+		53A19F2E2E1548FD959D957B /* cooViewerThumbnail.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = cooViewerThumbnail.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		35D2526992D64DD4B1440BA8 /* PreviewProvider.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = PreviewProvider.h; sourceTree = "<group>"; };
+		E163B10A5BF54083A96D9968 /* PreviewProvider.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = PreviewProvider.m; sourceTree = "<group>"; };
+		CB1309101EEB4372A6979E66 /* Info.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		81BF2C48E0484B618F1DE8D6 /* PreviewExtension.entitlements */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.entitlements; path = PreviewExtension.entitlements; sourceTree = "<group>"; };
+		3D2CBF9AC0D94D0481FAE2AA /* cooViewerPreview.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = cooViewerPreview.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -258,6 +362,33 @@
 				7644B3260D6EE322007C8AFD /* IOKit.framework in Frameworks */,
 				7644B3370D6EE434007C8AFD /* Carbon.framework in Frameworks */,
 				37AD8316131AA9E600F0123C /* Quartz.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		CF4C7066CB8C4CE19C800F33 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				CA7E59319FEC471FA5975FB2 /* libarchive.13.dylib in Frameworks */,
+				15CD0A3AC9EA438E998AA39A /* libuchardet.0.dylib in Frameworks */,
+				88E148EA5120479487F739A7 /* libzip.5.dylib in Frameworks */,
+				C7739B52434049498ECBBEA3 /* QuickLookThumbnailing.framework in Frameworks */,
+				A0E00E1617574E38994BFEE3 /* Cocoa.framework in Frameworks */,
+				E5FCEC6ED0BB4A3386C0E8E8 /* Carbon.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		E87B462D56754C359868A356 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				B5EDC7D238774776853C74D1 /* libarchive.13.dylib in Frameworks */,
+				63FE3C6F964F4F1C848E74ED /* libuchardet.0.dylib in Frameworks */,
+				DF5F63EC23E44D768C26FD86 /* libzip.5.dylib in Frameworks */,
+				BEAF807CABB94F2D8A4038EA /* Cocoa.framework in Frameworks */,
+				839AE799A3874564A6724511 /* Carbon.framework in Frameworks */,
+				C0E4A8F14A0B499ABBA63D42 /* Quartz.framework in Frameworks */,
+				4EF013EF2E86443690A31BC6 /* UniformTypeIdentifiers.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -300,8 +431,34 @@
 			isa = PBXGroup;
 			children = (
 				8D1107320486CEB800E47090 /* cooViewer.app */,
+				53A19F2E2E1548FD959D957B /* cooViewerThumbnail.appex */,
+				3D2CBF9AC0D94D0481FAE2AA /* cooViewerPreview.appex */,
 			);
 			name = Products;
+			sourceTree = "<group>";
+		};
+		D5920FEEB6BF4C0D960C52DF /* ThumbnailExtension */ = {
+			isa = PBXGroup;
+			children = (
+				4C480DEC52894A9BBE3FB769 /* ThumbnailProvider.h */,
+				07ECD17BB50C4F1FA98B3ABB /* ThumbnailProvider.m */,
+				539E48837DCD4FEEBFDDBEC0 /* Info.plist */,
+				700E39FCBE1D43219FB7D230 /* ThumbnailExtension.entitlements */,
+			);
+			name = ThumbnailExtension;
+			path = ThumbnailExtension;
+			sourceTree = "<group>";
+		};
+		E2BB60CE035A488DAEA60FB6 /* PreviewExtension */ = {
+			isa = PBXGroup;
+			children = (
+				35D2526992D64DD4B1440BA8 /* PreviewProvider.h */,
+				E163B10A5BF54083A96D9968 /* PreviewProvider.m */,
+				CB1309101EEB4372A6979E66 /* Info.plist */,
+				81BF2C48E0484B618F1DE8D6 /* PreviewExtension.entitlements */,
+			);
+			name = PreviewExtension;
+			path = PreviewExtension;
 			sourceTree = "<group>";
 		};
 		29B97314FDCFA39411CA2CEA /* cooViewer */ = {
@@ -310,6 +467,8 @@
 				080E96DDFE201D6D7F000001 /* Classes */,
 				29B97315FDCFA39411CA2CEA /* Other Sources */,
 				29B97317FDCFA39411CA2CEA /* Resources */,
+				D5920FEEB6BF4C0D960C52DF /* ThumbnailExtension */,
+				E2BB60CE035A488DAEA60FB6 /* PreviewExtension */,
 				29B97323FDCFA39411CA2CEA /* Frameworks */,
 				19C28FACFE9D520D11CA2CBB /* Products */,
 			);
@@ -345,6 +504,8 @@
 				AC0DE0031CA7A106A55E7500 /* libarchive.13.dylib */,
 				AC0DE0041CA7A106A55E7500 /* libuchardet.0.dylib */,
 				AC0DE00D1CA7A106A55E7500 /* libzip.5.dylib */,
+				229B154471EC44F0A013598F /* QuickLookThumbnailing.framework */,
+				0ADC6000316D4F61B5768EF4 /* UniformTypeIdentifiers.framework */,
 				37AD8315131AA9E600F0123C /* Quartz.framework */,
 				7644B3360D6EE433007C8AFD /* Carbon.framework */,
 				7644B3250D6EE322007C8AFD /* IOKit.framework */,
@@ -422,6 +583,8 @@
 				AC0DE0151CA7A106A55E7500 /* CORarArchive.m */,
 				AC0DE0181CA7A106A55E7500 /* CORarHeaderIndex.h */,
 				AC0DE0191CA7A106A55E7500 /* CORarHeaderIndex.m */,
+				AC0DE01C1CA7A106A55E7500 /* COCoverExtractor.h */,
+				AC0DE01D1CA7A106A55E7500 /* COCoverExtractor.m */,
 			);
 			name = archive;
 			sourceTree = "<group>";
@@ -583,6 +746,7 @@
 				AC0DE0121CA7A106A55E7500 /* COZipArchive.h in Headers */,
 				AC0DE0161CA7A106A55E7500 /* CORarArchive.h in Headers */,
 				AC0DE01A1CA7A106A55E7500 /* CORarHeaderIndex.h in Headers */,
+				AC0DE01E1CA7A106A55E7500 /* COCoverExtractor.h in Headers */,
 				76F0929A07DBF79E00643E4F /* BookmarkController.h in Headers */,
 				76EA136607E3FC39008EB0E1 /* BookmarkPanel.h in Headers */,
 				76B19AC307C9C15A00A6FB97 /* Controller.h in Headers */,
@@ -632,16 +796,55 @@
 				8D11072E0486CEB800E47090 /* Frameworks */,
 				8D1107290486CEB800E47090 /* Resources */,
 				76494FA507F72BC400B932D2 /* CopyFiles */,
+				FCDBD0A8479D48DCB8ADBB31 /* Embed App Extensions */,
 			);
 			buildRules = (
 			);
 			dependencies = (
+				F7DACB55DA96412DA8822341 /* PBXTargetDependency */,
+				95DCA29CA6F14CFEAA8BF234 /* PBXTargetDependency */,
 			);
 			name = cooViewer;
 			productInstallPath = "$(HOME)/Applications";
 			productName = cooViewer;
 			productReference = 8D1107320486CEB800E47090 /* cooViewer.app */;
 			productType = "com.apple.product-type.application";
+		};
+		8CAA1E1B5AE44BAD8DE94782 /* cooViewerThumbnail */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = E6F5D4500F02417EBBEB2E86 /* Build configuration list for PBXNativeTarget "cooViewerThumbnail" */;
+			buildPhases = (
+				B7317F81D74F4B2B8739D0EE /* Sources */,
+				CF4C7066CB8C4CE19C800F33 /* Frameworks */,
+				C5B38C794F4949DEB191145E /* Resources */,
+				4C8E1FEEBF6A45CAA4E6D47E /* CopyFiles */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = cooViewerThumbnail;
+			productName = cooViewerThumbnail;
+			productReference = 53A19F2E2E1548FD959D957B /* cooViewerThumbnail.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
+		72C0BFF2F95F490AA291EC21 /* cooViewerPreview */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = B8E75A72B73E41C88B112350 /* Build configuration list for PBXNativeTarget "cooViewerPreview" */;
+			buildPhases = (
+				297B8FE6397D4EE482FA7145 /* Sources */,
+				E87B462D56754C359868A356 /* Frameworks */,
+				0A52D1AACA4144179F5DC77A /* Resources */,
+				2BB7D63926284EF19C4B89F9 /* CopyFiles */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = cooViewerPreview;
+			productName = cooViewerPreview;
+			productReference = 3D2CBF9AC0D94D0481FAE2AA /* cooViewerPreview.appex */;
+			productType = "com.apple.product-type.app-extension";
 		};
 /* End PBXNativeTarget section */
 
@@ -665,6 +868,8 @@
 			projectRoot = "";
 			targets = (
 				8D1107260486CEB800E47090 /* cooViewer */,
+				8CAA1E1B5AE44BAD8DE94782 /* cooViewerThumbnail */,
+				72C0BFF2F95F490AA291EC21 /* cooViewerPreview */,
 			);
 		};
 /* End PBXProject section */
@@ -695,6 +900,20 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		C5B38C794F4949DEB191145E /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		0A52D1AACA4144179F5DC77A /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXResourcesBuildPhase section */
 
 
@@ -708,6 +927,7 @@
 				AC0DE0131CA7A106A55E7500 /* COZipArchive.m in Sources */,
 				AC0DE0171CA7A106A55E7500 /* CORarArchive.m in Sources */,
 				AC0DE01B1CA7A106A55E7500 /* CORarHeaderIndex.m in Sources */,
+				AC0DE01F1CA7A106A55E7500 /* COCoverExtractor.m in Sources */,
 				76B19AC407C9C15A00A6FB97 /* Controller.m in Sources */,
 				768E1DED07CC6B740023AF61 /* CustomWindow.m in Sources */,
 				7601F5F907D5508700457A5B /* CustomImageView.m in Sources */,
@@ -746,7 +966,48 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		B7317F81D74F4B2B8739D0EE /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				8E4B34E6312F418BB4839E56 /* ThumbnailProvider.m in Sources */,
+				48655072BE0C4F3F96E08C8C /* COArchive.m in Sources */,
+				3EFABE9EC3DA4111A39DF578 /* COZipArchive.m in Sources */,
+				87C031F5FE5B46798636FD78 /* CORarArchive.m in Sources */,
+				370EC8F83FCF4E319DB91790 /* CORarHeaderIndex.m in Sources */,
+				C2FF623190494318B2932271 /* NSString_Compare.m in Sources */,
+				51AE1711748744F5B42BCE74 /* COCoverExtractor.m in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		297B8FE6397D4EE482FA7145 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				577366DB9AB9427F85F5F007 /* PreviewProvider.m in Sources */,
+				F080045D457A4DEAAEAC3C74 /* COArchive.m in Sources */,
+				D650E65DCA93447D9779BB4D /* COZipArchive.m in Sources */,
+				0A77C81CFDE5403995AC100D /* CORarArchive.m in Sources */,
+				8D877C2FF7ED42DC81910754 /* CORarHeaderIndex.m in Sources */,
+				F4BAAE007DC94E6BBE6527C5 /* NSString_Compare.m in Sources */,
+				655B810AD80D4545B6CE2FDE /* COCoverExtractor.m in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		F7DACB55DA96412DA8822341 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 8CAA1E1B5AE44BAD8DE94782 /* cooViewerThumbnail */;
+			targetProxy = 8202C8A121654BC9B9D876B3 /* PBXContainerItemProxy */;
+		};
+		95DCA29CA6F14CFEAA8BF234 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 72C0BFF2F95F490AA291EC21 /* cooViewerPreview */;
+			targetProxy = AF2E6AA064B24DEFBDF617BC /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
 
 /* Begin PBXVariantGroup section */
 		3740B9341311708D0084326B /* Localizable.strings */ = {
@@ -818,7 +1079,7 @@
 				CLANG_ENABLE_OBJC_WEAK = YES;
 				CODE_SIGN_IDENTITY = "";
 				COPY_PHASE_STRIP = NO;
-				CURRENT_PROJECT_VERSION = 1.4.0;
+				CURRENT_PROJECT_VERSION = 1.5.0;
 				FRAMEWORK_SEARCH_PATHS = (
 					"$(FRAMEWORK_SEARCH_PATHS_QUOTED_1)",
 					/Library/Frameworks,
@@ -841,7 +1102,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				INFOPLIST_FILE = Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = "$(LD_RUNPATH_SEARCH_PATHS_$(IS_MACCATALYST)) @executable_path/../Frameworks";
-				MARKETING_VERSION = 1.4.0;
+				MARKETING_VERSION = 1.5.0;
 				OTHER_CFLAGS = "";
 				OTHER_LDFLAGS = "";
 				PRODUCT_BUNDLE_IDENTIFIER = jp.coo.cooViewer;
@@ -893,7 +1154,7 @@
 				CLANG_ENABLE_OBJC_WEAK = YES;
 				CODE_SIGN_IDENTITY = "";
 				COPY_PHASE_STRIP = NO;
-				CURRENT_PROJECT_VERSION = 1.4.0;
+				CURRENT_PROJECT_VERSION = 1.5.0;
 				FRAMEWORK_SEARCH_PATHS = (
 					"$(FRAMEWORK_SEARCH_PATHS_QUOTED_1)",
 					"\"$(SRCROOT)\"",
@@ -914,7 +1175,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				INFOPLIST_FILE = Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = "$(LD_RUNPATH_SEARCH_PATHS_$(IS_MACCATALYST)) @executable_path/../Frameworks";
-				MARKETING_VERSION = 1.4.0;
+				MARKETING_VERSION = 1.5.0;
 				OTHER_CFLAGS = "";
 				OTHER_LDFLAGS = "";
 				PRODUCT_BUNDLE_IDENTIFIER = jp.coo.cooViewer;
@@ -967,7 +1228,7 @@
 				CLANG_ENABLE_OBJC_WEAK = YES;
 				CODE_SIGN_IDENTITY = "";
 				COPY_PHASE_STRIP = YES;
-				CURRENT_PROJECT_VERSION = 1.4.0;
+				CURRENT_PROJECT_VERSION = 1.5.0;
 				FRAMEWORK_SEARCH_PATHS = (
 					"$(FRAMEWORK_SEARCH_PATHS_QUOTED_1)",
 					/Library/Frameworks,
@@ -989,7 +1250,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				INFOPLIST_FILE = Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = "$(LD_RUNPATH_SEARCH_PATHS_$(IS_MACCATALYST)) @executable_path/../Frameworks";
-				MARKETING_VERSION = 1.4.0;
+				MARKETING_VERSION = 1.5.0;
 				OTHER_CFLAGS = "";
 				OTHER_LDFLAGS = "";
 				PRODUCT_BUNDLE_IDENTIFIER = jp.coo.cooViewer;
@@ -1004,7 +1265,7 @@
 				CLANG_ENABLE_OBJC_WEAK = YES;
 				CODE_SIGN_IDENTITY = "";
 				COPY_PHASE_STRIP = YES;
-				CURRENT_PROJECT_VERSION = 1.4.0;
+				CURRENT_PROJECT_VERSION = 1.5.0;
 				FRAMEWORK_SEARCH_PATHS = (
 					"$(FRAMEWORK_SEARCH_PATHS_QUOTED_1)",
 					"\"$(SRCROOT)\"",
@@ -1024,7 +1285,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				INFOPLIST_FILE = Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = "$(LD_RUNPATH_SEARCH_PATHS_$(IS_MACCATALYST)) @executable_path/../Frameworks";
-				MARKETING_VERSION = 1.4.0;
+				MARKETING_VERSION = 1.5.0;
 				OTHER_CFLAGS = "";
 				OTHER_LDFLAGS = "";
 				PRODUCT_BUNDLE_IDENTIFIER = jp.coo.cooViewer;
@@ -1040,7 +1301,7 @@
 				LIBRARY_SEARCH_PATHS = "$(SRCROOT)/vendor/lib";
 				CLANG_ENABLE_OBJC_WEAK = YES;
 				CODE_SIGN_IDENTITY = "";
-				CURRENT_PROJECT_VERSION = 1.4.0;
+				CURRENT_PROJECT_VERSION = 1.5.0;
 				FRAMEWORK_SEARCH_PATHS = (
 					"$(FRAMEWORK_SEARCH_PATHS_QUOTED_1)",
 					"\"$(SRCROOT)\"",
@@ -1052,7 +1313,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				INFOPLIST_FILE = Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = "$(LD_RUNPATH_SEARCH_PATHS_$(IS_MACCATALYST)) @executable_path/../Frameworks";
-				MARKETING_VERSION = 1.4.0;
+				MARKETING_VERSION = 1.5.0;
 				OTHER_CFLAGS = "";
 				OTHER_LDFLAGS = "";
 				PRODUCT_BUNDLE_IDENTIFIER = jp.coo.cooViewer;
@@ -1126,6 +1387,266 @@
 			};
 			name = Default;
 		};
+		238D1EA0A3AF49479A585B1B /* Development */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CODE_SIGN_ENTITLEMENTS = ThumbnailExtension/ThumbnailExtension.entitlements;
+				CODE_SIGN_IDENTITY = "-";
+				COPY_PHASE_STRIP = NO;
+				CURRENT_PROJECT_VERSION = 1.5.0;
+				GCC_ENABLE_OBJC_EXCEPTIONS = YES;
+				GCC_GENERATE_DEBUGGING_SYMBOLS = YES;
+				GCC_PRECOMPILE_PREFIX_HEADER = YES;
+				GCC_PREFIX_HEADER = cooViewer_Prefix.pch;
+				GENERATE_INFOPLIST_FILE = NO;
+				HEADER_SEARCH_PATHS = "$(SRCROOT)/vendor/include";
+				INFOPLIST_FILE = ThumbnailExtension/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/../Frameworks @executable_path/../../../../Frameworks";
+				LIBRARY_SEARCH_PATHS = "$(SRCROOT)/vendor/lib";
+				MACOSX_DEPLOYMENT_TARGET = 12.0;
+				MARKETING_VERSION = 1.5.0;
+				PRODUCT_BUNDLE_IDENTIFIER = jp.coo.cooViewer.QuickLookThumbnail;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				ZERO_LINK = YES;
+			};
+			name = Development;
+		};
+		CF405FCC526F4627AC5450E7 /* Development2 */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CODE_SIGN_ENTITLEMENTS = ThumbnailExtension/ThumbnailExtension.entitlements;
+				CODE_SIGN_IDENTITY = "-";
+				COPY_PHASE_STRIP = NO;
+				CURRENT_PROJECT_VERSION = 1.5.0;
+				GCC_ENABLE_OBJC_EXCEPTIONS = YES;
+				GCC_GENERATE_DEBUGGING_SYMBOLS = YES;
+				GCC_PRECOMPILE_PREFIX_HEADER = YES;
+				GCC_PREFIX_HEADER = cooViewer_Prefix.pch;
+				GENERATE_INFOPLIST_FILE = NO;
+				HEADER_SEARCH_PATHS = "$(SRCROOT)/vendor/include";
+				INFOPLIST_FILE = ThumbnailExtension/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/../Frameworks @executable_path/../../../../Frameworks";
+				LIBRARY_SEARCH_PATHS = "$(SRCROOT)/vendor/lib";
+				MACOSX_DEPLOYMENT_TARGET = 12.0;
+				MARKETING_VERSION = 1.5.0;
+				PRODUCT_BUNDLE_IDENTIFIER = jp.coo.cooViewer.QuickLookThumbnail;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				ZERO_LINK = YES;
+			};
+			name = Development2;
+		};
+		D847F85A5A2D415DA8FE7104 /* Deployment */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CODE_SIGN_ENTITLEMENTS = ThumbnailExtension/ThumbnailExtension.entitlements;
+				CODE_SIGN_IDENTITY = "-";
+				COPY_PHASE_STRIP = YES;
+				CURRENT_PROJECT_VERSION = 1.5.0;
+				GCC_ENABLE_OBJC_EXCEPTIONS = YES;
+				GCC_GENERATE_DEBUGGING_SYMBOLS = NO;
+				GCC_PRECOMPILE_PREFIX_HEADER = YES;
+				GCC_PREFIX_HEADER = cooViewer_Prefix.pch;
+				GENERATE_INFOPLIST_FILE = NO;
+				HEADER_SEARCH_PATHS = "$(SRCROOT)/vendor/include";
+				INFOPLIST_FILE = ThumbnailExtension/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/../Frameworks @executable_path/../../../../Frameworks";
+				LIBRARY_SEARCH_PATHS = "$(SRCROOT)/vendor/lib";
+				MACOSX_DEPLOYMENT_TARGET = 12.0;
+				MARKETING_VERSION = 1.5.0;
+				PRODUCT_BUNDLE_IDENTIFIER = jp.coo.cooViewer.QuickLookThumbnail;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				ZERO_LINK = NO;
+			};
+			name = Deployment;
+		};
+		1133C6700AEB453CA4451F17 /* Deployment2 */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CODE_SIGN_ENTITLEMENTS = ThumbnailExtension/ThumbnailExtension.entitlements;
+				CODE_SIGN_IDENTITY = "-";
+				COPY_PHASE_STRIP = YES;
+				CURRENT_PROJECT_VERSION = 1.5.0;
+				GCC_ENABLE_OBJC_EXCEPTIONS = YES;
+				GCC_GENERATE_DEBUGGING_SYMBOLS = NO;
+				GCC_PRECOMPILE_PREFIX_HEADER = YES;
+				GCC_PREFIX_HEADER = cooViewer_Prefix.pch;
+				GENERATE_INFOPLIST_FILE = NO;
+				HEADER_SEARCH_PATHS = "$(SRCROOT)/vendor/include";
+				INFOPLIST_FILE = ThumbnailExtension/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/../Frameworks @executable_path/../../../../Frameworks";
+				LIBRARY_SEARCH_PATHS = "$(SRCROOT)/vendor/lib";
+				MACOSX_DEPLOYMENT_TARGET = 12.0;
+				MARKETING_VERSION = 1.5.0;
+				PRODUCT_BUNDLE_IDENTIFIER = jp.coo.cooViewer.QuickLookThumbnail;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				ZERO_LINK = NO;
+			};
+			name = Deployment2;
+		};
+		2F8E464164ED4BD4BF8044E6 /* Default */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CODE_SIGN_ENTITLEMENTS = ThumbnailExtension/ThumbnailExtension.entitlements;
+				CODE_SIGN_IDENTITY = "-";
+				COPY_PHASE_STRIP = YES;
+				CURRENT_PROJECT_VERSION = 1.5.0;
+				GCC_ENABLE_OBJC_EXCEPTIONS = YES;
+				GCC_GENERATE_DEBUGGING_SYMBOLS = NO;
+				GCC_PRECOMPILE_PREFIX_HEADER = YES;
+				GCC_PREFIX_HEADER = cooViewer_Prefix.pch;
+				GENERATE_INFOPLIST_FILE = NO;
+				HEADER_SEARCH_PATHS = "$(SRCROOT)/vendor/include";
+				INFOPLIST_FILE = ThumbnailExtension/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/../Frameworks @executable_path/../../../../Frameworks";
+				LIBRARY_SEARCH_PATHS = "$(SRCROOT)/vendor/lib";
+				MACOSX_DEPLOYMENT_TARGET = 12.0;
+				MARKETING_VERSION = 1.5.0;
+				PRODUCT_BUNDLE_IDENTIFIER = jp.coo.cooViewer.QuickLookThumbnail;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				ZERO_LINK = NO;
+			};
+			name = Default;
+		};
+		BD9F7B9FF3E740DBA1D7840A /* Development */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CODE_SIGN_ENTITLEMENTS = PreviewExtension/PreviewExtension.entitlements;
+				CODE_SIGN_IDENTITY = "-";
+				COPY_PHASE_STRIP = NO;
+				CURRENT_PROJECT_VERSION = 1.5.0;
+				GCC_ENABLE_OBJC_EXCEPTIONS = YES;
+				GCC_GENERATE_DEBUGGING_SYMBOLS = YES;
+				GCC_PRECOMPILE_PREFIX_HEADER = YES;
+				GCC_PREFIX_HEADER = cooViewer_Prefix.pch;
+				GENERATE_INFOPLIST_FILE = NO;
+				HEADER_SEARCH_PATHS = "$(SRCROOT)/vendor/include";
+				INFOPLIST_FILE = PreviewExtension/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/../Frameworks @executable_path/../../../../Frameworks";
+				LIBRARY_SEARCH_PATHS = "$(SRCROOT)/vendor/lib";
+				MACOSX_DEPLOYMENT_TARGET = 12.0;
+				MARKETING_VERSION = 1.5.0;
+				PRODUCT_BUNDLE_IDENTIFIER = jp.coo.cooViewer.QuickLookPreview;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				ZERO_LINK = YES;
+			};
+			name = Development;
+		};
+		BCAA3E89CECF4C61BFFCB5CF /* Development2 */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CODE_SIGN_ENTITLEMENTS = PreviewExtension/PreviewExtension.entitlements;
+				CODE_SIGN_IDENTITY = "-";
+				COPY_PHASE_STRIP = NO;
+				CURRENT_PROJECT_VERSION = 1.5.0;
+				GCC_ENABLE_OBJC_EXCEPTIONS = YES;
+				GCC_GENERATE_DEBUGGING_SYMBOLS = YES;
+				GCC_PRECOMPILE_PREFIX_HEADER = YES;
+				GCC_PREFIX_HEADER = cooViewer_Prefix.pch;
+				GENERATE_INFOPLIST_FILE = NO;
+				HEADER_SEARCH_PATHS = "$(SRCROOT)/vendor/include";
+				INFOPLIST_FILE = PreviewExtension/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/../Frameworks @executable_path/../../../../Frameworks";
+				LIBRARY_SEARCH_PATHS = "$(SRCROOT)/vendor/lib";
+				MACOSX_DEPLOYMENT_TARGET = 12.0;
+				MARKETING_VERSION = 1.5.0;
+				PRODUCT_BUNDLE_IDENTIFIER = jp.coo.cooViewer.QuickLookPreview;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				ZERO_LINK = YES;
+			};
+			name = Development2;
+		};
+		13105A2AE6934988897923A3 /* Deployment */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CODE_SIGN_ENTITLEMENTS = PreviewExtension/PreviewExtension.entitlements;
+				CODE_SIGN_IDENTITY = "-";
+				COPY_PHASE_STRIP = YES;
+				CURRENT_PROJECT_VERSION = 1.5.0;
+				GCC_ENABLE_OBJC_EXCEPTIONS = YES;
+				GCC_GENERATE_DEBUGGING_SYMBOLS = NO;
+				GCC_PRECOMPILE_PREFIX_HEADER = YES;
+				GCC_PREFIX_HEADER = cooViewer_Prefix.pch;
+				GENERATE_INFOPLIST_FILE = NO;
+				HEADER_SEARCH_PATHS = "$(SRCROOT)/vendor/include";
+				INFOPLIST_FILE = PreviewExtension/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/../Frameworks @executable_path/../../../../Frameworks";
+				LIBRARY_SEARCH_PATHS = "$(SRCROOT)/vendor/lib";
+				MACOSX_DEPLOYMENT_TARGET = 12.0;
+				MARKETING_VERSION = 1.5.0;
+				PRODUCT_BUNDLE_IDENTIFIER = jp.coo.cooViewer.QuickLookPreview;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				ZERO_LINK = NO;
+			};
+			name = Deployment;
+		};
+		C114DE679D1446029F5FE62C /* Deployment2 */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CODE_SIGN_ENTITLEMENTS = PreviewExtension/PreviewExtension.entitlements;
+				CODE_SIGN_IDENTITY = "-";
+				COPY_PHASE_STRIP = YES;
+				CURRENT_PROJECT_VERSION = 1.5.0;
+				GCC_ENABLE_OBJC_EXCEPTIONS = YES;
+				GCC_GENERATE_DEBUGGING_SYMBOLS = NO;
+				GCC_PRECOMPILE_PREFIX_HEADER = YES;
+				GCC_PREFIX_HEADER = cooViewer_Prefix.pch;
+				GENERATE_INFOPLIST_FILE = NO;
+				HEADER_SEARCH_PATHS = "$(SRCROOT)/vendor/include";
+				INFOPLIST_FILE = PreviewExtension/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/../Frameworks @executable_path/../../../../Frameworks";
+				LIBRARY_SEARCH_PATHS = "$(SRCROOT)/vendor/lib";
+				MACOSX_DEPLOYMENT_TARGET = 12.0;
+				MARKETING_VERSION = 1.5.0;
+				PRODUCT_BUNDLE_IDENTIFIER = jp.coo.cooViewer.QuickLookPreview;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				ZERO_LINK = NO;
+			};
+			name = Deployment2;
+		};
+		23E7B23AEA1E47A8AE6123E0 /* Default */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CODE_SIGN_ENTITLEMENTS = PreviewExtension/PreviewExtension.entitlements;
+				CODE_SIGN_IDENTITY = "-";
+				COPY_PHASE_STRIP = YES;
+				CURRENT_PROJECT_VERSION = 1.5.0;
+				GCC_ENABLE_OBJC_EXCEPTIONS = YES;
+				GCC_GENERATE_DEBUGGING_SYMBOLS = NO;
+				GCC_PRECOMPILE_PREFIX_HEADER = YES;
+				GCC_PREFIX_HEADER = cooViewer_Prefix.pch;
+				GENERATE_INFOPLIST_FILE = NO;
+				HEADER_SEARCH_PATHS = "$(SRCROOT)/vendor/include";
+				INFOPLIST_FILE = PreviewExtension/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/../Frameworks @executable_path/../../../../Frameworks";
+				LIBRARY_SEARCH_PATHS = "$(SRCROOT)/vendor/lib";
+				MACOSX_DEPLOYMENT_TARGET = 12.0;
+				MARKETING_VERSION = 1.5.0;
+				PRODUCT_BUNDLE_IDENTIFIER = jp.coo.cooViewer.QuickLookPreview;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				ZERO_LINK = NO;
+			};
+			name = Default;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -1149,6 +1670,30 @@
 				374F3E7013156FB200A5F418 /* Development2 */,
 				37BB543D1312C431001710B4 /* Deployment2 */,
 				762F24910899B2FD00419EAA /* Default */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Default;
+		};
+		E6F5D4500F02417EBBEB2E86 /* Build configuration list for PBXNativeTarget "cooViewerThumbnail" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				238D1EA0A3AF49479A585B1B /* Development */,
+				D847F85A5A2D415DA8FE7104 /* Deployment */,
+				CF405FCC526F4627AC5450E7 /* Development2 */,
+				1133C6700AEB453CA4451F17 /* Deployment2 */,
+				2F8E464164ED4BD4BF8044E6 /* Default */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Default;
+		};
+		B8E75A72B73E41C88B112350 /* Build configuration list for PBXNativeTarget "cooViewerPreview" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				BD9F7B9FF3E740DBA1D7840A /* Development */,
+				13105A2AE6934988897923A3 /* Deployment */,
+				BCAA3E89CECF4C61BFFCB5CF /* Development2 */,
+				C114DE679D1446029F5FE62C /* Deployment2 */,
+				23E7B23AEA1E47A8AE6123E0 /* Default */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Default;

@@ -49,3 +49,97 @@ phase 6 task doc flags this as unresolved by non-lawyer assessment
 whole project is already open source and buildable from this
 repository) rather than guessed away; revisit before any
 closed-source or object-only distribution change.
+
+---
+
+## QuickLook: two separate extension targets, and support both custom and pre-existing public UTIs (2026-07-14)
+
+**Decision:** `docs/tasks/2026-07-14-05-quicklook-extension.md` (phase
+7) adds **two** App Extension targets — `cooViewerPreview`
+(`QLPreviewProvider`) and `cooViewerThumbnail`
+(`QLThumbnailProvider`) — rather than one combined extension, and has
+each extension's `QLSupportedContentTypes` list both cooViewer's own
+exported UTIs (`jp.coo.cooViewer.cbz-archive`/`cbr-archive`) and the
+pre-existing `public.cbz-archive`/`public.cbr-archive` UTIs, rather
+than only the custom ones.
+
+**Why:** Apple's current Xcode templates (checked directly, not
+assumed from older docs) always generate preview and thumbnail
+providers as separate targets bound to separate extension points
+(`com.apple.quicklook.preview` vs `com.apple.quicklook.thumbnail|`) —
+there is no supported combined form. On the UTI side, on-device
+testing (`mdls -name kMDItemContentType` on real `.cbz`/`.cbr` files)
+showed this dev Mac's `.cbz`/`.cbr` extensions already resolve to
+`public.cbz-archive`/`public.cbr-archive`, publicly exported by other
+installed comic readers (Yomu, EdgeView 2) — not to cooViewer's own
+declared UTI. Since UTI-to-extension resolution is a per-machine,
+install-order-dependent outcome that cooViewer's own
+`UTExportedTypeDeclarations` cannot force, listing all four UTIs in
+`QLSupportedContentTypes` is the only way to make the extensions work
+regardless of which UTI actually wins on a given system, without
+touching `public.zip-archive`/`public.data` (the system's default
+zip/rar handlers) and without removing cooViewer's own UTI export
+(still authoritative on a machine with no competing comic-reader
+app installed).
+
+**How to apply:** Any future QuickLook-adjacent UTI work (e.g. adding
+7z/tar support) should check `mdls -name kMDItemContentType` /
+`lsregister -dump` on a real file before assuming a custom UTI
+declaration is authoritative — a same-named public UTI already
+claimed by another installed app silently wins over a freshly declared
+one, with no build-time or install-time warning.
+
+---
+
+## cb7 (7z) / cbt (tar) QuickLook support: not added (2026-07-15)
+
+**Decision:** `docs/tasks/2026-07-15-01-verify-cb7cbt-release.md` (phase
+8) evaluated extending the phase 7 QuickLook extensions to `.cb7`/`.cbt`
+following the same four-UTI-per-format pattern used for cbz/cbr, and
+decided **not** to add either, with measured evidence rather than
+assumption.
+
+**Why:** `.7z`/`.tar` files that don't match `COArchive`'s
+`zip`/`cbz`/`rar`/`cbr` fast paths fall through to `COArchive`'s own
+`readArchiveWithProgress:` (`Sources/COArchive.m:209`), which does a
+single sequential libarchive pass that fully decompresses and buffers
+**every** entry's payload into memory before the first page is
+available — cost scales with total archive size/entry count
+regardless of which single entry is actually wanted, unlike
+`COZipArchive`'s true random access or `CORarArchive`'s
+`CORarHeaderIndex`-based lazy seek. Measured against a realistic 1.4 GB
+/ 679-entry archive (built from a real large `.cbz` fixture's own
+pages, so representative of what this project's users actually open):
+a `.tar` of that content took **~8s** to yield the first page through
+this fallback path — uncompressed and therefore the *best case* for
+this path, yet still ~60-80x slower than the ~0.1s the project's own
+performance bar (phases 4/6) established for the equivalent solid-RAR
+case, and uncomfortably close to typical QuickLook timeouts. A `.7z`
+of the same content (default LZMA2, solid — libarchive/7-Zip's normal
+default) was still compressing after 20+ minutes of heavy multi-core
+CPU time when the encode itself was aborted, underscoring how far a
+correct *decode-side* lazy-skip would be from meeting the time budget
+for anything but small archives, since `archive_read_data_skip` on a
+solid LZMA2 block must decompress from the start of that block
+regardless of format — the exact problem `CORarHeaderIndex` was built
+to solve for RAR (see `docs/tasks/2026-07-14-04-rar-header-parser.md`),
+requiring bespoke per-format header/block-layout knowledge that does
+not transfer.
+
+Splitting the two formats: `.cbt` (tar, uncompressed, fixed-position
+headers) is architecturally the easy case — a proper lazy reader would
+only need `COZipArchive`-style skip-to-target, no RAR/7z-scale header
+parser — but the *existing* fallback path still doesn't hit that, so
+"trivial, UTI/dispatch-only" (the bar TASK.md set for adding either
+format) does not hold today. `.cb7` (7z, typically solid LZMA2) would
+need work comparable in scope to `CORarHeaderIndex` itself to be
+genuinely lazy for the common case.
+
+**How to apply:** If cbt support is revisited, the scoped work is a new
+`COTarArchive` (mirroring `COZipArchive`'s interface, using tar's cheap
+`archive_read_data_skip` to reach the target entry without
+decompression) — a self-contained, low-risk addition given tar's
+format simplicity. If cb7 is revisited, treat it as comparable in size
+to the RAR lazy-reading project (phases 1–6 of this fork's own
+history) — a from-scratch 7z header/folder parser — not a quick
+follow-up.

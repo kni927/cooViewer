@@ -242,3 +242,49 @@ Developer ID Application certificate (`DEVELOPMENT_TEAM` + proper
 ad-hoc signing (`CODE_SIGN_IDENTITY = "-"`) does **not** meaningfully help —
 the CDHash still changes every build and Translocation still applies to
 quarantined ad-hoc-signed apps.
+
+---
+
+## 13. QuickLook Extensions — Debugging Notes (Signing, UTIs, Tooling)
+
+The `cooViewerPreview`/`cooViewerThumbnail` App Extension targets
+(phase 7, `docs/tasks/2026-07-14-05-quicklook-extension.md`) have a few
+non-obvious gotchas specific to this project's build setup:
+
+- **`CODE_SIGN_IDENTITY = ""` silently drops entitlements.** Unlike the
+  main app (which has no entitlements to begin with), an extension
+  target with a `.entitlements` file but an empty
+  `CODE_SIGN_IDENTITY` builds "successfully" with only a warning
+  ("isn't code signed but requires entitlements") and the sandbox
+  entitlements are never actually applied. Both extension targets use
+  `CODE_SIGN_IDENTITY = "-"` (ad-hoc) specifically so entitlements get
+  embedded — verify with `codesign -d --entitlements -
+  path/to/X.appex` after any build-settings change, don't assume the
+  absence of a build error means entitlements applied.
+- **A file's resolved UTI can silently differ from what cooViewer
+  declares.** `.cbz`/`.cbr` are not guaranteed to resolve to
+  cooViewer's own `jp.coo.cooViewer.cbz-archive`/`cbr-archive` UTIs —
+  another installed app can already export a same-named public UTI
+  (e.g. `public.cbz-archive`) that wins the LaunchServices resolution.
+  Always check with `mdls -name kMDItemContentType <file>` (not just
+  reading the Info.plist declarations) before assuming
+  `QLSupportedContentTypes` will actually match. See the DECISIONS.md
+  entry "QuickLook: two separate extension targets, and support both
+  custom and pre-existing public UTIs" for the fix applied here.
+- **`mdls -name kMDItemVersion` / Spotlight metadata is unreliable for
+  freshly-built products in a dev/CI-like environment** — even after
+  `mdimport -f` and `lsregister -f`, Spotlight may not index a
+  just-built `.app`'s version metadata (verified against
+  known-working pre-installed apps like Calculator/Xcode, which do
+  resolve correctly, ruling out a general Spotlight outage). Don't
+  rely on `mdls` alone to confirm a version-string fix — cross-check
+  via `defaults read Contents/Info.plist CFBundleShortVersionString`
+  and/or the real Finder Get Info panel.
+- **`qlmanage -t`/`qlmanage -p` are not reliable for testing modern
+  App Extension-based (`QLPreviewProvider`/`QLThumbnailProvider`)
+  providers** — `-t` (thumbnail-to-file) was observed to hang
+  indefinitely against these extensions, and `-p` opens an interactive
+  preview window rather than returning. Prefer driving real Finder
+  (select the file, press Space; check icon view for thumbnails) for
+  verification, and `pluginkit -m -v | grep <bundle-id-prefix>` to
+  confirm the extensions are actually registered.

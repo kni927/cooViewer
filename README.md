@@ -48,6 +48,13 @@ The "Open from same folder" menu is now built lazily instead of scanning the par
 
 For downloaded binaries, Gatekeeper App Translocation may still cause repeated permission requests until the quarantine attribute is removed.
 
+### Finder QuickLook Support
+
+cooViewer now ships its own QuickLook extensions, showing the cover
+page of `.cbz`/`.cbr` files as the Space-preview and Finder icon
+thumbnail — no need to open cooViewer itself, and no third-party app
+(e.g. Simple Comic) required for this anymore.
+
 ---
 
 ## Requirements

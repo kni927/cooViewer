@@ -236,6 +236,101 @@ signing alone does not help (see `docs/KNOWN_ISSUES.md`).
 - Translated `CLAUDE.md` from Japanese to English
 - Added `README.md` (English, with feature descriptions, build instructions, upstream credits)
 
+### QuickLook display-order verification + cb7/cbt decision — phase 8 (2026-07-15)
+
+Pre-release follow-up to phase 7, resolving two open questions before
+shipping 1.5.0. **Display order:** built an adversarial `.cbz` fixture
+where zip storage/insertion order (`page20.jpg, page10_cover.png,
+page2.jpg, page1_actual_cover.png`) deliberately differs from
+`finderCompareS:` natural-sort display order (`page1_actual_cover.png`
+first). `COCoverExtractor` returned `page1_actual_cover.png`'s bytes
+(confirmed by exact byte-length match) in 0.148s; opening the same
+fixture in the main app showed the same file as page 1 (right side of
+an RTL two-page spread, confirmed by reading the page-bar filename
+string). Main app and QuickLook extension agree — no fix needed. This
+also confirms the `finderCompareS:` sort observed earlier as
+"provably equivalent" between the two code paths (same comparator,
+same options, same pre-filtering for archives with only plain image
+entries) holds in practice, not just in the code reading.
+
+**cb7/cbt:** measured rather than assumed whether `.cb7`/`.cbt` are
+cheap additions. Built a realistic 1.4 GB / 679-entry uncompressed
+`.tar` from a real large `.cbz` fixture's own pages and timed
+`COCoverExtractor` against it: **~8s** to first page via `COArchive`'s
+non-lazy fallback path (the only path `.tar`/`.7z` currently have) —
+far outside the ~0.1–1s bar phases 4–6 established for the equivalent
+RAR case, and close enough to typical QuickLook timeouts to be risky.
+A `.7z` (default solid LZMA2) built from the same content was still
+compressing after 20+ minutes of heavy CPU time when aborted,
+corroborating that a correct lazy decode path for solid 7z would need
+work on the scale of `CORarHeaderIndex` (phase 6) — a bespoke 7z
+header/folder parser — not a quick follow-up. Decision: don't add
+either format this phase; `.cbt` is flagged as a reasonable
+future addition (tar's simplicity means a proper lazy reader is a
+much smaller lift than 7z's), `.cb7` is flagged as comparable in scope
+to the whole RAR lazy-reading project. Details:
+`docs/tasks/2026-07-15-01-verify-cb7cbt-release.md`,
+`docs/DECISIONS.md`.
+
+### Native QuickLook extensions for cbz/cbr — phase 7 (2026-07-14)
+
+Replaced the Simple Comic dependency for Finder previews/thumbnails
+with two native App Extension targets bundled in cooViewer.app:
+`cooViewerPreview` (`QLPreviewProvider`, extension point
+`com.apple.quicklook.preview`) and `cooViewerThumbnail`
+(`QLThumbnailProvider`, `com.apple.quicklook.thumbnail`). Apple's own
+current Xcode templates always split these into two targets/extension
+points — never a single combined one — so that split was used here
+too rather than attempting a merge. Both extensions share a new
+`Sources/COCoverExtractor.h/.m` helper that opens the archive via the
+unchanged `COArchive`/`COZipArchive`/`CORarArchive`/`CORarHeaderIndex`
+readers from phases 1–6, sorts entries with the existing
+`finderCompareS:` ordering (no reimplementation), and decodes only the
+first page. Each extension target bundles its own copy of the vendored
+dylibs (libarchive, uchardet, libzip) via a CopyFiles build phase,
+mirroring the main app's pattern, since a sandboxed extension process
+can't rely on the host app's loaded frameworks.
+
+**UTI discovery (real, not assumed):** the task's premise — that
+cbz/cbr "aren't standard system UTIs" — turned out to be
+machine-dependent. This dev Mac has other installed comic readers
+(Yomu, EdgeView 2) that already export `public.cbz-archive` /
+`public.cbr-archive` as *public* UTIs, and LaunchServices resolves
+`.cbz`/`.cbr` files to those rather than to cooViewer's own
+newly-declared `jp.coo.cooViewer.cbz-archive`/`cbr-archive` (confirmed
+via `mdls -name kMDItemContentType`, since `lsregister -dump` showed
+both UTIs already claimed as `public`/`active` by other apps). Both
+extensions' `QLSupportedContentTypes` list all four UTIs (the two
+`jp.coo.*` ones plus the two `public.*` ones) so previews/thumbnails
+work regardless of which UTI wins the resolution on a given machine.
+`public.zip-archive`/`public.data` (the system's default zip/rar
+handlers) are deliberately not touched.
+
+**Sandbox (verified on-device, not assumed):** both extensions run
+with `com.apple.security.app-sandbox` +
+`com.apple.security.files.user-selected.read-only`, ad-hoc signed
+(`CODE_SIGN_IDENTITY = "-"` — an empty identity silently drops
+entitlements at build time even though the build "succeeds"). No
+further entitlement was needed: QuickLook hands the extension process
+a `QLFilePreviewRequest`/thumbnail request already scoped to the
+specific file the user is looking at in Finder, so file access works
+without a general filesystem entitlement. Verified via
+`codesign -d --entitlements -` and real Finder testing (Space-preview
++ icon thumbnails) against small and large (1.9 GB `.cbz`, 1.4 GB
+solid `.cbr`) fixtures — both rendered in ~1s, and a truncated/corrupt
+`.cbr` fixture fell back to the generic file icon with no crash or
+hang. `qlmanage -t`/`-p` were unreliable for testing App
+Extension-based providers (hung / opened an interactive window) and
+were abandoned in favor of driving real Finder. Details:
+`docs/tasks/2026-07-14-05-quicklook-extension.md`.
+
+Also fixed in the same phase: the main app's `Info.plist` had
+`CFBundleVersion` but never wired `CFBundleShortVersionString`, so
+Finder's Get Info panel showed a blank version. Added
+`CFBundleShortVersionString = $(MARKETING_VERSION)` and bumped
+`MARKETING_VERSION`/`CURRENT_PROJECT_VERSION` to `1.5.0` across all 5
+build configs × 3 targets.
+
 ### Fast solid RAR indexing via a revived XADMaster-derived header parser — phase 6 (2026-07-14)
 
 Fixed the problem phase 5 diagnosed: `CORarArchive`'s open-time index
