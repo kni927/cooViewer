@@ -648,11 +648,11 @@ static const int DIALOG_CANCEL	= 129;
 		[timer invalidate];
 		timerSwitch=NO;
 	}
-	
-	[self setCurrentBookPathAndOldBookPath:filename];	
-	
+
+	[self setCurrentBookPathAndOldBookPath:filename];
+
 	[self openPage:0 last:NO];
-	return NO;
+	return YES;
 }
 
 
@@ -709,9 +709,9 @@ static const int DIALOG_CANCEL	= 129;
 
 #pragma mark openning
 - (void)openPage:(int)page last:(BOOL)last;
-{	
+{
 	[window makeKeyAndOrderFront:self];
-	
+
 	[progressIndicator startAnimation:self];
 	[progressIndicator displayIfNeeded];
 	

@@ -288,3 +288,37 @@ non-obvious gotchas specific to this project's build setup:
   (select the file, press Space; check icon view for thumbnails) for
   verification, and `pluginkit -m -v | grep <bundle-id-prefix>` to
   confirm the extensions are actually registered.
+
+---
+
+## 14. Double-Click-Doesn't-Switch-Document Report (Phase 9) — Not Reproduced
+
+A report that double-clicking a second `.cbz`/`.cbr` in Finder while
+cooViewer already has a different file open brings the app to the
+foreground but doesn't load the new file (`docs/tasks/2026-07-15-02-doubleclick-open-investigation.md`)
+could **not** be reproduced despite testing same-format switching,
+cross-format switching, duplicate LaunchServices registrations (two
+installed copies sharing the same bundle ID), and simultaneous
+multi-file opens — all via real Finder interaction with temporary
+diagnostic logging in place. `application:openFile:`
+(`Sources/Controller.m:645`) and the internal load path it shares with
+`File > Open` worked correctly every time tested.
+
+- If this recurs, check first for **duplicate installed copies**
+  (`mdfind "kMDItemCFBundleIdentifier == 'jp.coo.cooViewer'"` or
+  `lsregister -dump | grep -A3 "bundle:.*cooViewer"`) — repeated local
+  dev-build installs across different paths (`~/Applications`,
+  `/Applications`, etc.) leave stale LaunchServices claim entries that
+  can be genuinely confusing to debug against, even though a live test
+  with two such copies still routed correctly in this investigation.
+- One independent, unrelated bug WAS found and fixed in the same pass:
+  `application:openFile:` always returned `NO` even on success
+  (violates the documented `NSApplicationDelegate` contract) — fixed
+  to return `YES`. No causal link to the reported symptom was
+  established.
+- `openPage:last:`'s silent-revert-on-load-failure branch
+  (`Controller.m:754`) has no user-facing error message — a load
+  failure for any reason not exercised in this investigation would
+  look, from the user's perspective, identical to "nothing happened,"
+  matching the reported symptom. Worth surfacing an error here if the
+  report recurs and a failing file/location can be identified.

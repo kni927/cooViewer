@@ -236,6 +236,32 @@ signing alone does not help (see `docs/KNOWN_ISSUES.md`).
 - Translated `CLAUDE.md` from Japanese to English
 - Added `README.md` (English, with feature descriptions, build instructions, upstream credits)
 
+### Double-click open-file investigation — phase 9 (2026-07-15)
+
+Investigated a report that double-clicking a second `.cbz`/`.cbr` in
+Finder while cooViewer already has a different file open activates the
+app but doesn't load the new file. Confirmed via `git log -p` that
+phase 7 made zero changes to `Controller.m`/`.h`, so this wasn't a
+QuickLook-extension regression. Added temporary `NSLog` diagnostics to
+`application:openFile:` (`Controller.m:645`) and `openPage:last:`, then
+tested extensively via real Finder double-clicks and `open -a`: same-
+format switching, cross-format switching, two installed copies sharing
+the same bundle ID (a real, if incidental, artifact of this session's
+own repeated dev-build installs — a plausible theoretical cause,
+tested explicitly), and simultaneous multi-file open. **Could not
+reproduce the symptom under any tested condition** — the window
+correctly switched every time. Found and fixed one small, unrelated
+bug along the way: `application:openFile:` always returned `NO` even
+on success, violating `NSApplicationDelegate`'s documented contract;
+changed to `YES`. Separately confirmed the reported Finder icon
+staleness is pure caching (`qlmanage -r` resets `quicklookd`'s cache,
+not Finder's separate Icon Services store) — the `coo_cbz.icns`/
+`coo_cbr.icns` declarations and bundled resources are correct, verified
+by direct visual comparison, not assumption. Root cause of the main
+report remains undetermined; details and follow-up suggestions in
+`docs/tasks/2026-07-15-02-doubleclick-open-investigation.md` and
+`docs/KNOWN_ISSUES.md` #14.
+
 ### QuickLook display-order verification + cb7/cbt decision — phase 8 (2026-07-15)
 
 Pre-release follow-up to phase 7, resolving two open questions before
