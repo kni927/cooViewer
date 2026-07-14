@@ -335,3 +335,34 @@ diagnostic logging in place. `application:openFile:`
   exact click sequence, any dialogs seen) rather than reasoning from a
   chat description after the fact — this investigation had no actual
   failure to observe or log.
+
+---
+
+## 15. Finder経由での2つ目のファイルオープンが効かない(原因不明、条件付きで再現)
+
+**症状**: cooViewerが既に起動している状態で、Finderから別のアーカイブファイルを
+ダブルクリックしても、フォーカスは移るが表示中のドキュメントが切り替わらない。
+File > Openコマンドおよびcold launch(未起動状態からのダブルクリック)は問題なく動作する。
+
+**調査の経緯**:
+- 当初、開いているファイルがsolid RAR / 大容量であることと相関があるように見えたが、
+  後の検証でこれは誤りと判明。
+- 次に特定ファイル(1.cbz, 1.cbr)固有の問題に見えたが、リネーム・コピーしても
+  症状が追従したため、ファイル自体の識別子(inode等)由来でもないと判明。
+- com.apple.quarantine属性の有無が唯一再現性のある差分として特定され、
+  quarantine属性を持つファイルへの切り替えが失敗することを確認。
+  `xattr -d com.apple.quarantine`で属性を除去すると症状が解消することも確認した。
+- ところがその後、TASK.mdに基づく再調査(phase7以前ビルドとの比較、計6パターンの
+  検証)では、quarantine属性が付いたファイルでも一貫して再現しなくなった。
+- この間に`killall Finder`および`killall Dock`を実行しており、これが再現しなく
+  なったことと関係している可能性がある(未検証の推測)。同時期に複数の
+  cooViewer.appインストール(build/Deployment配下の重複、~/Downloads、~/Dropbox配下等)
+  が発見され整理されたため、それも影響した可能性がある。
+
+**現状**: 原因未特定のまま保留。コード変更は行っていない(再現しない状態で
+当てずっぽうの修正は避けた)。
+
+**再発時の対処法(未検証)**: まず `killall Finder && killall Dock` を試し、
+それでも直らない場合は `pluginkit -m -v -p com.apple.quicklook.preview` /
+`com.apple.quicklook.thumbnail` で余分なcooViewerインストールが登録されていないか
+確認する。
