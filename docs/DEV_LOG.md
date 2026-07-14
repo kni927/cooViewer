@@ -236,6 +236,38 @@ signing alone does not help (see `docs/KNOWN_ISSUES.md`).
 - Translated `CLAUDE.md` from Japanese to English
 - Added `README.md` (English, with feature descriptions, build instructions, upstream credits)
 
+### Fast solid RAR indexing via a revived XADMaster-derived header parser — phase 6 (2026-07-14)
+
+Fixed the problem phase 5 diagnosed: `CORarArchive`'s open-time index
+pass now tries a from-scratch, header-only RAR4/RAR5 block parser
+(`Sources/CORarHeaderIndex.h/.m`) before falling back to the unchanged
+phase 4 libarchive-based scan. The new parser walks the file via raw
+`fseeko`/`fread` only — no decompression anywhere — reimplementing
+just the block-header-walking *knowledge* from XADMaster's
+`XADRARParser.m`/`XADRAR5Parser.m` (LGPL-2.1-or-later, MacPaw Inc.;
+`Licence_xadmaster.txt`) rather than restoring XADMaster's own
+CSHandle/XADArchiveParser class hierarchy. Bails to the libarchive
+fallback on anything it can't confidently handle: header encryption,
+multi-volume archives, and (RAR4 only) `LHD_UNICODE`-flagged names,
+which have a bespoke decode algorithm with no fixture available to
+verify a port against.
+
+Measured on the same 1.4 GB / 665-entry solid RAR5 fixture from phase
+4/5: open 13.0s → **0.106s**; time-to-first-page (open + first-entry
+decode) ~13.0s → **~0.13s**, beating even the v1.3.7/XADMaster
+baseline (~0.5–1s) phase 5 measured. Non-solid open also improved
+(0.19–0.21s → 0.10s). Full sequential read-through of a solid archive
+still costs ~13s total (unchanged — the cursor/decode pass is exactly
+phase 4's code), but that cost is now paid while reading pages
+instead of blocking the initial open, matching how v1.3.7's own
+background lookahead thread behaved. `docs/KNOWN_ISSUES.md` #13
+(added in phase 5) is resolved and removed. No RAR4 archiver tool was
+available to generate a test fixture, so
+`tests/fixtures/make_rar4_fixture.py` hand-writes a minimal RAR4
+(STORE method) archive from the spec, cross-checked against
+libarchive's own RAR4 reader. Details:
+`docs/tasks/2026-07-14-04-rar-header-parser.md`.
+
 ### Solid RAR open-time investigation — phase 5 (2026-07-14)
 
 Diagnostic task, no code change: why does phase 4's solid RAR open

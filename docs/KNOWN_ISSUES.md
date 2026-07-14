@@ -242,39 +242,3 @@ Developer ID Application certificate (`DEVELOPMENT_TEAM` + proper
 ad-hoc signing (`CODE_SIGN_IDENTITY = "-"`) does **not** meaningfully help —
 the CDHash still changes every build and Translocation still applies to
 quarantined ad-hoc-signed apps.
-
----
-
-## 13. Solid RAR Archives Open Slowly, With No Progress Feedback
-
-Opening a **solid** RAR/CBR archive (`CORarArchive`, `Sources/CORarArchive.m`)
-takes roughly as long as fully decoding the entire archive once — for a
-1.4 GB / 665-entry solid RAR5 file, ~13 seconds, during which the UI shows
-only an indeterminate spinner (no percentage, `Controller.m`'s
-`archiveReadProgress:total:` never surfaces the byte count it's given). This
-is markedly worse *perceived* responsiveness than v1.3.7 (XADMaster), which
-showed page 1 in under a second for the same file.
-
-**Root cause (confirmed, not a bug in cooViewer's code):** vendored
-libarchive's RAR5 reader implements `archive_read_data_skip()` for solid
-entries by actually running its decompressor and discarding the output —
-`skip_mode` only disables checksum verification, not the LZ decode itself
-(`archive_read_support_format_rar5.c`, `rar5_read_data_skip()`). So
-`CORarArchive`'s open-time index pass (one skip per entry, needed to learn
-every entry's name before `COImageLoader` can sort and display page 1) pays
-the full decompression cost of the whole solid stream. XADMaster instead
-enumerates entries via raw file-offset seeks based on each header's declared
-block size (`XADRAR5Parser.m`, `-skipBlock:`), never invoking a decompressor
-during enumeration — libarchive's public API does not expose an equivalent
-for solid RAR. See `docs/tasks/2026-07-14-03-solid-rar-investigation.md` for
-the full investigation, measurements, and source citations.
-
-**Not affected:** non-solid RAR (open ~0.2s regardless of size, unchanged),
-zip/cbz (libzip central-directory path), 7z/tar.
-
-**Possible fixes (not yet implemented, judged out of scope for a diagnostic
-task):** a from-scratch RAR4/RAR5 header-only block parser mirroring
-XADMaster's seek-based strategy (substantial — a new format parser), or, as
-a smaller interim step, wiring the existing `COArchiveProgress` byte count
-into a determinate "Loading… NN%" indicator so the wait is at least visible
-and honest instead of a frozen-looking spinner.
