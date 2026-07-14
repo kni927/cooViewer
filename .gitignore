@@ -75,3 +75,5 @@ iOSInjectionProject/
 # Generated test archives
 /tests/fixtures/generated/*
 !/tests/fixtures/generated/.gitkeep
+
+.DS_Store
