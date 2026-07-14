@@ -236,6 +236,30 @@ signing alone does not help (see `docs/KNOWN_ISSUES.md`).
 - Translated `CLAUDE.md` from Japanese to English
 - Added `README.md` (English, with feature descriptions, build instructions, upstream credits)
 
+### RAR partial lazy extraction — phase 4 (2026-07-14)
+
+Extended the lazy-archive approach from zip (phase 2, libzip) to
+rar/cbr, without adding a new dependency: `CORarArchive` does one
+skip-only pass over the stream at open (`archive_read_data_skip`,
+cheap — no entry data decoded) to index entries, then decodes a
+requested entry on demand through a second "cursor" stream that
+fast-forwards forward-only, reopening from the start on a backward
+page turn. NSCache-bounded (256 MB), same policy as `COZipArchive`.
+
+Measured on a 1.4 GB / 665-entry RAR5 fixture: non-solid open
+2.060 s → 0.189 s, footprint after open 2676 MB → 2.6 MB. Solid
+archives see no open-time improvement (13.8 s → 13.0 s — expected,
+solid decode dominates skip cost too) but still a large memory win
+(2714 MB → 34.5 MB after open). Cold backward jumps in solid
+archives cost roughly proportional to distance from the start
+(~6.2 s to jump halfway into the 1.4 GB solid file); verified this
+doesn't affect normal forward reading of a real-world (uniform
+extension) solid CBR, since RAR only reorders entries when file
+types are mixed. A corrupt-archive fallback to the old
+full-extraction path (mislabeled/unopenable files) turned out
+trivial to add, mirroring zip's existing fallback. Details:
+`docs/tasks/2026-07-14-02-rar-partial-lazy.md`.
+
 ### Source tree reorganization — phase 3: Sources/ (2026-07-14)
 
 Pure reorg, no logic change: all 74 root-level `.h`/`.m` files moved
