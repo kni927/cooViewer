@@ -338,31 +338,45 @@ diagnostic logging in place. `application:openFile:`
 
 ---
 
-## 15. Finder経由での2つ目のファイルオープンが効かない(原因不明、条件付きで再現)
+## 15. Finder経由での2つ目のファイルオープンが効かない・QuickLookサムネイルが
+    更新されない(原因はmacOS側のデーモン状態、再起動で解消・解決済み)
 
-**症状**: cooViewerが既に起動している状態で、Finderから別のアーカイブファイルを
-ダブルクリックしても、フォーカスは移るが表示中のドキュメントが切り替わらない。
-File > Openコマンドおよびcold launch(未起動状態からのダブルクリック)は問題なく動作する。
+**症状**:
+- cooViewerが既に起動している状態で、Finderから別のアーカイブファイルを
+  ダブルクリックしても、フォーカスは移るが表示中のドキュメントが切り替わらない。
+  File > Openコマンドおよびcold launch(未起動状態からのダブルクリック)は
+  問題なく動作していた。
+- 同時期に、QuickLookのサムネイル/プレビューが更新されず汎用アイコンのまま
+  になる症状も発生。
 
 **調査の経緯**:
-- 当初、開いているファイルがsolid RAR / 大容量であることと相関があるように見えたが、
-  後の検証でこれは誤りと判明。
+- 当初、開いているファイルがsolid RAR / 大容量であることと相関があるように
+  見えたが、後の検証でこれは誤りと判明。
 - 次に特定ファイル(1.cbz, 1.cbr)固有の問題に見えたが、リネーム・コピーしても
   症状が追従したため、ファイル自体の識別子(inode等)由来でもないと判明。
-- com.apple.quarantine属性の有無が唯一再現性のある差分として特定され、
-  quarantine属性を持つファイルへの切り替えが失敗することを確認。
-  `xattr -d com.apple.quarantine`で属性を除去すると症状が解消することも確認した。
-- ところがその後、TASK.mdに基づく再調査(phase7以前ビルドとの比較、計6パターンの
-  検証)では、quarantine属性が付いたファイルでも一貫して再現しなくなった。
-- この間に`killall Finder`および`killall Dock`を実行しており、これが再現しなく
-  なったことと関係している可能性がある(未検証の推測)。同時期に複数の
-  cooViewer.appインストール(build/Deployment配下の重複、~/Downloads、~/Dropbox配下等)
-  が発見され整理されたため、それも影響した可能性がある。
+- com.apple.quarantine属性の有無が一時的に再現性のある差分として特定され、
+  quarantine属性を持つファイルへの切り替えが失敗する現象を確認したが、
+  後の再検証(TASK.mdに基づく計6パターンの比較テスト)では再現しなくなった。
+- 並行して、`build/Deployment/`配下や~/Downloads、~/Dropbox配下に複数の
+  cooViewer.appが存在し、QuickLook拡張がそのうち`/Applications`以外の
+  ビルドから登録されていたことが判明(pluginkit -m で確認)。整理・
+  pluginkit -e ignore/useでの操作、killall Finder / killall Dockを
+  行ったが、症状は完全には解消しなかった。
+- **最終的に、Mac自体を再起動したところ、ダブルクリックでの切り替え・
+  QuickLookサムネイルの両方が正常化した。**
 
-**現状**: 原因未特定のまま保留。コード変更は行っていない(再現しない状態で
-当てずっぽうの修正は避けた)。
+**結論**: 原因はcooViewer側のコードではなく、開発中に短時間で繰り返した
+ビルド・複数インストール・pluginkit操作によって、LaunchServices関連の
+システムデーモン(lsdなど)やQuickLookのジェネレータキャッシュが不整合な
+状態に陥っていたためと推測される(未検証の推測)。killall Finder /
+killall Dockでは解消せず、OS再起動でのみ解消した。
 
-**再発時の対処法(未検証)**: まず `killall Finder && killall Dock` を試し、
-それでも直らない場合は `pluginkit -m -v -p com.apple.quicklook.preview` /
-`com.apple.quicklook.thumbnail` で余分なcooViewerインストールが登録されていないか
-確認する。
+**再発時の対処法**:
+1. `pluginkit -m -v -p com.apple.quicklook.preview` /
+   `com.apple.quicklook.thumbnail` で、`/Applications/cooViewer.app`
+   以外の場所からQuickLook拡張が登録されていないか確認する。
+2. 余分なcooViewer.appのインストール(特に`build/Deployment/`配下の
+   ビルド成果物)を削除する。
+3. `killall Finder && killall Dock`を試す。
+4. それでも解消しない場合、Mac自体の再起動を試す(これまでの再現例では
+   再起動が最も確実だった)。
