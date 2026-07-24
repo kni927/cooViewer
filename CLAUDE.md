@@ -17,15 +17,16 @@
   OS restart resolved — see `docs/KNOWN_ISSUES.md` #15.
 
 ## Repository Layout
-- Repository root contains only dotfiles, top-level directories, `*.md`, `*.txt`, 
-  and the Xcode project bundle. Source, resources, and scripts live in subdirectories.
+- Repository root contains only dotfiles, top-level directories, `*.md`,
+  `*.txt`, and the Xcode project bundle. Source, resources, and scripts
+  live in subdirectories.
 - Do not add new files to the repository root without explicit
   instruction.
-- `build/` contains only the final `cooViewer.app`. Xcode
-  intermediates (`DerivedData`, `.build`, indexes, test products) are
-  kept outside the repository.
-- Remove stale contents from `build/` before producing a new product,
-  and verify afterwards that `build/` contains the app and nothing else.
+- `build/` contains only the final `cooViewer.app`. Xcode intermediates
+  (`DerivedData`, `.build`, indexes, test products) are kept outside the
+  repository.
+- Remove stale contents from `build/` before producing a new product, and
+  verify afterwards that `build/` contains the app and nothing else.
 
 ## Dead Code
 - Dead code removal is a task, not a side effect. Do it only when the
