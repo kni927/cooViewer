@@ -1344,7 +1344,6 @@ NSTimeInterval elapsed=0;
     int heightValue02 = [[infodic objectForKey:@"heightValue02"] intValue];
     NSRect drawRect1 = NSRectFromString([infodic objectForKey:@"drawRect1"]);
     NSRect drawRect2 = NSRectFromString([infodic objectForKey:@"drawRect2"]);
-    NSRect fullscreenRect = NSRectFromString([infodic objectForKey:@"fullscreenRect"]);
 	
 	NSAffineTransform *transform;
 	switch (rotateMode) {

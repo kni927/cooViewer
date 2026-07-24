@@ -82,7 +82,6 @@
 - (void)drawFilterUIViews
 {
     int contenntsHeight = 0;
-    NSRect docBounds = [[scrollView documentView] bounds];
     NSEnumerator *enu = [selectedFilterKeys objectEnumerator];
     NSString *filterKey;
     while (filterKey = [enu nextObject]) {

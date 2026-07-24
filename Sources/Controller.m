@@ -1229,7 +1229,6 @@ static const int DIALOG_CANCEL	= 129;
 	}
 	
 	NSImage *image = [imageLoader itemAtIndex:index];	
-    int heightValue = 0,widthValue = 0,repi = 0;
     /*
 	NSImageRep*	rep;
 	NSArray *repArray=[image representations];

@@ -44,7 +44,6 @@ kUCCollateComposeInsensitiveMask
 
 - (NSComparisonResult)fileCreationDateCompare:(NSString *)otherString
 {
-	NSFileManager *manager = [NSFileManager defaultManager];
     NSDate *sourceDate = [[[NSFileManager defaultManager] attributesOfItemAtPath:[self stringByResolvingSymlinksInPath] error:nil] fileCreationDate];
     NSDate *otherDate = [[[NSFileManager defaultManager] attributesOfItemAtPath:[otherString stringByResolvingSymlinksInPath] error:nil] fileCreationDate];
 	NSComparisonResult res = [sourceDate compare:otherDate];
@@ -57,7 +56,6 @@ kUCCollateComposeInsensitiveMask
 
 - (NSComparisonResult)fileModificationDateCompare:(NSString *)otherString
 {
-	NSFileManager *manager = [NSFileManager defaultManager];
     NSDate *sourceDate = [[[NSFileManager defaultManager] attributesOfItemAtPath:[self stringByResolvingSymlinksInPath] error:nil] fileModificationDate];
     NSDate *otherDate = [[[NSFileManager defaultManager] attributesOfItemAtPath:[otherString stringByResolvingSymlinksInPath] error:nil] fileModificationDate];
 	NSComparisonResult res = [sourceDate compare:otherDate];

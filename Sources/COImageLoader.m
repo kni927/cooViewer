@@ -497,8 +497,6 @@ static NSArray *_COImageLoader_archiveTypes=nil;
         tempDir = [[NSString stringWithFormat:@"%s", buffer] retain];
 	}
 	
-	NSArray* items=[archiveContainer contents];
-	NSData* data;
 	if ([rawContentPathArray indexOfObject:fileName] != NSNotFound) {
 		[self createDir:[[tempDir stringByAppendingPathComponent:fileName] stringByDeletingLastPathComponent]];
 		

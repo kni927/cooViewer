@@ -174,7 +174,6 @@
                     NSSize sImageSize = ignoreImageDpi ? [sImage pixelsSize] : [sImage size];
                     NSInteger sWidthValue = sImageSize.width;
                     NSInteger sHeightValue = sImageSize.height;
-                    float sx = sImageSize.width/sTempRect.size.width;
                     NSPoint sPoint;
                     sPoint.x = (int)((drawPoint.x - sTempRect.origin.x)*lensRate*x);
                     sPoint.y = (int)((drawPoint.y - sTempRect.origin.y)*lensRate*x);
@@ -210,7 +209,6 @@
                     NSSize sImageSize = ignoreImageDpi ? [sImage pixelsSize] : [sImage size];
                     NSInteger sWidthValue = sImageSize.width;
                     NSInteger sHeightValue = sImageSize.height;
-                    float sx = sImageSize.width/fTempRect.size.width;
                     NSPoint sPoint;
                     sPoint.x = (int)((drawPoint.x - fTempRect.origin.x)*lensRate*x);
                     sPoint.y = (int)((drawPoint.y - fTempRect.origin.y)*lensRate*x);

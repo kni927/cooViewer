@@ -28,6 +28,11 @@
 
 #import "GlobalKeyboardDevice.h"
 
+// Forward declaration for the file-static Carbon hot key handler, relocated
+// here from GlobalKeyboardDevice.h so the internal-linkage prototype no
+// longer appears in every translation unit that imports the header.
+static OSStatus hotKeyEventHandler(EventHandlerCallRef inHandlerRef, EventRef inEvent, void* refCon );
+
 #define F1 122
 #define F2 120
 #define F3 99
