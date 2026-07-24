@@ -21,9 +21,14 @@
   the final `cooViewer.app` is copied into `build/`. The QuickLook
   extensions (`cooViewerThumbnail`, `cooViewerPreview`) are embedded in
   `cooViewer.app/Contents/PlugIns/` — do not copy the standalone `.appex`
-  products into `build/`. The project still carries `SYMROOT = build/` as
-  a fallback, so a plain `xcodebuild` without these overrides writes into
-  `build/`; always use the command above.
+  products into `build/`. The project no longer sets `SYMROOT`, so with a
+  DerivedData build location a plain `xcodebuild` writes outside the repo
+  too; still use the command above to place the final app under `build/`.
+  Note: a stale per-user legacy build location
+  (`xcuserdata/…/WorkspaceSettings.xcsettings` with
+  `BuildLocationStyle = UseTargetSettings`) forces the old default of
+  `SRCROOT/build`; switch Xcode ▸ Settings ▸ Locations to "Derived Data"
+  if plain builds land in `build/`.
 - Do not edit vendored library sources
 - Do not install local/debug builds directly into `/Applications` for
   manual testing. Use a separate test location (e.g. `~/Applications`)
