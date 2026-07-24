@@ -85,3 +85,21 @@ UniversalDetector — relevant baseline for any future submodule swap
 
 The source images are released under CC0 1.0 Universal.
 See `src/LICENSE.txt`.
+## Encrypted ZIP fixtures
+
+`tests/engine/run_encryption_test.sh` verifies that the vendored libzip can
+decrypt password-protected ZIP archives (see
+`docs/DECISIONS.md` — libzip + CommonCrypto). It generates its fixtures at
+run time into `tests/fixtures/generated/` (not committed):
+
+- `enc_aes.zip` — WinZip **AES-256**, created by the test via libzip.
+- `enc_trad.zip` — traditional **PKWARE ZipCrypto**, created by the test via
+  libzip.
+- `enc_trad_cli.zip` — traditional ZipCrypto created independently by the
+  system `zip -e` tool, to check cross-tool decryption.
+
+Each contains a single entry `secret.txt` whose contents are a deterministic
+synthetic byte pattern (`(i*37+11) & 0xff` for `i` in 0..511) — not an image
+and not a copyrighted asset, so no additional licensing applies. The test
+password is `cooViewer-secret-42`. These fixtures exercise the vendored
+library only; no application code handles encrypted archives yet.

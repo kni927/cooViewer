@@ -143,3 +143,40 @@ format simplicity. If cb7 is revisited, treat it as comparable in size
 to the RAR lazy-reading project (phases 1–6 of this fork's own
 history) — a from-scratch 7z header/folder parser — not a quick
 follow-up.
+
+## Vendored libzip built with CommonCrypto to support encrypted ZIP (2026-07-25)
+
+**Decision:** Build the vendored libzip with `-DENABLE_COMMONCRYPTO=ON`
+(the other crypto backends — GNUTLS / MBEDTLS / OPENSSL / WINDOWS_CRYPTO —
+stay off, and `ENABLE_ZIPCRYPTO` is left at libzip's default ON). This gives
+the vendored dylib WinZip AES-256 decryption plus traditional PKWARE
+ZipCrypto, so encrypted ZIP archives can be reopened once the application
+layer re-adds password handling.
+
+**Why:** Password-protected archive support was a documented feature of the
+original cooViewer, dropped in v1.4.0 when the archive layer moved from
+XADMaster to libzip/libarchive (see
+`docs/tasks/2026-07-25-07-investigate-password-archive.md`). The previous
+vendored libzip had all crypto backends disabled, so encrypted entries were
+only detected (`crypted`) and skipped. CommonCrypto is native to macOS: it
+adds no extra runtime dependency (it lives in libSystem, so `otool -L` still
+shows only system dylibs) and keeps the universal (arm64 + x86_64) link free
+of arm64-only Homebrew codecs — the same constraint that governs the rest of
+the vendored build. Verified with a standalone round-trip test
+(`tests/engine/run_encryption_test.sh`): AES-256 and traditional ZipCrypto
+both decrypt with the correct password and fail cleanly on a wrong one,
+including a traditional fixture produced independently by the system `zip`
+tool.
+
+**RAR limitation (unchanged):** This covers ZIP only. libarchive cannot
+decrypt encrypted RAR (it detects but does not decrypt), so restoring
+password-protected RAR would require a different library (unrar/libunrar, or
+bringing back XADMaster) and is a separate decision, not addressed here.
+
+**How to apply:** The dylib now exports `zip_fopen_encrypted`,
+`zip_fopen_index_encrypted`, `zip_set_default_password`, and
+`zip_file_set_encryption`. The application layer (`COZipArchive` /
+`COArchive` / `COImageLoader`) can call `zip_set_default_password` (or
+`zip_fopen_index_encrypted`) at the point where `crypted` is currently
+detected. Do not enable a heavier crypto backend (OpenSSL/mbedTLS) — they
+would reintroduce external dependencies for no benefit on macOS.

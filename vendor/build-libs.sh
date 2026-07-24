@@ -80,8 +80,11 @@ cp "$SRC_DIR/uchardet-build/src/$UCHARDET_BUILT" "$LIB_DIR/$UCHARDET_DYLIB"
 cp "$SRC_DIR/uchardet/src/uchardet.h" "$INC_DIR/"
 
 #
-# libzip — zlib/bzip2 from the SDK only. Crypto backends are disabled
-# (encrypted zip entries are unsupported by the app), and lzma/zstd
+# libzip — zlib/bzip2 from the SDK only. CommonCrypto (native to macOS,
+# no extra runtime dependency) is enabled so encrypted zip entries can be
+# decrypted (WinZip AES); traditional PKWARE ZipCrypto also stays on via
+# libzip's default (ENABLE_ZIPCRYPTO, not disabled here). The other crypto
+# backends (GNUTLS/MBEDTLS/OPENSSL/WINDOWS_CRYPTO) stay off, and lzma/zstd
 # compression methods are disabled so the universal link cannot pick up
 # arm64-only Homebrew dylibs. The soname symlink is dereferenced with
 # cp -L so the copy is robust against upstream VERSION bumps.
@@ -90,7 +93,7 @@ checkout "$LIBZIP_REPO" "$LIBZIP_COMMIT" "$SRC_DIR/libzip"
 cmake -S "$SRC_DIR/libzip" -B "$SRC_DIR/libzip-build" "${CMAKE_FLAGS[@]}" \
     -DBUILD_TOOLS=OFF -DBUILD_REGRESS=OFF -DBUILD_EXAMPLES=OFF \
     -DBUILD_DOC=OFF -DBUILD_OSSFUZZ=OFF \
-    -DENABLE_COMMONCRYPTO=OFF -DENABLE_GNUTLS=OFF -DENABLE_MBEDTLS=OFF \
+    -DENABLE_COMMONCRYPTO=ON -DENABLE_GNUTLS=OFF -DENABLE_MBEDTLS=OFF \
     -DENABLE_OPENSSL=OFF -DENABLE_WINDOWS_CRYPTO=OFF \
     -DENABLE_BZIP2=ON -DENABLE_LZMA=OFF -DENABLE_ZSTD=OFF
 cmake --build "$SRC_DIR/libzip-build" --target zip
