@@ -380,3 +380,47 @@ killall Dockでは解消せず、OS再起動でのみ解消した。
 3. `killall Finder && killall Dock`を試す。
 4. それでも解消しない場合、Mac自体の再起動を試す(これまでの再現例では
    再起動が最も確実だった)。
+
+## 16. Static Analyzer Findings (Survey) — Dead Stores, Potential Leaks, Uninitialized Values (Do Not Fix Blindly)
+
+Recorded from an `xcodebuild analyze` survey (scheme `cooViewer`,
+Deployment) on 2026-07-24. These are **not fixed**; this is a tracking
+list. This is an MRC project (see #1), so "potential leak" findings must be
+reviewed against manual retain/release rules before changing anything.
+
+**Dead stores — `Value stored to ... is never read` (22 instances):**
+
+- `Sources/AccessorySettingView.m`: 315 (`oldRect`), 346 (`newRect`),
+  357 (`oldRect`), 374 (`newRect`), 397 (`oldRect`), 428 (`newRect`)
+- `Sources/COImageLoader.m`: 500 (`items`)
+- `Sources/COPopUpTextField.m`: 29 (`tempRect`)
+- `Sources/Controller.m`: 197 (`viewBackGround`), 553 (`enu`), 914
+  (`lastPages`), 916 (`lastPages`), 2017 (`enu`)
+- `Sources/Controller_input.m`: 3108 (`desc`), 3113 (`desc`)
+- `Sources/CustomImageView.m`: 1347 (`fullscreenRect`)
+- `Sources/FilterPanelController.m`: 85 (`docBounds`)
+- `Sources/LoupeView.m`: 177 (`sx`), 213 (`sx`)
+- `Sources/NSString_Compare.m`: 47 (`manager`), 60 (`manager`)
+- `Sources/PreferenceController.m`: 948 (`bufferingMode`)
+
+**Potential leaks (7 instances, MRC — verify before touching):**
+
+- `Sources/AccessoryView.m`: 691, 775 (`NSAttributedString *`)
+- `Sources/Controller.m`: 474 (`multiTouchMouseArray`), 2699, 2735, 2771
+  (`scroll`)
+- `Sources/ThumbnailController.m`: 258 (`image2`)
+
+**Uninitialized value — `Receiver in message expression is an
+uninitialized value` (8 instances):**
+
+- `Sources/COColorPopUpButton.m`: 169
+- `Sources/CustomImageView.m`: 988, 1398
+- `Sources/ThumbnailController.m`: 1015, 1025, 1039, 1047, 1071
+
+**Null pointer dereference (1 instance):**
+
+- `Sources/COImageLoader.m`: 82 (`contentPathArray` via `self`)
+
+Note: the analyzer also reports 23 "User-facing text should use localized
+string macro" hits (localizability, see #9) and 148
+`-Wdeprecated-declarations` compiler warnings; those are out of scope here.

@@ -23,6 +23,12 @@ DerivedData/
 !default.mode2v3
 *.perspectivev3
 !default.perspectivev3
+*.mode1
+*.mode2
+*.perspective
+
+## Legacy VCS metadata
+.svn/
 
 ## Obj-C/Swift specific
 *.hmap
