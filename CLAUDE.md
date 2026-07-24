@@ -2,10 +2,28 @@
 @AGENTS.md
 
 ## Project-specific (cooViewer)
-- Build: `vendor/build-libs.sh` (one-time, needs cmake), then
-  `xcodebuild -configuration Deployment`
-- Vendored libs: libarchive/uchardet/libzip are built as universal
-  dylibs, bundled in Frameworks/
+- Vendored libs (one-time): `vendor/build-libs.sh` (needs cmake).
+  libarchive/uchardet/libzip are built as universal dylibs, bundled in
+  Frameworks/.
+- Build so intermediates stay outside the repository and only the final
+  app lands in `build/`:
+  ```bash
+  BUILD_TMP="${TMPDIR%/}/cooViewer-build"
+  xcodebuild -project cooViewer.xcodeproj -scheme cooViewer_deploy \
+    -configuration Deployment \
+    SYMROOT="$BUILD_TMP/sym" OBJROOT="$BUILD_TMP/obj" \
+    -derivedDataPath "$BUILD_TMP/dd" build
+  rm -rf build && mkdir -p build
+  cp -R "$BUILD_TMP/sym/Deployment/cooViewer.app" build/
+  ```
+  The overrides redirect all Xcode output (products, intermediates,
+  index, DerivedData) under `$BUILD_TMP`, outside the repository; only
+  the final `cooViewer.app` is copied into `build/`. The QuickLook
+  extensions (`cooViewerThumbnail`, `cooViewerPreview`) are embedded in
+  `cooViewer.app/Contents/PlugIns/` — do not copy the standalone `.appex`
+  products into `build/`. The project still carries `SYMROOT = build/` as
+  a fallback, so a plain `xcodebuild` without these overrides writes into
+  `build/`; always use the command above.
 - Do not edit vendored library sources
 - Do not install local/debug builds directly into `/Applications` for
   manual testing. Use a separate test location (e.g. `~/Applications`)
