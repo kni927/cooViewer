@@ -17,8 +17,8 @@
   OS restart resolved — see `docs/KNOWN_ISSUES.md` #15.
 
 ## Repository Layout
-- Repository root contains only `*.md`, `*.txt`, and the Xcode project
-  bundle. Source, resources, and scripts live in subdirectories.
+- Repository root contains only dotfiles, top-level directories, `*.md`, `*.txt`, 
+  and the Xcode project bundle. Source, resources, and scripts live in subdirectories.
 - Do not add new files to the repository root without explicit
   instruction.
 - `build/` contains only the final `cooViewer.app`. Xcode
