@@ -516,6 +516,7 @@ static const int DIALOG_CANCEL	= 129;
 		  nil],
 		nil];
 		[mouseArray addObjectsFromArray:multiTouchMouseArray];
+		[multiTouchMouseArray release];
 		[defaults setObject:mouseArray forKey:@"MouseArray"];
 	}
 #pragma mark versionCompareTest
@@ -2702,6 +2703,7 @@ static const int DIALOG_CANCEL	= 129;
 		[imageView retain];
 		[[window contentView] replaceSubview:imageView with:scroll];
 		[scroll setDocumentView:imageView];
+		[scroll release];
 		[imageView release];
 		//[scroll setDocumentCursor:[NSCursor openHandCursor]];
 	}
@@ -2738,6 +2740,7 @@ static const int DIALOG_CANCEL	= 129;
 		[imageView retain];
 		[[window contentView] replaceSubview:imageView with:scroll];
 		[scroll setDocumentView:imageView];
+		[scroll release];
 		[imageView release];
 		//[scroll setDocumentCursor:[NSCursor openHandCursor]];
 	}
@@ -2774,6 +2777,7 @@ static const int DIALOG_CANCEL	= 129;
 		[imageView retain];
 		[[window contentView] replaceSubview:imageView with:scroll];
 		[scroll setDocumentView:imageView];
+		[scroll release];
 		[imageView release];
 		//[scroll setDocumentCursor:[NSCursor openHandCursor]];
 	}

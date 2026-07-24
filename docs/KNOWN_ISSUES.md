@@ -407,12 +407,30 @@ below is the original survey and not re-verified line-by-line.
 - `Sources/NSString_Compare.m`: 47 (`manager`), 60 (`manager`)
 - `Sources/PreferenceController.m`: 948 (`bufferingMode`)
 
-**Potential leaks (7 instances, MRC — verify before touching):**
+**Potential leaks — all 7 RESOLVED** (2026-07-25, task
+`docs/tasks/2026-07-25-06-fix-potential-leaks.md`). All were genuine,
+reachable MRC leaks; each fixed with the minimal correct
+`release`/ownership change. (Line numbers below are the original survey's;
+Controller.m shifted −1 after 2026-07-25-03.)
 
-- `Sources/AccessoryView.m`: 691, 775 (`NSAttributedString *`)
-- `Sources/Controller.m`: 474 (`multiTouchMouseArray`), 2699, 2735, 2771
-  (`scroll`)
-- `Sources/ThumbnailController.m`: 258 (`image2`)
+- `Sources/AccessoryView.m`: 691 (`infoString`), 775 (`pageString`) — the
+  `else` branch called `-initWithString:` on an already-initialized
+  immutable `NSAttributedString` and discarded the `+1` result. Replaced
+  with `release` of the old value + `alloc`/`init` of a new one (matching
+  the `if` branch).
+- `Sources/Controller.m`: 474 (`multiTouchMouseArray`) — `alloc`ed array
+  whose contents were copied into `mouseArray` but the array object itself
+  was never released; added `release` after the copy (version-migration
+  code, runs only on upgrade).
+- `Sources/Controller.m`: 2699, 2735, 2771 (`scroll`, now 2698/2734/2770) —
+  `[[NSScrollView alloc] init]` added to the view hierarchy (which retains
+  it) but the local `+1` was never released; added `[scroll release]` after
+  `setDocumentView:` in `fitToScreenWidth:`, `fitToScreenWidthDivide:`,
+  `noScale:`.
+- `Sources/ThumbnailController.m`: 258 (`image2`) — in `loadMangaImage:back:`
+  the `back` branch's `else` returned without releasing the retained
+  `image2`; added `[image2 release]`, matching the already-correct `!back`
+  branch.
 
 **Uninitialized value — `Receiver in message expression is an
 uninitialized value`:**

@@ -688,7 +688,8 @@ NSRect COIntRect(NSRect aRect)
 	if (!infoString) {
 		infoString = [[NSAttributedString alloc] initWithString:string attributes:pageStringAttr];
 	} else {
-		[infoString initWithString:string attributes:pageStringAttr];
+		[infoString release];
+		infoString = [[NSAttributedString alloc] initWithString:string attributes:pageStringAttr];
 	}
 	if (NSIsEmptyRect(oldRect)) {
 		[self displayRect:NSUnionRect([self infoStringRect],[self pageStringRect])];
@@ -772,7 +773,8 @@ NSRect COIntRect(NSRect aRect)
 	if (!pageString) {
 		pageString = [[NSAttributedString alloc] initWithString:string attributes:pageStringAttr];
 	} else {
-		[pageString initWithString:string attributes:pageStringAttr];
+		[pageString release];
+		pageString = [[NSAttributedString alloc] initWithString:string attributes:pageStringAttr];
 	}
 	if (!autoHidedPageString) {
 		if (NSIsEmptyRect(oldRect)) {

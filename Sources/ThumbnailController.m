@@ -337,6 +337,7 @@
 				now--;
 				return newImage;
 			} else {
+				[image2 release];
 				return [image autorelease];
 			}
 		}
