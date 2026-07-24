@@ -388,7 +388,11 @@ Deployment) on 2026-07-24. These are **not fixed**; this is a tracking
 list. This is an MRC project (see #1), so "potential leak" findings must be
 reviewed against manual retain/release rules before changing anything.
 
-**Dead stores — `Value stored to ... is never read` (22 instances):**
+**Dead stores — `Value stored to ... is never read` (22 at survey time;
+now 15).** Seven were incidentally removed with their unused variables in
+task `docs/tasks/2026-07-25-03-remove-unused-vars-relocate-decl.md`
+(`items`, `fullscreenRect`, `docBounds`, `sx`×2, `manager`×2); the list
+below is the original survey and not re-verified line-by-line.
 
 - `Sources/AccessorySettingView.m`: 315 (`oldRect`), 346 (`newRect`),
   357 (`oldRect`), 374 (`newRect`), 397 (`oldRect`), 428 (`newRect`)
@@ -411,15 +415,35 @@ reviewed against manual retain/release rules before changing anything.
 - `Sources/ThumbnailController.m`: 258 (`image2`)
 
 **Uninitialized value — `Receiver in message expression is an
-uninitialized value` (8 instances):**
+uninitialized value`:**
 
-- `Sources/COColorPopUpButton.m`: 169
-- `Sources/CustomImageView.m`: 988, 1398
-- `Sources/ThumbnailController.m`: 1015, 1025, 1039, 1047, 1071
+- `Sources/ThumbnailController.m`: 1015, 1025, 1039, 1047, 1071 —
+  **RESOLVED** (2026-07-25, task
+  `docs/tasks/2026-07-25-05-fix-uninitialized-lastcell.md`).
+  `contextAction:` used an uninitialized `id lastCell` when
+  `-getRow:column:forPoint:` failed at menu-action time; it now returns
+  early on a lookup miss (invalid clicks are ignored). This was the only
+  reachable crash (G1).
+- `Sources/COColorPopUpButton.m`: 169 (`fillColor`) — **analyzer false
+  positive (G3), do not re-investigate.** The menu titles are a fixed,
+  closed set added in the same `awakeFromNib`; every title assigns
+  `fillColor` (`Other…` returns early, `Clear` is handled separately), so
+  the "no branch assigned it" path is unreachable.
+- `Sources/CustomImageView.m`: 988 and 1397 (`transform`) — **analyzer
+  false positive (G2), do not re-investigate.** `rotateMode` starts at 0 and
+  is only changed by `rotateLeft`/`rotateRight`, which strictly wrap it to
+  `[0,3]`; cases 1/2/3 assign `transform` and the `if (rotateMode!=0)` guard
+  skips 0, so the switch-`default` (unassigned) path is unreachable. (Was
+  line 1398 in the original survey; shifted to 1397 by the 2026-07-25-03
+  cleanup.)
 
-**Null pointer dereference (1 instance):**
+**Null pointer dereference:**
 
-- `Sources/COImageLoader.m`: 82 (`contentPathArray` via `self`)
+- `Sources/COImageLoader.m`: 82 (`contentPathArray` via `self`) —
+  **analyzer false positive (G4), do not re-investigate.** Reached only if
+  `self = [super init]` returns nil, which `NSObject -init` does not do in
+  practice. The post-init `if ([self itemCount]==0)` block sits outside the
+  `if (self)` guard (a structural smell), but the path is infeasible.
 
 Note: the analyzer also reports 23 "User-facing text should use localized
 string macro" hits (localizability, see #9) and 148

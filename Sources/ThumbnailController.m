@@ -999,14 +999,17 @@
 #pragma mark action
 -(IBAction)contextAction:(id)sender
 {
-	id lastCell;
+	id lastCell = nil;
     int row,col;
 	NSInteger tmprow,tmpcol;
 	NSEvent *theEvent = [NSApp currentEvent];
 	NSPoint point = [matrix convertPoint:[theEvent locationInWindow] fromView:nil];
-	if ([matrix getRow:&tmprow column:&tmpcol forPoint:point]) {
-		lastCell = [matrix cellAtRow:tmprow column:tmpcol];
+	if (![matrix getRow:&tmprow column:&tmpcol forPoint:point]) {
+		// No cell under the current event: ignore the action instead of
+		// messaging an uninitialized lastCell / using garbage row/col.
+		return;
 	}
+	lastCell = [matrix cellAtRow:tmprow column:tmpcol];
     row = (int)tmprow;
     col = (int)tmpcol;
 	
