@@ -38,6 +38,9 @@
 - Do not implement features outside the requested scope unless explicitly instructed.
 - Small changes required to build, test, or safely integrate the requested work are allowed.
 - Record substantial newly discovered work as a follow-up issue rather than expanding the current task.
+- Do not ignore uncommitted changes outside the scope of the task, and do not
+  silently fold them into the task's commit. Report them and ask whether
+  they should be committed separately.
 
 ## Git Workflow
 

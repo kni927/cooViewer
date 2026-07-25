@@ -63,6 +63,13 @@ Perform steps 1-6 in a single session, without repeating installs.
 2. `lsregister -f ~/Applications/cooViewer.app`
 3. `pluginkit -a` to register the Preview and Thumbnail extensions
    explicitly.
+3a. Confirm which bundle's extension Finder actually resolved — LaunchServices
+    deduplicates by bundle ID, so if `/Applications` (the Homebrew build)
+    is also registered, it may take priority over the `~/Applications` test
+    build even after `lsregister -f`. Check with `pluginkit -m | grep
+    coo.cooViewer` (or equivalent) before relying on the result. If the
+    Homebrew build is being resolved instead, this step is not exercising
+    the new binary — report it rather than treating the check as passed.
 4. Verify via Finder directly — Icon/List view for thumbnails, Space bar for
    Quick Look preview. Prefer this over `qlmanage`; on this machine
    `qlmanage -t`/`-p` have hung even on non-encrypted files in past
