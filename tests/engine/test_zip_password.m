@@ -63,7 +63,7 @@ static void testEncrypted(NSString *dir, NSString *name, const char *label) {
 	snprintf(msg, sizeof msg, "%s: crypted before password", label);
 	check([z crypted], msg);
 	snprintf(msg, sizeof msg, "%s: status NeedsPassword before password", label);
-	check([z cryptoStatus] == COZipCryptoNeedsPassword, msg);
+	check([z cryptoStatus] == COArchiveCryptoNeedsPassword, msg);
 	snprintf(msg, sizeof msg, "%s: no entries before password", label);
 	check([z itemCount] == 0, msg);
 	snprintf(msg, sizeof msg, "%s: lastError set before password", label);
@@ -72,7 +72,7 @@ static void testEncrypted(NSString *dir, NSString *name, const char *label) {
 	// 2. wrong password
 	[z setPassword:[NSString stringWithUTF8String:kTestWrongPw]];
 	snprintf(msg, sizeof msg, "%s: status WrongPassword after wrong pw", label);
-	check([z cryptoStatus] == COZipCryptoWrongPassword, msg);
+	check([z cryptoStatus] == COArchiveCryptoWrongPassword, msg);
 	snprintf(msg, sizeof msg, "%s: no readable entries after wrong pw", label);
 	check([z itemCount] == 0, msg);
 	snprintf(msg, sizeof msg, "%s: lastError distinguishes wrong pw", label);
@@ -81,7 +81,7 @@ static void testEncrypted(NSString *dir, NSString *name, const char *label) {
 	// 3. correct password
 	[z setPassword:[NSString stringWithUTF8String:kTestPassword]];
 	snprintf(msg, sizeof msg, "%s: status OK after correct pw", label);
-	check([z cryptoStatus] == COZipCryptoOK, msg);
+	check([z cryptoStatus] == COArchiveCryptoOK, msg);
 	snprintf(msg, sizeof msg, "%s: one entry after correct pw", label);
 	check([z itemCount] == 1, msg);
 	if ([z itemCount] == 1) {
@@ -104,7 +104,7 @@ static void testPlain(NSString *dir, NSString *name) {
 	COZipArchive *z = openZip(dir, name);
 	if (!z) { bad("plain: open"); [pool drain]; return; }
 	check(![z crypted], "plain: not crypted");
-	check([z cryptoStatus] == COZipCryptoNone, "plain: status None");
+	check([z cryptoStatus] == COArchiveCryptoNone, "plain: status None");
 	check([z itemCount] == 1, "plain: one entry");
 	if ([z itemCount] == 1) {
 		COArchiveEntry *e = [[z contents] objectAtIndex:0];

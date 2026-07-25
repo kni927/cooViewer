@@ -43,7 +43,7 @@
 @interface COZipArchive (private)
 - (void)readCentralDirectory;
 - (void)scanEntriesAndClassify;
-- (COZipCryptoStatus)validatePasswordForIndex:(zip_uint64_t)index size:(unsigned long long)size;
+- (COArchiveCryptoStatus)validatePasswordForIndex:(zip_uint64_t)index size:(unsigned long long)size;
 - (NSData *)readEntryOnQueue:(zip_uint64_t)index size:(unsigned long long)size;
 - (void)prefetchAfterOrdinal:(NSUInteger)ordinal;
 @end
@@ -70,7 +70,7 @@
 	return zipOpened;
 }
 
-- (COZipCryptoStatus)cryptoStatus
+- (COArchiveCryptoStatus)cryptoStatus
 {
 	return cryptoStatus;
 }
@@ -84,7 +84,7 @@
 	dataCache = [[NSCache alloc] init];
 	[dataCache setName:@"COZipArchive.dataCache"];
 	[dataCache setTotalCostLimit:CO_ZIP_CACHE_LIMIT];
-	cryptoStatus = COZipCryptoNone;
+	cryptoStatus = COArchiveCryptoNone;
 	firstEncIndex = -1;
 	[self readCentralDirectory];
 }
@@ -117,7 +117,7 @@
 	[lastError release];
 	lastError = nil;
 	crypted = NO;
-	cryptoStatus = COZipCryptoNone;
+	cryptoStatus = COArchiveCryptoNone;
 	firstEncIndex = -1;
 	firstEncSize = 0;
 	BOOL havePassword = (password != nil);
@@ -173,9 +173,9 @@
 		cryptoStatus = [self validatePasswordForIndex:(zip_uint64_t)firstEncIndex
 		                                         size:firstEncSize];
 	else if (crypted)
-		cryptoStatus = COZipCryptoNeedsPassword;
+		cryptoStatus = COArchiveCryptoNeedsPassword;
 	else
-		cryptoStatus = COZipCryptoNone;
+		cryptoStatus = COArchiveCryptoNone;
 
 	// archive-level encoding decision: uchardet once over every raw
 	// name (per-filename detection mis-detects CP932 unacceptably
@@ -196,7 +196,7 @@
 	NSUInteger k;
 	for (k = 0; k < [rawNames count]; k++) {
 		// keep encrypted entries only when the password checked out
-		if ([[encFlags objectAtIndex:k] boolValue] && cryptoStatus != COZipCryptoOK)
+		if ([[encFlags objectAtIndex:k] boolValue] && cryptoStatus != COArchiveCryptoOK)
 			continue;
 		NSString *name = [self decodeName:[rawNames objectAtIndex:k]
 		                         fallback:nil charset:charset];
@@ -212,9 +212,9 @@
 	}
 
 	if (lastError == nil) {
-		if (cryptoStatus == COZipCryptoNeedsPassword)
+		if (cryptoStatus == COArchiveCryptoNeedsPassword)
 			lastError = [@"password required for encrypted archive" retain];
-		else if (cryptoStatus == COZipCryptoWrongPassword)
+		else if (cryptoStatus == COArchiveCryptoWrongPassword)
 			lastError = [@"wrong password" retain];
 		else if ([contentArray count] == 0)
 			lastError = crypted ? [@"encrypted archives are not supported" retain]
@@ -227,38 +227,38 @@
  * once the whole stream (plus EOF) is read, so the entry is read in full.
  * A non-password failure (e.g. a corrupt stream) is reported as OK here so
  * the normal read-time path handles it; only a genuine password error
- * downgrades to COZipCryptoWrongPassword. */
-- (COZipCryptoStatus)validatePasswordForIndex:(zip_uint64_t)index size:(unsigned long long)size
+ * downgrades to COArchiveCryptoWrongPassword. */
+- (COArchiveCryptoStatus)validatePasswordForIndex:(zip_uint64_t)index size:(unsigned long long)size
 {
 	zip_file_t *zf = zip_fopen_index(za, index, 0);
 	if (!zf) {
 		int ze = zip_error_code_zip(zip_get_error(za));
 		if (ze == ZIP_ER_WRONGPASSWD || ze == ZIP_ER_NOPASSWD)
-			return COZipCryptoWrongPassword;
-		return COZipCryptoOK;		// not a password problem
+			return COArchiveCryptoWrongPassword;
+		return COArchiveCryptoOK;		// not a password problem
 	}
 	unsigned char buf[8192];
 	unsigned long long got = 0;
-	COZipCryptoStatus result = COZipCryptoOK;
+	COArchiveCryptoStatus result = COArchiveCryptoOK;
 	while (got < size) {
 		zip_uint64_t want = (size - got) < sizeof(buf) ? (size - got) : sizeof(buf);
 		zip_int64_t n = zip_fread(zf, buf, want);
 		if (n < 0) {
 			int ze = zip_error_code_zip(zip_file_get_error(zf));
 			if (ze == ZIP_ER_WRONGPASSWD || ze == ZIP_ER_NOPASSWD)
-				result = COZipCryptoWrongPassword;
+				result = COArchiveCryptoWrongPassword;
 			break;
 		}
 		if (n == 0) break;
 		got += (unsigned long long)n;
 	}
 	// force EOF so WinZip AES verifies its authentication code
-	if (result == COZipCryptoOK) {
+	if (result == COArchiveCryptoOK) {
 		char tail;
 		if (zip_fread(zf, &tail, 1) != 0) {
 			int ze = zip_error_code_zip(zip_file_get_error(zf));
 			if (ze == ZIP_ER_WRONGPASSWD || ze == ZIP_ER_NOPASSWD)
-				result = COZipCryptoWrongPassword;
+				result = COArchiveCryptoWrongPassword;
 			// otherwise a CRC/corruption error: leave OK, read-time handles it
 		}
 	}

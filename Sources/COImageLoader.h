@@ -21,6 +21,7 @@
 	id archiveContainer;
 	id subArchiveContainer;
 	NSArray *filterArray;
+	NSString *password;	// for encrypted ZIP; nil until one is accepted
 	
 	BOOL readSubFolder;
 	int mode;
@@ -58,6 +59,11 @@
 
 - (BOOL)isInTempDir;
 - (void)setInTempDir:(BOOL)b;
+
+/* Password accepted for an encrypted ZIP, or nil. Set during opening by
+ * the password prompt (see -[Controller askArchivePassword:wrongPassword:]);
+ * kept so nested archives and reopens can reuse it. */
+- (NSString *)password;
 /*
 - (NSStringEncoding)nameEncoding;
 - (void)setNameEncoding:(NSStringEncoding)enc;

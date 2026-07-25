@@ -462,6 +462,28 @@ uninitialized value`:**
   `self = [super init]` returns nil, which `NSObject -init` does not do in
   practice. The post-init `if ([self itemCount]==0)` block sits outside the
   `if (self)` guard (a structural smell), but the path is infeasible.
+  **Not a tidy-up candidate:** this note supersedes the earlier "optional
+  tidy-up" framing — leave the code as it is.
+
+### RemoteControlWrapper: keep, despite one unused class (2026-07-25)
+
+Recorded here so it is not re-investigated as dead code:
+
+- `GlobalKeyboardDevice` is **unused** — never instantiated anywhere in the
+  project (only its own files reference it). Its `hotKeyEventHandler` is
+  wired to Carbon *inside* the class, so the function is not removable in
+  isolation; the class as a whole is simply never constructed.
+- `AppleRemote` from the same library **is live and user-visible**:
+  `Controller.m` creates it (`[[AppleRemote alloc] initWithDelegate:self]`)
+  and its buttons are exposed in Preferences ▸ Input as assignable keys
+  ("AppleRemote Volume up/down", "AppleRemote Menu", "AppleRemote Play",
+  …), which users can bind to actions.
+- **Decision: removing the RemoteControlWrapper library as a whole is
+  declined**, on settings-compatibility grounds — the AppleRemote key
+  entries are persisted in user settings, so dropping the library would
+  invalidate existing key bindings. Deleting only `GlobalKeyboardDevice`
+  from a vendored third-party library is likewise not worth the divergence
+  from upstream.
 
 Note: the analyzer also reports 23 "User-facing text should use localized
 string macro" hits (localizability, see #9) and 148

@@ -27,9 +27,13 @@
 //    ("._*") sidecars.
 //  - Error model: a corrupt entry is skipped with a log message and
 //    the remaining entries stay readable. An unreadable archive
-//    yields zero entries and -lastError. Encrypted archives are
-//    unsupported (password support dropped in v1.4.0): -crypted
-//    reports YES and encrypted entries are skipped.
+//    yields zero entries and -lastError.
+//  - Encryption: -crypted reports whether encrypted entries were seen
+//    and -cryptoStatus says what can be done about it. Encrypted ZIP
+//    is supported — supply a password with -setPassword: and the
+//    entries become readable (COZipArchive). Every other format
+//    (RAR via CORarArchive, and this libarchive path) reports
+//    COArchiveCryptoUnsupported and skips encrypted entries.
 //
 //  IMPORTANT: the process must run under a UTF-8 locale before any
 //  COArchive use (see main.m); the C locale corrupts CP932 raw
@@ -55,6 +59,18 @@
  * lastError = "cancelled". Called on the opening thread. */
 typedef BOOL (^COArchiveProgress)(long long bytesRead, long long bytesTotal);
 
+/* Encryption state of an opened archive. Kept separate from -lastError
+ * so callers (COImageLoader's open flow and the password prompt) can
+ * tell "needs a password" from "password was wrong" from "this format
+ * cannot be decrypted at all". */
+typedef enum {
+	COArchiveCryptoNone = 0,	// no encrypted entries were seen
+	COArchiveCryptoNeedsPassword,	// encrypted, no password supplied yet
+	COArchiveCryptoWrongPassword,	// a password was supplied but rejected
+	COArchiveCryptoOK,		// encrypted entries decrypted successfully
+	COArchiveCryptoUnsupported	// encrypted, but this format cannot decrypt
+} COArchiveCryptoStatus;
+
 @interface COArchive : NSObject
 {
 	NSString *filePath;
@@ -70,8 +86,15 @@ typedef BOOL (^COArchiveProgress)(long long bytesRead, long long bytesTotal);
 - (int)itemCount;
 - (NSArray *)contents;		// COArchiveEntry objects
 - (NSString *)lastError;	// nil when fully OK
-- (BOOL)crypted;		// encrypted entries were encountered (unsupported)
+- (BOOL)crypted;		// encrypted entries were encountered
 - (BOOL)cancelled;
+
+/* Encrypted-archive support. The base implementation (libarchive path)
+ * cannot decrypt: -setPassword: is a no-op and -cryptoStatus reports
+ * Unsupported whenever encrypted entries were seen. COZipArchive
+ * overrides both; CORarArchive keeps the base behaviour. */
+- (void)setPassword:(NSString *)pw;
+- (COArchiveCryptoStatus)cryptoStatus;
 
 /* write entry #index's data to fileName (for nested archives) */
 - (BOOL)uncompress:(int)index as:(NSString *)fileName;

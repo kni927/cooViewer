@@ -6,6 +6,7 @@
 -(void)content;
 -(BOOL)checkArchiveContainer:(int)index;
 -(BOOL)uncompressToTempDir:(NSString*)file;
+-(BOOL)unlockEncryptedArchive;
 //-(BOOL)uncompressAllFileToTempDir;
 @end
 static NSArray *_COImageLoader_fileTypes=nil;
@@ -71,6 +72,7 @@ static NSArray *_COImageLoader_archiveTypes=nil;
 		displayPath = [dispPath retain];
 		archiveContainer = nil;
 		subArchiveContainer = nil;
+		password = nil;
 		contentPathArray = [[NSMutableArray alloc] init];
 		contentPathDic = [[NSMutableDictionary alloc] init];
 		rawContentPathArray = [[NSMutableArray alloc] init];
@@ -105,6 +107,7 @@ static NSArray *_COImageLoader_archiveTypes=nil;
 	if(contentPathArray)[contentPathArray release];
 	if(contentPathDic)[contentPathDic release];
 	if(filterArray)[filterArray release];
+	if(password)[password release];
 	if(pdfRep)[pdfRep release];
 	//if(mode==4)CGPDFDocumentRelease(pdfDocument);
 	
@@ -305,6 +308,11 @@ static NSArray *_COImageLoader_archiveTypes=nil;
 	return NO;
 }
 
+- (NSString *)password
+{
+	return password;
+}
+
 - (void)setInTempDir:(BOOL)b
 {
 	inTempDir = b;
@@ -430,12 +438,66 @@ static NSArray *_COImageLoader_archiveTypes=nil;
 	[contentPathArray sortUsingSelector:@selector(finderCompareS:)];
 }
 
+/* Encrypted archive: try to make it readable.
+ *
+ * Returns YES once a password has been accepted (the container re-scanned
+ * itself and its entries are now readable), NO when the archive stays
+ * closed: an unsupported format (encrypted RAR — fails closed exactly as
+ * before), a host that cannot ask (the QuickLook extensions never reach
+ * here; they use COCoverExtractor, which has no controller), or the user
+ * cancelling.
+ *
+ * The retry loop always has an exit: Cancel makes the prompt return nil,
+ * and any status other than WrongPassword also ends the loop. */
+- (BOOL)unlockEncryptedArchive
+{
+	if (![archiveContainer respondsToSelector:@selector(cryptoStatus)])
+		return NO;
+	if ([archiveContainer cryptoStatus] != COArchiveCryptoNeedsPassword)
+		return NO;	// Unsupported (encrypted RAR/7z): fail closed
+
+	// a password already accepted for this loader (reopen/retry)
+	if (password) {
+		[archiveContainer setPassword:password];
+		if ([archiveContainer cryptoStatus] == COArchiveCryptoOK)
+			return YES;
+	}
+
+	if (!controller ||
+	    ![controller respondsToSelector:@selector(askArchivePassword:wrongPassword:)])
+		return NO;	// non-interactive host
+
+	BOOL previousWasWrong = NO;
+	for (;;) {
+		NSString *entered = [controller askArchivePassword:self
+		                                    wrongPassword:previousWasWrong];
+		if (entered == nil)
+			return NO;				// cancelled
+		[archiveContainer setPassword:entered];
+		COArchiveCryptoStatus status = [archiveContainer cryptoStatus];
+		if (status == COArchiveCryptoOK) {
+			NSString *old = password;
+			password = [entered copy];
+			[old release];
+			return YES;
+		}
+		if (status != COArchiveCryptoWrongPassword)
+			return NO;				// not a password problem
+		previousWasWrong = YES;
+	}
+}
+
 - (BOOL)checkArchiveContainer:(int)index
 {
 	if ([archiveContainer crypted] && [[archiveContainer contents] count] == 0) {
-		//パスワード付きアーカイブは非対応(v1.4.0でサポート終了)
-		mode = -1;
-		return NO;
+		// Encrypted archive. ZIP can be unlocked by asking the user for a
+		// password (v1.5.0 restores what v1.4.0 dropped); every other
+		// format reports Unsupported and fails closed exactly as before,
+		// as does a cancelled prompt.
+		if (![self unlockEncryptedArchive]) {
+			mode = -1;
+			return NO;
+		}
 	}
 	if ([[archiveContainer contents] count] == 0) {
         return NO;

@@ -175,6 +175,12 @@
 - (void)openPage:(int)page last:(BOOL)last;
 
 - (BOOL)archiveReadProgress:(long long)done total:(long long)total;
+
+/* Modal password prompt for an encrypted archive, called from
+ * COImageLoader while opening. Returns the entered password, or nil if
+ * the user cancelled (the archive then stays closed). Pass wrong = YES to
+ * indicate the previous attempt was rejected. */
+- (NSString *)askArchivePassword:(COImageLoader *)loader wrongPassword:(BOOL)wrong;
 - (IBAction)sheetCancel:(id)sender;
 - (IBAction)sheetOk:(id)sender;
 

@@ -236,6 +236,34 @@ signing alone does not help (see `docs/KNOWN_ISSUES.md`).
 - Translated `CLAUDE.md` from Japanese to English
 - Added `README.md` (English, with feature descriptions, build instructions, upstream credits)
 
+### Password-protected ZIP support restored (2026-07-25)
+
+Encrypted `.zip`/`.cbz` archives open again — the feature the original
+cooViewer had and this fork lost in v1.4.0, when the archive layer moved
+from XADMaster to libzip/libarchive. Rebuilt rather than ported, in three
+steps: vendored libzip is now built with `-DENABLE_COMMONCRYPTO=ON`
+(WinZip AES-256 plus traditional PKWARE ZipCrypto, no new runtime
+dependency — CommonCrypto is in libSystem); `COZipArchive` gained
+`-setPassword:` / `-cryptoStatus`, applying `zip_set_default_password` and
+re-scanning the central directory, validating the password against the
+first encrypted entry so a wrong one is distinguishable from a missing
+one; `COImageLoader` asks the user through a new modal prompt
+(`-[Controller askArchivePassword:wrongPassword:]`, NSAlert +
+`NSSecureTextField`, no NIB) and re-prompts on a wrong password, with
+Cancel leaving the archive closed exactly as before.
+
+**Non-ASCII passwords work** — a Japanese-password archive (UTF-8) opens,
+verified for both AES and traditional ZipCrypto. The password crosses the
+libzip boundary as NUL-terminated UTF-8.
+
+Encrypted RAR remains unsupported and still fails closed with no prompt:
+libarchive detects but cannot decrypt RAR, which no build flag changes.
+The QuickLook extensions never prompt — they use `COCoverExtractor`, which
+links neither `COImageLoader` nor `Controller`, so an encrypted archive
+simply yields no thumbnail/preview and Finder shows the default icon.
+Details: `docs/tasks/2026-07-25-08-libzip-encryption-build.md`,
+`…-09-cozip-password-support.md`, `…-10-password-flow-and-ui.md`.
+
 ### Double-click open-file investigation — phase 9 (2026-07-15)
 
 Investigated a report that double-clicking a second `.cbz`/`.cbr` in

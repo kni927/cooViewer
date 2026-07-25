@@ -177,6 +177,19 @@
 	return cancelled;
 }
 
+/* Base (libarchive) path: no decryption. COZipArchive overrides both;
+ * CORarArchive intentionally inherits these — encrypted RAR stays
+ * unsupported and fails closed. */
+- (void)setPassword:(NSString *)pw
+{
+	(void)pw;
+}
+
+- (COArchiveCryptoStatus)cryptoStatus
+{
+	return crypted ? COArchiveCryptoUnsupported : COArchiveCryptoNone;
+}
+
 - (BOOL)uncompress:(int)index as:(NSString *)fileName
 {
 	if (index < 0 || index >= (int)[contentArray count]) return NO;

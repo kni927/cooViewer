@@ -1149,6 +1149,39 @@ static const int DIALOG_CANCEL	= 129;
 	[progressIndicator displayIfNeeded];
 	return YES;
 }
+
+/* Modal password prompt for an encrypted archive, called by COImageLoader
+ * while opening a document. Built in code (NSAlert + a masked accessory
+ * field), so no NIB is involved.
+ *
+ * Returns the entered password, or nil for Cancel — and also for an empty
+ * entry, so hitting OK with a blank field cannot spin the caller's retry
+ * loop. COImageLoader treats nil as "leave the archive closed", which is
+ * the same fail-closed path encrypted archives took before. */
+- (NSString *)askArchivePassword:(COImageLoader *)loader wrongPassword:(BOOL)wrong
+{
+	NSAlert *alert = [[[NSAlert alloc] init] autorelease];
+	[alert setMessageText:(wrong ? NSLocalizedString(@"Incorrect password",@"")
+	                             : NSLocalizedString(@"Password required",@""))];
+	NSString *name = [[loader displayPath] lastPathComponent];
+	[alert setInformativeText:[NSString stringWithFormat:
+		NSLocalizedString(@"Enter the password for \"%@\".",@""), name ? name : @""]];
+	[alert addButtonWithTitle:NSLocalizedString(@"OK",@"")];
+	[alert addButtonWithTitle:NSLocalizedString(@"Cancel",@"")];
+
+	NSSecureTextField *field = [[[NSSecureTextField alloc]
+		initWithFrame:NSMakeRect(0,0,260,24)] autorelease];
+	[[field cell] setWraps:NO];
+	[[field cell] setScrollable:YES];
+	[alert setAccessoryView:field];
+	[[alert window] setInitialFirstResponder:field];
+
+	if ([alert runModal] != NSAlertFirstButtonReturn)
+		return nil;					// Cancel
+	NSString *entered = [[[field stringValue] copy] autorelease];
+	return ([entered length] > 0) ? entered : nil;
+}
+
 /* shared modal helpers (used by the Preferences window's OK/Cancel) */
 - (IBAction)sheetOk:(id)sender{[NSApp stopModalWithCode:DIALOG_OK];}
 - (IBAction)sheetCancel:(id)sender{[NSApp stopModalWithCode:DIALOG_CANCEL];}

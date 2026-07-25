@@ -406,3 +406,12 @@
 /* No comment provided by engineer.No comment provided by engineer.No comment provided by engineer.No comment provided by engineer.No comment provided by engineer.No comment provided by engineer. */
 "Window" = "ウインドウ";
 
+
+/* No comment provided by engineer. */
+"Password required" = "パスワードが必要です";
+
+/* No comment provided by engineer. */
+"Incorrect password" = "パスワードが違います";
+
+/* No comment provided by engineer. */
+"Enter the password for \"%@\"." = "\"%@\" のパスワードを入力してください。";
