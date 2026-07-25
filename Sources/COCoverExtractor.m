@@ -16,12 +16,22 @@
 //    same method, same behavior.
 //  - Unlike COImageLoader, this does not handle nested archives
 //    (an archive-inside-an-archive as the "first entry") or the
-//    non-image document types (pdf, cvbdl) COImageLoader's fuller
+//    non-image document types (pdf) COImageLoader's fuller
 //    fileTypes list covers — out of scope for a cover/thumbnail
 //    extension per the task's "cover/first-page only" scope. If the
 //    sorted-first image entry can't be decoded, this returns nil
 //    rather than trying further entries, so the extension can fail
 //    gracefully (no preview) instead of guessing.
+//  - `.cvbdl` (v1.5.2, docs/tasks/2026-07-25-16-...) is an
+//    LSTypeIsPackage bundle-folder, not a real archive file — it
+//    can't go through COArchive (libarchive can't open a directory
+//    as an archive stream; see the investigation archive). It is
+//    handled by a separate, COArchive-free branch below: list the
+//    bundle's top-level contents directly with NSFileManager, filter
+//    and sort exactly like the zip/rar path above, and read the
+//    winning file's bytes straight off disk. No subfolder recursion
+//    and no nested-archive handling here either, for the same
+//    cover/first-page-only reason as the archive path.
 //
 
 #import "COCoverExtractor.h"
@@ -29,8 +39,40 @@
 #import "NSString_Compare.h"
 #import <AppKit/AppKit.h>
 
+static NSData *COExtractCoverImageDataFromBundle(NSString *path)
+{
+	NSFileManager *fm = [NSFileManager defaultManager];
+	NSArray *names = [fm contentsOfDirectoryAtPath:path error:NULL];
+	if ([names count] == 0)
+		return nil;
+
+	NSArray *imageTypes = [NSImage imageFileTypes];
+	NSMutableArray *imageNames = [NSMutableArray array];
+	for (NSString *name in names) {
+		NSString *ext = [[name pathExtension] lowercaseString];
+		if ([ext length] > 0 && [imageTypes containsObject:ext])
+			[imageNames addObject:name];
+	}
+	if ([imageNames count] == 0)
+		return nil;
+
+	[imageNames sortUsingComparator:^NSComparisonResult(NSString *a, NSString *b) {
+		return [a finderCompareS:b];
+	}];
+
+	NSString *coverPath = [path stringByAppendingPathComponent:[imageNames objectAtIndex:0]];
+	return [NSData dataWithContentsOfFile:coverPath];
+}
+
 NSData *COExtractCoverImageData(NSString *path)
 {
+	if ([[path pathExtension] caseInsensitiveCompare:@"cvbdl"] == NSOrderedSame) {
+		BOOL isDirectory = NO;
+		if ([[NSFileManager defaultManager] fileExistsAtPath:path isDirectory:&isDirectory] && isDirectory)
+			return COExtractCoverImageDataFromBundle(path);
+		return nil;
+	}
+
 	COArchive *archive = [[COArchive alloc] initWithPath:path];
 	if ([archive lastError] || [archive itemCount] == 0) {
 		[archive release];

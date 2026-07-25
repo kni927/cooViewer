@@ -141,6 +141,10 @@
 			</array>
 			<key>CFBundleTypeRole</key>
 			<string>Viewer</string>
+			<key>LSItemContentTypes</key>
+			<array>
+				<string>jp.coo.cooViewer.cvbdl-archive</string>
+			</array>
 			<key>LSTypeIsPackage</key>
 			<true/>
 			<key>NSPersistentStoreTypeKey</key>
@@ -384,6 +388,23 @@
 				<key>public.filename-extension</key>
 				<array>
 					<string>cbr</string>
+				</array>
+			</dict>
+		</dict>
+		<dict>
+			<key>UTTypeIdentifier</key>
+			<string>jp.coo.cooViewer.cvbdl-archive</string>
+			<key>UTTypeDescription</key>
+			<string>ComicViewer Comic Bundle</string>
+			<key>UTTypeConformsTo</key>
+			<array>
+				<string>com.apple.package</string>
+			</array>
+			<key>UTTypeTagSpecification</key>
+			<dict>
+				<key>public.filename-extension</key>
+				<array>
+					<string>cvbdl</string>
 				</array>
 			</dict>
 		</dict>

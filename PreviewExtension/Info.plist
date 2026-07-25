@@ -34,6 +34,7 @@
 				<string>jp.coo.cooViewer.cbr-archive</string>
 				<string>public.cbz-archive</string>
 				<string>public.cbr-archive</string>
+				<string>jp.coo.cooViewer.cvbdl-archive</string>
 			</array>
 			<key>QLSupportsSearchableItems</key>
 			<false/>

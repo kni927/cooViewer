@@ -288,12 +288,26 @@ never reach `COImageLoader`'s archive dispatch (`+archiveTypes` explicitly
 excludes `cvbdl`); they fall through to the generic directory-open path,
 which happens to work because it's just a folder. Confirmed manually:
 renaming a folder to `.cvbdl` opens it in cooViewer via that generic path.
-QuickLook does not support it — `COCoverExtractor.m` explicitly excludes
-`cvbdl` from the types it hands to `COImageLoader`'s fuller logic.
 
 **How to apply:** Do not add a dedicated `.cvbdl` reader and do not remove
 the Info.plist entry or the `archiveTypes` exclusion as unreachable/dead —
 both are working exactly as intended for a package-type document handled by
-the generic directory path. If `.cvbdl` support is ever revisited (e.g. to
-read package-internal metadata `HetimaZip`-style), treat it as new work
-scoped from this note, not as fixing an oversight.
+the generic directory path. If `.cvbdl` support in the main app is ever
+revisited (e.g. to read package-internal metadata `HetimaZip`-style), treat
+it as new work scoped from this note, not as fixing an oversight.
+
+**Update (v1.5.2, 2026-07-25):** QuickLook/Thumbnail support for `.cvbdl`
+was added, per the investigation in
+`docs/tasks/2026-07-25-16-investigate-cvbdl-support-scope.md` and
+implemented in `docs/tasks/2026-07-25-17-implement-cvbdl-quicklook.md`.
+This did **not** change anything described above — `archiveTypes` still
+excludes `cvbdl` and the main app still uses the generic directory path
+unchanged. What changed: `Resources/Info.plist` gained a
+`UTExportedTypeDeclarations` entry (`jp.coo.cooViewer.cvbdl-archive`,
+conforming to `com.apple.package`) and an `LSItemContentTypes` array on the
+`.cvbdl` document type referencing it; both extensions' `Info.plist` gained
+that UTI in `QLSupportedContentTypes`; `COCoverExtractor.m` gained a
+`.cvbdl` branch that lists the bundle directly with `NSFileManager`
+(bypassing `COArchive`, which cannot open a directory) rather than the
+"explicitly excludes cvbdl" behaviour described above, which is now
+superseded.

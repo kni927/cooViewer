@@ -61,6 +61,14 @@ echo "Generating cooViewer test fixtures..."
     tar -cf "$OUT_DIR/test.tar" "${SOURCE_FILES[@]}"
 )
 
+# .cvbdl: an LSTypeIsPackage bundle-folder, not a real archive — just a
+# plain directory of images with that extension (v1.5.2 QuickLook support,
+# docs/tasks/2026-07-25-16-...).
+mkdir -p "$OUT_DIR/test.cvbdl"
+for file in "${SOURCE_FILES[@]}"; do
+    cp "$SRC_DIR/$file" "$OUT_DIR/test.cvbdl/$file"
+done
+
 if command_optional 7zz; then
     (
         cd "$SRC_DIR"

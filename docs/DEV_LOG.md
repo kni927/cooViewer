@@ -236,6 +236,35 @@ signing alone does not help (see `docs/KNOWN_ISSUES.md`).
 - Translated `CLAUDE.md` from Japanese to English
 - Added `README.md` (English, with feature descriptions, build instructions, upstream credits)
 
+### QuickLook/Thumbnail support for `.cvbdl` bundles (v1.5.2, 2026-07-25)
+
+Finder now shows real cover thumbnails and Quick Look previews for
+`.cvbdl` comic bundles (the `LSTypeIsPackage` folder-based Comic Book
+Format variant), instead of the generic folder icon. The main app was
+already unaffected and stays that way — investigation
+(`docs/tasks/2026-07-25-16-...`) found `.cvbdl` must keep going through
+the generic directory-open path, since `COArchive`'s libarchive fallback
+cannot open a directory as an archive stream; promoting it to a real
+archive type would have broken it. Only the QuickLook/Thumbnail side
+needed work: `.cvbdl` gained a real UTI
+(`jp.coo.cooViewer.cvbdl-archive`, conforming to `com.apple.package`) wired
+into both extensions' `QLSupportedContentTypes`, and
+`COCoverExtractor.m` gained a `.cvbdl` branch that lists the bundle
+directly with `NSFileManager` — bypassing `COArchive` entirely — filtering
+and sorting exactly like the archive path (`imageFileTypes` +
+`-finderCompareS:`) and reading the winning file's bytes straight off
+disk. `tests/fixtures/make_fixtures.sh` gained a `test.cvbdl` fixture.
+Verified: main app open of `.cvbdl` unaffected; a headless logic check
+confirmed correct cover extraction plus clean `nil` (no crash) for an
+empty bundle and a bundle with only non-image files. The on-device Finder/
+QuickLook check itself could not be completed on this machine — a
+pre-existing `/Applications` install (predating this feature, and the
+Homebrew-managed copy `CLAUDE.md` says never to touch) keeps winning
+LaunchServices' extension-identifier dedup over the freshly built
+`~/Applications` copy even though the new build reports a higher version,
+so Finder kept resolving to the old binary; recorded as unverified rather
+than glossed over, per `docs/tasks/2026-07-25-17-...`.
+
 ### Password-protected ZIP support restored (v1.5.1, 2026-07-25)
 
 Encrypted `.zip`/`.cbz` archives open again — the feature the original
