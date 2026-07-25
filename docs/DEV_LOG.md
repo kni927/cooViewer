@@ -236,6 +236,34 @@ signing alone does not help (see `docs/KNOWN_ISSUES.md`).
 - Translated `CLAUDE.md` from Japanese to English
 - Added `README.md` (English, with feature descriptions, build instructions, upstream credits)
 
+### v1.5.2 released (2026-07-25)
+
+First release actually distributed since v1.5.0 — v1.5.1 was tagged and
+published as a GitHub Release but the Homebrew tap was never updated to
+point at it, so it never reached users. v1.5.2 carries both the
+password-protected ZIP restoration (below, originally landed as v1.5.1)
+and `.cvbdl` QuickLook/Thumbnail support (below).
+
+Built, signed, and notarized by the existing `.github/workflows/
+xcode-build-and-release.yml` CI pipeline (triggered by the `v1.5.2` tag
+push) rather than manually — the same tested path that shipped v1.4.0
+through v1.5.1. Notarization: submission `27b37e69-ea17-443a-9db8-b94830a386ab`,
+**Accepted**; stapled; `spctl` reports `source=Notarized Developer ID`.
+Release: https://github.com/kni927/cooViewer/releases/tag/v1.5.2.
+
+On-device verification against the actual notarized artifact (not a local
+dev build) — the first time this was possible, since a pre-existing
+`/Applications` install had blocked it in both the v1.5.1 and v1.5.2 dev
+cycles (see KNOWN_ISSUES #18): `.cvbdl` now shows a real thumbnail and
+Quick Look preview in Finder, confirming the QuickLook work end-to-end for
+the first time; encrypted ZIP (traditional and AES-256) prompts, opens,
+and re-prompts on a wrong password; ordinary CBZ/CBR unaffected. This
+closes the "re-verify on real install" follow-up left by the `.cvbdl`
+implementation task.
+
+Homebrew tap (`kni927/homebrew-tap`, `Casks/cooviewer.rb`) updated to
+1.5.2 and confirmed installing cleanly (`brew install --cask cooviewer`).
+
 ### QuickLook/Thumbnail support for `.cvbdl` bundles (v1.5.2, 2026-07-25)
 
 Finder now shows real cover thumbnails and Quick Look previews for
