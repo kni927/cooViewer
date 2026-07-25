@@ -488,3 +488,51 @@ Recorded here so it is not re-investigated as dead code:
 Note: the analyzer also reports 23 "User-facing text should use localized
 string macro" hits (localizability, see #9) and 148
 `-Wdeprecated-declarations` compiler warnings; those are out of scope here.
+
+## 17. `.cvbdl` Exclusion from `COImageLoader.archiveTypes` Is Intentional — Do Not Remove
+
+- `Sources/COImageLoader.m:37-46` (`+archiveTypes`) explicitly excludes
+  `cvbdl` from the extensions treated as archives. This is deliberate, not
+  dead code or an oversight — do not remove it as part of a cleanup.
+- `.cvbdl` bundles are `LSTypeIsPackage` folders, not real archive files.
+  `COArchive` falls back to `archive_read_open_filename` (libarchive) for
+  any extension it doesn't specifically dispatch to `COZipArchive`/
+  `CORarArchive`, and libarchive cannot open a directory as an archive
+  stream. Removing the exclusion would make `.cvbdl` fail to open
+  entirely, regressing currently-working behaviour.
+- `.cvbdl` is handled correctly today by `COImageLoader`'s generic
+  directory-open fallback, which already provides the full documented
+  feature set (bookmarks, last-page memory, read direction, and more).
+  See `docs/tasks/2026-07-25-16-investigate-cvbdl-support-scope.md` for
+  the full investigation this is based on, and
+  `docs/DECISIONS.md`'s `.cvbdl` entries for the related product
+  decisions (keep as-is in the main app; QuickLook/Thumbnail support
+  added separately in v1.5.2 via a directory-listing path that also does
+  not go through `COArchive`).
+
+## 18. On-Device QuickLook/Thumbnail Verification: `/Applications` Always Wins LaunchServices Dedup
+
+- On this development machine, `/Applications/cooViewer.app` (the
+  Homebrew-managed install) is consistently the copy `pluginkit`/
+  LaunchServices resolves for `jp.coo.cooViewer`'s QuickLook Preview and
+  Thumbnail extension identifiers — even when a newer build at
+  `~/Applications/cooViewer.app` is `lsregister -f`'d and `pluginkit -a`'d
+  exactly per `CLAUDE.md`'s On-Device Verification Procedure.
+- Version is not the tie-breaker: a freshly built copy reporting a higher
+  `CFBundleShortVersionString` (1.5.1 vs. `/Applications`'s 1.5.0) was
+  still passed over.
+- This blocked on-device Finder/QuickLook verification of new extension
+  binaries in both the v1.5.1
+  (`docs/tasks/2026-07-25-14-verify-encrypted-zip-on-device.md`) and
+  v1.5.2 (`docs/tasks/2026-07-25-17-implement-cvbdl-quicklook.md`)
+  development cycles.
+- **Standing constraint, not a one-off to fix.** Any future task that
+  changes QuickLook/Thumbnail extension code should expect this and plan
+  verification accordingly (e.g. logic-level checks against the real
+  source, as done in both tasks above) rather than re-discovering it or
+  re-attempting registration workarounds mid-task.
+- The only workaround found so far: temporarily uninstall the Homebrew
+  copy to test the actual signed release artifact immediately before a
+  release, then restore Homebrew management via the tap update afterward.
+  Not practical for routine development-cycle verification, since it
+  requires an uninstall/reinstall around every extension-touching change.
