@@ -24,9 +24,13 @@
 //    (the setlocale workaround in main.m is only needed by the
 //    libarchive path).
 //  - Skipped entries match COArchive: directories, zero-byte
-//    entries, AppleDouble ("._*") sidecars; encrypted entries are
-//    skipped with -crypted = YES (crypto is disabled in the vendored
-//    libzip).
+//    entries, AppleDouble ("._*") sidecars. Encrypted entries set
+//    -crypted = YES. Without a password they are skipped and
+//    -cryptoStatus reports COZipCryptoNeedsPassword; after a correct
+//    -setPassword: they are included and decrypted on demand (the
+//    vendored libzip is built with CommonCrypto — WinZip AES and
+//    traditional PKWARE ZipCrypto). A rejected password yields
+//    COZipCryptoWrongPassword. See -setPassword: / -cryptoStatus.
 //  - Error model: a corrupt entry is detected at read time (-data
 //    returns nil and the viewer shows the broken-image placeholder),
 //    unlike the libarchive path which drops corrupt entries at open
@@ -46,6 +50,16 @@
 
 @class COZipArchive;
 
+/* Encryption state after opening / after -setPassword:. Kept separate
+ * from -lastError so callers (the COImageLoader flow and the eventual
+ * password UI) can tell "needs a password" from "password was wrong". */
+typedef enum {
+	COZipCryptoNone = 0,		// no encrypted entries were seen
+	COZipCryptoNeedsPassword,	// encrypted entries, no password supplied
+	COZipCryptoWrongPassword,	// a password was supplied but rejected
+	COZipCryptoOK			// encrypted entries decrypted successfully
+} COZipCryptoStatus;
+
 @interface COZipEntry : COArchiveEntry
 {
 @public
@@ -64,8 +78,22 @@
 	dispatch_queue_t readQueue;	// serializes every libzip call
 	NSCache *dataCache;		// NSNumber(zipIndex) -> NSData
 	BOOL zipOpened;			// zip_open succeeded (else caller falls back)
+	NSString *password;		// nil until -setPassword: (UTF-8 at libzip)
+	COZipCryptoStatus cryptoStatus;
+	zip_int64_t firstEncIndex;	// index of the first encrypted entry, or -1
+	unsigned long long firstEncSize;	// its uncompressed size (validation)
 }
 - (BOOL)zipOpened;
+
+/* Supply a password for encrypted entries and re-scan the central
+ * directory. Safe to call after opening; encrypted entries that were
+ * skipped for lack of a password are re-evaluated. The password is passed
+ * to libzip as NUL-terminated UTF-8 bytes (zip_set_default_password). */
+- (void)setPassword:(NSString *)pw;
+
+/* Encryption state; see COZipCryptoStatus. Distinct from -lastError. */
+- (COZipCryptoStatus)cryptoStatus;
+
 /* internal, used by COZipEntry */
 - (NSData *)dataForEntry:(COZipEntry *)entry;
 @end

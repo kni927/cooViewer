@@ -42,6 +42,8 @@
 
 @interface COZipArchive (private)
 - (void)readCentralDirectory;
+- (void)scanEntriesAndClassify;
+- (COZipCryptoStatus)validatePasswordForIndex:(zip_uint64_t)index size:(unsigned long long)size;
 - (NSData *)readEntryOnQueue:(zip_uint64_t)index size:(unsigned long long)size;
 - (void)prefetchAfterOrdinal:(NSUInteger)ordinal;
 @end
@@ -59,12 +61,18 @@
 #endif
 	}
 	[dataCache release];
+	[password release];
 	[super dealloc];
 }
 
 - (BOOL)zipOpened
 {
 	return zipOpened;
+}
+
+- (COZipCryptoStatus)cryptoStatus
+{
+	return cryptoStatus;
 }
 
 /* Called once from COArchive's designated initializer. The progress
@@ -76,6 +84,8 @@
 	dataCache = [[NSCache alloc] init];
 	[dataCache setName:@"COZipArchive.dataCache"];
 	[dataCache setTotalCostLimit:CO_ZIP_CACHE_LIMIT];
+	cryptoStatus = COZipCryptoNone;
+	firstEncIndex = -1;
 	[self readCentralDirectory];
 }
 
@@ -91,13 +101,37 @@
 		return;		// zipOpened stays NO; COArchive falls back to libarchive
 	}
 	zipOpened = YES;
+	if (password)
+		zip_set_default_password(za, [password UTF8String]);
+	[self scanEntriesAndClassify];
+}
+
+/* (Re)build contentArray from the central directory. Non-encrypted
+ * archives are read exactly as before. Encrypted entries set -crypted and
+ * are included only once a password has been supplied and validated
+ * against the first encrypted entry; -cryptoStatus / -lastError record
+ * whether a password is missing or wrong. Re-runnable from -setPassword:. */
+- (void)scanEntriesAndClassify
+{
+	[contentArray removeAllObjects];
+	[lastError release];
+	lastError = nil;
+	crypted = NO;
+	cryptoStatus = COZipCryptoNone;
+	firstEncIndex = -1;
+	firstEncSize = 0;
+	BOOL havePassword = (password != nil);
 
 	// pass 1: collect raw names (ZIP_FL_ENC_RAW: stored bytes, no
-	// conversion by libzip) and sizes of the usable entries
+	// conversion by libzip), sizes, and a per-entry encryption flag for
+	// the usable entries. Encrypted names join the encoding sample only
+	// when a password is present (they will only be shown in that case),
+	// so the non-encrypted path is byte-for-byte unchanged.
 	zip_int64_t count = zip_get_num_entries(za, 0);
 	NSMutableArray *rawNames = [NSMutableArray array];	// NSData
 	NSMutableArray *indexes = [NSMutableArray array];	// NSNumber zip index
 	NSMutableArray *sizes = [NSMutableArray array];		// NSNumber uncompressed
+	NSMutableArray *encFlags = [NSMutableArray array];	// NSNumber BOOL
 	NSMutableData *allRaw = [NSMutableData data];
 	zip_uint64_t i;
 	for (i = 0; i < (zip_uint64_t)count; i++) {
@@ -109,10 +143,15 @@
 		size_t len = strlen(raw);
 		if (len == 0 || raw[len - 1] == '/') continue;			// directory
 		if (!(st.valid & ZIP_STAT_SIZE) || st.size == 0) continue;	// zero-byte
-		if ((st.valid & ZIP_STAT_ENCRYPTION_METHOD) &&
-		    st.encryption_method != ZIP_EM_NONE) {
-			crypted = YES;	// unsupported (crypto disabled in vendored libzip)
-			continue;
+		BOOL enc = ((st.valid & ZIP_STAT_ENCRYPTION_METHOD) &&
+		            st.encryption_method != ZIP_EM_NONE);
+		if (enc) {
+			crypted = YES;
+			if (firstEncIndex < 0) {
+				firstEncIndex = (zip_int64_t)i;
+				firstEncSize = st.size;
+			}
+			if (!havePassword) continue;	// unreadable without a password
 		}
 		// AppleDouble sidecars ("._name") are metadata, not pages
 		{
@@ -123,9 +162,20 @@
 		[rawNames addObject:[NSData dataWithBytes:raw length:len]];
 		[indexes addObject:[NSNumber numberWithUnsignedLongLong:i]];
 		[sizes addObject:[NSNumber numberWithUnsignedLongLong:st.size]];
+		[encFlags addObject:[NSNumber numberWithBool:enc]];
 		[allRaw appendBytes:raw length:len];
 		[allRaw appendBytes:"\n" length:1];
 	}
+
+	// classify the password state before deciding whether to trust the
+	// encrypted entries collected above
+	if (crypted && havePassword && firstEncIndex >= 0)
+		cryptoStatus = [self validatePasswordForIndex:(zip_uint64_t)firstEncIndex
+		                                         size:firstEncSize];
+	else if (crypted)
+		cryptoStatus = COZipCryptoNeedsPassword;
+	else
+		cryptoStatus = COZipCryptoNone;
 
 	// archive-level encoding decision: uchardet once over every raw
 	// name (per-filename detection mis-detects CP932 unacceptably
@@ -145,6 +195,9 @@
 
 	NSUInteger k;
 	for (k = 0; k < [rawNames count]; k++) {
+		// keep encrypted entries only when the password checked out
+		if ([[encFlags objectAtIndex:k] boolValue] && cryptoStatus != COZipCryptoOK)
+			continue;
 		NSString *name = [self decodeName:[rawNames objectAtIndex:k]
 		                         fallback:nil charset:charset];
 		if (!name) continue;
@@ -158,11 +211,69 @@
 		[contentArray addObject:e];
 	}
 
-	if ([contentArray count] == 0 && lastError == nil) {
-		if (crypted)
-			lastError = [@"encrypted archives are not supported" retain];
-		else
-			lastError = [@"no readable entries" retain];
+	if (lastError == nil) {
+		if (cryptoStatus == COZipCryptoNeedsPassword)
+			lastError = [@"password required for encrypted archive" retain];
+		else if (cryptoStatus == COZipCryptoWrongPassword)
+			lastError = [@"wrong password" retain];
+		else if ([contentArray count] == 0)
+			lastError = crypted ? [@"encrypted archives are not supported" retain]
+			                    : [@"no readable entries" retain];
+	}
+}
+
+/* Test-read one encrypted entry to tell a correct password from a wrong
+ * one. Traditional PKWARE rejects at open; WinZip AES fails its HMAC only
+ * once the whole stream (plus EOF) is read, so the entry is read in full.
+ * A non-password failure (e.g. a corrupt stream) is reported as OK here so
+ * the normal read-time path handles it; only a genuine password error
+ * downgrades to COZipCryptoWrongPassword. */
+- (COZipCryptoStatus)validatePasswordForIndex:(zip_uint64_t)index size:(unsigned long long)size
+{
+	zip_file_t *zf = zip_fopen_index(za, index, 0);
+	if (!zf) {
+		int ze = zip_error_code_zip(zip_get_error(za));
+		if (ze == ZIP_ER_WRONGPASSWD || ze == ZIP_ER_NOPASSWD)
+			return COZipCryptoWrongPassword;
+		return COZipCryptoOK;		// not a password problem
+	}
+	unsigned char buf[8192];
+	unsigned long long got = 0;
+	COZipCryptoStatus result = COZipCryptoOK;
+	while (got < size) {
+		zip_uint64_t want = (size - got) < sizeof(buf) ? (size - got) : sizeof(buf);
+		zip_int64_t n = zip_fread(zf, buf, want);
+		if (n < 0) {
+			int ze = zip_error_code_zip(zip_file_get_error(zf));
+			if (ze == ZIP_ER_WRONGPASSWD || ze == ZIP_ER_NOPASSWD)
+				result = COZipCryptoWrongPassword;
+			break;
+		}
+		if (n == 0) break;
+		got += (unsigned long long)n;
+	}
+	// force EOF so WinZip AES verifies its authentication code
+	if (result == COZipCryptoOK) {
+		char tail;
+		if (zip_fread(zf, &tail, 1) != 0) {
+			int ze = zip_error_code_zip(zip_file_get_error(zf));
+			if (ze == ZIP_ER_WRONGPASSWD || ze == ZIP_ER_NOPASSWD)
+				result = COZipCryptoWrongPassword;
+			// otherwise a CRC/corruption error: leave OK, read-time handles it
+		}
+	}
+	zip_fclose(zf);
+	return result;
+}
+
+- (void)setPassword:(NSString *)pw
+{
+	NSString *old = password;
+	password = [pw copy];	// UTF-8 is conveyed via -UTF8String at the libzip boundary
+	[old release];
+	if (za) {
+		zip_set_default_password(za, password ? [password UTF8String] : NULL);
+		[self scanEntriesAndClassify];
 	}
 }
 
