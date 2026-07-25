@@ -180,3 +180,87 @@ bringing back XADMaster) and is a separate decision, not addressed here.
 `zip_fopen_index_encrypted`) at the point where `crypted` is currently
 detected. Do not enable a heavier crypto backend (OpenSSL/mbedTLS) — they
 would reintroduce external dependencies for no benefit on macOS.
+
+## Encrypted RAR support: declined (2026-07-25)
+
+**Decision:** cooViewer does **not** support password-protected RAR
+archives, and this is settled — not pending work. **Both variants**
+(data-only encryption, `rar a -p`, and header encryption, `rar a -hp`) fail
+closed: the document does not open, Finder shows the default icon, and no
+password prompt appears. Do not re-investigate without a new decision from
+the project owner. Full analysis:
+`docs/tasks/2026-07-25-11-investigate-encrypted-rar.md`.
+
+**Expected, not a bug:** the two variants reach that same closed state by
+different internal routes, so the state they leave behind differs. A
+data-encrypted RAR reports `-crypted = YES` with `-cryptoStatus =
+COArchiveCryptoUnsupported`, while a **header-encrypted RAR reports
+`-crypted = NO`** — `CORarHeaderIndex` declines on header encryption and the
+libarchive fallback fails before any entry exists, so
+`archive_entry_is_encrypted()` is never reached and the archive is
+internally indistinguishable from a corrupt one apart from its error string.
+Do not "fix" that asymmetry; without a decoder there is nothing to unlock in
+either case.
+
+**Why:** The blocker is the decoder, not configuration. libarchive's RAR
+readers contain **no decryption implementation at all** — they never consult
+libarchive's own passphrase API (`archive_read_support_format_rar.c` and
+`..._rar5.c` mention `passphrase` zero times, while the ZIP reader mentions
+it 17 times and is exactly why encrypted ZIP works). No build flag changes
+this; the readers detect encryption and stop
+(`"RAR encryption support unavailable."` for RAR3/4,
+`"Encryption is not supported"` / `"Reading encrypted data is not currently
+supported"` for RAR5).
+
+Every route to a decoder was rejected:
+
+- **unrar (RARLAB)** — the only complete decoder (RAR3/RAR5, data-only and
+  header encryption), but its licence is not OSI-approved and carries the
+  restriction against using the source to re-create the RAR compression
+  algorithm. Bundling it would put a non-MIT component into an otherwise MIT
+  app and require a split licence statement.
+- **An XADMaster subset** — legally viable (LGPL-2.1+), but its RAR
+  decryption is inseparable from the `CSHandle` / `XADArchiveParser` /
+  `XADPath` machinery (~3500 lines, chained decryption handles), so there is
+  no bounded subset to lift. This is also the line drawn by the 2026-07-14
+  decision above, which states that needing XADMaster's fuller machinery is
+  a bigger decision requiring fresh review.
+- **libunarr** — already spiked and rejected (2026-07-11, commit `4ae5d2f`):
+  it refuses RAR5 outright, and every modern `.cbr` is RAR5.
+- **7-Zip's RAR codec** — derives from unrar and inherits its licence terms,
+  so it is not an independent option.
+
+Weighed against that cost, the demand is small and shrinking: encrypted RAR
+is a declining format, current `rar` (7.23) cannot even create RAR4 any
+more, and **encrypted ZIP already restores the documented
+"password-protected archive" feature in its most common form** (WinZip
+AES-256 and traditional ZipCrypto, including non-ASCII/Japanese passwords —
+see the libzip decision above and tasks 08-10). The present behaviour is
+already safe, so the cost of leaving it is low.
+
+This settles the "separate decision, not addressed here" note left by the
+libzip/CommonCrypto entry above.
+
+**Current behaviour, for reference** (measured, RAR5 fixtures):
+
+- *data-only* encryption (`rar a -p`): entries are detected as encrypted and
+  skipped — `-crypted` = YES, `-cryptoStatus` = `COArchiveCryptoUnsupported`,
+  zero entries, `lastError` = "encrypted archives are not supported".
+- *header* encryption (`rar a -hp`): libarchive fails before any entry
+  exists, so the encrypted-entry check is never reached — `-crypted` is
+  **NO**, `-cryptoStatus` = `COArchiveCryptoNone`, zero entries, and only
+  libarchive's error string distinguishes it from a corrupt archive.
+- Both end at `itemCount < 1`, so the open is aborted and the previous
+  document is restored; the QuickLook/Thumbnail extensions return no cover
+  and Finder falls back to the default icon.
+
+**How to apply:** Treat encrypted RAR as out of scope. `CORarArchive`
+inherits `COArchive`'s base `-setPassword:` (a no-op) and `-cryptoStatus`
+(`Unsupported` when `crypted`) deliberately — do not wire a password path
+into it. If the owner ever accepts unrar's licence terms, the work splits
+as: vendor unrar (+ licence documentation and a README note about the
+non-MIT component); add data-only decryption to `CORarArchive` mirroring the
+ZIP shape; only then tackle header encryption, which needs an
+open→ask→rebuild flow because the password is a precondition for listing
+(the ZIP path must stay untouched); finally re-check that the extensions
+still never prompt. Steps one and two carry most of the practical value.
