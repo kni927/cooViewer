@@ -236,7 +236,7 @@ signing alone does not help (see `docs/KNOWN_ISSUES.md`).
 - Translated `CLAUDE.md` from Japanese to English
 - Added `README.md` (English, with feature descriptions, build instructions, upstream credits)
 
-### Password-protected ZIP support restored (2026-07-25)
+### Password-protected ZIP support restored (v1.5.1, 2026-07-25)
 
 Encrypted `.zip`/`.cbz` archives open again — the feature the original
 cooViewer had and this fork lost in v1.4.0, when the archive layer moved
