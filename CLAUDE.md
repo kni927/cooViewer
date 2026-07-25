@@ -39,6 +39,47 @@
   LaunchServices/QuickLook in an inconsistent state that only a full
   OS restart resolved — see `docs/KNOWN_ISSUES.md` #15.
 
+## On-Device Verification Procedure
+
+Use this procedure whenever a build needs to be exercised as a real user
+would — main app launch, or QuickLook/Thumbnail extension behaviour. Follow
+it exactly and in one pass; see `docs/KNOWN_ISSUES.md` #15 for why repeated
+install/register cycles are risky.
+
+### Main app only (no QuickLook/Thumbnail)
+
+1. `open build/cooViewer.app`
+2. Exercise the app.
+3. Quit it (`Cmd+Q` or `kill`).
+
+Do not touch `/Applications` (the Homebrew-managed install) or `~/Applications`
+for this case. No LaunchServices registration occurs.
+
+### QuickLook / Thumbnail extensions
+
+Perform steps 1-6 in a single session, without repeating installs.
+
+1. Copy `build/cooViewer.app` to `~/Applications/` (never `/Applications`).
+2. `lsregister -f ~/Applications/cooViewer.app`
+3. `pluginkit -a` to register the Preview and Thumbnail extensions
+   explicitly.
+4. Verify via Finder directly — Icon/List view for thumbnails, Space bar for
+   Quick Look preview. Prefer this over `qlmanage`; on this machine
+   `qlmanage -t`/`-p` have hung even on non-encrypted files in past
+   sessions. If `qlmanage` is used, one attempt only; on a hang, force-quit
+   and switch to Finder rather than retrying.
+5. Complete all checks needed before cleanup — do not do a partial check,
+   clean up, then come back for more in the same session.
+6. Clean up: `pluginkit -r` to unregister the extensions, then delete
+   `~/Applications/cooViewer.app`.
+
+### If something goes wrong
+
+If Finder's thumbnail/preview behaviour becomes unresponsive or wrong
+during or after this procedure, stop — do not attempt further
+install/register cycles to fix it. Report it. A recurrence of #15 requires
+a reboot, not more registration attempts.
+
 ## Repository Layout
 - Repository root contains only dotfiles, top-level directories, `*.md`,
   `*.txt`, and the Xcode project bundle. Source, resources, and scripts
