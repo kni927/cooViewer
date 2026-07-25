@@ -264,3 +264,36 @@ ZIP shape; only then tackle header encryption, which needs an
 open→ask→rebuild flow because the password is a precondition for listing
 (the ZIP path must stay untouched); finally re-check that the extensions
 still never prompt. Steps one and two carry most of the practical value.
+
+## `.cvbdl` document type: keep as-is, origin documented (2026-07-25)
+
+**Decision:** `Resources/Info.plist` registers `.cvbdl` ("ComicViewer
+Comic") with `LSTypeIsPackage = true`, so Finder treats a folder with that
+extension as a single document. There is no dedicated implementation for it
+anywhere in this codebase or its known upstream history — the entry was
+added in a single commit, `77b2275` ("1.2b24", 2020-01-13), part of the
+initial fork import, and has never been touched since. It is kept as-is;
+this is not a dead-code removal candidate. The origin was previously
+unclear and is recorded here so it is not re-investigated.
+
+**Why:** `.cvbdl` is a macOS bundle-folder variant of the "Comic Book
+Format" naming convention (alongside `.cbz`/`.cbr`/`.cb7`/`.cbt`/`.cba`/
+`.cbtc`), per the German Wikipedia article "Comic-Book-Format"
+(https://de.wikipedia.org/wiki/Comic-Book-Format) — the only language
+edition that lists it. This is **not a ratified standard**; no standards
+body defines Comic Book Format. It is a de facto convention followed by a
+handful of independent viewers/applications, such as
+`HetimaZip.qlgenerator`. Because `LSTypeIsPackage` is set, `.cvbdl` folders
+never reach `COImageLoader`'s archive dispatch (`+archiveTypes` explicitly
+excludes `cvbdl`); they fall through to the generic directory-open path,
+which happens to work because it's just a folder. Confirmed manually:
+renaming a folder to `.cvbdl` opens it in cooViewer via that generic path.
+QuickLook does not support it — `COCoverExtractor.m` explicitly excludes
+`cvbdl` from the types it hands to `COImageLoader`'s fuller logic.
+
+**How to apply:** Do not add a dedicated `.cvbdl` reader and do not remove
+the Info.plist entry or the `archiveTypes` exclusion as unreachable/dead —
+both are working exactly as intended for a package-type document handled by
+the generic directory path. If `.cvbdl` support is ever revisited (e.g. to
+read package-internal metadata `HetimaZip`-style), treat it as new work
+scoped from this note, not as fixing an oversight.
