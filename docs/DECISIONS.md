@@ -397,6 +397,28 @@ fullscreen), which is why the direction is now "proceed".
    every window that was open at quit, not just one. `OpenLastFolder`
    is demoted to a fallback for when the system restored nothing.
 
+**Follow-on decision (2026-07-28): how a second window is created.**
+Add **Open in New Window… (⌥⌘O)** to the File menu, implemented in
+**MW-7**. Decisions 3 and 4 above otherwise leave no in-app route to a
+second window — File ▸ Open replaces the current book, and there is no
+empty-window state — so a second window could only ever come from
+Finder, the Dock, or a drag while a book was already open.
+
+Before the shortcut is finalised, MW-7 must verify ⌥⌘O against the
+user-configurable input mappings `KeyArray` / `KeyArrayMode2` /
+`KeyArrayMode3` (loaded at `Controller.m:95-100`; defaults from
+`+[PreferenceController setDefaultKeyArray]` and siblings). Entries pair
+a `key` string with a `modifier` bitmask — option 1, control 2,
+command 4 (`CustomWindow.m:119-126`) — so the case to look for is
+`key == "o"` with `modifier == 5`. A menu key equivalent takes
+precedence over the app's own key handling, so a collision would
+silently disable a user's mapping instead of surfacing a conflict; if
+⌥⌘O turns out to be taken, choose a different shortcut rather than
+overriding the mapping. A check on the shipped defaults and the owner's
+live profile found no collision (`o` is bound with `modifier = 0`, and
+the Mode2/Mode3 arrays bind no `o`), but these arrays are per-profile
+and user-editable, so the check must be repeated at implementation time.
+
 **How to apply:** Work through `docs/multiwindow-plan.md` one MW task
 at a time; MW-1 … MW-6 must leave the app single-window with no
 user-visible change, and multiple windows are enabled only in MW-7.

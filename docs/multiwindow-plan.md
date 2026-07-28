@@ -35,15 +35,41 @@ Consequences that follow from these and are treated as settled:
 - Decision 5 means `NSWindowRestoration` (§MW-8), which supersedes
   part of the `OpenLastFolder` preference.
 
-### Assumptions carried
+### Assumptions carried (both now settled)
 
-- **A1 — How is a second window created?** *(open — flagged for
-  confirmation)* Decisions 3 + 4 leave no in-app route: File ▸ Open
-  replaces, and there is no empty window. As written, a second window
-  can only come from Finder / Dock / drag while a book is already open.
-  **Recommendation:** add **Open in New Window… (⌥⌘O)** alongside
-  File ▸ Open. Scoped in MW-7; drop that sub-item if the answer is
-  "Finder only". Does not block work before MW-7.
+- **A1 — How is a second window created?** *(decided 2026-07-28)*
+  Add **Open in New Window… (⌥⌘O)** to the File menu, alongside
+  File ▸ Open. Implemented in **MW-7**, not before — MW-1 must not
+  introduce it.
+
+  Decisions 3 + 4 otherwise leave no in-app route to a second window
+  (File ▸ Open replaces, and there is no empty window), so without this
+  a second window could only come from Finder / Dock / drag while a book
+  is already open.
+
+  **Flagged for MW-7 — verify the shortcut before finalising it.**
+  ⌥⌘O must be checked against the existing user-configurable input
+  mappings before it is committed to: `KeyArray`, `KeyArrayMode2` and
+  `KeyArrayMode3` in `NSUserDefaults` (defaults populated by
+  `+[PreferenceController setDefaultKeyArray]` and its Mode2/Mode3
+  siblings, loaded at `Controller.m:95-100`). Entries store `key` plus a
+  `modifier` bitmask (option = 1, control = 2, command = 4 — see
+  `CustomWindow.m:119-126`), so the collision to look for is
+  `key == "o"` with `modifier == 5`. Note the menu shortcut wins over
+  the app's own key handling for the key window, so a collision would
+  silently disable a user's mapping rather than produce a visible
+  conflict. If ⌥⌘O is taken, pick another shortcut rather than
+  overriding the mapping.
+
+  Preliminary check done 2026-07-28 — **no collision found, but this
+  does not discharge the MW-7 check.** The shipped defaults bind `o`
+  with `modifier = 0` (plain `o`, action 20;
+  `PreferenceController.m:215-220`), and the owner's live `KeyArray`
+  matches; `KeyArrayMode2` and `KeyArrayMode3` bind no `o` at all.
+  Plain `o` is unaffected by an ⌥⌘O menu equivalent. Because these
+  arrays are user-editable and persisted per profile, MW-7 must still
+  re-check at implementation time rather than relying on this sample of
+  one.
 
 - **A2 — Does a new window open in full screen?** *(resolved by
   investigation, 2026-07-28 — decision unchanged)* New windows open
