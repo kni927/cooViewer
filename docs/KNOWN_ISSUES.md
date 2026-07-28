@@ -660,22 +660,29 @@ scaled again into the view — a visible softening, and exactly the kind of
 extra resampling step the inviolable constraint at the top of `CLAUDE.md`
 forbids.
 
-### It only exists at all if the user turns the feature on
+### It only exists on the non-default spread path
 
 Discovered while setting up the reproduction, and it narrows the scope
-sharply. **The composed-spread path is disabled by default:**
+sharply. **Neither the composite nor its cache exists on default
+settings:**
 
+- `BufferingMode` is registered with default **1** ("New" in
+  Preferences), and on that setting `returnComposeImage:and:` returns
+  nil immediately: `composeImage` takes the
+  `[imageView setImages:secondImage]` branch and each page is drawn
+  straight into the view by `-[CustomImageView drawImages:and:]`. No
+  composite is ever built. This is also the project owner's setting.
+- The composite only exists at `BufferingMode = 0` ("Old"), the legacy
+  path, which costs **two** resampling steps against the direct path's
+  one — see the two-path table at the top of `CLAUDE.md`.
 - `ScreenCache` defaults to **0**, and `screenCache > 0` gates both the
-  cache store *and* the cache lookup — so with default settings there is
-  no cache to go stale.
-- `returnComposeImage:and:` returns nil immediately when
-  `bufferingMode == 1`, in which case `composeImage` takes the
-  `[imageView setImages:secondImage]` branch and no composite is built at
-  all. The owner's profile has `BufferingMode = 1`.
+  cache store *and* the cache lookup. Its Preferences field is disabled
+  outright while "New" is selected.
 
-Both had to be changed (`BufferingMode = 0`, `ScreenCache = 5`) before
-the cache could even be exercised. Only users who have explicitly enabled
-the screen cache can be affected.
+So an affected user must have deliberately selected the legacy "Old"
+path *and* raised the cache count. Both had to be changed
+(`BufferingMode = 0`, `ScreenCache = 5`) before the cache could be
+exercised at all.
 
 ### Attempted reproduction (2026-07-29) — did not reproduce
 
@@ -728,9 +735,37 @@ off by default. Changing the render path to fix a defect that cannot be
 shown to exist is the wrong trade under the CLAUDE.md constraint: the
 change itself would then be the unverifiable one.
 
-If this is revisited, do the instrumented version first — log whether the
-cache lookup hits after a screen change, and log the composite's actual
-pixel dimensions — so that "stale composite served" is established as
-fact before any render-path code is touched. It remains scoped to MW-7 in
-`docs/multiwindow-plan.md`; MW-5 and MW-6 multiply this cache per window,
-so if it is ever shown to be real, fixing it before them is cheaper.
+### If this is revisited: instrument before touching the render path
+
+The gap in the 2026-07-29 attempt was that a pixel-identical result has
+two explanations and they were not distinguishable from outside the
+process. Close that first, with a throwaway instrumented build — not a
+shipped change:
+
+1. In `-[Controller composeImage]`, log every cache **lookup** and
+   whether it hit, including the key (`page`, `fitScreenMode`) and the
+   `NSScreen` the window is on at that moment. This settles whether a
+   post-move page turn is actually served from the cache.
+2. In `returnComposeImage:and:`, log the canvas point size and the
+   resulting `NSImage`'s representation **pixel** size
+   (`[[image representations] firstObject] pixelsWide/pixelsHigh`) —
+   the point size follows the screen frame, but the backing resolution
+   follows the drawing context's scale, and the two move in opposite
+   directions between a 1920×1080@2x and a 2560×1440@1x display. That
+   opposition is the most likely reason the rendered output came out
+   identical, and it is worth confirming rather than assuming.
+3. Only if 1 and 2 together show a stale, wrong-resolution composite
+   being drawn should any render-path code change.
+
+Reproduction recipe for that build: set `BufferingMode = 0` and
+`ScreenCache = 5`, put two displays at clearly different logical size
+*and* scale, populate the cache on one, drag the window to the other
+without resizing, and page back into the cached range. Back up and
+restore both the display mode and the defaults domain, and verify the
+restores.
+
+It remains scoped to MW-7 in `docs/multiwindow-plan.md`, with the
+explicit instruction not to fix it there on the strength of the code
+reading alone. The earlier argument that MW-5/MW-6 make it urgent by
+multiplying the cache per window no longer holds: the cache is off by
+default and absent entirely from the default spread path.

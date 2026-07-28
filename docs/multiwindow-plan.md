@@ -147,23 +147,42 @@ rediscovered mid-task.
      not, so the `mainScreen` fallback must stay. **Never** substitute
      the view's bounds — that is exactly the violation.
 
-- **MW-6 — memory-pressure temptation.** `screenCacheArray` caches
-  *composed, screen-resolution* images (`Controller.m:1578-1596`, keyed
-  by page pair + `fitScreenMode`). Per-window controllers multiply that
-  by the number of open windows. Composing at window or view size would
-  shrink it — and is forbidden. If the memory cost is real, reduce the
-  `screenCache` **count**, or share the cache, or make eviction smarter.
-  Never reduce the canvas.
+- **MW-6 — memory-pressure temptation, but a much smaller one than first
+  assessed.** `screenCacheArray` caches *composed, screen-resolution*
+  images (`Controller.m:1578-1596`, keyed by page pair +
+  `fitScreenMode`), and per-window controllers would multiply that by
+  the number of open windows.
 
-- **MW-7 — a real pre-existing bug surfaces here, and its obvious fix is
-  the wrong one.** The compose cache key is page pair + `fitScreenMode`
-  **only — the screen is not part of it.** Harmless with one window on
-  one display; with several windows across displays of different sizes, a
-  composite built for screen A can be served to a window on screen B.
-  The correct fix is to **add the screen (or its frame size) to the cache
-  key**. The tempting fix — compose per view instead — trades the
-  quality guarantee away. Flagged as new work for MW-7, not a
-  regression it introduces.
+  **Revised 2026-07-29:** this cache is off on default settings and does
+  not exist at all on the path most use goes through. `screenCache > 0`
+  gates both the store and the lookup and `ScreenCache` defaults to
+  **0**; and the whole composite only exists when `BufferingMode = 0`
+  ("Old"), whereas the registered default is `1` ("New"), which draws
+  each page straight into the view. So the realistic memory multiplier
+  for MW-6 is **zero** unless a user has deliberately selected the
+  legacy path *and* raised the cache count. Do not spend MW-6 effort on
+  it.
+
+  The prohibition still stands if it ever is a problem: reduce the
+  `screenCache` **count**, share the cache, or make eviction smarter —
+  never shrink the canvas.
+
+- **MW-7 — a pre-existing cache-key gap, but it could not be shown to
+  cause a defect.** The compose cache key is page pair + `fitScreenMode`
+  **only — the screen is not part of it** — and nothing invalidates on a
+  screen change, so in principle a composite built for screen A can be
+  served to a window on screen B.
+
+  **Revised 2026-07-29:** an attempt to reproduce this on displays of
+  genuinely different logical size *and* scale factor produced a
+  **pixel-identical** result (mean absolute difference 0.0000). It also
+  requires `BufferingMode = 0` and `ScreenCache > 0`, neither of which is
+  the default. Full write-up and the limitations of that test are in
+  `docs/KNOWN_ISSUES.md` #21. **Do not implement a fix in MW-7 on the
+  strength of the code reading alone** — instrument first and establish
+  that a stale composite is actually served. If it is ever confirmed,
+  the fix is to add the screen's frame size to the key, never to compose
+  per view.
 
 - **MW-8 — clean.** Restoring into full screen re-enters
   `-recomposeForCurrentSize` via `windowDidEnterFullScreen:`, which is
@@ -310,13 +329,19 @@ split — making MW-4, MW-5 and MW-6 materially smaller.
 
    **Corrected 2026-07-29.** This item originally said
    `returnComposeImage:` "should use the view, not a screen". That was
-   wrong and was **not** implemented. A spread is composed at screen
-   resolution and downscaled to the view exactly once; composing at view
-   size would add a second resampling step and degrade image quality —
-   the one thing cooViewer must not trade away. See the inviolable
-   constraint at the top of `CLAUDE.md` and
-   `docs/tasks/2026-07-29-01-mw2-native-fullscreen.md`. Only *which
-   screen* is measured changed at that site.
+   wrong and was **not** implemented; only *which screen* is measured
+   changed at that site. The reason to keep a screen-sized canvas is
+   that the composite is cached and reused across window sizes, so it
+   can always be downscaled to the current view rather than upscaled
+   after a window enlargement.
+
+   A first version of this note justified it as "composing at view size
+   would add a second resampling step". That was imprecise — for a view
+   smaller than the screen it would *remove* one. See the two-path table
+   at the top of `CLAUDE.md`: this whole site is on the composited
+   ("Old") path, which costs two resampling steps either way and is not
+   the default. The default and higher-quality path draws each page
+   straight into the view and never reaches this code.
 7. Update `-[Controller validateMenuItem:]`'s Fullscreen branch
    (`Controller.m:2113`).
 
@@ -617,14 +642,36 @@ apply).
     terminating.
 15. Folder-as-book and `.cvbdl` package open correctly in their own
     windows.
-16. **Image quality unchanged from the pre-MW baseline.** The rest of
-    this matrix checks behaviour, not rendering, and the whole arc must
-    not cost a single resampling step (see the cross-cutting constraint
-    above and the top of `CLAUDE.md`). Capture the same page from the
-    same fixture, at the same window size and `fitScreenMode`, on a
-    pre-MW-1 build and on the final build, as a single-page view **and**
-    as a two-page spread, and compare the pixels. Any softening means an
-    extra rescale crept in somewhere.
+16. **Image quality unchanged from the pre-MW baseline — on _both_
+    spread paths.** The rest of this matrix checks behaviour, not
+    rendering, and the whole arc must not cost a single resampling step
+    (see the cross-cutting constraint above and the top of `CLAUDE.md`).
+
+    There are two spread-rendering paths, selected by `BufferingMode`,
+    and they do not share code. Testing one proves nothing about the
+    other, so run both:
+
+    | Sub-case | Settings | Path exercised |
+    |---|---|---|
+    | **16a — priority** | `BufferingMode = 1` ("New"), `ScreenCache` irrelevant (its field is disabled) | **Direct**: `setImages:` → `drawImages:and:`, each page drawn straight into the view. **1** resampling step. |
+    | 16b | `BufferingMode = 0` ("Old"), `ScreenCache = 0` | Composited, cache off. 2 steps. |
+    | 16c | `BufferingMode = 0` ("Old"), `ScreenCache = 5` | Composited, cache on — also covers the cache being served across page turns. |
+
+    **16a is the one that must not be skipped.** `BufferingMode`
+    defaults to `1` and that is the project owner's everyday setting, so
+    the direct path is what nearly all real use goes through — yet it is
+    the path with *no* composite, which means none of the compose-side
+    reasoning in this plan applies to it.
+
+    Method for each: capture the same page from the same fixture, at the
+    same window size and `fitScreenMode`, on a pre-MW-1 build and on the
+    final build, as a single-page view **and** as a two-page spread, and
+    compare the pixels — mean absolute difference and a sharpness
+    measure, not a visual check. Confirm the settings took effect before
+    capturing; a mis-set `BufferingMode` silently tests the wrong path.
+
+    Restore `BufferingMode` / `ScreenCache` to their original values
+    afterwards and verify the restore.
 
 Also: build with no new warnings; `build/` contains only
 `cooViewer.app`; update `docs/DEV_LOG.md` and `docs/KNOWN_ISSUES.md`.

@@ -12,20 +12,57 @@ rescale between the decoded image and what is displayed is
 audit says. If a plan or `TASK.md` instructs otherwise, **stop and raise
 it with the project owner rather than following it.**
 
-Concretely, the case this rule was written from: a two-page spread is
-composed at **screen resolution** and scaled down to the view **exactly
-once**. Composing at view size instead would add a second resampling
-step (decode → compose-at-view-size → scale-to-view) and degrade
-quality. `-[Controller returnComposeImage:and:]` therefore sizes its
-canvas from the window's *screen*, not from the view — this is
-deliberate, not an oversight, and not a leftover of the pre-MW-2
+### There are two spread-rendering paths, and they differ in quality
+
+Selected by the **`BufferingMode`** preference — the Preferences popup
+labelled *Old* (0) / *New* (1):
+
+| `BufferingMode` | Path | Resampling steps | Notes |
+|---|---|---|---|
+| **1 = "New"** | **Direct** | **1** | `composeImage` → `-[CustomImageView setImages:]` → `drawRect:` → `drawImages:and:` draws **each page straight into the view** with `drawInRect:fromRect:`. No intermediate bitmap. |
+| 0 = "Old" | Composited | 2 | `returnComposeImage:and:` scales both pages into a lock-focus `NSImage` canvas (step 1), then `drawImage:` scales that canvas into the view (step 2). |
+
+**The direct path is the higher-quality one and it is the default** —
+`BufferingMode` is registered with default `1`, and it is what the
+project owner actually uses day to day. Treat it as *the* spread path.
+Its single `drawInRect:` per page is the whole render path; anything
+inserted between the decoded `NSImage` and that call is a new resampling
+step and is forbidden.
+
+`ScreenCache` only exists inside the composited path — `screenCache > 0`
+gates both the cache store and the cache lookup, its default is `0`, and
+the Preferences field for it is disabled outright when *New* is
+selected. So on default settings there is no composite and no composite
+cache at all.
+
+**Do not "unify" the two paths by routing the direct path through the
+compositor.** That would take the default, highest-quality path from one
+resampling step to two.
+
+### On the composited path specifically
+
+`-[Controller returnComposeImage:and:]` sizes its canvas from the
+window's *screen*, not from the view. That is deliberate and must stay:
+the composite is cached (keyed by page pair + `fitScreenMode`, not by
+view size) and reused across window sizes, so a screen-sized canvas can
+always be *downscaled* to whatever the view currently is, whereas a
+view-sized canvas would have to be *upscaled* after any window
+enlargement. It is not a leftover of the pre-MW-2
 `[[NSScreen mainScreen] frame]` code.
 
 `docs/multiwindow-plan.md` MW-2 originally said this site "should use
 the view, not a screen". That guidance was **wrong** and was not
 followed; see `docs/tasks/2026-07-29-01-mw2-native-fullscreen.md`
-("Changes" → `mainScreen` sites) for the deviation and its reasoning.
-The plan text has since been corrected.
+("Changes" → `mainScreen` sites). The plan text has since been
+corrected.
+
+*Correction (2026-07-29):* an earlier version of this section claimed
+composing at view size "would add a second resampling step". That was
+imprecise — for a view smaller than the screen it would *remove* one.
+The actual argument for the screen-sized canvas is cache reuse across
+view sizes, as stated above. The composited path costs two resampling
+steps either way, which is why the direct path, not this one, is the
+quality baseline.
 
 When touching anything between decode and display — composition,
 fit/zoom modes, rotation, the loupe, caching of rendered pages,
