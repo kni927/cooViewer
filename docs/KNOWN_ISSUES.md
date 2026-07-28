@@ -619,3 +619,69 @@ open(p, 'wb').write((text + addition).encode('utf-16'))
 Normalising both files to UTF-8 would remove the trap and is a
 reasonable standalone task; it has not been done because it rewrites a
 large localization file wholesale and wants its own verification pass.
+
+## 21. Composed-Spread Cache Is Not Keyed By Screen, and Nothing Invalidates It on a Screen Change
+
+**Pre-existing (v1.5.2 and earlier), not introduced by the multi-window
+work.** Confirmed by code inspection; **not reproduced on this machine**
+— see "Why it could not be reproduced here" below.
+
+A two-page spread is composed at screen resolution and cached in
+`screenCacheArray` (`Controller.m`, entries added around 1578-1596 and
+1815-1831). The cache entry is a dictionary keyed by:
+
+- `page` — the page pair, e.g. `"3-4"`
+- `fitScreenMode`
+
+and holding the composed image under `composed`. **The screen is not
+part of the key.** The canvas is sized from the window's screen
+(`returnComposeImage:and:` → `[composeScreen frame]`), so two screens of
+different logical size produce differently-sized composites that are
+nonetheless interchangeable as far as the lookup is concerned.
+
+Compounding it, nothing invalidates the cache when the window changes
+screen. `screenCacheArray` is fully cleared in exactly two places —
+`openPage:last:` (book switch) and `windowWillClose:` — and the app
+handles **no** screen-change notification at all: there is no
+`windowDidChangeScreen:`, no `NSApplicationDidChangeScreenParameters`
+observer, and no `viewDidChangeBackingProperties`. MW-2 added recompose
+triggers for `windowDidEnterFullScreen:` / `windowDidExitFullScreen:` and
+kept the live-resize one, but a plain drag from one display to another is
+none of those.
+
+Expected symptom: drag a window showing a two-page spread from a larger
+display to a smaller one (or between different backing scale factors)
+**without resizing it**, then page back and forth within the cached
+range. Pages served from the cache would carry the composite built for
+the previous screen, so they are scaled for the wrong target and then
+scaled again into the view — a visible softening, and exactly the kind of
+extra resampling step the inviolable constraint at the top of `CLAUDE.md`
+forbids.
+
+### Why it could not be reproduced here
+
+Both displays on this machine are 1920×1080 logical at scale 2.0
+(`NSScreen` frames `{{0,0},{1920,1080}}` and `{{1920,0},{1920,1080}}`),
+differing only in origin. The compose canvas is sized from the screen's
+**frame size**, which is identical on both, so a composite built on one
+is the correct size for the other and the defect cannot produce a wrong
+result. Reproducing it needs two displays of genuinely different logical
+size or scale factor.
+
+### Fixing it
+
+The fix is to add the screen — its frame size, not the `NSScreen`
+pointer, which is not stable — to the cache key, and to invalidate or
+recompose on `windowDidChangeScreen:`.
+
+**Do not "fix" it by composing at view size instead.** That removes the
+mismatch by removing the screen-resolution composite, which costs an
+extra resampling step; see the inviolable constraint in `CLAUDE.md`.
+
+Deliberately **not** fixed at the time of writing (2026-07-29): it is a
+render-path change that cannot be verified on the available hardware, and
+shipping an unverifiable change to the render path is precisely what that
+constraint is meant to prevent. It is scoped as work for MW-7 in
+`docs/multiwindow-plan.md`, and should be pulled forward as a standalone
+fix as soon as a differently-sized display is available — MW-5 and MW-6
+multiply this cache per window, so fixing it before then is cheaper.
