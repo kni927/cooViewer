@@ -27,7 +27,11 @@
 -(void)becomeKeyWindow
 {
 	[super becomeKeyWindow];
-	if ([[NSUserDefaults standardUserDefaults] boolForKey:@"DontHideMenuBar"] == NO) [NSMenu setMenuBarVisible:NO];
+
+	/* MW-2: this hid the menu bar process-wide whenever the thumbnail
+	   panel became key, gated on the DontHideMenuBar default. Both the
+	   default and the hand-managed menu bar are gone — native full screen
+	   owns menu-bar visibility. */
 }
 
 -(void)resignKeyWindow
@@ -37,17 +41,20 @@
 }
 
 
+/* The thumbnail panel fills the usable area of the screen it is on.
+ *
+ * MW-2: this used to branch on [NSMenu menuBarVisible] — the legacy
+ * fullscreen implementation's process-wide menu-bar flag — and force
+ * [[NSScreen mainScreen] frame] with hand-tuned -6/+16 fudges to
+ * compensate for the menu bar it was managing itself. Native full screen
+ * owns the menu bar, so -visibleFrame gives the correct rect in both
+ * states without the fudges, and on the right screen. */
 -(NSRect)constrainFrameRect:(NSRect)frameRect toScreen:(NSScreen *)aScreen
 {
-	if ([NSMenu menuBarVisible]) {
-		NSRect result = [[NSScreen mainScreen] frame];
-		result.size.height -= 6;
-		return result;
-	}
-	//NSRect result = [[NSScreen mainScreen] frame];
-	NSRect result=[super constrainFrameRect:[[NSScreen mainScreen] frame] toScreen:aScreen];
-	result.size.height+= 16;
-	return result;
+	NSScreen *screen = aScreen;
+	if (!screen) screen = [self screen];
+	if (!screen) screen = [NSScreen mainScreen];
+	return [screen visibleFrame];
 }
 
 

@@ -1029,11 +1029,6 @@ static const int DIALOG_CANCEL	= 129;
 			break;
 	}
 	
-	if ([defaults boolForKey:@"DontHideMenuBar"]) {
-		[dontHideMenubarCheck setState:NSOnState];
-	} else {
-		[dontHideMenubarCheck setState:NSOffState];
-	}
 	if ([defaults boolForKey:@"ShowThumbnailWhenOpen"]) {
 		[showThumbnailCheck setState:NSOnState];
 	} else {
@@ -1555,11 +1550,6 @@ static const int DIALOG_CANCEL	= 129;
 			break;
 		}
 		
-		if ([dontHideMenubarCheck state]==NSOnState) {
-			[defaults setBool:YES forKey:@"DontHideMenuBar"];
-		} else {
-			[defaults setBool:NO forKey:@"DontHideMenuBar"];
-		}
 		if ([showThumbnailCheck state]==NSOnState) {
 			[defaults setBool:YES forKey:@"ShowThumbnailWhenOpen"];
 		} else {

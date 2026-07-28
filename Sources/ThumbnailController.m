@@ -40,7 +40,8 @@
 	
 	
 	NSSize max = [nameTextField frame].size;
-	max = NSMakeSize([[NSScreen mainScreen] frame].size.width-497-33,max.height);
+	NSScreen *labelScreen = [panel screen] ? [panel screen] : [NSScreen mainScreen];
+	max = NSMakeSize([labelScreen frame].size.width-497-33,max.height);
 	[nameTextField setMaxSize:max];
 	
 
@@ -941,7 +942,8 @@
         [matrix removeRow:0];
     }
 	
-	[panel setFrame:[[NSScreen mainScreen] frame] display:NO];
+	NSScreen *panelScreen = [panel screen] ? [panel screen] : [NSScreen mainScreen];
+	[panel setFrame:[panelScreen frame] display:NO];
 	[matrix renewRows:rowI columns:columnI];
 	
 	NSRect rect = [matrix frame];

@@ -23,11 +23,12 @@
 -(void)becomeKeyWindow
 {
 	[super becomeKeyWindow];
-	
-	if ([[[NSApp windowsMenu] itemWithTitle:NSLocalizedString(@"Fullscreen", @"")] state] == NSOnState){
-		if ([[NSUserDefaults standardUserDefaults] boolForKey:@"DontHideMenuBar"] == NO) [NSMenu setMenuBarVisible:NO];
-	}
-	 
+
+	/* MW-2: this used to re-hide the menu bar process-wide, reading the
+	   Window ▸ Fullscreen menu item's check-mark as the authoritative
+	   fullscreen state and the DontHideMenuBar default as an override.
+	   Native full screen manages the menu bar itself (reveal-on-hover),
+	   and both of those inputs are gone. */
 }
 
 
@@ -148,7 +149,8 @@
 
 -(void)setSelfMaxSize
 {
-	NSRect fullscreenRect = [[NSScreen mainScreen] frame];
+	NSScreen *panelScreen = [self screen] ? [self screen] : [NSScreen mainScreen];
+	NSRect fullscreenRect = [panelScreen frame];
 	id view = [[[[self contentView] subviews] objectAtIndex:0] documentView];
 	
 	NSScrollView *scrollView = [view enclosingScrollView];

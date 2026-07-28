@@ -386,6 +386,34 @@ fullscreen), which is why the direction is now "proceed".
    regardless (unverified at runtime). Removing the legacy fullscreen
    state in MW-2 removes the key, both readers and the ordering
    dependency — do not patch it in place beforehand.
+
+   **Implemented 2026-07-29** (`docs/tasks/2026-07-29-01-mw2-native-fullscreen.md`).
+   Two points the plan left to be decided and recorded:
+
+   - **Orphaned defaults keys.** The stored `Fullscreen` and
+     `DontHideMenuBar` values are **left in place, not deleted.** Nothing
+     reads them any more, so they are inert; deleting them would mean
+     writing a migration that touches every user's domain for no
+     behavioural gain, and keeping them costs two unused keys. If a
+     future task ever does a defaults cleanup sweep, these belong in it.
+   - **Frame persistence.** The manual
+     `saveFrameUsingName:`/`setFrameUsingName:@"NormalWindow"` pair was
+     replaced by `-[NSWindow setFrameAutosaveName:@"NormalWindow"]`,
+     keeping the **same key name** so existing users keep their saved
+     window frame. AppKit then persists and restores it, and correctly
+     ignores frames taken while full screen — which is what the manual
+     pair, guarded by `if (![window isFullScreen])`, was doing by hand.
+     MW-6 revisits the name itself when there is more than one window.
+
+   Two behaviour changes worth noting beyond the fullscreen mechanism
+   itself, both consequences of removing the legacy implementation:
+   `ThumbnailPanel -constrainFrameRect:toScreen:` now returns the
+   `-visibleFrame` of the screen it is on, instead of branching on the
+   process-wide `[NSMenu menuBarVisible]` flag and forcing
+   `[[NSScreen mainScreen] frame]` with hand-tuned -6/+16 fudges; and the
+   nine `[[NSScreen mainScreen] frame]` sites outside `CustomWindow` now
+   use the owning window's own screen, so a window on a secondary display
+   is no longer measured against the main one.
 2. **Same book reopened:** bring the existing window to the front —
    keyed on the **resolved book path**, not the URL passed in (see
    above).

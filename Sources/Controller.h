@@ -260,14 +260,12 @@
 - (IBAction)showFilterPanel:(id)sender;
 
 
-- (IBAction)fullscreen:(id)sender;
 - (void)viewSet;
 - (void)windowWillClose:(NSNotification *)aNotofication;
 - (void)applicationWillTerminate:(NSNotification *)notification;
 
 
 - (void)viewDidEndLiveResize:(NSNotification *)aNotification;
-- (void)windowDidResize:(NSNotification *)aNotification;
 
 - (void)openLink:(NSURL *)url;
 

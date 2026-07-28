@@ -58,7 +58,6 @@ static const int DIALOG_CANCEL	= 129;
 	
 #pragma mark default
 	BOOL openLastFolder;
-	BOOL fullscreen;
 	
 	NSMutableDictionary *appDefault = [NSMutableDictionary dictionary];
 	
@@ -67,11 +66,9 @@ static const int DIALOG_CANCEL	= 129;
 		[appDefault setObject:[NSNumber numberWithInt:bufferingMode] forKey:@"BufferingMode"];
 	}
 	openLastFolder = YES;
-	fullscreen = YES;
 	wheelSensitivity = 0.1;  // default: highest sensitivity (slider at max/high)
 	
 	[appDefault setObject:[NSNumber numberWithBool:openLastFolder] forKey:@"OpenLastFolder"];
-	[appDefault setObject:[NSNumber numberWithBool:fullscreen] forKey:@"Fullscreen"];
 
 	[appDefault setObject:[NSNumber numberWithFloat:wheelSensitivity] forKey:@"WheelSensitivity"];
 	
@@ -196,10 +193,10 @@ static const int DIALOG_CANCEL	= 129;
 	[window setBackgroundColor:viewBackGround];
     viewBackGround = [viewBackGround colorWithAlphaComponent:1];
 
-	fullscreen = [defaults boolForKey:@"Fullscreen"];
-	if (!fullscreen) {
-		[[[[[NSApp mainMenu] itemWithTitle:NSLocalizedString(@"Window", @"")] submenu]  itemWithTitle:NSLocalizedString(@"Fullscreen", @"")] setState:NSOffState];
-	}
+	/* MW-2: the "Fullscreen" default and the menu item's check-mark are
+	   gone. Full screen is AppKit's own state now, read from the window's
+	   style mask, and the Window menu carries the standard
+	   Enter/Exit Full Screen item instead. */
 	
 	
 	
@@ -270,7 +267,6 @@ static const int DIALOG_CANCEL	= 129;
 	[defaults setInteger:loopCheck forKey:@"LoopCheck"];
 	[defaults setBool:numberSwitch forKey:@"ShowNumber"];
 	[defaults setInteger:maxEnlargement forKey:@"MaxEnlargement"];
-	[defaults setBool:fullscreen forKey:@"Fullscreen"];
 	[defaults setBool:readSubFolder forKey:@"ReadSubFolder"];
 
 	
@@ -285,12 +281,6 @@ static const int DIALOG_CANCEL	= 129;
 	[defaults setBool:openLastFolder forKey:@"OpenLastFolder"];
 	[self setOpenRecentMenu];
 	
-	if ([defaults boolForKey:@"DontHideMenuBar"]) {
-		[window setHideMenuBar:NO];
-	} else {
-		[window setHideMenuBar:YES];
-	}
-
 	BOOL ignoreImageDpi = [defaults boolForKey:@"IgnoreImageDpi"];
 	[fullImageView setIgnoreImageDpi:ignoreImageDpi];
 	[imageView setIgnoreImageDpi:ignoreImageDpi];
@@ -1055,7 +1045,6 @@ static const int DIALOG_CANCEL	= 129;
 	
 	[progressIndicator stopAnimation:self];
 	//[imageView displayRect:rect];
-	[window updateTrackingRect];
 	[self viewSet];
 	[self imageDisplay];
 	
@@ -1653,8 +1642,12 @@ static const int DIALOG_CANCEL	= 129;
 	if (bufferingMode == 1) return nil;
 	
 	
-	NSRect fullscreenRect;
-	fullscreenRect = [[NSScreen mainScreen] frame];
+	/* MW-2: was [[NSScreen mainScreen] frame] — the wrong screen whenever
+	   the window was on a secondary display. The spread is still composed
+	   at screen resolution rather than view size, so that downscaling to
+	   the view keeps its quality; only *which* screen changed. */
+	NSScreen *composeScreen = [window screen] ? [window screen] : [NSScreen mainScreen];
+	NSRect fullscreenRect = [composeScreen frame];
 	
 	int widthValue01 = (int)[image1 size].width;
 	int heightValue01 = (int)[image1 size].height;
@@ -2105,12 +2098,6 @@ static const int DIALOG_CANCEL	= 129;
     BOOL useCalayer = [defaults boolForKey:@"UseCALayer"];
     [imageView setUseCalayer:useCalayer];
 	
-	if ([defaults boolForKey:@"DontHideMenuBar"]) {
-		[window setHideMenuBar:NO];
-	} else {
-		[window setHideMenuBar:YES];
-	}
-    
 	BOOL ignoreImageDpi = [defaults boolForKey:@"IgnoreImageDpi"];
 	[fullImageView setIgnoreImageDpi:ignoreImageDpi];
 	[imageView setIgnoreImageDpi:ignoreImageDpi];
@@ -2286,18 +2273,6 @@ static const int DIALOG_CANCEL	= 129;
 			return YES;
 		} else {
 			//	return NO;
-			return YES;
-		}
-	} else if ([[anItem title] isEqualToString:NSLocalizedString(@"Fullscreen", @"")] == YES) {
-		if ([window isVisible]) {
-			if (![window isKeyWindow]) {
-				return NO;
-			} else {
-				return YES;
-			}
-		} else if ([window isMiniaturized]) {
-			return NO;
-		} else {
 			return YES;
 		}
 	} else if ([[anItem title] isEqualToString:NSLocalizedString(@"Open the last page", @"")] == YES) {
@@ -3039,18 +3014,17 @@ static const int DIALOG_CANCEL	= 129;
 #pragma mark -
 
 
-- (IBAction)fullscreen:(id)sender
+/* Re-render for the window's current size. A two-page spread is composed
+ * against the view, so any size change has to redo it.
+ *
+ * Before MW-2 this body was duplicated in -fullscreen: and
+ * -viewDidEndLiveResize:. -fullscreen: is gone (the Window menu now has
+ * AppKit's own Enter/Exit Full Screen item), so the fullscreen half is
+ * driven by the real transition notifications below instead. Those are
+ * needed because entering full screen is a programmatic frame change and
+ * does not produce a live resize. */
+- (void)recomposeForCurrentSize
 {
-	if ([sender state] == NSOffState) {
-		[window setFullScreen:YES];
-		[sender setState:NSOnState];
-		[defaults setBool:YES forKey:@"Fullscreen"];
-	} else {
-		[window setFullScreen:NO];
-		[sender setState:NSOffState];
-		[defaults setBool:NO forKey:@"Fullscreen"];
-	}
-	
 	if (bufferingMode == 0) {
 		if (secondImage) {
 			[self composeImage];
@@ -3059,13 +3033,23 @@ static const int DIALOG_CANCEL	= 129;
 			[imageView setImage:firstImage];
 			[self lookaheadAndCompose];
 		}
-    } else {
-        if (secondImage) {
-            [imageView setImages:secondImage];
-        } else {
-            [imageView setImage:firstImage];
-        }
-    }
+	} else {
+		if (secondImage) {
+			[imageView setImages:secondImage];
+		} else {
+			[imageView setImage:firstImage];
+		}
+	}
+}
+
+- (void)windowDidEnterFullScreen:(NSNotification *)aNotification
+{
+	[self recomposeForCurrentSize];
+}
+
+- (void)windowDidExitFullScreen:(NSNotification *)aNotification
+{
+	[self recomposeForCurrentSize];
 }
 
 
@@ -3235,14 +3219,6 @@ static const int DIALOG_CANCEL	= 129;
 	}
 }
 
-- (void)windowDidMove:(NSNotification *)aNotification
-{
-	if (![window isFullScreen]) [window saveFrameUsingName:@"NormalWindow"];
-}
-- (void)windowDidResize:(NSNotification *)aNotification
-{
-	if (![window isFullScreen]) [window saveFrameUsingName:@"NormalWindow"];
-}
 - (void)applicationWillTerminate:(NSNotification *)notification
 {
 	[defaults synchronize];
@@ -3276,21 +3252,7 @@ static const int DIALOG_CANCEL	= 129;
 
 - (void)viewDidEndLiveResize:(NSNotification *)aNotification
 {
-    if (bufferingMode == 0) {
-        if (secondImage) {
-            [self composeImage];
-            [self lookaheadAndCompose];
-        } else {
-            [imageView setImage:firstImage];
-            [self lookaheadAndCompose];
-        }
-    } else {
-        if (secondImage) {
-            [imageView setImages:secondImage];
-        } else {
-            [imageView setImage:firstImage];
-        }
-    }
+	[self recomposeForCurrentSize];
 }
 
 - (void)openLink:(NSURL *)url

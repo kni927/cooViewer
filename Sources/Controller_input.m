@@ -772,11 +772,10 @@ static BOOL appleRemoteHoldDown = NO;
 				case 49:
 					//switchFullScreen
 					{
-						NSMenu *menu = [[[NSApp mainMenu] itemWithTitle:NSLocalizedString(@"Window", @"")] submenu];
-						NSMenuItem *item = [menu itemWithTitle:NSLocalizedString(@"Fullscreen", @"")];
-						if ([item isEnabled]) {
-							[menu performActionForItemAtIndex:[menu indexOfItem:item]];
-						}
+						/* MW-2: was driven through the Window menu's own
+						   "Fullscreen" item, whose check-mark doubled as the
+						   state store. Goes straight to AppKit now. */
+						[window toggleFullScreen:self];
 					}
 					break;
 				case 50:
@@ -1762,11 +1761,8 @@ static BOOL appleRemoteHoldDown = NO;
 				case 61:
 					//switchFullScreen
 				{
-					NSMenu *menu = [[[NSApp mainMenu] itemWithTitle:NSLocalizedString(@"Window", @"")] submenu];
-					NSMenuItem *item = [menu itemWithTitle:NSLocalizedString(@"Fullscreen", @"")];
-					if ([item isEnabled]) {
-						[menu performActionForItemAtIndex:[menu indexOfItem:item]];
-					}
+					/* MW-2: see case 49. */
+					[window toggleFullScreen:self];
 				}
 					break;
 				case 62:
@@ -2005,7 +2001,8 @@ static BOOL appleRemoteHoldDown = NO;
 				 frameRectForContentRect:theScrollViewRect
 							   styleMask:[ fullImagePanel styleMask]
 		];
-	NSRect fullscreenRect = [[NSScreen mainScreen] frame];
+	NSScreen *panelScreen = [fullImagePanel screen] ? [fullImagePanel screen] : [NSScreen mainScreen];
+	NSRect fullscreenRect = [panelScreen frame];
 	if (theWindowMaxRect.size.width > fullscreenRect.size.width) {
 		theWindowMaxRect.size.width = fullscreenRect.size.width;
 	}
@@ -2055,7 +2052,8 @@ static BOOL appleRemoteHoldDown = NO;
                      frameRectForContentRect:theScrollViewRect
 								   styleMask:[ fullImagePanel styleMask]
 		];
-	NSRect fullscreenRect = [[NSScreen mainScreen] frame];
+	NSScreen *panelScreen = [fullImagePanel screen] ? [fullImagePanel screen] : [NSScreen mainScreen];
+	NSRect fullscreenRect = [panelScreen frame];
 	if (theWindowMaxRect.size.width > fullscreenRect.size.width) {
 		theWindowMaxRect.size.width = fullscreenRect.size.width;
 	}

@@ -26,7 +26,6 @@
 	IBOutlet id changeOpenWithCheck;
 	IBOutlet id changeCreatorCheck;
 	
-	IBOutlet id dontHideMenubarCheck;
 	IBOutlet id showThumbnailCheck;
 	
 	IBOutlet id imageCacheTextField;

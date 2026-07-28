@@ -193,8 +193,8 @@
 /* Class = "NSMenu"; title = "OtherViews"; ObjectID = "924"; */
 "924.title" = "OtherViews";
 
-/* Class = "NSMenuItem"; title = "Fullscreen"; ObjectID = "926"; */
-"926.title" = "フルスクリーン";
+/* Class = "NSMenuItem"; title = "Enter Full Screen"; ObjectID = "926"; */
+"926.title" = "フルスクリーンにする";
 
 /* Class = "NSMenuItem"; title = "Previous Folder"; ObjectID = "934"; */
 "934.title" = "前のフォルダ・アーカイブへ";
