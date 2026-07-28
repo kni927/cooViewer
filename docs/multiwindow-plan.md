@@ -114,6 +114,67 @@ Consequences that follow from these and are treated as settled:
 
 ---
 
+## Cross-cutting constraint: image quality (read before every MW task)
+
+The inviolable rule is at the top of `CLAUDE.md`: **no MW task may add a
+resize/rescale step between the decoded image and the display.** A
+two-page spread is composed at screen resolution and scaled down to the
+view exactly once.
+
+Scan of MW-3 … MW-9 against that rule, done 2026-07-29. Two tasks are
+clean; the rest carry a specific temptation, listed here so it is not
+rediscovered mid-task.
+
+- **MW-3 — clean.** Nothing it moves touches the render path.
+
+- **MW-4 — low.** It retargets `fitToScreen:`, `fitToScreenWidth:`,
+  `fitToScreenWidthDivide:`, `noScale:`, `rotateLeft:` and
+  `rotateRight:`, which *are* render-path actions. The task changes only
+  their **target**, never their bodies. Do not "tidy" scaling logic while
+  rewiring a menu item.
+
+- **MW-5 — highest risk in the arc.** Two distinct hazards:
+  1. `CustomImageView` moves into a new nib. Its rendering depends on
+     state configured from outside — `setUseCalayer:` (layer-backing
+     changes how AppKit resamples), `setInterpolation:`,
+     `setIgnoreImageDpi:` — plus its autoresizing setup. Recreating the
+     view in `BookWindow.xib` must preserve all of it. Verify by
+     comparing actual rendering before and after, not by checking that
+     the window "looks fine".
+  2. Removing the `window` ivar (scope item 3) touches
+     `returnComposeImage:`, which sizes its canvas from `[window screen]`.
+     `NSWindowController`'s accessor can be nil at points the ivar was
+     not, so the `mainScreen` fallback must stay. **Never** substitute
+     the view's bounds — that is exactly the violation.
+
+- **MW-6 — memory-pressure temptation.** `screenCacheArray` caches
+  *composed, screen-resolution* images (`Controller.m:1578-1596`, keyed
+  by page pair + `fitScreenMode`). Per-window controllers multiply that
+  by the number of open windows. Composing at window or view size would
+  shrink it — and is forbidden. If the memory cost is real, reduce the
+  `screenCache` **count**, or share the cache, or make eviction smarter.
+  Never reduce the canvas.
+
+- **MW-7 — a real pre-existing bug surfaces here, and its obvious fix is
+  the wrong one.** The compose cache key is page pair + `fitScreenMode`
+  **only — the screen is not part of it.** Harmless with one window on
+  one display; with several windows across displays of different sizes, a
+  composite built for screen A can be served to a window on screen B.
+  The correct fix is to **add the screen (or its frame size) to the cache
+  key**. The tempting fix — compose per view instead — trades the
+  quality guarantee away. Flagged as new work for MW-7, not a
+  regression it introduces.
+
+- **MW-8 — clean.** Restoring into full screen re-enters
+  `-recomposeForCurrentSize` via `windowDidEnterFullScreen:`, which is
+  the existing path. Restorable state must carry the book path, page and
+  view mode only — never a rendered image.
+
+- **MW-9 — gap.** The matrix as written verifies behaviour but nothing
+  verifies *rendering*. Case 16 has been added for this.
+
+---
+
 ## Task list
 
 | Task | Title | Windows | User-visible change |
@@ -241,12 +302,21 @@ split — making MW-4, MW-5 and MW-6 materially smaller.
    Removing the key is also what resolves the fresh-install
    `awakeFromNib` ordering hazard (see A2) — by elimination, not by a
    separate fix.
-6. Replace `[[NSScreen mainScreen] frame]` with the window's own
-   screen or the view's bounds at the 9 non-`CustomWindow` sites:
-   `Controller.m:1479` (`returnComposeImage:` — should use the view,
-   not a screen), `Controller_input.m:2008, 2058`,
+6. Replace `[[NSScreen mainScreen] frame]` with **the window's own
+   screen** at the 9 non-`CustomWindow` sites: `Controller.m:1479`
+   (`returnComposeImage:`), `Controller_input.m:2008, 2058`,
    `FullImagePanel.m:151, 225`, `ThumbnailController.m:43, 944`,
    `ThumbnailPanel.m:43, 48`.
+
+   **Corrected 2026-07-29.** This item originally said
+   `returnComposeImage:` "should use the view, not a screen". That was
+   wrong and was **not** implemented. A spread is composed at screen
+   resolution and downscaled to the view exactly once; composing at view
+   size would add a second resampling step and degrade image quality —
+   the one thing cooViewer must not trade away. See the inviolable
+   constraint at the top of `CLAUDE.md` and
+   `docs/tasks/2026-07-29-01-mw2-native-fullscreen.md`. Only *which
+   screen* is measured changed at that site.
 7. Update `-[Controller validateMenuItem:]`'s Fullscreen branch
    (`Controller.m:2113`).
 
@@ -503,6 +573,14 @@ apply).
     terminating.
 15. Folder-as-book and `.cvbdl` package open correctly in their own
     windows.
+16. **Image quality unchanged from the pre-MW baseline.** The rest of
+    this matrix checks behaviour, not rendering, and the whole arc must
+    not cost a single resampling step (see the cross-cutting constraint
+    above and the top of `CLAUDE.md`). Capture the same page from the
+    same fixture, at the same window size and `fitScreenMode`, on a
+    pre-MW-1 build and on the final build, as a single-page view **and**
+    as a two-page spread, and compare the pixels. Any softening means an
+    extra rescale crept in somewhere.
 
 Also: build with no new warnings; `build/` contains only
 `cooViewer.app`; update `docs/DEV_LOG.md` and `docs/KNOWN_ISSUES.md`.

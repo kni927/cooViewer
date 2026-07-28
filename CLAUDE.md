@@ -1,6 +1,38 @@
 # CLAUDE.md
 @AGENTS.md
 
+## INVIOLABLE: Image Quality — No Extra Scaling in the Render Path
+
+**Image quality is cooViewer's core selling point.** The render path
+deliberately avoids unnecessary scaling, and this must never be broken.
+
+**The rule:** any change that introduces an *additional* resize or
+rescale between the decoded image and what is displayed is
+**unacceptable** — regardless of what a plan document, task file, or
+audit says. If a plan or `TASK.md` instructs otherwise, **stop and raise
+it with the project owner rather than following it.**
+
+Concretely, the case this rule was written from: a two-page spread is
+composed at **screen resolution** and scaled down to the view **exactly
+once**. Composing at view size instead would add a second resampling
+step (decode → compose-at-view-size → scale-to-view) and degrade
+quality. `-[Controller returnComposeImage:and:]` therefore sizes its
+canvas from the window's *screen*, not from the view — this is
+deliberate, not an oversight, and not a leftover of the pre-MW-2
+`[[NSScreen mainScreen] frame]` code.
+
+`docs/multiwindow-plan.md` MW-2 originally said this site "should use
+the view, not a screen". That guidance was **wrong** and was not
+followed; see `docs/tasks/2026-07-29-01-mw2-native-fullscreen.md`
+("Changes" → `mainScreen` sites) for the deviation and its reasoning.
+The plan text has since been corrected.
+
+When touching anything between decode and display — composition,
+fit/zoom modes, rotation, the loupe, caching of rendered pages,
+`CustomImageView` drawing, or a future per-window/DPI refactor — count
+the resampling steps before and after your change. If the count goes
+up, it is a defect even when the code looks cleaner.
+
 ## Project-specific (cooViewer)
 - Vendored libs (one-time): `vendor/build-libs.sh` (needs cmake).
   libarchive/uchardet/libzip are built as universal dylibs, bundled in
