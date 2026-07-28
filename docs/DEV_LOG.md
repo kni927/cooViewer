@@ -75,7 +75,7 @@ git submodule update --init --recursive
 **Two-page spread: correct page detection**
 - `Controller.m` `imageInfoForClickPoint:(NSPoint)windowPoint` determines which page was clicked
 - Uses `[[window contentView] frame]` center X vs click X, combined with `readMode` to map geometric left/right to firstImage/secondImage
-- Image layout (from `returnComposeImage:secondImage and:firstImage`):
+- Image layout (since 2026-07-29 from `-[CustomImageView drawImages:and:]`; was `returnComposeImage:secondImage and:firstImage` before the legacy composited path was removed):
   - readMode 0,2 (RTL): LEFT = secondImage, RIGHT = firstImage
   - readMode 1,3 (LTR): LEFT = firstImage, RIGHT = secondImage
 - Returns `NSDictionary` with `@"path"` (for filename + direct file copy) and `@"image"` (NSImage for fallback encode)
@@ -689,9 +689,12 @@ rightMouseDown: → mouseDown: → (on mouseUp:) mouseAction: → case 59 → [i
 setPageTextField → pageTextFieldString → [imageView setPageString:]
 ```
 
-**Two-page image composition:**
+**Two-page spread drawing** (single path since 2026-07-29 — the legacy
+composited `BufferingMode = 0` path and `returnComposeImage:` were
+removed; see `docs/DECISIONS.md`):
 ```
-composeImage → returnComposeImage(secondImage, firstImage)
+composeImage → [imageView setImages:secondImage]
+  → drawRect: → drawImages:image1 and:image2   (each page drawn straight into the view)
   RTL: secondImage=LEFT, firstImage=RIGHT
   LTR: firstImage=LEFT, secondImage=RIGHT
 ```

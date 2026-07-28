@@ -117,13 +117,13 @@ Consequences that follow from these and are treated as settled:
 ## Cross-cutting constraint: image quality (read before every MW task)
 
 The inviolable rule is at the top of `CLAUDE.md`: **no MW task may add a
-resize/rescale step between the decoded image and the display.** A
-two-page spread is composed at screen resolution and scaled down to the
-view exactly once.
+resize/rescale step between the decoded image and the display.** Since
+2026-07-29 there is exactly one spread path: each page is drawn straight
+into the view by `-[CustomImageView drawImages:and:]`, one resampling
+step. There is no intermediate composite and no compose cache.
 
-Scan of MW-3 … MW-9 against that rule, done 2026-07-29. Two tasks are
-clean; the rest carry a specific temptation, listed here so it is not
-rediscovered mid-task.
+Scan of MW-3 … MW-9 against that rule, done 2026-07-29 and revised the
+same day after the legacy composited path was removed.
 
 - **MW-3 — clean.** Nothing it moves touches the render path.
 
@@ -141,48 +141,25 @@ rediscovered mid-task.
      view in `BookWindow.xib` must preserve all of it. Verify by
      comparing actual rendering before and after, not by checking that
      the window "looks fine".
-  2. Removing the `window` ivar (scope item 3) touches
-     `returnComposeImage:`, which sizes its canvas from `[window screen]`.
-     `NSWindowController`'s accessor can be nil at points the ivar was
-     not, so the `mainScreen` fallback must stay. **Never** substitute
-     the view's bounds — that is exactly the violation.
+  2. Hazard 2 previously concerned `returnComposeImage:` and the
+     `window` ivar. That method no longer exists. What remains: the
+     spread geometry now comes entirely from the view
+     (`-[CustomImageView getDrawImagesInfo:and:]`), so MW-5 must not
+     change when or how `CustomImageView` learns its bounds — a wrong
+     bounds value at draw time is now a rendering bug with no compositor
+     in between to absorb it.
 
-- **MW-6 — memory-pressure temptation, but a much smaller one than first
-  assessed.** `screenCacheArray` caches *composed, screen-resolution*
-  images (`Controller.m:1578-1596`, keyed by page pair +
-  `fitScreenMode`), and per-window controllers would multiply that by
-  the number of open windows.
+- **MW-6 — no longer applicable.** This flagged `screenCacheArray`, a
+  cache of composed screen-resolution images that per-window controllers
+  would have multiplied. **The composited path and its cache were deleted
+  on 2026-07-29** (`docs/tasks/2026-07-29-02-remove-legacy-composited-path.md`),
+  so there is nothing left to multiply. Nothing to do in MW-6.
 
-  **Revised 2026-07-29:** this cache is off on default settings and does
-  not exist at all on the path most use goes through. `screenCache > 0`
-  gates both the store and the lookup and `ScreenCache` defaults to
-  **0**; and the whole composite only exists when `BufferingMode = 0`
-  ("Old"), whereas the registered default is `1` ("New"), which draws
-  each page straight into the view. So the realistic memory multiplier
-  for MW-6 is **zero** unless a user has deliberately selected the
-  legacy path *and* raised the cache count. Do not spend MW-6 effort on
-  it.
-
-  The prohibition still stands if it ever is a problem: reduce the
-  `screenCache` **count**, share the cache, or make eviction smarter —
-  never shrink the canvas.
-
-- **MW-7 — a pre-existing cache-key gap, but it could not be shown to
-  cause a defect.** The compose cache key is page pair + `fitScreenMode`
-  **only — the screen is not part of it** — and nothing invalidates on a
-  screen change, so in principle a composite built for screen A can be
-  served to a window on screen B.
-
-  **Revised 2026-07-29:** an attempt to reproduce this on displays of
-  genuinely different logical size *and* scale factor produced a
-  **pixel-identical** result (mean absolute difference 0.0000). It also
-  requires `BufferingMode = 0` and `ScreenCache > 0`, neither of which is
-  the default. Full write-up and the limitations of that test are in
-  `docs/KNOWN_ISSUES.md` #21. **Do not implement a fix in MW-7 on the
-  strength of the code reading alone** — instrument first and establish
-  that a stale composite is actually served. If it is ever confirmed,
-  the fix is to add the screen's frame size to the key, never to compose
-  per view.
+- **MW-7 — no longer applicable.** This flagged the compose cache being
+  keyed by page pair + `fitScreenMode` but not by screen, with no
+  invalidation on a screen change (`KNOWN_ISSUES` #21). **Resolved by
+  deletion** in the same task: there is no compose cache. `KNOWN_ISSUES`
+  #21 is closed. Nothing to do in MW-7.
 
 - **MW-8 — clean.** Restoring into full screen re-enters
   `-recomposeForCurrentSize` via `windowDidEnterFullScreen:`, which is
@@ -342,6 +319,10 @@ split — making MW-4, MW-5 and MW-6 materially smaller.
    ("Old") path, which costs two resampling steps either way and is not
    the default. The default and higher-quality path draws each page
    straight into the view and never reaches this code.
+
+   **Superseded 2026-07-29:** the composited path was removed entirely,
+   so `returnComposeImage:` and this site no longer exist. Retained as a
+   record of what MW-2 actually did.
 7. Update `-[Controller validateMenuItem:]`'s Fullscreen branch
    (`Controller.m:2113`).
 
@@ -642,36 +623,31 @@ apply).
     terminating.
 15. Folder-as-book and `.cvbdl` package open correctly in their own
     windows.
-16. **Image quality unchanged from the pre-MW baseline — on _both_
-    spread paths.** The rest of this matrix checks behaviour, not
-    rendering, and the whole arc must not cost a single resampling step
-    (see the cross-cutting constraint above and the top of `CLAUDE.md`).
+16. **Image quality unchanged from the pre-MW baseline.** The rest of
+    this matrix checks behaviour, not rendering, and the whole arc must
+    not cost a single resampling step (see the cross-cutting constraint
+    above and the top of `CLAUDE.md`).
 
-    There are two spread-rendering paths, selected by `BufferingMode`,
-    and they do not share code. Testing one proves nothing about the
-    other, so run both:
+    **Simplified 2026-07-29.** This case previously had to be run three
+    times (16a/16b/16c) because two spread-rendering paths existed and
+    shared no code. The legacy composited path (`BufferingMode = 0`) has
+    since been deleted, so **there is now exactly one path** — each page
+    drawn straight into the view by `-[CustomImageView drawImages:and:]`,
+    one resampling step — and `BufferingMode` / `ScreenCache` no longer
+    do anything. One run covers everything.
 
-    | Sub-case | Settings | Path exercised |
-    |---|---|---|
-    | **16a — priority** | `BufferingMode = 1` ("New"), `ScreenCache` irrelevant (its field is disabled) | **Direct**: `setImages:` → `drawImages:and:`, each page drawn straight into the view. **1** resampling step. |
-    | 16b | `BufferingMode = 0` ("Old"), `ScreenCache = 0` | Composited, cache off. 2 steps. |
-    | 16c | `BufferingMode = 0` ("Old"), `ScreenCache = 5` | Composited, cache on — also covers the cache being served across page turns. |
+    Capture the same page from the same fixture, at the same window size
+    and `fitScreenMode`, on a pre-MW-1 build and on the final build, as a
+    single-page view **and** as a two-page spread, and compare the pixels
+    — mean absolute difference and a sharpness measure, not a visual
+    check.
 
-    **16a is the one that must not be skipped.** `BufferingMode`
-    defaults to `1` and that is the project owner's everyday setting, so
-    the direct path is what nearly all real use goes through — yet it is
-    the path with *no* composite, which means none of the compose-side
-    reasoning in this plan applies to it.
-
-    Method for each: capture the same page from the same fixture, at the
-    same window size and `fitScreenMode`, on a pre-MW-1 build and on the
-    final build, as a single-page view **and** as a two-page spread, and
-    compare the pixels — mean absolute difference and a sharpness
-    measure, not a visual check. Confirm the settings took effect before
-    capturing; a mis-set `BufferingMode` silently tests the wrong path.
-
-    Restore `BufferingMode` / `ScreenCache` to their original values
-    afterwards and verify the restore.
+    Note when choosing the baseline build: a pre-2026-07-29 build with
+    `BufferingMode = 0` will *not* match, and that is expected — the two
+    paths laid spreads out differently (the composited one scaled each
+    page independently, giving mismatched heights). Take the baseline
+    with `BufferingMode = 1`, which is the default and renders identically
+    across the removal.
 
 Also: build with no new warnings; `build/` contains only
 `cooViewer.app`; update `docs/DEV_LOG.md` and `docs/KNOWN_ISSUES.md`.

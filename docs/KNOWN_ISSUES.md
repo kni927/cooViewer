@@ -620,152 +620,24 @@ Normalising both files to UTF-8 would remove the trap and is a
 reasonable standalone task; it has not been done because it rewrites a
 large localization file wholesale and wants its own verification pass.
 
-## 21. Composed-Spread Cache Is Not Keyed By Screen, and Nothing Invalidates It on a Screen Change
+## 21. ~~Composed-Spread Cache Is Not Keyed By Screen~~ — RESOLVED BY DELETION (2026-07-29)
 
-**Pre-existing (v1.5.2 and earlier), not introduced by the multi-window
-work.** The mechanism is confirmed by code inspection. **An attempt to
-reproduce it on displays of genuinely different size and scale did not
-produce any measurable defect** — see "Attempted reproduction" below.
-Not fixed.
+**Closed.** The composed-spread cache no longer exists. The legacy
+"Old" composited render path (`BufferingMode = 0`) — and with it
+`returnComposeImage:and:`, `screenCacheArray`, the `ScreenCache`
+preference and `-imageDisplayIfHasScreenCache` — was removed in
+`docs/tasks/2026-07-29-02-remove-legacy-composited-path.md`. Every
+spread is now drawn straight into the view, so there is no composite to
+cache, no cache key to omit the screen from, and nothing to invalidate
+on a screen change.
 
-A two-page spread is composed at screen resolution and cached in
-`screenCacheArray` (`Controller.m`, entries added around 1578-1596 and
-1815-1831). The cache entry is a dictionary keyed by:
+For the record, the issue was: the cache was keyed by page pair +
+`fitScreenMode` but not by screen, and nothing invalidated it when a
+window moved between displays. An attempt to reproduce it on displays of
+genuinely different logical size *and* scale factor produced a
+pixel-identical result, and it required two non-default settings
+(`BufferingMode = 0` **and** `ScreenCache > 0`) to be reachable at all.
+It was never demonstrated to cause a visible defect, and it is now moot.
 
-- `page` — the page pair, e.g. `"3-4"`
-- `fitScreenMode`
-
-and holding the composed image under `composed`. **The screen is not
-part of the key.** The canvas is sized from the window's screen
-(`returnComposeImage:and:` → `[composeScreen frame]`), so two screens of
-different logical size produce differently-sized composites that are
-nonetheless interchangeable as far as the lookup is concerned.
-
-Compounding it, nothing invalidates the cache when the window changes
-screen. `screenCacheArray` is fully cleared in exactly two places —
-`openPage:last:` (book switch) and `windowWillClose:` — and the app
-handles **no** screen-change notification at all: there is no
-`windowDidChangeScreen:`, no `NSApplicationDidChangeScreenParameters`
-observer, and no `viewDidChangeBackingProperties`. MW-2 added recompose
-triggers for `windowDidEnterFullScreen:` / `windowDidExitFullScreen:` and
-kept the live-resize one, but a plain drag from one display to another is
-none of those.
-
-Expected symptom: drag a window showing a two-page spread from a larger
-display to a smaller one (or between different backing scale factors)
-**without resizing it**, then page back and forth within the cached
-range. Pages served from the cache would carry the composite built for
-the previous screen, so they are scaled for the wrong target and then
-scaled again into the view — a visible softening, and exactly the kind of
-extra resampling step the inviolable constraint at the top of `CLAUDE.md`
-forbids.
-
-### It only exists on the non-default spread path
-
-Discovered while setting up the reproduction, and it narrows the scope
-sharply. **Neither the composite nor its cache exists on default
-settings:**
-
-- `BufferingMode` is registered with default **1** ("New" in
-  Preferences), and on that setting `returnComposeImage:and:` returns
-  nil immediately: `composeImage` takes the
-  `[imageView setImages:secondImage]` branch and each page is drawn
-  straight into the view by `-[CustomImageView drawImages:and:]`. No
-  composite is ever built. This is also the project owner's setting.
-- The composite only exists at `BufferingMode = 0` ("Old"), the legacy
-  path, which costs **two** resampling steps against the direct path's
-  one — see the two-path table at the top of `CLAUDE.md`.
-- `ScreenCache` defaults to **0**, and `screenCache > 0` gates both the
-  cache store *and* the cache lookup. Its Preferences field is disabled
-  outright while "New" is selected.
-
-So an affected user must have deliberately selected the legacy "Old"
-path *and* raised the cache count. Both had to be changed
-(`BufferingMode = 0`, `ScreenCache = 5`) before the cache could be
-exercised at all.
-
-### Attempted reproduction (2026-07-29) — did not reproduce
-
-Display 2 was temporarily switched to 2560×1440 @ scale 1.0, against
-display 1's 1920×1080 @ scale 2.0 — genuinely different in both logical
-size and scale factor, so the compose canvas differs between them
-(`NSScreen` frames `{{0,0},{1920,1080}}` and `{{1920,-360},{2560,1440}}`).
-Both the display mode and the defaults domain were restored afterwards
-and verified identical to their originals.
-
-Controlled comparison, both conditions showing the **same spread**
-(pages 002+001, visually confirmed) at the **same window geometry**
-(1707×900 pt at {2200,150}) on the **same display** (display 2):
-
-- **A** — spread composed while the window was on display 1, then the
-  window dragged to display 2 without resizing and navigated back to
-  that spread.
-- **B** — same spread composed with the window on display 2 from the
-  start.
-
-Result: **pixel-identical.** Mean absolute pixel difference `0.0000`,
-0.000% of pixels differing by more than 8/255, and an identical
-Laplacian sharpness measure (8.8791 for both). No softening, no
-difference of any kind.
-
-**Limitation, stated plainly:** this rules out a *visible* defect in that
-scenario, but it does not prove the cache was actually hit in condition
-A. Without instrumenting the build there is no way to distinguish "the
-cache was hit and the stale composite renders identically" from "the
-cache missed, so both conditions composed fresh". Two further attempts to
-compare across displays were discarded as invalid because navigation
-landed on different spreads (caught by the pixel comparison — mean luma
-and >8-difference counts made it obvious, which is exactly why the
-CLAUDE.md constraint says to compare output rather than eyeball it).
-
-### Fixing it
-
-The fix is to add the screen — its frame size, not the `NSScreen`
-pointer, which is not stable — to the cache key, and to invalidate or
-recompose on `windowDidChangeScreen:`.
-
-**Do not "fix" it by composing at view size instead.** That removes the
-mismatch by removing the screen-resolution composite, which costs an
-extra resampling step; see the inviolable constraint in `CLAUDE.md`.
-
-Deliberately **not** fixed (2026-07-29). The reason is no longer "it
-cannot be verified" — it now is that **no defect could be demonstrated**
-even under the conditions that should expose it, on a code path that is
-off by default. Changing the render path to fix a defect that cannot be
-shown to exist is the wrong trade under the CLAUDE.md constraint: the
-change itself would then be the unverifiable one.
-
-### If this is revisited: instrument before touching the render path
-
-The gap in the 2026-07-29 attempt was that a pixel-identical result has
-two explanations and they were not distinguishable from outside the
-process. Close that first, with a throwaway instrumented build — not a
-shipped change:
-
-1. In `-[Controller composeImage]`, log every cache **lookup** and
-   whether it hit, including the key (`page`, `fitScreenMode`) and the
-   `NSScreen` the window is on at that moment. This settles whether a
-   post-move page turn is actually served from the cache.
-2. In `returnComposeImage:and:`, log the canvas point size and the
-   resulting `NSImage`'s representation **pixel** size
-   (`[[image representations] firstObject] pixelsWide/pixelsHigh`) —
-   the point size follows the screen frame, but the backing resolution
-   follows the drawing context's scale, and the two move in opposite
-   directions between a 1920×1080@2x and a 2560×1440@1x display. That
-   opposition is the most likely reason the rendered output came out
-   identical, and it is worth confirming rather than assuming.
-3. Only if 1 and 2 together show a stale, wrong-resolution composite
-   being drawn should any render-path code change.
-
-Reproduction recipe for that build: set `BufferingMode = 0` and
-`ScreenCache = 5`, put two displays at clearly different logical size
-*and* scale, populate the cache on one, drag the window to the other
-without resizing, and page back into the cached range. Back up and
-restore both the display mode and the defaults domain, and verify the
-restores.
-
-It remains scoped to MW-7 in `docs/multiwindow-plan.md`, with the
-explicit instruction not to fix it there on the strength of the code
-reading alone. The earlier argument that MW-5/MW-6 make it urgent by
-multiplying the cache per window no longer holds: the cache is off by
-default and absent entirely from the default spread path.
+See `docs/DECISIONS.md`, "Legacy 'Old' composited render path removed",
+for why the path went rather than the bug being fixed in place.

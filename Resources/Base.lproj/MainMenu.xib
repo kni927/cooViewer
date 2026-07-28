@@ -1620,32 +1620,6 @@ go to the last page always.</string>
                                     <rect key="frame" x="10" y="33" width="587" height="488"/>
                                     <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
                                     <subviews>
-                                        <popUpButton verticalHuggingPriority="750" fixedFrame="YES" translatesAutoresizingMaskIntoConstraints="NO" id="1610">
-                                            <rect key="frame" x="124" y="377" width="84" height="22"/>
-                                            <autoresizingMask key="autoresizingMask" flexibleMaxX="YES" flexibleMinY="YES"/>
-                                            <popUpButtonCell key="cell" type="push" title="Old" bezelStyle="rounded" alignment="left" controlSize="small" lineBreakMode="truncatingTail" state="on" borderStyle="borderAndBezel" inset="2" arrowPosition="arrowAtCenter" preferredEdge="maxY" selectedItem="1613" id="4298">
-                                                <behavior key="behavior" lightByBackground="YES" lightByGray="YES"/>
-                                                <font key="font" metaFont="smallSystem"/>
-                                                <menu key="menu" title="OtherViews" id="1611">
-                                                    <items>
-                                                        <menuItem title="Old" state="on" id="1613"/>
-                                                        <menuItem title="New" id="1614"/>
-                                                    </items>
-                                                </menu>
-                                            </popUpButtonCell>
-                                            <connections>
-                                                <action selector="changeBufferingMode:" target="1673" id="2094"/>
-                                            </connections>
-                                        </popUpButton>
-                                        <textField verticalHuggingPriority="750" horizontalCompressionResistancePriority="250" fixedFrame="YES" translatesAutoresizingMaskIntoConstraints="NO" id="1615">
-                                            <rect key="frame" x="17" y="381" width="105" height="17"/>
-                                            <autoresizingMask key="autoresizingMask" flexibleMaxX="YES" flexibleMinY="YES"/>
-                                            <textFieldCell key="cell" sendsActionOnEndEditing="YES" alignment="left" title="Buffering mode:" id="4299">
-                                                <font key="font" metaFont="system"/>
-                                                <color key="textColor" name="controlTextColor" catalog="System" colorSpace="catalog"/>
-                                                <color key="backgroundColor" name="controlColor" catalog="System" colorSpace="catalog"/>
-                                            </textFieldCell>
-                                        </textField>
                                         <textField verticalHuggingPriority="750" horizontalCompressionResistancePriority="250" fixedFrame="YES" translatesAutoresizingMaskIntoConstraints="NO" id="g5s-pD-la3">
                                             <rect key="frame" x="17" y="427" width="105" height="17"/>
                                             <autoresizingMask key="autoresizingMask" flexibleMaxX="YES" flexibleMinY="YES"/>
@@ -1680,31 +1654,6 @@ go to the last page always.</string>
                                                 </menu>
                                             </popUpButtonCell>
                                         </popUpButton>
-                                        <textField verticalHuggingPriority="750" fixedFrame="YES" translatesAutoresizingMaskIntoConstraints="NO" id="2059">
-                                            <rect key="frame" x="280" y="380" width="33" height="19"/>
-                                            <autoresizingMask key="autoresizingMask" flexibleMaxX="YES" flexibleMinY="YES"/>
-                                            <textFieldCell key="cell" controlSize="small" scrollable="YES" lineBreakMode="clipping" selectable="YES" editable="YES" sendsActionOnEndEditing="YES" state="on" borderStyle="bezel" alignment="center" title="100" drawsBackground="YES" id="4306">
-                                                <numberFormatter key="formatter" formatterBehavior="10_0" positiveFormat="0" negativeFormat="0" localizesFormat="NO" hasThousandSeparators="NO" thousandSeparator="," id="2060">
-                                                    <attributedString key="attributedStringForZero">
-                                                        <fragment content="0"/>
-                                                    </attributedString>
-                                                    <decimal key="minimum" value="0"/>
-                                                    <decimal key="maximum" value="NaN"/>
-                                                </numberFormatter>
-                                                <font key="font" metaFont="smallSystem"/>
-                                                <color key="textColor" name="controlTextColor" catalog="System" colorSpace="catalog"/>
-                                                <color key="backgroundColor" name="textBackgroundColor" catalog="System" colorSpace="catalog"/>
-                                            </textFieldCell>
-                                        </textField>
-                                        <textField verticalHuggingPriority="750" horizontalCompressionResistancePriority="250" fixedFrame="YES" translatesAutoresizingMaskIntoConstraints="NO" id="2095">
-                                            <rect key="frame" x="213" y="383" width="61" height="13"/>
-                                            <autoresizingMask key="autoresizingMask" flexibleMaxX="YES" flexibleMinY="YES"/>
-                                            <textFieldCell key="cell" sendsActionOnEndEditing="YES" alignment="right" title="Cache :" id="4307">
-                                                <font key="font" metaFont="label"/>
-                                                <color key="textColor" red="0.36413044" green="0.36413044" blue="0.36413044" alpha="1" colorSpace="calibratedRGB"/>
-                                                <color key="backgroundColor" name="controlColor" catalog="System" colorSpace="catalog"/>
-                                            </textFieldCell>
-                                        </textField>
                                         <textField verticalHuggingPriority="750" horizontalCompressionResistancePriority="250" fixedFrame="YES" translatesAutoresizingMaskIntoConstraints="NO" id="4255">
                                             <rect key="frame" x="17" y="97" width="435" height="51"/>
                                             <autoresizingMask key="autoresizingMask" flexibleMaxX="YES" flexibleMinY="YES"/>
@@ -1740,15 +1689,6 @@ go to the last page always.</string>
                                                 </menu>
                                             </popUpButtonCell>
                                         </popUpButton>
-                                        <textField verticalHuggingPriority="750" horizontalCompressionResistancePriority="250" fixedFrame="YES" translatesAutoresizingMaskIntoConstraints="NO" id="thn-mI-Kac">
-                                            <rect key="frame" x="29" y="361" width="535" height="14"/>
-                                            <autoresizingMask key="autoresizingMask"/>
-                                            <textFieldCell key="cell" enabled="NO" sendsActionOnEndEditing="YES" title="&quot;Old&quot; does not work properly on retina display" id="Uaz-oE-D3D">
-                                                <font key="font" metaFont="smallSystem"/>
-                                                <color key="textColor" red="0.49456518999999999" green="0.49456518999999999" blue="0.49456518999999999" alpha="1" colorSpace="calibratedRGB"/>
-                                                <color key="backgroundColor" name="controlColor" catalog="System" colorSpace="catalog"/>
-                                            </textFieldCell>
-                                        </textField>
                                         <textField verticalHuggingPriority="750" horizontalCompressionResistancePriority="250" fixedFrame="YES" translatesAutoresizingMaskIntoConstraints="NO" id="jzl-Id-7yd">
                                             <rect key="frame" x="29" y="407" width="535" height="14"/>
                                             <autoresizingMask key="autoresizingMask"/>
@@ -2858,7 +2798,6 @@ Gw
                 <outlet property="accessorySettingPanel" destination="2863" id="2865"/>
                 <outlet property="accessorySettingView" destination="2866" id="2867"/>
                 <outlet property="alwaysRememberLastCheck" destination="2013" id="2042"/>
-                <outlet property="bufferingModePopUpButton" destination="1610" id="1687"/>
                 <outlet property="canScrollActionPopUpButton" destination="1862" id="1877"/>
                 <outlet property="changeCurrentFolderPopUpButton" destination="4256" id="4263"/>
                 <outlet property="controller" destination="484" id="1674"/>
@@ -2914,7 +2853,6 @@ Gw
                 <outlet property="readSingleCheckButton" destination="1410" id="1685"/>
                 <outlet property="readSubFolderCheck" destination="969" id="1709"/>
                 <outlet property="rememberBookSettingsCheck" destination="2850" id="2851"/>
-                <outlet property="screenCacheTextField" destination="2059" id="2091"/>
                 <outlet property="showPageBarCheck" destination="2838" id="2841"/>
                 <outlet property="showPageNumCheck" destination="2839" id="2840"/>
                 <outlet property="showResolutionCheck" destination="5001" id="5003"/>

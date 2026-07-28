@@ -32,8 +32,6 @@
 	BOOL threadStop;
 	int cacheSize;
 	NSMutableArray *cacheArray;
-	int screenCache;
-	NSMutableArray *screenCacheArray;
 	
 	//NSWindow *accWindow;
 	IBOutlet id progressIndicator;
@@ -52,7 +50,6 @@
 	
 	IBOutlet id prefController;	
 	
-	int bufferingMode;
 	
 	
 	int interpolation;
@@ -163,8 +160,6 @@
 	//NSConditionLock *lock;
 	NSLock *lock;
 	
-	NSImage *composedImage;
-	BOOL useComposedImage;
 	
 	NSImage *firstImage,*secondImage;
 	
@@ -221,11 +216,9 @@
 
 
 - (BOOL)isSmallImage:(NSImage *)image page:(int)page;
-- (NSImage *)returnComposeImage:(NSImage *)image1 and:(NSImage *)image2;
 - (void)composeImage;
 
 
-- (BOOL)imageDisplayIfHasScreenCache;
 - (void)imageDisplay;
 - (void)lockedImageDisplay;
 

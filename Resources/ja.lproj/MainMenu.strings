@@ -337,12 +337,6 @@
 /* Class = "NSMenu"; title = "OtherViews"; ObjectID = "1611"; */
 "1611.title" = "OtherViews";
 
-/* Class = "NSMenuItem"; title = "Old"; ObjectID = "1613"; */
-"1613.title" = "Old";
-
-/* Class = "NSMenuItem"; title = "New"; ObjectID = "1614"; */
-"1614.title" = "New";
-
 /* Class = "NSMenu"; title = "OtherViews"; ObjectID = "1619"; */
 "1619.title" = "OtherViews";
 
@@ -1183,9 +1177,6 @@
 /* Class = "NSTextFieldCell"; title = "*Switch to the reverse action in \"read from left to right\"."; ObjectID = "4297"; */
 "4297.title" = "*ページ方向が”左から右”のとき、逆の動作に変化します";
 
-/* Class = "NSTextFieldCell"; title = "Buffering mode:"; ObjectID = "4299"; */
-"4299.title" = "先読みモード：";
-
 /* Class = "NSTextFieldCell"; title = "Image Interpolation:"; ObjectID = "4300"; */
 "4300.title" = "画像拡大縮小時の補間設定：";
 
@@ -1200,12 +1191,6 @@
 
 /* Class = "NSTextFieldCell"; title = "100"; ObjectID = "4305"; */
 "4305.title" = "100";
-
-/* Class = "NSTextFieldCell"; title = "100"; ObjectID = "4306"; */
-"4306.title" = "100";
-
-/* Class = "NSTextFieldCell"; title = "Cache :"; ObjectID = "4307"; */
-"4307.title" = "キャッシュ：";
 
 /* Class = "NSTextFieldCell"; title = "Open link in pdf in default browser:"; ObjectID = "4310"; */
 "4310.title" = "PDF内リンクをデフォルトブラウザで開く：";
@@ -1470,9 +1455,6 @@
 
 /* Class = "NSTextFieldCell"; title = "Use CALayer:"; ObjectID = "tyl-Re-5pI"; */
 "tyl-Re-5pI.title" = "CALayerを使用：";
-
-/* Class = "NSTextFieldCell"; title = "\"Old\" does not work properly on retina display"; ObjectID = "Uaz-oE-D3D"; */
-"Uaz-oE-D3D.title" = "\"Old\" はRetinaディスプレイでは正常に動作しません";
 
 /* Class = "NSMenuItem"; title = "Filter"; ObjectID = "usF-pH-ycg"; */
 "usF-pH-ycg.title" = "フィルター";

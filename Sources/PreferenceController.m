@@ -945,7 +945,6 @@ static const int DIALOG_CANCEL	= 129;
 	[currentMouseArray sortUsingSelector:@selector(mouseArrayCompare:)];
 	
 	
-	int bufferingMode = (int)[defaults integerForKey:@"BufferingMode"];
 	BOOL fitOriginal = [defaults boolForKey:@"FitOriginal"];
 	BOOL rememberBookSettings = [defaults boolForKey:@"RememberBookSettings"];
 	NSDictionary *thumbnail = [defaults dictionaryForKey:@"Thumbnail"];
@@ -1113,8 +1112,6 @@ static const int DIALOG_CANCEL	= 129;
 	/*cache*/
 	int imageCache = (int)[defaults integerForKey:@"ImageCache"];
 	[imageCacheTextField setStringValue:[NSString stringWithFormat:@"%i", imageCache]];
-	int screenCache = (int)[defaults integerForKey:@"ScreenCache"];
-	[screenCacheTextField setStringValue:[NSString stringWithFormat:@"%i", screenCache]];
 	int thumbnailCache = (int)[defaults integerForKey:@"ThumbnailCache"];
 	[thumbnailCacheTextField setStringValue:[NSString stringWithFormat:@"%i", thumbnailCache]];
 	
@@ -1165,13 +1162,6 @@ static const int DIALOG_CANCEL	= 129;
 	
 	
 	[interpolationPopUpButton selectItemAtIndex:[defaults integerForKey:@"Interpolation"]];
-	
-	[bufferingModePopUpButton selectItemAtIndex:[defaults integerForKey:@"BufferingMode"]];
-	if ([bufferingModePopUpButton indexOfSelectedItem]==1) {
-		[screenCacheTextField setEnabled:NO];
-	} else {
-		[screenCacheTextField setEnabled:YES];
-	}
 	
 	if (fitOriginal) {
 		[fitOriginalCheck setState:NSOnState];
@@ -1316,9 +1306,6 @@ static const int DIALOG_CANCEL	= 129;
 		}
 
 		[defaults setBool:fitOriginal forKey:@"FitOriginal"];
-		
-		bufferingMode = (int)[bufferingModePopUpButton indexOfSelectedItem];
-		[defaults setInteger:bufferingMode forKey:@"BufferingMode"];
 		
 		[defaults setObject:keyArray forKey:@"KeyArray"];
 		[defaults setObject:keyArrayMode2 forKey:@"KeyArrayMode2"];
@@ -1496,8 +1483,6 @@ static const int DIALOG_CANCEL	= 129;
 		/*cache*/
 		int imageCache = [[imageCacheTextField stringValue] intValue];
 		[defaults setInteger:imageCache forKey:@"ImageCache"];
-		int screenCache = [[screenCacheTextField stringValue] intValue];
-		[defaults setInteger:screenCache forKey:@"ScreenCache"];
 		int thumbnailCache = [[thumbnailCacheTextField stringValue] intValue];
 		[defaults setInteger:thumbnailCache forKey:@"ThumbnailCache"];
 		/*view*/
@@ -1638,15 +1623,6 @@ static const int DIALOG_CANCEL	= 129;
 - (IBAction)sliderMoved:(id)sender
 {
     [slideshowTextField setStringValue:[NSString stringWithFormat:@"%.1f", [slideshowSlider floatValue]]];
-}
-
-- (IBAction)changeBufferingMode:(id)sender
-{
-	if ([bufferingModePopUpButton indexOfSelectedItem]==1) {
-		[screenCacheTextField setEnabled:NO];
-	} else {
-		[screenCacheTextField setEnabled:YES];
-	}
 }
 
 - (BOOL)validateMenuItem:(NSMenuItem *)anItem

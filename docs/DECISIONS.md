@@ -454,3 +454,66 @@ Do not fold the listed out-of-scope cleanups (Alias Manager → `NSURL`
 bookmarks, `imageFileTypes` → `imageTypes`, the remaining
 `NSRunAlertPanel` sites, `validateMenuItem:`'s 44 localized-title
 branches) into these tasks — they are independent follow-ups.
+
+---
+
+## Legacy "Old" composited render path removed; direct draw is unconditional (2026-07-29)
+
+**Decision:** the `BufferingMode = 0` ("Old") spread-rendering path is
+**deleted**. Every spread is now drawn by `-[CustomImageView
+drawImages:and:]`, which draws each page straight into the view. Removed
+with it: `-[Controller returnComposeImage:and:]`, `screenCacheArray` and
+its plumbing, `-imageDisplayIfHasScreenCache`, the `composedImage` /
+`useComposedImage` ivars, the `ScreenCache` preference and its UI field,
+the `BufferingMode` popup in Preferences, and the
+`respondsToSelector:@selector(finalize)` gate that registered the
+`BufferingMode` default. Task:
+`docs/tasks/2026-07-29-02-remove-legacy-composited-path.md`.
+
+**Why:** the composited path cost **two** resampling steps (pages →
+lock-focus canvas → view) against direct draw's **one**, so it was
+strictly lower quality on the metric the project treats as inviolable
+(see the top of `CLAUDE.md`). It was not the default —
+`BufferingMode` registered as `1` — and its screen cache was off by
+default as well (`ScreenCache` = 0 gates both store and lookup). Keeping
+it meant carrying a second, lower-quality, rarely-exercised render path
+through the whole multi-window refactor.
+
+Removing it also closed, by deletion rather than by fixing:
+
+- `KNOWN_ISSUES` #21 — the composed-spread cache was keyed by page pair
+  and `fitScreenMode` but not by screen, and nothing invalidated it on a
+  screen change.
+- the MW-6 concern that per-window controllers would multiply a
+  screen-resolution image cache.
+- the MW-7 cache-key omission.
+- the `finalize` gate, whose fragility was noted during the MW-2
+  fullscreen investigation.
+
+**Accepted trade-off:** users who had explicitly selected "Old" change
+path. Image quality improves and page alignment becomes consistent, but
+the composite cache is gone. Measured on the test fixture: page turns
+cost more CPU (~0.50 s vs ~0.21 s over 24 turns, i.e. roughly 21 ms vs
+9 ms per turn — not perceptible), while resizing was unchanged (~0.19 s
+vs ~0.22 s over 20 resizes) and total session CPU was actually *lower*
+on the new build, because the up-front compose work is gone. The owner
+accepted this trade-off before the work started.
+
+**Stored values:** `BufferingMode` and `ScreenCache` are **left in
+place, unread, with no migration** — consistent with the `Fullscreen` /
+`DontHideMenuBar` decision above. Nothing reads them; deleting them
+would mean touching every user's domain for no behavioural gain.
+
+**A rendering difference worth knowing about:** the two paths did not
+lay spreads out identically. `returnComposeImage:and:` scaled each page
+*independently* to fit its half of the canvas, so a spread of two pages
+with different aspect ratios came out with mismatched heights. Direct
+draw normalises them. So a former "Old" user sees a *better-aligned*
+spread, not merely a sharper one — verified by capture during the
+removal task. This is not a regression; it is what every default-settings
+user has always seen.
+
+**How to apply:** there is now exactly one spread path. Do not
+reintroduce an intermediate composite — see the two-path table and the
+inviolable constraint at the top of `CLAUDE.md`, which has been updated
+to describe the single remaining path.

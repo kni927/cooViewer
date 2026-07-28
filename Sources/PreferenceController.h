@@ -29,10 +29,8 @@
 	IBOutlet id showThumbnailCheck;
 	
 	IBOutlet id imageCacheTextField;
-	IBOutlet id screenCacheTextField;
 	IBOutlet id thumbnailCacheTextField;
 	
-    IBOutlet id bufferingModePopUpButton;
     IBOutlet id canScrollActionPopUpButton;
     IBOutlet id controller;
     IBOutlet id enlargePopUpButton;
@@ -156,7 +154,6 @@
 - (IBAction)sheetCancel:(id)sender;
 - (IBAction)sheetOk:(id)sender;
 - (IBAction)sliderMoved:(id)sender;
-- (IBAction)changeBufferingMode:(id)sender;
 
 
 - (IBAction)keyReset:(id)sender;

@@ -61,10 +61,6 @@ static const int DIALOG_CANCEL	= 129;
 	
 	NSMutableDictionary *appDefault = [NSMutableDictionary dictionary];
 	
-	if([NSObject respondsToSelector:@selector(finalize)]){
-		bufferingMode = 1;
-		[appDefault setObject:[NSNumber numberWithInt:bufferingMode] forKey:@"BufferingMode"];
-	}
 	openLastFolder = YES;
 	wheelSensitivity = 0.1;  // default: highest sensitivity (slider at max/high)
 	
@@ -163,8 +159,6 @@ static const int DIALOG_CANCEL	= 129;
 	
 	cacheSize = (int)[defaults integerForKey:@"ImageCache"];
 	[defaults setInteger:cacheSize forKey:@"ImageCache"];
-	screenCache = (int)[defaults integerForKey:@"ScreenCache"];
-	[defaults setInteger:screenCache forKey:@"ScreenCache"];
 	int thumbnailCache = (int)[defaults integerForKey:@"ThumbnailCache"];
 	[defaults setInteger:thumbnailCache forKey:@"ThumbnailCache"];
 	
@@ -201,8 +195,6 @@ static const int DIALOG_CANCEL	= 129;
 	
 	
 	
-	bufferingMode = (int)[defaults integerForKey:@"BufferingMode"];
-	[defaults setInteger:bufferingMode forKey:@"BufferingMode"];
 	
 	BOOL fitOriginal = [defaults boolForKey:@"FitOriginal"];
 	[fullImagePanel setFitMode:fitOriginal];
@@ -271,7 +263,6 @@ static const int DIALOG_CANCEL	= 129;
 
 	
 	
-	screenCacheArray = [[NSMutableArray allocWithZone:NULL] init];
 	cacheArray = [[NSMutableArray allocWithZone:NULL] init];
 	imageMutableArray = [[NSMutableArray allocWithZone:NULL] init];
 	bookmarkArray = [[NSMutableArray allocWithZone:NULL] init];
@@ -776,7 +767,6 @@ static const int DIALOG_CANCEL	= 129;
 		
 		/*clear cache*/
 		[cacheArray removeAllObjects];
-		[screenCacheArray removeAllObjects];
 		if (oldBookPath != nil) {
 			NSData *aliasData = oldBookAlias;	
 			
@@ -1026,10 +1016,6 @@ static const int DIALOG_CANCEL	= 129;
 
 	[imageView setPageString:nil];
 	[window setTitle:currentBookName];
-	
-	[composedImage release];
-	composedImage = nil;
-	
 	
 	[bookmarkArray removeAllObjects];
 	if (currentBookSetting) {
@@ -1520,8 +1506,6 @@ static const int DIALOG_CANCEL	= 129;
 		nowPage = (int)[completeMutableArray count];
 	}
 	
-	[composedImage autorelease];
-	composedImage = nil;
 	if (threadStop) {
 		threadCount--;
 		threadStop = NO;
@@ -1529,75 +1513,7 @@ static const int DIALOG_CANCEL	= 129;
 		[pool release];
 		return;
 	}
-	
-	if ([imageMutableArray count]>1 && readMode<2 && bufferingMode == 0) {
-		int tempPage = nowPage+2;
-		if (screenCache>0) {
-			int index;
-			id object;
-			for (index=0; index<[screenCacheArray count]; index++) {
-				object = [screenCacheArray objectAtIndex:index];
-				if (readMode == 0 || readMode == 2) {
-					if ([[object objectForKey:@"page"] isEqualToString:[NSString stringWithFormat:@"%i-%i",tempPage,tempPage-1]] &&
-						[[object objectForKey:@"fitScreenMode"] intValue] == fitScreenMode ) {
-						[screenCacheArray addObject:object];
-						[screenCacheArray removeObjectAtIndex:index];
-						//NSLog(@"%i composed=%@",nowPage,[object objectForKey:@"page"]);
-						composedImage = [[object objectForKey:@"composed"] retain];
-						threadCount--;
-						threadStop = NO;
-						[lock unlock];
-						[pool release];
-						return;
-					}
-				} else if (readMode == 1 || readMode == 3) {
-					if ([[object objectForKey:@"page"] isEqualToString:[NSString stringWithFormat:@"%i-%i",tempPage-1,tempPage]] &&
-						[[object objectForKey:@"fitScreenMode"] intValue] == fitScreenMode ) {
-						[screenCacheArray addObject:object];
-						[screenCacheArray removeObjectAtIndex:index];
-						//NSLog(@"composed=%@",[object objectForKey:@"page"]);
-						composedImage = [[object objectForKey:@"composed"] retain];
-						threadCount--;
-						threadStop = NO;
-						[lock unlock];
-						[pool release];
-						return;
-					}
-				}
-			}
-		}
-		
-		if ([self isSmallImage:[imageMutableArray objectAtIndex:1] page:nowPage+1] 
-			&& [self isSmallImage:[imageMutableArray objectAtIndex:0] page:nowPage+2]) {
-			NSImage *image1 = [[imageMutableArray objectAtIndex:1] retain];
-			NSImage *image2 = [[imageMutableArray objectAtIndex:0] retain];
-			composedImage = [[self returnComposeImage:image1 and:image2] retain];
-			[image1 release];
-			[image2 release];
-		}
-		if (composedImage) {
-			if (screenCache>0) {
-				switch (readMode) {
-					case 0: case 2:
-						[screenCacheArray addObject:[NSDictionary dictionaryWithObjectsAndKeys:
-							[NSString stringWithFormat:@"%i-%i",tempPage,tempPage-1],@"page",
-							[NSNumber numberWithInt:fitScreenMode],@"fitScreenMode",
-							composedImage,@"composed",nil]];
-						break;
-					case 1: case 3:
-						[screenCacheArray addObject:[NSDictionary dictionaryWithObjectsAndKeys:
-							[NSString stringWithFormat:@"%i-%i",tempPage-1,tempPage],@"page",
-							[NSNumber numberWithInt:fitScreenMode],@"fitScreenMode",
-							composedImage,@"composed",nil]];
-						break;
-					default:
-						break;
-				}
-			}
-			//NSLog(@"add %i-%i",tempPage,tempPage-1);
-			while ([screenCacheArray count] > screenCache+2) [screenCacheArray removeObjectAtIndex:0];
-		}
-	}
+
 	threadStop = NO;
 	threadCount--;
 	[lock unlock];
@@ -1636,239 +1552,20 @@ static const int DIALOG_CANCEL	= 129;
 	}
 }
 
--(NSImage *)returnComposeImage:(NSImage *)image1 and:(NSImage *)image2
-{	
-	//if ([self isSmallImage:image1 page:nowPage+1]==NO || [self isSmallImage:image2 page:nowPage+2]==NO) return nil;
-	if (bufferingMode == 1) return nil;
-	
-	
-	/* MW-2: was [[NSScreen mainScreen] frame] — the wrong screen whenever
-	   the window was on a secondary display. The spread is still composed
-	   at screen resolution rather than view size, so that downscaling to
-	   the view keeps its quality; only *which* screen changed. */
-	NSScreen *composeScreen = [window screen] ? [window screen] : [NSScreen mainScreen];
-	NSRect fullscreenRect = [composeScreen frame];
-	
-	int widthValue01 = (int)[image1 size].width;
-	int heightValue01 = (int)[image1 size].height;
-	int widthValue02 = (int)[image2 size].width;
-	int heightValue02 = (int)[image2 size].height;
-	
-	int widthValue1 = widthValue01;
-	int heightValue1 = heightValue01;
-	int widthValue2 = widthValue02;
-	int heightValue2 = heightValue02;
-	
-	float screenWidthValue = fullscreenRect.size.width/2;
-	float screenHeightValue = fullscreenRect.size.height;
-	if (fitScreenMode != 2) {
-		float rate1 = screenWidthValue/widthValue1;
-		float sRate1 = screenHeightValue/heightValue1;
-		
-		float rate2 = screenWidthValue/widthValue2;
-		float sRate2 = screenHeightValue/heightValue2;
-		
-		if (rate1 > sRate1) {
-			rate1 = sRate1;
-		}
-		if (rate2 > sRate2) {
-			rate2 = sRate2;
-		}
-		
-		if (maxEnlargement != 0 && rate1 > maxEnlargement) {
-			rate1 = maxEnlargement;
-		}
-		if (maxEnlargement != 0 && rate2 > maxEnlargement){
-			rate2 = maxEnlargement;
-		}
-		
-		widthValue1 = widthValue1*rate1;
-		heightValue1 = heightValue1*rate1;
-		
-		widthValue2 = widthValue2*rate2;
-		heightValue2 = heightValue2*rate2;
-		
-		
-		if (widthValue1+widthValue2 < fullscreenRect.size.width){
-			if (fitScreenMode == 1) {
-				float rates = fullscreenRect.size.width/(widthValue1+widthValue2);
-				
-				widthValue1 = widthValue1*rates;
-				heightValue1 = heightValue1*rates;
-				widthValue2 = widthValue2*rates;
-				heightValue2 = heightValue2*rates;
-				
-				if (maxEnlargement != 0) {
-					if (widthValue1 > (widthValue01*maxEnlargement)) {
-						widthValue1 = widthValue01;
-						heightValue1 = heightValue01;
-					}
-					if (heightValue1 > (heightValue01*maxEnlargement)) {
-						widthValue1 = widthValue01;
-						heightValue1 = heightValue01;
-					}
-					if (widthValue2 > (widthValue02*maxEnlargement)) {
-						widthValue2 = widthValue02;
-						heightValue2 = heightValue02;
-					}
-					if (heightValue2 > (heightValue02*maxEnlargement)) {
-						widthValue2 = widthValue02;
-						heightValue2 = heightValue02;
-					}
-				}
-			}
-		}
-	}
-	
-	int height;
-	if (heightValue1 > heightValue2) {
-		height = heightValue1;
-	} else {
-		height = heightValue2;
-	}
-	int center1 = (height-heightValue1)/2;
-	int center2 = (height-heightValue2)/2;
-	
-	NSImage *newImage = [[[NSImage alloc] initWithSize:NSMakeSize(widthValue1+widthValue2,height)] autorelease];
-	[ newImage lockFocus ];
-	NSGraphicsContext *gc = [NSGraphicsContext currentContext];
-	[gc saveGraphicsState];
-	//[gc setShouldAntialias:NO];
-	switch (interpolation) {
-		case 1:
-			[gc setImageInterpolation:NSImageInterpolationNone];
-			break;
-		case 2:
-			[gc setImageInterpolation:NSImageInterpolationLow];
-			break;
-		case 3:
-			[gc setImageInterpolation:NSImageInterpolationHigh];
-			break;
-		default:
-			[gc setImageInterpolation:NSImageInterpolationDefault];
-			break;
-	}
-	switch (readMode) {
-		//2,3=only from singleModeKeyCode
-		case 0: case 2:
-            [image1 drawInRect:NSMakeRect(0,center1,widthValue1,heightValue1)
-                      fromRect:NSMakeRect(0, 0, [image1 size].width, [image1 size].height)
-                     operation:NSCompositeSourceOver fraction:1.0];
-            [image2 drawInRect:NSMakeRect(widthValue1,center2,widthValue2,heightValue2)
-                      fromRect:NSMakeRect(0, 0, [image2 size].width, [image2 size].height)
-                     operation:NSCompositeSourceOver fraction:1.0];
-			break;
-		case 1: case 3:
-            [image2 drawInRect:NSMakeRect(0,center2,widthValue2,heightValue2)
-                      fromRect:NSMakeRect(0, 0, [image2 size].width, [image2 size].height)
-                     operation:NSCompositeSourceOver fraction:1.0];
-            [image1 drawInRect:NSMakeRect(widthValue2,center1,widthValue1,heightValue1)
-                      fromRect:NSMakeRect(0, 0, [image1 size].width, [image1 size].height)
-                     operation:NSCompositeSourceOver fraction:1.0];
-			break;
-		default:
-			break;
-	}
-	[gc restoreGraphicsState];
-	[newImage unlockFocus];
-	//NSLog(@"load %@ \n %@",[completeMutableArray objectAtIndex:index],image);
-	
-	return newImage;
-}
-
+/* Draws the spread. Each page goes straight into the view via
+ * -[CustomImageView drawImages:and:]; there is no intermediate composite.
+ *
+ * The legacy "Old" path (BufferingMode = 0) used to branch here into
+ * -returnComposeImage:and:, which scaled both pages into a lock-focus
+ * canvas that was then scaled again into the view — two resampling steps
+ * against this path's one. It was removed along with its screen cache;
+ * see docs/DECISIONS.md. */
 -(void)composeImage
 {
-	if (bufferingMode == 1) {
-		[imageView setImages:secondImage];
-	} else {
-		if (screenCache>0) {
-			int index;
-			id object;
-			for (index=0; index<[screenCacheArray count]; index++) {
-				object = [screenCacheArray objectAtIndex:index];
-				if (readMode == 0 || readMode == 2) {
-					if ([[object objectForKey:@"page"] isEqualToString:[NSString stringWithFormat:@"%i-%i",nowPage,nowPage-1]] &&
-						[[object objectForKey:@"fitScreenMode"] intValue] == fitScreenMode ) {
-						[screenCacheArray addObject:object];
-						[screenCacheArray removeObjectAtIndex:index];
-						//NSLog(@"setImage %@",[object objectForKey:@"page"]);
-						[imageView setImage:[object objectForKey:@"composed"]];
-						return;
-					}
-				} else if (readMode == 1 || readMode == 3) {
-					if ([[object objectForKey:@"page"] isEqualToString:[NSString stringWithFormat:@"%i-%i",nowPage-1,nowPage]] &&
-						[[object objectForKey:@"fitScreenMode"] intValue] == fitScreenMode ) {
-						[screenCacheArray addObject:object];
-						[screenCacheArray removeObjectAtIndex:index];
-						//NSLog(@"setImage% %@",[object objectForKey:@"page"]);
-						[imageView setImage:[object objectForKey:@"composed"]];
-						return;
-					}
-				}
-			}
-		}
-		//NSLog(@"kone- %i-%i",nowPage,nowPage-1);
-		id image = [self returnComposeImage:secondImage and:firstImage];
-		[imageView setImage:image];
-		if (image) {
-			if (screenCache>0) {
-				switch (readMode) {
-					case 0: case 2:
-						[screenCacheArray addObject:[NSDictionary dictionaryWithObjectsAndKeys:
-							[NSString stringWithFormat:@"%i-%i",nowPage,nowPage-1],@"page",
-							[NSNumber numberWithInt:fitScreenMode],@"fitScreenMode",
-							image,@"composed",nil]];
-						break;
-					case 1: case 3:
-						[screenCacheArray addObject:[NSDictionary dictionaryWithObjectsAndKeys:
-							[NSString stringWithFormat:@"%i-%i",nowPage-1,nowPage],@"page",
-							[NSNumber numberWithInt:fitScreenMode],@"fitScreenMode",
-							image,@"composed",nil]];
-						break;
-					default:
-						break;
-				}
-			}
-			//NSLog(@"set %i-%i",nowPage,nowPage-1);
-			while ([screenCacheArray count] > screenCache+2) [screenCacheArray removeObjectAtIndex:0];
-		}
-	}
-	//[imageView setImages:secondImage];
+	[imageView setImages:secondImage];
 }
 
 #pragma mark display
-
--(BOOL)imageDisplayIfHasScreenCache
-{
-	int tempPage = nowPage;
-	nowPage += 2;
-	int index;
-	id object;
-	for (index=0; index<[screenCacheArray count]; index++) {
-		object = [screenCacheArray objectAtIndex:index];
-		if (readMode == 0 || readMode == 2) {
-			if ([[object objectForKey:@"page"] isEqualToString:[NSString stringWithFormat:@"%i-%i",nowPage,nowPage-1]] &&
-				[[object objectForKey:@"fitScreenMode"] intValue] == fitScreenMode ) {
-				[imageView setImage:[object objectForKey:@"composed"]];
-				[self setPageTextField];
-				[imageView setPageString:[NSString stringWithFormat:@"%@ LoadingOriginals...",[imageView pageString]]];
-				nowPage = tempPage;
-				return YES;
-			}
-		} else if (readMode == 1 || readMode == 3) {
-			if ([[object objectForKey:@"page"] isEqualToString:[NSString stringWithFormat:@"%i-%i",nowPage-1,nowPage]] &&
-				[[object objectForKey:@"fitScreenMode"] intValue] == fitScreenMode ) {
-				[imageView setImage:[object objectForKey:@"composed"]];
-				[self setPageTextField];
-				[imageView setPageString:[NSString stringWithFormat:@"%@ LoadingOriginals...",[imageView pageString]]];
-				nowPage = tempPage;
-				return YES;
-			}
-		}
-	}
-	nowPage = tempPage;
-	return NO;
-}
 
 -(void)imageDisplay
 {
@@ -1950,18 +1647,7 @@ static const int DIALOG_CANCEL	= 129;
 						
 						nowPage += 2;
 						[self setPageTextField];
-						if (useComposedImage == NO) {
-							[self composeImage];
-							//NSLog(@"NO");
-						} else if (composedImage && useComposedImage == YES) {
-							[imageView setImage:composedImage];
-							[composedImage autorelease];
-							composedImage = nil;
-							//NSLog(@"YES");
-						} else {
-							[self composeImage];
-							//NSLog(@"else");
-						}
+						[self composeImage];
 						[imageMutableArray removeObjectsInRange:NSMakeRange(0,2)];
 					} else {
 						nowPage++;
@@ -2082,13 +1768,9 @@ static const int DIALOG_CANCEL	= 129;
 	/*cache*/
 	cacheSize = (int)[defaults integerForKey:@"ImageCache"];
 	while ([cacheArray count] > cacheSize+4) [cacheArray removeObjectAtIndex:0];
-	screenCache = (int)[defaults integerForKey:@"ScreenCache"];
-	while ([screenCacheArray count] > screenCache+2) [screenCacheArray removeObjectAtIndex:0];
 	[thumController setmaxCacheCount:(int)[defaults integerForKey:@"ThumbnailCache"]];
 	
 	[fullImagePanel setFitMode:[defaults boolForKey:@"FitOriginal"]];
-	
-	bufferingMode = (int)[defaults integerForKey:@"BufferingMode"];
 	
 	
 
@@ -2859,15 +2541,7 @@ static const int DIALOG_CANCEL	= 129;
 	
 	fitScreenMode = 0;
 	[imageView setScreenFitMode:fitScreenMode];
-	if (bufferingMode == 0) {
-		if (secondImage) {
-			[self composeImage];
-			[self lookaheadAndCompose];
-		} else {
-			[imageView setImage:firstImage];
-			[self lookaheadAndCompose];
-		}
-	} else if (bufferingMode == 1 && secondImage) {
+	if (secondImage) {
 		[imageView setImages:firstImage];
 	} else {
 		[imageView setImage:firstImage];
@@ -2896,15 +2570,7 @@ static const int DIALOG_CANCEL	= 129;
 	[window disableFlushWindow];
 	fitScreenMode = 1;
 	[imageView setScreenFitMode:fitScreenMode];
-	if (bufferingMode == 0) {
-		if (secondImage) {
-			[self composeImage];
-			[self lookaheadAndCompose];
-		} else {
-			[imageView setImage:firstImage];
-			[self lookaheadAndCompose];
-		}
-	} else if (bufferingMode == 1 && secondImage) {
+	if (secondImage) {
 		[imageView setImages:firstImage];
 	} else {
 		[imageView setImage:firstImage];
@@ -2933,15 +2599,7 @@ static const int DIALOG_CANCEL	= 129;
 	[window disableFlushWindow];
 	fitScreenMode = 3;
 	[imageView setScreenFitMode:fitScreenMode];
-	if (bufferingMode == 0) {
-		if (secondImage) {
-			[self composeImage];
-			[self lookaheadAndCompose];
-		} else {
-			[imageView setImage:firstImage];
-			[self lookaheadAndCompose];
-		}
-	} else if (bufferingMode == 1 && secondImage) {
+	if (secondImage) {
 		[imageView setImages:firstImage];
 	} else {
 		[imageView setImage:firstImage];
@@ -2970,15 +2628,7 @@ static const int DIALOG_CANCEL	= 129;
 	[window disableFlushWindow];
 	fitScreenMode = 2;
 	[imageView setScreenFitMode:fitScreenMode];
-	if (bufferingMode == 0) {
-		if (secondImage) {
-			[self composeImage];
-			[self lookaheadAndCompose];
-		} else {
-			[imageView setImage:firstImage];
-			[self lookaheadAndCompose];
-		}
-	} else if (bufferingMode == 1 && secondImage) {
+	if (secondImage) {
 		[imageView setImages:firstImage];
 	} else {
 		[imageView setImage:firstImage];
@@ -3025,20 +2675,10 @@ static const int DIALOG_CANCEL	= 129;
  * does not produce a live resize. */
 - (void)recomposeForCurrentSize
 {
-	if (bufferingMode == 0) {
-		if (secondImage) {
-			[self composeImage];
-			[self lookaheadAndCompose];
-		} else {
-			[imageView setImage:firstImage];
-			[self lookaheadAndCompose];
-		}
+	if (secondImage) {
+		[imageView setImages:secondImage];
 	} else {
-		if (secondImage) {
-			[imageView setImages:secondImage];
-		} else {
-			[imageView setImage:firstImage];
-		}
+		[imageView setImage:firstImage];
 	}
 }
 
@@ -3193,8 +2833,6 @@ static const int DIALOG_CANCEL	= 129;
 		firstImage = nil;
 		[secondImage release];
 		secondImage = nil;
-		[composedImage release];
-		composedImage = nil;
 		
 		[completeMutableArray release];
 		completeMutableArray = nil;
@@ -3211,7 +2849,6 @@ static const int DIALOG_CANCEL	= 129;
 		[self setOpenRecentMenu];
 		
 		[cacheArray removeAllObjects];
-		[screenCacheArray removeAllObjects];
 		if (imageLoader) {
 			[imageLoader release];
 			imageLoader = nil;
@@ -3345,7 +2982,7 @@ static const int DIALOG_CANCEL	= 129;
 		return [NSDictionary dictionaryWithObjectsAndKeys:path, @"path", firstImage, @"image", nil];
 	}
 	// 2-page: map click position to the correct page image.
-	// composeImage calls returnComposeImage(secondImage, firstImage):
+	// composeImage draws secondImage/firstImage straight into the view:
 	//   readMode 0,2 (RTL): image1(secondImage) drawn LEFT, image2(firstImage) drawn RIGHT
 	//   readMode 1,3 (LTR): image2(firstImage) drawn LEFT, image1(secondImage) drawn RIGHT
 	NSRect contentFrame = [[window contentView] frame];

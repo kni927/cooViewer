@@ -73,7 +73,6 @@ static BOOL appleRemoteHoldDown = NO;
 			slideshow = YES;
 			[imageView setSlideshow:NO];
 		}
-		useComposedImage = NO;
 		threadStop = NO;
 		unichar character = [characters characterAtIndex:0];
 		unsigned int cMod = 100;
@@ -103,7 +102,6 @@ static BOOL appleRemoteHoldDown = NO;
 		[imageView setSlideshow:NO];
 		//return;
 	}
-	useComposedImage = NO;
 	threadStop = NO;
 	NSString *characters = [sender charactersIgnoringModifiers];
     unichar character = [characters characterAtIndex: 0];
@@ -216,7 +214,6 @@ static BOOL appleRemoteHoldDown = NO;
 					//nextpage
 					[lock lock];
 					[lock unlock];
-					useComposedImage = YES;
 					[self imageDisplay];
 					break;
 					
@@ -597,7 +594,6 @@ static BOOL appleRemoteHoldDown = NO;
 					if ([imageView next] == YES) {
 						[lock lock];
 						[lock unlock];
-						useComposedImage = YES;
 						[self imageDisplay];
 					}
 					break;
@@ -823,7 +819,6 @@ static BOOL appleRemoteHoldDown = NO;
 	}
 	
 	
-	useComposedImage = NO;
 	threadStop = NO;
 	NSRect left,right;
 	switch (readMode) {
@@ -912,7 +907,6 @@ static BOOL appleRemoteHoldDown = NO;
 	}
 	
 	
-	useComposedImage = NO;
 	threadStop = NO;
 	NSRect left,right;
 	switch (readMode) {
@@ -985,7 +979,6 @@ static BOOL appleRemoteHoldDown = NO;
 	}
 	
 	
-	useComposedImage = NO;
 	threadStop = NO;
 	NSRect left,right;
 	switch (readMode) {
@@ -1078,7 +1071,6 @@ static BOOL appleRemoteHoldDown = NO;
 					if (left) {
 						[lock lock];
 						[lock unlock];
-						useComposedImage = YES;
 						[self imageDisplay];
 					} else {
 						//[lock lock];
@@ -1220,7 +1212,6 @@ static BOOL appleRemoteHoldDown = NO;
 					//nextpage
 					[lock lock];
 					[lock unlock];
-					useComposedImage = YES;
 					[self imageDisplay];
 					break;
 				case 7:
@@ -1540,7 +1531,6 @@ static BOOL appleRemoteHoldDown = NO;
 					if ([imageView next] == YES) {
 						[lock lock];
 						[lock unlock];
-						useComposedImage = YES;
 						[self imageDisplay];
 					}
 					break;
@@ -1577,7 +1567,6 @@ static BOOL appleRemoteHoldDown = NO;
 						if ([imageView next] == YES) {
 							[lock lock];
 							[lock unlock];
-							useComposedImage = YES;
 							[self imageDisplay];
 						}
 					} else {
@@ -1876,14 +1865,12 @@ static BOOL appleRemoteHoldDown = NO;
 						if (![imageView next]) {
 							return;
 						} else {
-							useComposedImage = YES;
 							[self imageDisplay];
 						}
 					} else if ([event deltaY] > 0) {
 						if (![imageView prev]) {
 							return;
 						} else {
-							useComposedImage = NO;
 							if (prevPageMode == 1) [imageView setStartFromEnd:YES];
 							[self prevPage];
 						}
@@ -2201,7 +2188,6 @@ static BOOL appleRemoteHoldDown = NO;
 					[imageMutableArray removeAllObjects];
 					nowPage = (int)[completeMutableArray count];
 					nowPage -= 2;
-					if (bufferingMode == 0 && screenCache>0) [self imageDisplayIfHasScreenCache];
 					[self lookahead];
 					if ([self isSmallImage:[imageMutableArray objectAtIndex:0] page:nowPage+1] == NO) {
 						[imageMutableArray removeObjectAtIndex:0];
@@ -2242,7 +2228,6 @@ static BOOL appleRemoteHoldDown = NO;
 				threadStop = NO;
 				[imageMutableArray removeAllObjects];
 				nowPage -= 3;
-				if (bufferingMode == 0 && screenCache>0) [self imageDisplayIfHasScreenCache];
 				[self lookahead];
 				//NSLog(@"1 %@",imageMutableArray);
 				//[imageMutableArray addObject:[imageView image]];
@@ -2271,7 +2256,6 @@ static BOOL appleRemoteHoldDown = NO;
 					[imageMutableArray removeAllObjects];
 					nowPage = (int)[completeMutableArray count];
 					nowPage -= 2;
-					if (bufferingMode == 0 && screenCache>0) [self imageDisplayIfHasScreenCache];
 					[self lookahead];
 					if ([self isSmallImage:[imageMutableArray objectAtIndex:0] page:nowPage+1] == NO) {
 						[imageMutableArray removeObjectAtIndex:0];
@@ -2302,7 +2286,6 @@ static BOOL appleRemoteHoldDown = NO;
 				threadStop = NO;
 				[imageMutableArray removeAllObjects];
 				nowPage -= 3;
-				if (bufferingMode == 0 && screenCache>0) [self imageDisplayIfHasScreenCache];
 				[imageMutableArray addObject:[self loadImage:nowPage]];
 				//[imageMutableArray addObject:firstImage];
 				//[imageMutableArray addObject:secondImage];
@@ -2321,7 +2304,6 @@ static BOOL appleRemoteHoldDown = NO;
 				threadStop = NO;
 				[imageMutableArray removeAllObjects];
 				nowPage -= 4;
-				if (bufferingMode == 0 && screenCache>0) [self imageDisplayIfHasScreenCache];				
 				[self lookahead];
 				//[imageMutableArray addObject:firstImage];
 				//[imageMutableArray addObject:secondImage];
@@ -2457,7 +2439,6 @@ static BOOL appleRemoteHoldDown = NO;
 -(void)goToLast
 {
 	if (nowPage < [completeMutableArray count]) {
-		useComposedImage = NO;
 		[imageMutableArray removeAllObjects];
 		nowPage = (int)[completeMutableArray count];
 		if (readMode > 1) {
@@ -2479,7 +2460,6 @@ static BOOL appleRemoteHoldDown = NO;
 }
 -(void)goToFirst
 {
-	useComposedImage = NO;
 	[imageMutableArray removeAllObjects];
 	nowPage = 0;
 	[self lookahead];
@@ -2498,7 +2478,6 @@ static BOOL appleRemoteHoldDown = NO;
 
 -(void)nextBookmark
 {
-	useComposedImage = NO;
 	NSMutableArray *oldArray = [NSMutableArray array];
 	int i;
 	for (i = 0; i < [bookmarkArray count]; i++) {
@@ -2535,7 +2514,6 @@ static BOOL appleRemoteHoldDown = NO;
 
 -(void)backBookmark
 {
-	useComposedImage = NO;
 	NSMutableArray *oldArray = [NSMutableArray array];
 	int i;
 	for (i = 0; i < [bookmarkArray count]; i++) {
@@ -2726,13 +2704,11 @@ static BOOL appleRemoteHoldDown = NO;
 
 - (void)wheelUp
 {
-	useComposedImage = NO;
 	[self prevPage];
 	wheelUpTimer = nil;
 }
 - (void)wheelDown
 {
-	useComposedImage = YES;
 	[self imageDisplay];
 	wheelDownTimer = nil;
 }
@@ -2746,8 +2722,6 @@ static BOOL appleRemoteHoldDown = NO;
 		//[completeMutableArray removeAllObjects];
 		//[completeMutableArray addObjectsFromArray:array];
 	}
-	[composedImage release];
-	composedImage = nil;
 	nowPage = page;
 	if (nowPage < 0) {
 		nowPage = 0;
@@ -2808,8 +2782,6 @@ static BOOL appleRemoteHoldDown = NO;
 	if (nowPage < 0) {
 		nowPage = 0;
 	}
-	[composedImage release];
-	composedImage = nil;
 	[imageMutableArray removeAllObjects];
 	[self lookahead];
 	[self imageDisplay];
@@ -2951,7 +2923,6 @@ static NSTimer* dontSleepTimer = nil;
 {
 	[lock lock];
 	[lock unlock];
-	useComposedImage = YES;
 	[self imageDisplay];
 }
 
