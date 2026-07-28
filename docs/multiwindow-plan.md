@@ -375,6 +375,50 @@ diffs separable).
 `Controller` remains in `MainMenu.xib` and remains the window's
 delegate — nil-targeted actions must still reach it.
 
+### Findings from the pre-implementation inventory (2026-07-29)
+
+Four things the scope list above does not say, established by reading the
+code before starting. They change the shape of the work.
+
+1. **`applicationDidFinishLaunching:` cannot simply move — it must
+   split.** Almost its whole body is window-level: it pushes `keyArray`
+   into `fullImagePanel` and `thumController`, derives the drag-scroll
+   maps from `mouseArrayMode2/3` and pushes them into `imageView`, and
+   ends with the `OpenLastFolder` → `openTheLastPage:` call gated on
+   `[window isVisible]`. `AppController` should own the delegate method
+   and forward the per-window half to the window controller.
+
+2. **The menu outlets move but their builders do not.**
+   `setBookmarkMenu`, `setSameFolderMenu:`, `setOpenRecentMenu` and
+   `menuNeedsUpdate:` all read per-window book state (`bookmarkArray`,
+   `currentBookPath`). Decision: `AppController` owns
+   `openRecentMenuItem` / `openSameFolderMenuItem` / `bookmarkMenuItem`
+   and exposes them via accessors; the builder methods stay on
+   `Controller` and reach the items through those accessors. Rebuilding
+   them when the front window changes is MW-6's job, not MW-3's.
+
+3. **Put `registerDefaults:` in `+initialize` (or `main.m`), not in
+   `-awakeFromNib`.** Registering from a nib object's `awakeFromNib`
+   makes the registration race every other nib object's `awakeFromNib`
+   — the hazard behind `docs/KNOWN_ISSUES.md` #19, and the reason the
+   pre-MW-2 `Fullscreen` default was unreliable on a fresh profile.
+   `+initialize` runs before any instance exists, so it cannot lose that
+   race. Checked: the only other nib object that touches
+   `NSUserDefaults` in `awakeFromNib` is `BookmarkController`
+   (`AllBookmarkSplitPotision`), and that key is not registered, so
+   nothing else depends on the current ordering. Note the bootstrap
+   block assigns the `bufferingMode` **ivar** while building the
+   dictionary — use a local when hoisting it to `+initialize`.
+   This does **not** mean fixing #19's write-back pattern generally;
+   that stays out of scope.
+
+4. **The Apple Remote delegate method is in the other file.**
+   `remoteButton:pressedDown:clickCount:` is at
+   `Controller_input.m:11`, not in `Controller.m`, and moves with
+   `setupRemoteControl` and the `applicationWillBecomeActive:` /
+   `applicationWillResignActive:` pair. `appleRemoteHoldDown`
+   (`Controller_input.m:8`, file-scope static) goes with it.
+
 **Acceptance:** single window, no behavioural difference; `Controller`
 is no longer the application delegate; Open Recent, book settings and
 last-page recording all still work.
