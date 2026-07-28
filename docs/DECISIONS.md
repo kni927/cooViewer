@@ -311,3 +311,69 @@ that UTI in `QLSupportedContentTypes`; `COCoverExtractor.m` gained a
 (bypassing `COArchive`, which cannot open a directory) rather than the
 "explicitly excludes cvbdl" behaviour described above, which is now
 superseded.
+
+---
+
+## Multi-window: AppController + NSWindowController, not NSDocument (2026-07-28)
+
+**Decision:** cooViewer gains multi-window support by splitting the
+single `Controller` into an application-level `AppController` and a
+per-window `BookWindowController : NSWindowController` loaded from a
+new `BookWindow.xib`. **`NSDocument` / `NSDocumentController` is not
+adopted.** Multi-window is reached through a sequence of
+single-window-preserving refactors (`docs/multiwindow-plan.md`,
+tasks MW-1 … MW-9), not in one change.
+
+**Why:** Three independent investigations reached the same
+architecture — `docs/audit-20260711.md` §2a, `docs/codex-audit-20260728.md`,
+and `docs/multiwindow-pass1.md`; the reconciliation is
+`docs/multiwindow-pass2.md`. Beyond the cost of disabling
+`NSDocument`'s save/revert/duplicate machinery for a read-only viewer,
+two facts make it actively wrong here:
+
+- **Book identity is not file-URL identity.** Opening a single image
+  re-points the book at its parent folder
+  (`Sources/Controller.m:741-749`), and `public.directory` is itself a
+  declared document type (as is the `.cvbdl` package). So
+  `NSDocumentController`'s `fileURL`-keyed "already open" check would
+  be wrong in exactly the case where de-duplication matters.
+- **The custom Open Recent carries a page number**
+  (`{alias, page, temppath}`), which `NSDocumentController`'s recent
+  list cannot store — so the hand-rolled list survives a migration and
+  the app would maintain two.
+
+The original 2026-07-11 reason for deferring multi-window — the
+XADWrapper retain cycle leaking a whole archive object graph per open,
+which every additional window would have multiplied — was fixed
+directly in v1.3.7 and then removed outright when v1.4.0 migrated the
+archive layer to libarchive/libzip. What replaces it is a
+bounded list of specific defects (app-wide event pump during archive
+load, app-modal password prompt, lookahead thread teardown, legacy
+fullscreen), which is why the direction is now "proceed".
+
+**Step 0 behaviour decisions (settled by the project owner, 2026-07-28):**
+
+1. **Fullscreen:** drop the legacy custom implementation in
+   `CustomWindow` and migrate to native AppKit `toggleFullScreen:` /
+   `NSWindowCollectionBehaviorFullScreenPrimary`. Nothing about the
+   current behaviour (no Spaces, process-wide `setMenuBarVisible:`,
+   forced `mainScreen` frame) is worth preserving. This also retires
+   the `DontHideMenuBar` preference.
+2. **Same book reopened:** bring the existing window to the front —
+   keyed on the **resolved book path**, not the URL passed in (see
+   above).
+3. **File ▸ Open:** replaces the current window's book.
+4. **Last window closed:** the application quits
+   (`applicationShouldTerminateAfterLastWindowClosed:` → YES).
+   Consequently no empty-window state is needed.
+5. **Startup restore:** macOS standard — `NSWindowRestoration` restores
+   every window that was open at quit, not just one. `OpenLastFolder`
+   is demoted to a fallback for when the system restored nothing.
+
+**How to apply:** Work through `docs/multiwindow-plan.md` one MW task
+at a time; MW-1 … MW-6 must leave the app single-window with no
+user-visible change, and multiple windows are enabled only in MW-7.
+Do not fold the listed out-of-scope cleanups (Alias Manager → `NSURL`
+bookmarks, `imageFileTypes` → `imageTypes`, the remaining
+`NSRunAlertPanel` sites, `validateMenuItem:`'s 44 localized-title
+branches) into these tasks — they are independent follow-ups.
