@@ -1,6 +1,7 @@
 /* Controller */
 
 #import <Cocoa/Cocoa.h>
+#include <stdatomic.h>
 #import "ThumbnailController.h"
 #import "BookmarkController.h"
 #import "PreferenceController.h"
@@ -99,7 +100,20 @@
 	IBOutlet id openSameFolderMenuItem;
 	
 	
-	NSTimeInterval lastArchiveProgressPump;
+	/* Archive-load session (MW-1). The COArchive read runs on a
+	 * background thread; these are written there and read on the main
+	 * thread while the progress sheet's modal loop runs, so they are
+	 * atomic. archiveLoadDepth counts nested COImageLoaders (an archive
+	 * inside an archive): only depth 0 gets the background thread and
+	 * the sheet, inner ones run inline on whatever thread they are on. */
+	_Atomic int archiveLoadCancelled;
+	_Atomic long long archiveLoadDone;
+	_Atomic long long archiveLoadTotal;
+	int archiveLoadDepth;
+	NSWindow *archiveProgressSheet;
+	NSProgressIndicator *archiveProgressBar;
+	NSTextField *archiveProgressLabel;
+	NSButton *archiveProgressCancelButton;
 
     //IBOutlet id pageTextField;
 	
@@ -174,7 +188,22 @@
 - (void)openFromOpenRecent:(id)sender;
 - (void)openPage:(int)page last:(BOOL)last;
 
+/* Archive open progress. Called from COArchive's read, which since MW-1
+ * runs on a background thread for a top-level load — this must stay
+ * thread-safe and must not touch AppKit. Returns NO to cancel. */
 - (BOOL)archiveReadProgress:(long long)done total:(long long)total;
+
+/* Runs `block` (the COArchive read) so that it does not block the UI and
+ * does not consume events aimed at anything else. At the outermost level
+ * the block is run on a background thread while the main thread drives a
+ * modal progress sheet; nested calls run it inline. Called by
+ * COImageLoader. `name` labels the sheet. */
+- (void)runArchiveLoadNamed:(NSString *)name usingBlock:(void (^)(void))block;
+- (IBAction)cancelArchiveLoad:(id)sender;
+
+/* The window sheets raised on behalf of a load should attach to. One
+ * window today; the seam exists so MW-5 can make it per-window. */
+- (NSWindow *)sheetParentWindow;
 
 /* Modal password prompt for an encrypted archive, called from
  * COImageLoader while opening. Returns the entered password, or nil if

@@ -1129,30 +1129,194 @@ static const int DIALOG_CANCEL	= 129;
 	
 }
 /* Archive open progress (COArchive extracts everything up front).
- * Keeps the spinner drawn and lets Esc cancel the open; other input
- * events arriving during the load are swallowed. */
+ *
+ * Before MW-1 this dequeued NSApp's whole event queue looking for Esc and
+ * dropped everything else on the floor. That silently ate input, and with
+ * more than one window it would have eaten input aimed at windows that
+ * were not loading anything. It now only records progress and reports
+ * whether the load was cancelled.
+ *
+ * Called on the background load thread for a top-level open (see
+ * -runArchiveLoadNamed:usingBlock:), and on the calling thread for a
+ * nested one. Touches no AppKit state — the sheet is refreshed by a timer
+ * on the main thread. */
 - (BOOL)archiveReadProgress:(long long)done total:(long long)total
 {
-	NSTimeInterval now = [NSDate timeIntervalSinceReferenceDate];
-	if (now - lastArchiveProgressPump < 0.05) return YES;
-	lastArchiveProgressPump = now;
-
-	NSEvent *ev;
-	while ((ev = [NSApp nextEventMatchingMask:NSEventMaskAny
-	                                untilDate:nil
-	                                   inMode:NSEventTrackingRunLoopMode
-	                                  dequeue:YES])) {
-		if ([ev type] == NSEventTypeKeyDown && [ev keyCode] == 53 /*Esc*/) {
-			return NO;
-		}
-	}
-	[progressIndicator displayIfNeeded];
-	return YES;
+	atomic_store(&archiveLoadDone, done);
+	atomic_store(&archiveLoadTotal, total);
+	return atomic_load(&archiveLoadCancelled) ? NO : YES;
 }
 
-/* Modal password prompt for an encrypted archive, called by COImageLoader
- * while opening a document. Built in code (NSAlert + a masked accessory
- * field), so no NIB is involved.
+- (NSWindow *)sheetParentWindow
+{
+	return window;
+}
+
+/* YES when a sheet can actually be attached. A sheet on a window that is
+ * not on screen never appears and its modal loop would never end, so the
+ * callers fall back to their pre-MW-1 app-modal behaviour instead. */
+- (BOOL)canPresentSheet
+{
+	NSWindow *parent = [self sheetParentWindow];
+	return (parent != nil && [parent isVisible] && ![parent isMiniaturized]);
+}
+
+#pragma mark archive load progress sheet
+
+- (void)buildArchiveProgressSheet
+{
+	if (archiveProgressSheet) return;
+
+	NSRect frame = NSMakeRect(0, 0, 420, 108);
+	archiveProgressSheet = [[NSWindow alloc] initWithContentRect:frame
+	                                                   styleMask:NSWindowStyleMaskTitled
+	                                                     backing:NSBackingStoreBuffered
+	                                                       defer:YES];
+	NSView *content = [archiveProgressSheet contentView];
+
+	/* Views are owned by the sheet's view hierarchy; the ivars are just
+	 * handles, valid for as long as archiveProgressSheet is retained. */
+	archiveProgressLabel = [[[NSTextField alloc] initWithFrame:NSMakeRect(20, 68, 380, 20)] autorelease];
+	[archiveProgressLabel setBezeled:NO];
+	[archiveProgressLabel setDrawsBackground:NO];
+	[archiveProgressLabel setEditable:NO];
+	[archiveProgressLabel setSelectable:NO];
+	[archiveProgressLabel setLineBreakMode:NSLineBreakByTruncatingMiddle];
+	[content addSubview:archiveProgressLabel];
+
+	archiveProgressBar = [[[NSProgressIndicator alloc] initWithFrame:NSMakeRect(20, 44, 380, 16)] autorelease];
+	[archiveProgressBar setStyle:NSProgressIndicatorStyleBar];
+	[archiveProgressBar setIndeterminate:YES];
+	[archiveProgressBar setUsesThreadedAnimation:YES];
+	[content addSubview:archiveProgressBar];
+
+	archiveProgressCancelButton = [[[NSButton alloc] initWithFrame:NSMakeRect(310, 8, 92, 32)] autorelease];
+	[archiveProgressCancelButton setBezelStyle:NSBezelStyleRounded];
+	[archiveProgressCancelButton setTitle:NSLocalizedString(@"Cancel", @"")];
+	[archiveProgressCancelButton setKeyEquivalent:@"\033"];	/* Esc, as before MW-1 */
+	[archiveProgressCancelButton setTarget:self];
+	[archiveProgressCancelButton setAction:@selector(cancelArchiveLoad:)];
+	[content addSubview:archiveProgressCancelButton];
+}
+
+- (IBAction)cancelArchiveLoad:(id)sender
+{
+	/* Unambiguous by construction: the sheet belongs to exactly one load,
+	 * and the flag it sets is read only by that load's progress callback. */
+	atomic_store(&archiveLoadCancelled, 1);
+	[archiveProgressLabel setStringValue:NSLocalizedString(@"Cancelling…", @"")];
+	[archiveProgressCancelButton setEnabled:NO];
+}
+
+- (void)refreshArchiveProgress:(id)sender
+{
+	long long done = atomic_load(&archiveLoadDone);
+	long long total = atomic_load(&archiveLoadTotal);
+	if (total <= 0) return;
+
+	if ([archiveProgressBar isIndeterminate]) {
+		[archiveProgressBar setIndeterminate:NO];
+		[archiveProgressBar setMinValue:0.0];
+		[archiveProgressBar setMaxValue:1.0];
+	}
+	double fraction = (double)done / (double)total;
+	if (fraction < 0.0) fraction = 0.0;
+	if (fraction > 1.0) fraction = 1.0;
+	[archiveProgressBar setDoubleValue:fraction];
+}
+
+- (void)runArchiveLoadNamed:(NSString *)name usingBlock:(void (^)(void))block
+{
+	/* Nested load (an archive inside an archive), or no window to hang a
+	 * sheet on: run it inline. This is what every load did before MW-1,
+	 * minus the event pump — it blocks, but it cannot swallow input. */
+	if (archiveLoadDepth > 0 || ![self canPresentSheet]) {
+		archiveLoadDepth++;
+		block();
+		archiveLoadDepth--;
+		return;
+	}
+
+	archiveLoadDepth++;
+	atomic_store(&archiveLoadCancelled, 0);
+	atomic_store(&archiveLoadDone, 0);
+	atomic_store(&archiveLoadTotal, 0);
+
+	dispatch_semaphore_t done = dispatch_semaphore_create(0);
+	dispatch_async(dispatch_get_global_queue(QOS_CLASS_USER_INITIATED, 0), ^{
+		block();
+		dispatch_semaphore_signal(done);
+	});
+
+	/* Most opens finish immediately and must not flash a sheet: the
+	 * common formats never report progress at all — COZipArchive reads
+	 * only the central directory and CORarArchive uses the header-only
+	 * parser, both "near instant" by design. Only a load that is still
+	 * running after a grace period is worth showing UI for. Blocking the
+	 * main thread for that period is imperceptible and keeps the fast
+	 * path behaving exactly as it did before MW-1. */
+	dispatch_time_t grace = dispatch_time(DISPATCH_TIME_NOW, 150ull * NSEC_PER_MSEC);
+	if (dispatch_semaphore_wait(done, grace) == 0) {
+		dispatch_release(done);
+		archiveLoadDepth--;
+		return;
+	}
+
+	[self buildArchiveProgressSheet];
+	[archiveProgressBar setIndeterminate:YES];
+	[archiveProgressBar setDoubleValue:0.0];
+	[archiveProgressCancelButton setEnabled:YES];
+	[archiveProgressLabel setStringValue:
+		[NSString stringWithFormat:NSLocalizedString(@"Opening “%@”…", @""),
+			name ? name : @""]];
+
+	NSWindow *sheet = archiveProgressSheet;
+	NSWindow *parent = [self sheetParentWindow];
+
+	[parent beginSheet:sheet completionHandler:^(NSModalResponse r) { (void)r; }];
+	[archiveProgressBar startAnimation:self];
+
+	/* The read is already running off the main thread. The main thread now
+	 * drives a modal session, so AppKit dispatches events normally (blocked
+	 * by modality where appropriate) instead of us dequeuing and dropping
+	 * them as before MW-1.
+	 *
+	 * The loop's exit condition is the semaphore, not a -stopModal posted
+	 * from another thread. That matters: a -stopModal delivered before the
+	 * modal loop had started would be a no-op and the loop would then never
+	 * end. Here a read that finishes early just makes the next wait return
+	 * 0, whenever that happens. The timed wait also paces the loop, so
+	 * -runModalSession: is not spun continuously. */
+	NSModalSession session = [NSApp beginModalSessionForWindow:sheet];
+	for (;;) {
+		dispatch_time_t slice = dispatch_time(DISPATCH_TIME_NOW, 20ull * NSEC_PER_MSEC);
+		if (dispatch_semaphore_wait(done, slice) == 0) break;
+		[NSApp runModalSession:session];
+		[self refreshArchiveProgress:nil];
+	}
+	[NSApp endModalSession:session];
+	dispatch_release(done);
+
+	[archiveProgressBar stopAnimation:self];
+	[parent endSheet:sheet];
+	[sheet orderOut:self];
+	archiveLoadDepth--;
+}
+
+/* Password prompt for an encrypted archive, called by COImageLoader while
+ * opening a document. Built in code (NSAlert + a masked accessory field),
+ * so no NIB is involved.
+ *
+ * Presented as a sheet on the window whose book needs the password
+ * (MW-1); before that it was `[alert runModal]`, which blocked the whole
+ * application and showed no association with any window. The caller's
+ * retry loop needs an answer synchronously, so the sheet is run with its
+ * own modal loop rather than left to the completion handler. Falls back
+ * to app-modal when there is no window to attach to.
+ *
+ * Always called on the main thread: COImageLoader reaches it from
+ * -checkArchiveContainer:, which runs after the background archive read
+ * has finished.
  *
  * Returns the entered password, or nil for Cancel — and also for an empty
  * entry, so hitting OK with a blank field cannot spin the caller's retry
@@ -1160,6 +1324,9 @@ static const int DIALOG_CANCEL	= 129;
  * the same fail-closed path encrypted archives took before. */
 - (NSString *)askArchivePassword:(COImageLoader *)loader wrongPassword:(BOOL)wrong
 {
+	NSAssert([NSThread isMainThread],
+	         @"askArchivePassword: must be called on the main thread");
+
 	NSAlert *alert = [[[NSAlert alloc] init] autorelease];
 	[alert setMessageText:(wrong ? NSLocalizedString(@"Incorrect password",@"")
 	                             : NSLocalizedString(@"Password required",@""))];
@@ -1176,7 +1343,18 @@ static const int DIALOG_CANCEL	= 129;
 	[alert setAccessoryView:field];
 	[[alert window] setInitialFirstResponder:field];
 
-	if ([alert runModal] != NSAlertFirstButtonReturn)
+	NSModalResponse response;
+	if ([self canPresentSheet]) {
+		[alert beginSheetModalForWindow:[self sheetParentWindow]
+		              completionHandler:^(NSModalResponse r) {
+			[NSApp stopModalWithCode:r];
+		}];
+		response = [NSApp runModalForWindow:[alert window]];
+	} else {
+		response = [alert runModal];
+	}
+
+	if (response != NSAlertFirstButtonReturn)
 		return nil;					// Cancel
 	NSString *entered = [[[field stringValue] copy] autorelease];
 	return ([entered length] > 0) ? entered : nil;

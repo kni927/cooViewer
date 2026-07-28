@@ -415,3 +415,9 @@
 
 /* No comment provided by engineer. */
 "Enter the password for \"%@\"." = "\"%@\" のパスワードを入力してください。";
+
+/* No comment provided by engineer. */
+"Opening “%@”…" = "“%@” を開いています…";
+
+/* No comment provided by engineer. */
+"Cancelling…" = "キャンセルしています…";

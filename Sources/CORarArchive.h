@@ -54,16 +54,22 @@
 //    following it in the stream is prefetched for free (the cursor
 //    is already sitting right after the just-decoded entry).
 //  - Thread safety: a single struct archive* stream is not safe for
-//    concurrent use. The index pass runs synchronously on the
-//    initializing (typically main) thread, exactly like the base
-//    COArchive full-extraction path, because its progress callback
-//    pumps NSApp's event queue directly (see Controller.m's
-//    -archiveReadProgress:total:) — that must happen on the main
-//    thread, not on a background queue. Once the index pass
-//    finishes, every cursor operation for entry decode is serialized
-//    on a private dispatch queue instead, since -data is called from
-//    COImageLoader's lookahead/prefetch threads as well as the main
-//    thread.
+//    concurrent use. The index pass runs synchronously, entirely on
+//    whichever single thread initializes the object, exactly like the
+//    base COArchive full-extraction path. Since MW-1 that is normally
+//    a background thread, not the main thread: the host runs the read
+//    off-main behind a progress sheet (see -[Controller
+//    runArchiveLoadNamed:usingBlock:]). This is safe because the pass
+//    is still confined to one thread — what must never happen is two
+//    threads touching the stream at once.
+//    (Before MW-1 this comment required the main thread, because the
+//    progress callback dequeued NSApp's event queue directly. That was
+//    a consequence of the old -archiveReadProgress:total:, which no
+//    longer touches AppKit at all; the requirement went with it.)
+//    Once the index pass finishes, every cursor operation for entry
+//    decode is serialized on a private dispatch queue instead, since
+//    -data is called from COImageLoader's lookahead/prefetch threads
+//    as well as the main thread.
 //  - Filename encoding (libarchive fallback path): same policy as
 //    COArchive/COZipArchive — raw header bytes
 //    (archive_entry_pathname) and libarchive's UTF-8 conversion

@@ -590,3 +590,32 @@ deleting the write-backs.
 Do not fix individual keys opportunistically while working on something
 else. Treat it as one scoped task with its own verification, including a
 clean-domain launch test.
+
+## 20. `en.lproj/Localizable.strings` Is UTF-16LE, `ja.lproj` Is UTF-8
+
+`Resources/en.lproj/Localizable.strings` is UTF-16 little-endian;
+`Resources/ja.lproj/Localizable.strings` is UTF-8. Both are valid — the
+`.strings` format allows either — but the asymmetry is a trap:
+
+- Appending to the en file with a UTF-8 tool (`cat >>`, `echo >>`, a
+  plain `open(path,'a')`) silently produces a file that is *still*
+  accepted by `plutil -lint` but whose appended keys do not resolve.
+  This happened during MW-1 and was caught only by checking that the new
+  keys could be read back with `plutil -extract`.
+- Verify string edits semantically, not by eyeballing a diff — git shows
+  the UTF-16 file as `Bin` and reports no useful line diff:
+
+```bash
+plutil -extract "your new key" raw -o - Resources/en.lproj/Localizable.strings
+```
+
+To edit the en file, decode and re-encode explicitly, preserving UTF-16:
+
+```python
+raw = open(p, 'rb').read(); text = raw.decode('utf-16')
+open(p, 'wb').write((text + addition).encode('utf-16'))
+```
+
+Normalising both files to UTF-8 would remove the trap and is a
+reasonable standalone task; it has not been done because it rewrites a
+large localization file wholesale and wants its own verification pass.

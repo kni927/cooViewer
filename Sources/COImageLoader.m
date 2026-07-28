@@ -338,13 +338,34 @@ static NSArray *_COImageLoader_archiveTypes=nil;
 		
 	} else if([[COImageLoader archiveTypes] containsObject:[[filePath pathExtension] lowercaseString]]) {
 		mode=2;
-		archiveContainer=[[COArchive alloc] initWithPath:filePath
-			progress:^BOOL(long long done, long long total) {
-				if (controller && [controller respondsToSelector:@selector(archiveReadProgress:total:)])
-					return [controller archiveReadProgress:done total:total];
-				return YES;
-			}];
-		if ([archiveContainer cancelled]) {
+		COArchiveProgress progress = ^BOOL(long long done, long long total) {
+			if (controller && [controller respondsToSelector:@selector(archiveReadProgress:total:)])
+				return [controller archiveReadProgress:done total:total];
+			return YES;
+		};
+		/* The read is the expensive part of opening a book and the only
+		 * part that reports progress. Since MW-1 the host runs it off the
+		 * main thread behind a progress sheet (see
+		 * -[Controller runArchiveLoadNamed:usingBlock:]) so it can no
+		 * longer freeze the UI or consume unrelated events. Hosts with no
+		 * controller — the QuickLook and Thumbnail extensions — keep the
+		 * plain synchronous read.
+		 *
+		 * Only the read moves. Everything after it, including
+		 * -checkArchiveContainer: and its password prompt, still runs on
+		 * the caller's (main) thread exactly as before. */
+		__block COArchive *opened = nil;
+		void (^readBlock)(void) = ^{
+			opened = [[COArchive alloc] initWithPath:filePath progress:progress];
+		};
+		if (controller && [controller respondsToSelector:@selector(runArchiveLoadNamed:usingBlock:)]) {
+			[controller runArchiveLoadNamed:[displayPath lastPathComponent]
+			                     usingBlock:readBlock];
+		} else {
+			readBlock();
+		}
+		archiveContainer = opened;
+		if (!archiveContainer || [archiveContainer cancelled]) {
 			mode = -1;
 			return;
 		}
