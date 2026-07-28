@@ -358,7 +358,34 @@ fullscreen), which is why the direction is now "proceed".
    `NSWindowCollectionBehaviorFullScreenPrimary`. Nothing about the
    current behaviour (no Spaces, process-wide `setMenuBarVisible:`,
    forced `mainScreen` frame) is worth preserving. This also retires
-   the `DontHideMenuBar` preference.
+   the `DontHideMenuBar` and `Fullscreen` preferences.
+
+   *Correction (2026-07-28, `docs/tasks/2026-07-28-02-fullscreen-default-investigation.md`):*
+   this decision was originally justified in part by the claim that the
+   `Fullscreen` preference "defaults to YES, so the app launches
+   fullscreen out of the box". The registration is real
+   (`Controller.m:70, 74, 90`) but the conclusion was wrong: the main
+   window is `visibleAtLaunch="NO"` (`MainMenu.xib:15`), so no window
+   is shown at launch at all — it appears only when a book opens, and
+   at launch only under `OpenLastFolder`. The registered default is
+   also effectively one-shot, because `Controller.m:273` writes the
+   value back into the persistent domain on every launch. On the
+   owner's machine the stored value is `0`, set by a prior
+   Window ▸ Fullscreen toggle (`Controller.m:2864-2874` is the only
+   writer of NO), so **current on-device behaviour is already
+   non-fullscreen**. The decision is unchanged — the corrected facts
+   only make retiring the preference lower-risk than assumed, since for
+   any profile that has toggled the menu item it is a no-op.
+
+   A related hazard was found and is resolved by this decision rather
+   than separately: on a genuinely fresh profile,
+   `CustomWindow -awakeFromNib` reads the key (`CustomWindow.m:12`)
+   while `Controller -awakeFromNib` registers the default
+   (`Controller.m:90`), and AppKit does not define `awakeFromNib`
+   ordering across nib objects, so the first launch may read NO
+   regardless (unverified at runtime). Removing the legacy fullscreen
+   state in MW-2 removes the key, both readers and the ordering
+   dependency — do not patch it in place beforehand.
 2. **Same book reopened:** bring the existing window to the front —
    keyed on the **resolved book path**, not the URL passed in (see
    above).

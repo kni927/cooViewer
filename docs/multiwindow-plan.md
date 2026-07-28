@@ -35,22 +35,56 @@ Consequences that follow from these and are treated as settled:
 - Decision 5 means `NSWindowRestoration` (§MW-8), which supersedes
   part of the `OpenLastFolder` preference.
 
-### Two assumptions carried, flagged for confirmation
+### Assumptions carried
 
-Neither blocks work before the task that needs it.
+- **A1 — How is a second window created?** *(open — flagged for
+  confirmation)* Decisions 3 + 4 leave no in-app route: File ▸ Open
+  replaces, and there is no empty window. As written, a second window
+  can only come from Finder / Dock / drag while a book is already open.
+  **Recommendation:** add **Open in New Window… (⌥⌘O)** alongside
+  File ▸ Open. Scoped in MW-7; drop that sub-item if the answer is
+  "Finder only". Does not block work before MW-7.
 
-- **A1 — How is a second window created?** Decisions 3 + 4 leave no
-  in-app route: File ▸ Open replaces, and there is no empty window. As
-  written, a second window can only come from Finder / Dock / drag
-  while a book is already open. **Recommendation:** add
-  **Open in New Window… (⌥⌘O)** alongside File ▸ Open. Scoped in MW-7;
-  drop that sub-item if the answer is "Finder only".
-- **A2 — Does a new window open in full screen?** The `Fullscreen`
-  preference currently defaults to **YES**, so the app launches
-  fullscreen today. **Recommendation:** retire that launch behaviour —
-  new windows open windowed, full screen becomes a per-window state
-  reached by the standard green button / ⌃⌘F and remembered by
-  restoration. Decided in MW-2.
+- **A2 — Does a new window open in full screen?** *(resolved by
+  investigation, 2026-07-28 — decision unchanged)* New windows open
+  **windowed**; full screen becomes a per-window state reached by the
+  standard green button / ⌃⌘F and remembered by restoration.
+
+  The rationale originally given for A2 was wrong and is corrected here
+  — see `docs/tasks/2026-07-28-02-fullscreen-default-investigation.md`.
+  It claimed the `Fullscreen` preference "defaults to YES, so the app
+  launches fullscreen today". Accurately:
+
+  - `-[Controller awakeFromNib]` **does** register `Fullscreen` = YES
+    (`Controller.m:70, 74, 90`). That part was correct.
+  - It does **not** follow that the app launches fullscreen. The main
+    window is `visibleAtLaunch="NO"` (`MainMenu.xib:15`) — no window is
+    shown at launch at all. It appears only when a book opens
+    (`Controller.m:714`), and a book opens at launch only under
+    `OpenLastFolder`.
+  - The registered default is effectively one-shot: `Controller.m:273`
+    writes the value back into the persistent domain on every launch,
+    so from the second launch onward it is never consulted again.
+  - **On this machine the stored value is `0`** — set by a prior
+    Window ▸ Fullscreen menu toggle (`Controller.m:2864-2874` is the
+    only writer of NO). Current on-device behaviour is therefore
+    already non-fullscreen.
+
+  Consequence for MW-2: retiring the launch-fullscreen behaviour is a
+  **no-op for any profile that has ever toggled the menu item**, which
+  lowers the risk of this part of MW-2 to nil. It is not a behaviour
+  change users will notice.
+
+  One hazard identified in the investigation and left **unverified at
+  runtime**: on a genuinely fresh profile, `CustomWindow -awakeFromNib`
+  reads the key (`CustomWindow.m:12`) while `Controller -awakeFromNib`
+  registers the default (`Controller.m:90`), and AppKit does not define
+  the relative order of `awakeFromNib` across nib objects — so the first
+  launch may read NO regardless. **MW-2 resolves this by elimination:**
+  removing the legacy fullscreen state removes the key, both
+  `awakeFromNib` readers, and the ordering dependency entirely. No
+  separate fix is needed, and the hazard must not be "fixed" in place
+  ahead of MW-2.
 
 ---
 
@@ -163,9 +197,24 @@ split — making MW-4, MW-5 and MW-6 materially smaller.
    `dontHideMenubarCheck` UI (`Controller.m:288, 1930`;
    `PreferenceController`). Decide and record whether the stored key is
    deleted or simply ignored.
-5. Resolve **A2**: what the `Fullscreen` preference means now.
-   Recommendation: retire the default-YES launch-fullscreen behaviour;
-   new windows open windowed.
+5. Retire the `Fullscreen` preference entirely (**A2**, resolved).
+   Remove the registered default (`Controller.m:70, 74`), the
+   write-back (`:273`), both `awakeFromNib` readers
+   (`Controller.m:199`, `CustomWindow.m:12`), and both menu-item
+   uncheck sites (`Controller.m:200-202`, `CustomWindow.m:23`). New
+   windows open windowed; full screen is per-window and carried by
+   restoration (MW-8). Decide and record whether the stored key is
+   deleted or left orphaned.
+   This also collapses the **third source of truth** for the state: the
+   Window ▸ Fullscreen menu item's `state`, hardcoded `state="on"` in
+   the nib (`MainMenu.xib:339`), read as authoritative by
+   `FullImagePanel.m:27, 209`, and driven by the `SwitchFullscreen`
+   key/mouse actions via `performActionForItemAtIndex:`
+   (`Controller_input.m:772-781` case 49, `1762-1771` case 61). Those
+   two input actions must be re-pointed at `toggleFullScreen:`.
+   Removing the key is also what resolves the fresh-install
+   `awakeFromNib` ordering hazard (see A2) — by elimination, not by a
+   separate fix.
 6. Replace `[[NSScreen mainScreen] frame]` with the window's own
    screen or the view's bounds at the 9 non-`CustomWindow` sites:
    `Controller.m:1479` (`returnComposeImage:` — should use the view,
@@ -175,12 +224,15 @@ split — making MW-4, MW-5 and MW-6 materially smaller.
 7. Update `-[Controller validateMenuItem:]`'s Fullscreen branch
    (`Controller.m:2113`).
 
-**Out of scope:** ownership split; the `Fullscreen`-per-window
-question beyond A2 (there is still only one window).
+**Out of scope:** ownership split; per-window fullscreen state (there is
+still only one window); the `Controller.m:273` write-back pattern as a
+general problem — see `docs/KNOWN_ISSUES.md`. MW-2 removes the
+`Fullscreen` key's own instance of it and nothing else.
 
 **Acceptance**
 - Green button / ⌃⌘F enters and exits full screen; the window gets its
   own Space; the menu bar reveals on hover; Mission Control behaves.
+- The `SwitchFullscreen` key and mouse actions still toggle full screen.
 - The accessory (page-bar) child window and the loupe child window
   follow the fullscreen transition and are correctly positioned
   afterwards.
@@ -188,7 +240,10 @@ question beyond A2 (there is still only one window).
   on a non-main display.
 - Minimise, deactivate and quit no longer leave the menu bar hidden.
 
-**Risk:** medium-high (large deletion, user-visible).
+**Risk:** medium-high (large deletion, user-visible). Note that the
+*preference* half is lower risk than originally assumed: on any profile
+that has ever toggled Window ▸ Fullscreen off, the stored value is
+already `0` and retiring it changes nothing the user sees (see A2).
 **Depends on:** nothing (independent of MW-1; run after it to keep the
 diffs separable).
 

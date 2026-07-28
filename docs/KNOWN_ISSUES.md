@@ -536,3 +536,57 @@ string macro" hits (localizability, see #9) and 148
   release, then restore Homebrew management via the tap update afterward.
   Not practical for routine development-cycle verification, since it
   requires an uninstall/reinstall around every extension-touching change.
+
+## 19. `awakeFromNib` Writes Registered Defaults Back Into the Persistent Domain — Registered Defaults Are Effectively One-Shot
+
+Backlog item. **Not part of the multi-window plan** — MW-2 removes the
+`Fullscreen` key's own instance of this pattern as a side effect of
+retiring the preference, and deliberately nothing else. Fixing the
+pattern generally is a separate task.
+
+`-[Controller awakeFromNib]` registers application defaults
+(`Controller.m:63-90`) and then, for a number of keys, **reads the value
+and immediately writes it back** into the persistent domain:
+
+| Key | Read | Write-back |
+|---|---|---|
+| `Fullscreen` | `Controller.m:199` | `Controller.m:273` |
+| `OpenLastFolder` | `Controller.m:284` | `Controller.m:285` |
+| `ReadSubFolder` | `Controller.m:257` | `Controller.m:274` |
+| `Interpolation` | `Controller.m:159` | `Controller.m:161` |
+| `ImageCache` | `Controller.m:167` | `Controller.m:168` |
+
+(`ScreenCache`, `ThumbnailCache`, `UseCALayer`, `BufferingMode`,
+`ReadMode`, `RememberBookSettings`, `AlwaysRememberLastPage`,
+`GoToLastPage`, `OpenLinkMode`, `ChangeCurrentFolder`, `IgnoreImageDpi`,
+`SingleSetting`, `Thumbnail`, `LoupeSize`, `LoupeRate` and others follow
+the same shape — the list above is the set named in the backlog request,
+not the full extent.)
+
+Consequences:
+
+- **A registered default only ever applies on the very first launch.**
+  After that a persistent value always exists, so changing a registered
+  default in code has no effect on any existing installation.
+- **"Reset settings" does not behave like a fresh install.** Removing a
+  key causes the next launch to re-register *and re-persist* it, so the
+  domain never returns to the clean state a new user gets.
+- **It makes nib `awakeFromNib` ordering observable.** Any other nib
+  object that reads one of these keys in its own `awakeFromNib` races
+  the registration in `Controller.m:90`. `CustomWindow.m:12` does
+  exactly this for `Fullscreen`; AppKit does not define the order. See
+  `docs/tasks/2026-07-28-02-fullscreen-default-investigation.md`.
+
+Removing a write-back is *usually* safe on its own — `boolForKey:` and
+friends search the registration domain too, so a read still yields the
+registered default once `registerDefaults:` has run. The catch is the
+"once it has run" part: today the write-backs mask the ordering problem
+above for every launch after the first, so removing them can expose it.
+Any fix should therefore move `registerDefaults:` somewhere guaranteed to
+precede all nib `awakeFromNib` calls (e.g. `+initialize` on the app
+delegate, or `main.m` before `NSApplicationMain`) rather than just
+deleting the write-backs.
+
+Do not fix individual keys opportunistically while working on something
+else. Treat it as one scoped task with its own verification, including a
+clean-domain launch test.
