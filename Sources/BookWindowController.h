@@ -164,7 +164,16 @@
 	int canScrollMode;
 	
 	NSDate *lastSameFolderMenuUpdate;
-	
+
+	/* MW-6 item 4: explicit "this window has a book open" state. It replaces
+	   the two proxies the code used to test — [[self window] isVisible] and
+	   [imageView image] — neither of which is the question being asked:
+	   -openPage:last: orders the window front *before* the load starts, so
+	   the window is visible while no book is open yet, and imageView's image
+	   is a side effect of the display pass rather than controller state.
+	   Set when a load completes, cleared when the window's book is torn down
+	   in -windowWillClose:. Read through -hasBookOpen. */
+	BOOL bookOpen;
 }
 /* MW-5 item 4: the setup that used to run in -awakeFromNib runs here
    instead. -windowDidLoad is NSWindowController's documented hook and runs
@@ -296,9 +305,10 @@
 - (int)sortMode;
 - (int)openLinkMode;
 
-/* Whether a book is currently open, i.e. whether there is anything to show
-   in a dock menu / continue-reading sense. Used by -[AppController
-   applicationDockMenu:] (MW-3) in place of directly reading imageView. */
+/* Whether a book is currently open in this window. Added in MW-3 for
+   -[AppController applicationDockMenu:]; MW-6 item 4 generalises it into the
+   single "a book is open" predicate for this class — see the `bookOpen`
+   ivar. */
 - (BOOL)hasBookOpen;
 /* Exposes the window-side ThumbnailController to -[AppController
    remoteButton:pressedDown:clickCount:] (MW-3). */

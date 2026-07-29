@@ -2844,7 +2844,9 @@
 
 -(IBAction)slideshow:(id)sender
 {
-	if ([[self window] isVisible]) {
+	/* MW-6 item 4: there has to be a book to run a slideshow over; the
+	   [[self window] isVisible] this replaces only stood in for that. */
+	if ([self hasBookOpen]) {
 		[NSCursor setHiddenUntilMouseMoves:YES];
 		if (timerSwitch) {
 			[appController dontSleepTimerStop];

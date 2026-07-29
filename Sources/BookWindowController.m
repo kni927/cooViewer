@@ -601,7 +601,10 @@
 	[imageView setDragScroll:array3 mode:3];
 	
 	if ([defaults boolForKey:@"OpenLastFolder"] == YES) {
-		if (![[self window] isVisible]) {
+		/* MW-6 item 4: "nothing was opened for us at launch" — by an
+		   application:openFile: Apple event, typically. This used to test
+		   [[self window] isVisible], which is only a proxy for it. */
+		if (![self hasBookOpen]) {
 			[self openTheLastPage:self];
 		}
 	}
@@ -755,7 +758,7 @@
 	if (!newImageLoader || [newImageLoader mode] < 0 || [newImageLoader itemCount] < 1) {
 		/*表示出来ない時は元に戻す*/
 		[newImageLoader release];
-		if ([imageView image]) {
+		if ([self hasBookOpen]) {
 			/*ウィンドウを開いているとき*/
 			[currentBookPath release];
 			[currentBookName release];
@@ -779,7 +782,7 @@
 		[progressIndicator stopAnimation:self];
 		//[imageView displayRect:rect];
 		return;
-	} else if ([imageView image]) {
+	} else if ([self hasBookOpen]) {
 		/*ウィンドウを開いてたら準備する*/
 		//currentBookPathではなくoldBookPath
 		//currentBookNameではなくoldBookName
@@ -975,6 +978,10 @@
 	
 	[progressIndicator stopAnimation:self];
 	//[imageView displayRect:rect];
+	/* MW-6 item 4: the load succeeded, so this window now has a book. Set
+	   before the display pass, since -imageDisplay is what used to make the
+	   old [imageView image] test start answering YES. */
+	bookOpen = YES;
 	[self viewSet];
 	[self imageDisplay];
 	
@@ -1286,10 +1293,12 @@
 
 #pragma mark dock
 /* -[AppController applicationDockMenu:] (MW-3) queries this instead of
-   reading imageView directly. */
+   reading imageView directly. MW-6 item 4: it now answers from the
+   controller's own `bookOpen` state rather than from the view, and is the
+   one predicate every "is a book open" test in this class goes through. */
 - (BOOL)hasBookOpen
 {
-	return [imageView image] != nil;
+	return bookOpen;
 }
 
 - (id)thumController
@@ -2658,7 +2667,12 @@
 {
 	[lock lock];
 	[lock unlock];
-	if ([[self window] isVisible]) {
+	/* MW-6 item 4: tear the book down only if there is one. This used to test
+	   [[self window] isVisible], which is YES for the whole of -windowWillClose:
+	   even when the window is being closed by -openPage:last: after a failed
+	   first open — a case in which every statement in the block is a no-op. */
+	if ([self hasBookOpen]) {
+		bookOpen = NO;
 		[thumController setImageLoader:nil];
 		if (timerSwitch) {
 			[timer invalidate];
