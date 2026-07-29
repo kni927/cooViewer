@@ -717,3 +717,30 @@ doesn't leave test artifacts in the real profile — done for both
 `RecentItems`/`LastPages`/`BookSettings` in
 `docs/tasks/2026-07-29-04-mw3-persistence-api.md` and the bookmark/
 `OpenLastFolder` checks in `...-05-mw3-visual-verification.md`.
+
+**Resolving the Screen Recording gap** — also observed 2026-07-29, later the
+same day, in the same task doc: granting Screen Recording to the visible
+terminal app (Ghostty) was **not** sufficient — `screencapture` kept
+failing until the OS put up its own consent prompt (a "Screen & System
+Audio Recording" window under the `System Settings` process, reachable via
+`System Events` as `window "Screen & System Audio Recording" of process
+"System Settings"`) naming the *actual* process making the capture call —
+in a `launchd → tmux → -zsh → claude → zsh` process tree, that was **`tmux`**,
+not the terminal emulator. Granting Screen Recording to the right process
+(found by triggering a `screencapture` call and reading which process name
+the resulting consent prompt names, not by guessing from the visible
+terminal app) made `screencapture -x` work immediately.
+
+**A pixel-check gotcha once Screen Recording does work:** a screenshot
+taken immediately after an app launches/opens a document can catch the
+window mid-first-paint and show solid black/blank content that has nothing
+to do with the app's actual rendering — this happened for a PDF page in
+`...-05-mw3-visual-verification.md` and was initially (and wrongly) treated
+as a rendering defect. A second screenshot taken ~1-2s later, or after
+navigating away and back, showed the same page rendering correctly, and a
+fresh launch with a longer wait before the first screenshot reproduced the
+correct render cleanly. Before reporting a pixel-level defect from a
+sandbox screenshot: retake it after a couple of seconds, and cross-check
+against a different renderer if one is available (e.g. macOS Preview.app
+for a PDF) to rule out a source-file problem too. Don't fix or file the
+underlying app as broken on a single black frame.

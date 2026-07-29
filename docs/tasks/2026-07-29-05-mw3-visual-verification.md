@@ -57,7 +57,18 @@ See `docs/KNOWN_ISSUES.md` #22 and the archived tasks
 
 ## Implementation Result
 
-**Status:** Completed with follow-up issues
+**Status:** Completed
+
+**Note:** this result was updated in place after the project owner granted
+Screen Recording permission mid-session (initially to the visible terminal
+app, which did not help; the OS's own consent prompt then named the actual
+process needing it — `tmux`, in this session's `launchd → tmux → -zsh →
+claude → zsh` chain — and granting it there worked). The first version of
+this report below described item 4 as only partially verified, blocked on
+that permission; it has been corrected to the final, fully-verified outcome
+rather than kept as a stale intermediate state. See
+`docs/KNOWN_ISSUES.md` #22 for the full permission-troubleshooting story and
+`docs/DECISIONS.md`'s corresponding update for the closure decision.
 
 ### Changes
 
@@ -74,12 +85,18 @@ added, both reverted; see Verification.
   running, real displays present) — `System Events` UI scripting (window
   enumeration, menu/sheet/table introspection, clicking, setting field
   values, `AXShowMenu`) works correctly and reliably here, a first for this
-  project's on-device verification attempts. **Screen Recording is a
-  separate permission and was not granted** — `screencapture -x` still fails
-  ("could not create image from display") even though Accessibility-based
-  UI scripting works. See `docs/KNOWN_ISSUES.md` #22 (rewritten this
-  session to capture the finer-grained finding) for the exact evidence and
-  how to apply it in future sessions.
+  project's on-device verification attempts. Screen Recording (a separate
+  TCC grant from Accessibility) was initially missing — `screencapture -x`
+  failed ("could not create image from display") — and granting it to the
+  visible terminal app (Ghostty) did not fix it. Triggering `screencapture`
+  again surfaced the OS's own consent prompt (`System Settings`'s "Screen &
+  System Audio Recording" pane), which named the actual requesting process:
+  `tmux` (this session runs `launchd → tmux → -zsh → claude → zsh`), not the
+  terminal emulator. Granting it there made `screencapture -x` work
+  immediately for the remainder of the session. See `docs/KNOWN_ISSUES.md`
+  #22 for the full finding, including a timing gotcha hit along the way (a
+  screenshot taken immediately after a document opens can catch a
+  mid-first-paint frame and look like a rendering defect that isn't one).
 - **Manual verification (real device, via `System Events`, real defaults
   domain backed up before and restored after — `defaults export`/`import
   jp.coo.cooViewer`):**
@@ -114,17 +131,24 @@ added, both reverted; see Verification.
      `[appController searchFromRecentItems:...]`, a different call path
      through the same moved read helper than items 1/2 exercised. Restored
      `OpenLastFolder` to its original value (`0`) afterward.
-  4. **PDF pixel rendering — partially verified.** Opened a real PDF
+  4. **PDF pixel rendering — PASS.** Opened a real PDF
      (`/Users/kni/Dropbox/statistics/51_318.pdf`, the user's own file — no
-     PDF fixture exists under `tests/fixtures/`) via `open -a`: no crash,
-     window titled `51_318.pdf` appeared, and the rendered image element
-     reported a real, plausible non-zero size (1709×1020) via
-     `AXSize` — consistent with a page having actually decoded and drawn,
-     not a blank/zero view. **True pixel-level visual correctness was not
-     checked** — `screencapture -x` fails in this session (Screen Recording
-     not granted; see above), so this specific item from TASK.md's scope
-     ("actual pixel check... not just opens without crashing") is not fully
-     satisfied.
+     PDF fixture exists under `tests/fixtures/`) via `open -a` and took a
+     real screenshot once Screen Recording was working. First screenshot
+     showed the page content area solid black — investigated rather than
+     accepted at face value: opened the same PDF in macOS Preview.app and
+     confirmed the file itself has real, visible content on page 1 (ruling
+     out a corrupt/blank source file), then navigated within cooViewer
+     (page-down, page-up) and took further screenshots, all of which showed
+     correctly rendered pages — sharp Japanese/English text and colour
+     diagrams, matching Preview.app's rendering of the same content. A
+     clean re-launch with a longer wait before the first screenshot also
+     rendered page 1 correctly. Conclusion: the one black frame was a
+     screenshot-timing artifact (window mid-first-paint), not a cooViewer
+     rendering defect — see `docs/KNOWN_ISSUES.md` #22. PDF rendering is
+     confirmed correct, closing the gap left open by the legacy
+     composited-path removal (`docs/tasks/2026-07-29-02-remove-legacy-composited-path.md`)
+     and MW-2, both of which had left PDFs visually unverified.
   5. **Apple Remote — not verified**, no hardware present (checked
      `system_profiler SPUSBDataType`/`SPBluetoothDataType` for "remote";
      none found). Consistent with prior sessions; noted per TASK.md's own
@@ -140,28 +164,16 @@ added, both reverted; see Verification.
 
 ### Remaining Issues
 
-- Item 4 (PDF pixel rendering) is not fully verified — the app opens PDFs
-  and renders a plausibly-sized image, but literal pixel-correctness could
-  not be checked because Screen Recording permission is not granted to
-  whatever process underlies this session (Accessibility is granted;
-  Screen Recording is a separate, still-missing grant — see
-  `docs/KNOWN_ISSUES.md` #22).
-- Item 5 (Apple Remote) remains unverified for lack of hardware, an
-  accepted gap per TASK.md's own instruction, not a new problem.
-- No functional defects were found in any item that *could* be checked —
-  everything checkable (1, 2, 3, 6, and the non-pixel parts of 4) passed
-  with real, positive evidence, not just "no crash."
+- Item 5 (Apple Remote) remains unverified for lack of hardware — an
+  accepted, permanent gap across every session of the whole multi-window
+  refactor, not a new problem, and not a blocker for closing MW-3.
+- No functional defects were found in anything checked. Items 1, 2, 3, 4,
+  and 6 all passed with real, positive evidence (real UI actions, real
+  `defaults` state, and — once Screen Recording was working — real pixels
+  cross-checked against Preview.app).
 
 ### Follow-up Suggestions
 
-- If the project owner wants item 4 fully closed, grant Screen Recording
-  permission to whichever process underlies this dev session (System
-  Settings ▸ Privacy & Security ▸ Screen Recording) and re-run the PDF
-  check with `screencapture`, or perform the visual check directly during
-  the screen-sharing session. Given no defect was found in anything that
-  could be checked, and the gap is a specific, understood permission issue
-  rather than an unknown risk, whether to treat items 4/5 as an accepted
-  gap (the same treatment already given to item 5 across every prior
-  session) and close MW-3 now, or hold until item 4 gets a real pixel
-  check, is a call for the project owner — **left open, MW-3 is not marked
-  fully closed by this session.**
+- **MW-3 is fully closed** (Apple Remote's hardware gap accepted, as in
+  every prior session) — `docs/DECISIONS.md` updated accordingly. MW-4 can
+  proceed per `docs/multiwindow-plan.md`.

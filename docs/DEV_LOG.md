@@ -246,17 +246,16 @@ three highest-regression-risk call sites (`openPage:last:`,
 real defaults domain via `open -a`/Apple Events rather than a mock; see
 `docs/DECISIONS.md` ("MW-3 `AppController` extraction: implementation-time
 refinements", 2026-07-29 update) and `docs/KNOWN_ISSUES.md` #22 for how.
-A follow-up screen-sharing session (same day) then verified most of the
+A follow-up screen-sharing session (same day) then verified the whole
 on-device checklist for real: dock menu (both states), the bookmark
 add→persist-on-close→reopen→menu-restore round-trip, `OpenLastFolder`-at-
-launch, and Open Recent all passed with real UI-driven evidence, no
-defects found. Two items are still open, both environment gaps rather than
-code problems: PDF pixel-level rendering (Screen Recording permission not
-granted in this session, though Accessibility now is) and Apple Remote (no
-hardware, as in every session so far). Whether to accept those as a
-permanent gap and call MW-3 fully closed is a call for the project owner —
-see `docs/DECISIONS.md`'s 2026-07-29 update and
-`docs/tasks/2026-07-29-05-mw3-visual-verification.md`. MW-4 has not started.
+launch, Open Recent, and — once Screen Recording permission was tracked
+down to the right process and granted — real pixel-level PDF rendering, all
+passed with real evidence and no defects found. Only Apple Remote remains
+unverified (no hardware, as in every session of this refactor) — an
+accepted, permanent gap. **MW-3 is fully closed**; see
+`docs/DECISIONS.md`'s 2026-07-29 update and
+`docs/tasks/2026-07-29-05-mw3-visual-verification.md`. MW-4 can start next.
 
 ### v1.5.2 released (2026-07-25)
 
