@@ -73,7 +73,7 @@
 			[lock lock];
 			[lock unlock];
 			threadStop = NO;
-			[window performClose:self];
+			[[self window] performClose:self];
 			return;
 		}
 	} else if (character == NSDeleteCharacter) {
@@ -698,7 +698,7 @@
 					[lock lock];
 					[lock unlock];
 					threadStop = NO;
-					[window performClose:self];
+					[[self window] performClose:self];
 					break;
 				case 47:
 					//randam
@@ -720,7 +720,7 @@
 						/* MW-2: was driven through the Window menu's own
 						   "Fullscreen" item, whose check-mark doubled as the
 						   state store. Goes straight to AppKit now. */
-						[window toggleFullScreen:self];
+						[[self window] toggleFullScreen:self];
 					}
 					break;
 				case 50:
@@ -772,19 +772,19 @@
 	NSRect left,right;
 	switch (readMode) {
 		case 0:
-			NSDivideRect ([[window contentView] frame], &left, &right, [[window contentView] frame].size.width/2, NSMinXEdge);
+			NSDivideRect ([[[self window] contentView] frame], &left, &right, [[[self window] contentView] frame].size.width/2, NSMinXEdge);
 			break;
 		case 1:
-			NSDivideRect ([[window contentView] frame], &right, &left, [[window contentView] frame].size.width/2, NSMinXEdge);
+			NSDivideRect ([[[self window] contentView] frame], &right, &left, [[[self window] contentView] frame].size.width/2, NSMinXEdge);
 			break;
 		case 2:
-			NSDivideRect ([[window contentView] frame], &left, &right, [[window contentView] frame].size.width/2, NSMinXEdge);
+			NSDivideRect ([[[self window] contentView] frame], &left, &right, [[[self window] contentView] frame].size.width/2, NSMinXEdge);
 			break;
 		case 3:
-			NSDivideRect ([[window contentView] frame], &right, &left, [[window contentView] frame].size.width/2, NSMinXEdge);
+			NSDivideRect ([[[self window] contentView] frame], &right, &left, [[[self window] contentView] frame].size.width/2, NSMinXEdge);
 			break;
 		default:
-			NSDivideRect ([[window contentView] frame], &left, &right, [[window contentView] frame].size.width/2, NSMinXEdge);
+			NSDivideRect ([[[self window] contentView] frame], &left, &right, [[[self window] contentView] frame].size.width/2, NSMinXEdge);
 			break;
 	}
 	BOOL leftBool = NSPointInRect([sender locationInWindow], left);
@@ -1676,7 +1676,7 @@
 					[lock lock];
 					[lock unlock];
 					threadStop = NO;
-					[window performClose:self];
+					[[self window] performClose:self];
 					break;	
 				case 58:
 					//random
@@ -1700,7 +1700,7 @@
 					//switchFullScreen
 				{
 					/* MW-2: see case 49. */
-					[window toggleFullScreen:self];
+					[[self window] toggleFullScreen:self];
 				}
 					break;
 				case 62:
@@ -2844,7 +2844,7 @@
 
 -(IBAction)slideshow:(id)sender
 {
-	if ([window isVisible]) {
+	if ([[self window] isVisible]) {
 		[NSCursor setHiddenUntilMouseMoves:YES];
 		if (timerSwitch) {
 			[appController dontSleepTimerStop];

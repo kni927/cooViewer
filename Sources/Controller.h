@@ -103,8 +103,18 @@
     //IBOutlet id pageTextField;
 	
     IBOutlet id imageView;
-    IBOutlet id window;
-	
+
+	/* MW-5 (item 3): the book window. Was `IBOutlet id window`, a bare ivar
+	   read directly at ~80 sites. Controller becomes an NSWindowController
+	   subclass in the next step, and NSWindowController already declares
+	   -window/-setWindow: over its own storage — an ivar of the same name
+	   would let bare `window` and `[self window]` disagree. The ivar is now
+	   private to the accessors below and every use goes through
+	   `[self window]`, so the switch to the inherited storage is a pure
+	   deletion. The nib connects through -setWindow:, not the ivar. */
+	NSWindow *_window;
+
+
 	int maxEnlargement;
 
 	NSUserDefaults *defaults;
@@ -157,6 +167,12 @@
 	
 }
 - (void)awakeFromNib;
+
+/* The book window. Deliberately named to match NSWindowController's own
+   accessors so that the superclass change in the next MW-5 step can simply
+   delete these two methods and the _window ivar. */
+- (NSWindow *)window;
+- (void)setWindow:(NSWindow *)aWindow;
 
 /* Called by -[AppController applicationDidFinishLaunching:] (MW-3): almost
    the entire original delegate method body is window-level. */

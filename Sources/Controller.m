@@ -79,6 +79,22 @@ static const int DIALOG_CANCEL	= 129;
  NSLog(@"%f",elapsed);
  */
 
+/* MW-5 (item 3). The nib connects its "window" outlet through this setter.
+   Assignment is deliberately weak, exactly as the former `IBOutlet id window`
+   ivar was: the window is a nib top-level object and its lifetime is the
+   nib's, not this object's. When Controller becomes an NSWindowController
+   subclass these two methods and the _window ivar go away and the
+   superclass's storage takes over. */
+- (NSWindow *)window
+{
+	return _window;
+}
+
+- (void)setWindow:(NSWindow *)aWindow
+{
+	_window = aWindow;
+}
+
 -(void)awakeFromNib
 {	
 	threadCount = 0;
@@ -205,7 +221,7 @@ static const int DIALOG_CANCEL	= 129;
 	} else {
 		viewBackGround = [NSColor blackColor];
 	}
-	[window setBackgroundColor:viewBackGround];
+	[[self window] setBackgroundColor:viewBackGround];
     viewBackGround = [viewBackGround colorWithAlphaComponent:1];
 
 	/* MW-2: the "Fullscreen" default and the menu item's check-mark are
@@ -584,7 +600,7 @@ static const int DIALOG_CANCEL	= 129;
 	[imageView setDragScroll:array3 mode:3];
 	
 	if ([defaults boolForKey:@"OpenLastFolder"] == YES) {
-		if (![window isVisible]) {
+		if (![[self window] isVisible]) {
 			[self openTheLastPage:self];
 		}
 	}
@@ -695,14 +711,14 @@ static const int DIALOG_CANCEL	= 129;
 #pragma mark openning
 - (void)openPage:(int)page last:(BOOL)last;
 {
-	[window makeKeyAndOrderFront:self];
+	[[self window] makeKeyAndOrderFront:self];
 
 	[progressIndicator startAnimation:self];
 	[progressIndicator displayIfNeeded];
 	
     /*
 	[imageView lockFocus];
-	NSRect rect = [[window contentView] convertRect:[progressIndicator frame] toView:imageView];
+	NSRect rect = [[[self window] contentView] convertRect:[progressIndicator frame] toView:imageView];
 	rect = NSMakeRect(rect.origin.x-2,rect.origin.y-2,rect.size.width+4,rect.size.height+4);
 	NSBezierPath *bezier = [NSBezierPath bezierPath];
 	float rad = 10.0;
@@ -757,7 +773,7 @@ static const int DIALOG_CANCEL	= 129;
 			currentBookPath = nil;
 			currentBookName = nil;
 			currentBookAlias = nil;
-			[window performClose:self];
+			[[self window] performClose:self];
 		}
 		[progressIndicator stopAnimation:self];
 		//[imageView displayRect:rect];
@@ -942,7 +958,7 @@ static const int DIALOG_CANCEL	= 129;
 	
 
 	[imageView setPageString:nil];
-	[window setTitle:currentBookName];
+	[[self window] setTitle:currentBookName];
 	
 	[bookmarkArray removeAllObjects];
 	if (currentBookSetting) {
@@ -1051,7 +1067,7 @@ static const int DIALOG_CANCEL	= 129;
 
 - (NSWindow *)sheetParentWindow
 {
-	return window;
+	return [self window];
 }
 
 /* YES when a sheet can actually be attached. A sheet on a window that is
@@ -1702,7 +1718,7 @@ static const int DIALOG_CANCEL	= 129;
 	
 
 	
-	[window disableFlushWindow];
+	[[self window] disableFlushWindow];
 	
     BOOL useCalayer = [defaults boolForKey:@"UseCALayer"];
     [imageView setUseCalayer:useCalayer];
@@ -1712,7 +1728,7 @@ static const int DIALOG_CANCEL	= 129;
 	[imageView setIgnoreImageDpi:ignoreImageDpi];
 
     NSColor *viewBackGround = [[NSUnarchiver unarchiveObjectWithData:[defaults objectForKey:@"ViewBackGroundColor"]] colorWithAlphaComponent:1];
-    [window setBackgroundColor:viewBackGround];
+    [[self window] setBackgroundColor:viewBackGround];
     if (fitScreenMode > 0) {
         [[imageView enclosingScrollView] setBackgroundColor:viewBackGround];
     }
@@ -1808,7 +1824,7 @@ static const int DIALOG_CANCEL	= 129;
 	}
 	
 	[imageView setPreferences];
-	[window enableFlushWindow];
+	[[self window] enableFlushWindow];
 	
 	
 	
@@ -1872,7 +1888,7 @@ static const int DIALOG_CANCEL	= 129;
  * title of an action that now targets AppController. Body unchanged. */
 - (BOOL)validateOpenTheLastPageMenuItem
 {
-	if ([window isVisible] || [window isMiniaturized]) {
+	if ([[self window] isVisible] || [[self window] isMiniaturized]) {
 		if ([defaults arrayForKey:@"RecentItems"]) {
 			NSEnumerator *enu = [[defaults arrayForKey:@"RecentItems"] objectEnumerator];
 			id object;
@@ -1902,26 +1918,26 @@ static const int DIALOG_CANCEL	= 129;
 - (BOOL)validateMenuItem:(NSMenuItem *)anItem
 {
     if ([[anItem title] isEqualToString:NSLocalizedString(@"Start/Stop", @"")] == YES) {
-		if ([window isVisible]) {
+		if ([[self window] isVisible]) {
 			return YES;
 		} else {
 			return NO;
 		}
 	} else if ([[anItem title] isEqualToString:NSLocalizedString(@"Edit Bookmark...", @"")] == YES) {
-		if ([window isVisible]) {
+		if ([[self window] isVisible]) {
 			return YES;
 		} else {
 			//	return NO;
 			return YES;
 		}
 	} else if ([[anItem title] isEqualToString:NSLocalizedString(@"Delete Settings", @"")] == YES) {
-		if ([window isVisible]) {
+		if ([[self window] isVisible]) {
 			return YES;
 		} else {
 			return NO;
 		}
 	} else if ([[anItem title] isEqualToString:NSLocalizedString(@"Right to Left", @"")] == YES) {
-		if ([window isVisible]) {
+		if ([[self window] isVisible]) {
 			if (readMode == 0) {
 				[anItem setState:NSOnState];
 			} else {
@@ -1932,7 +1948,7 @@ static const int DIALOG_CANCEL	= 129;
 			return NO;
 		}
 	} else if ([[anItem title] isEqualToString:NSLocalizedString(@"Left to Right", @"")] == YES) {
-		if ([window isVisible]) {
+		if ([[self window] isVisible]) {
 			if (readMode == 1) {
 				[anItem setState:NSOnState];
 			} else {
@@ -1943,7 +1959,7 @@ static const int DIALOG_CANCEL	= 129;
 			return NO;
 		}
 	} else if ([[anItem title] isEqualToString:NSLocalizedString(@"Right to Left (single)", @"")] == YES) {
-		if ([window isVisible]) {
+		if ([[self window] isVisible]) {
 			if (readMode == 2) {
 				[anItem setState:NSOnState];
 			} else {
@@ -1954,7 +1970,7 @@ static const int DIALOG_CANCEL	= 129;
 			return NO;
 		}
 	} else if ([[anItem title] isEqualToString:NSLocalizedString(@"Left to Right (single)", @"")] == YES) {
-		if ([window isVisible]) {
+		if ([[self window] isVisible]) {
 			if (readMode == 3) {
 				[anItem setState:NSOnState];
 			} else {
@@ -1965,7 +1981,7 @@ static const int DIALOG_CANCEL	= 129;
 			return NO;
 		}
 	} else if ([[anItem title] isEqualToString:NSLocalizedString(@"Fit to Screen", @"")] == YES) {
-		if ([window isVisible]) {
+		if ([[self window] isVisible]) {
 			if (fitScreenMode == 0) {
 				[anItem setState:NSOnState];
 			} else {
@@ -1976,7 +1992,7 @@ static const int DIALOG_CANCEL	= 129;
 			return NO;
 		}
 	} else if ([[anItem title] isEqualToString:NSLocalizedString(@"Fit to Screen Width", @"")] == YES) {
-		if ([window isVisible]) {
+		if ([[self window] isVisible]) {
 			if (fitScreenMode == 1) {
 				[anItem setState:NSOnState];
 			} else {
@@ -1987,7 +2003,7 @@ static const int DIALOG_CANCEL	= 129;
 			return NO;
 		}
 	} else if ([[anItem title] isEqualToString:NSLocalizedString(@"No Scale", @"")] == YES) {
-		if ([window isVisible]) {
+		if ([[self window] isVisible]) {
 			if (fitScreenMode == 2) {
 				[anItem setState:NSOnState];
 			} else {
@@ -1998,7 +2014,7 @@ static const int DIALOG_CANCEL	= 129;
 			return NO;
 		}
 	} else if ([[anItem title] isEqualToString:NSLocalizedString(@"Fit to Screen Width(divide)", @"")] == YES) {
-		if ([window isVisible]) {
+		if ([[self window] isVisible]) {
 			if (fitScreenMode == 3) {
 				[anItem setState:NSOnState];
 			} else {
@@ -2009,26 +2025,26 @@ static const int DIALOG_CANCEL	= 129;
 			return NO;
 		}
 	} else if ([[anItem title] isEqualToString:NSLocalizedString(@"Switch Single/Bind", @"")] == YES) {
-		if ([window isVisible]) {
+		if ([[self window] isVisible]) {
 			return YES;
 		} else {
 			return NO;
 		}	
 	} else if ([[anItem title] isEqualToString:NSLocalizedString(@"Rotate Left", @"")] == YES) {
-		if ([window isVisible]) {
+		if ([[self window] isVisible]) {
 			return YES;
 		} else {
 			return NO;
 		}	
 	} else if ([[anItem title] isEqualToString:NSLocalizedString(@"Rotate Right", @"")] == YES) {
-		if ([window isVisible]) {
+		if ([[self window] isVisible]) {
 			return YES;
 		} else {
 			return NO;
 		}
 		
 	} else if ([[anItem title] isEqualToString:NSLocalizedString(@"Name", @"")] == YES) {
-		if ([window isVisible]) {
+		if ([[self window] isVisible]) {
 			if (sortMode == 0) {
 				[anItem setState:NSOnState];
 			} else {
@@ -2039,7 +2055,7 @@ static const int DIALOG_CANCEL	= 129;
 			return NO;
 		} 
 	} else if ([[anItem title] isEqualToString:NSLocalizedString(@"Shuffle", @"")] == YES) {
-		if ([window isVisible]) {
+		if ([[self window] isVisible]) {
 			if (sortMode == 1) {
 				[anItem setState:NSOnState];
 			} else {
@@ -2050,7 +2066,7 @@ static const int DIALOG_CANCEL	= 129;
 			return NO;
 		} 
 	} else if ([[anItem title] isEqualToString:NSLocalizedString(@"Creation Date", @"")] == YES) {
-		if ([window isVisible]) {
+		if ([[self window] isVisible]) {
 			if (sortMode == 2) {
 				[anItem setState:NSOnState];
 			} else {
@@ -2065,7 +2081,7 @@ static const int DIALOG_CANCEL	= 129;
 			return NO;
 		} 
 	} else if ([[anItem title] isEqualToString:NSLocalizedString(@"Modification Date", @"")] == YES) {
-		if ([window isVisible]) {
+		if ([[self window] isVisible]) {
 			if (sortMode == 3) {
 				[anItem setState:NSOnState];
 			} else {
@@ -2083,9 +2099,9 @@ static const int DIALOG_CANCEL	= 129;
 		/*contextMenu*/
 		NSRect left,right;
 		if (![self readFromLeft]) {
-			NSDivideRect ([[window contentView] frame], &left, &right, [[window contentView] frame].size.width/2, NSMinXEdge);
+			NSDivideRect ([[[self window] contentView] frame], &left, &right, [[[self window] contentView] frame].size.width/2, NSMinXEdge);
 		} else {
-			NSDivideRect ([[window contentView] frame], &right, &left, [[window contentView] frame].size.width/2, NSMinXEdge);
+			NSDivideRect ([[[self window] contentView] frame], &right, &left, [[[self window] contentView] frame].size.width/2, NSMinXEdge);
 		}
 		if ([[anItem title]  isEqualToString:NSLocalizedString(@"Add Bookmark", @"")] 
 			|| [[anItem title]  isEqualToString:NSLocalizedString(@"Remove Bookmark", @"")]) {
@@ -2160,7 +2176,7 @@ static const int DIALOG_CANCEL	= 129;
 
 - (void)setBookmarkMenu
 {
-	if (![window isVisible]) {
+	if (![[self window] isVisible]) {
 		return;
 	}
 	
@@ -2460,9 +2476,9 @@ static const int DIALOG_CANCEL	= 129;
 	if (fitScreenMode == 0) {
 		return;
 	}
-	[window disableFlushWindow];
-	[[window contentView] replaceSubview:[imageView enclosingScrollView] with:imageView];
-	[imageView setFrame:[[window contentView] frame]];
+	[[self window] disableFlushWindow];
+	[[[self window] contentView] replaceSubview:[imageView enclosingScrollView] with:imageView];
+	[imageView setFrame:[[[self window] contentView] frame]];
 	
 	fitScreenMode = 0;
 	[imageView setScreenFitMode:fitScreenMode];
@@ -2471,8 +2487,8 @@ static const int DIALOG_CANCEL	= 129;
 	} else {
 		[imageView setImage:firstImage];
 	}
-	[window enableFlushWindow];
-	[window flushWindowIfNeeded];
+	[[self window] enableFlushWindow];
+	[[self window] flushWindowIfNeeded];
 	[imageView setInfoString:[NSString stringWithFormat:@"Fit to Screen"]];
 }
 
@@ -2482,17 +2498,17 @@ static const int DIALOG_CANCEL	= 129;
 		return;
 	} else if (fitScreenMode == 0) {
 		id scroll = [[NSScrollView alloc] init];
-		[scroll setFrame:[[window contentView] frame]];
+		[scroll setFrame:[[[self window] contentView] frame]];
 		[(NSScrollView *)scroll setAutoresizingMask:[(CustomImageView *)imageView autoresizingMask]];
-		[scroll setBackgroundColor:[window backgroundColor]];
+		[scroll setBackgroundColor:[[self window] backgroundColor]];
 		[imageView retain];
-		[[window contentView] replaceSubview:imageView with:scroll];
+		[[[self window] contentView] replaceSubview:imageView with:scroll];
 		[scroll setDocumentView:imageView];
 		[scroll release];
 		[imageView release];
 		//[scroll setDocumentCursor:[NSCursor openHandCursor]];
 	}
-	[window disableFlushWindow];
+	[[self window] disableFlushWindow];
 	fitScreenMode = 1;
 	[imageView setScreenFitMode:fitScreenMode];
 	if (secondImage) {
@@ -2500,8 +2516,8 @@ static const int DIALOG_CANCEL	= 129;
 	} else {
 		[imageView setImage:firstImage];
 	}	
-	[window enableFlushWindow];
-	[window flushWindowIfNeeded];
+	[[self window] enableFlushWindow];
+	[[self window] flushWindowIfNeeded];
 	[imageView setInfoString:[NSString stringWithFormat:@"Fit to Screen Width"]];
 }
 
@@ -2511,17 +2527,17 @@ static const int DIALOG_CANCEL	= 129;
 		return;
 	} else if (fitScreenMode == 0) {
 		id scroll = [[NSScrollView alloc] init];
-		[scroll setFrame:[[window contentView] frame]];
+		[scroll setFrame:[[[self window] contentView] frame]];
         [(NSScrollView *)scroll setAutoresizingMask:[(CustomImageView *)imageView autoresizingMask]];
-		[scroll setBackgroundColor:[window backgroundColor]];
+		[scroll setBackgroundColor:[[self window] backgroundColor]];
 		[imageView retain];
-		[[window contentView] replaceSubview:imageView with:scroll];
+		[[[self window] contentView] replaceSubview:imageView with:scroll];
 		[scroll setDocumentView:imageView];
 		[scroll release];
 		[imageView release];
 		//[scroll setDocumentCursor:[NSCursor openHandCursor]];
 	}
-	[window disableFlushWindow];
+	[[self window] disableFlushWindow];
 	fitScreenMode = 3;
 	[imageView setScreenFitMode:fitScreenMode];
 	if (secondImage) {
@@ -2529,8 +2545,8 @@ static const int DIALOG_CANCEL	= 129;
 	} else {
 		[imageView setImage:firstImage];
 	}	
-	[window enableFlushWindow];
-	[window flushWindowIfNeeded];
+	[[self window] enableFlushWindow];
+	[[self window] flushWindowIfNeeded];
 	[imageView setInfoString:[NSString stringWithFormat:@"Fit to Screen Width(Divide)"]];
 }
 
@@ -2540,17 +2556,17 @@ static const int DIALOG_CANCEL	= 129;
 		return;
 	} else if (fitScreenMode == 0) {
 		id scroll = [[NSScrollView alloc] init];		
-		[scroll setFrame:[[window contentView] frame]];
+		[scroll setFrame:[[[self window] contentView] frame]];
         [(NSScrollView *)scroll setAutoresizingMask:[(CustomImageView *)imageView autoresizingMask]];
-		[scroll setBackgroundColor:[window backgroundColor]];
+		[scroll setBackgroundColor:[[self window] backgroundColor]];
 		[imageView retain];
-		[[window contentView] replaceSubview:imageView with:scroll];
+		[[[self window] contentView] replaceSubview:imageView with:scroll];
 		[scroll setDocumentView:imageView];
 		[scroll release];
 		[imageView release];
 		//[scroll setDocumentCursor:[NSCursor openHandCursor]];
 	}
-	[window disableFlushWindow];
+	[[self window] disableFlushWindow];
 	fitScreenMode = 2;
 	[imageView setScreenFitMode:fitScreenMode];
 	if (secondImage) {
@@ -2558,8 +2574,8 @@ static const int DIALOG_CANCEL	= 129;
 	} else {
 		[imageView setImage:firstImage];
 	}
-	[window enableFlushWindow];
-	[window flushWindowIfNeeded];
+	[[self window] enableFlushWindow];
+	[[self window] flushWindowIfNeeded];
 	[imageView setInfoString:[NSString stringWithFormat:@"No Scale"]];
 }
 
@@ -2630,7 +2646,7 @@ static const int DIALOG_CANCEL	= 129;
 {
 	[lock lock];
 	[lock unlock];
-	if ([window isVisible]) {
+	if ([[self window] isVisible]) {
 		[thumController setImageLoader:nil];
 		if (timerSwitch) {
 			[timer invalidate];
@@ -2814,7 +2830,7 @@ static const int DIALOG_CANCEL	= 129;
 	// composeImage draws secondImage/firstImage straight into the view:
 	//   readMode 0,2 (RTL): image1(secondImage) drawn LEFT, image2(firstImage) drawn RIGHT
 	//   readMode 1,3 (LTR): image2(firstImage) drawn LEFT, image1(secondImage) drawn RIGHT
-	NSRect contentFrame = [[window contentView] frame];
+	NSRect contentFrame = [[[self window] contentView] frame];
 	float centerX = contentFrame.origin.x + contentFrame.size.width / 2.0f;
 	BOOL clickedLeft = (windowPoint.x < centerX);
 	BOOL firstOnLeft = (readMode == 1 || readMode == 3);
