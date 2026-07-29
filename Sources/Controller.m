@@ -1,8 +1,10 @@
 #import "Controller.h"
+#import "AppController.h"	/* appController outlet accessors (MW-3) */
 #import "CustomWindow.h"
 #import "BookmarkController.h"
 #import "CustomImageView.h"
 #import "FullImagePanel.h"
+#import "RemoteControl.h"	/* kRemoteButton* constants used by the 1.2b14 migration block below */
 
 @implementation Controller
 static const int DIALOG_OK		= 128;
@@ -94,11 +96,11 @@ static const int DIALOG_CANCEL	= 129;
 	   to avoid touching the parent folder — and triggering macOS folder-access
 	   permission prompts — every time a book is opened. We keep one persistent
 	   NSMenu instance here so its delegate survives across refreshes. */
-	if (![openSameFolderMenuItem submenu]) {
-		[openSameFolderMenuItem setSubmenu:[[[NSMenu alloc] init] autorelease]];
+	if (![[appController openSameFolderMenuItem] submenu]) {
+		[[appController openSameFolderMenuItem] setSubmenu:[[[NSMenu alloc] init] autorelease]];
 	}
-	[[openSameFolderMenuItem submenu] setAutoenablesItems:NO];
-	[[openSameFolderMenuItem submenu] setDelegate:self];
+	[[[appController openSameFolderMenuItem] submenu] setAutoenablesItems:NO];
+	[[[appController openSameFolderMenuItem] submenu] setDelegate:self];
 
 
 
@@ -296,11 +298,18 @@ static const int DIALOG_CANCEL	= 129;
 	[imageView setIgnoreImageDpi:ignoreImageDpi];
 	[defaults setBool:ignoreImageDpi forKey:@"IgnoreImageDpi"];
 
-	[[NSNotificationCenter defaultCenter] addObserver:self 
-											 selector:@selector(viewDidEndLiveResize:) 
+	[[NSNotificationCenter defaultCenter] addObserver:self
+											 selector:@selector(viewDidEndLiveResize:)
 												 name:@"ViewDidEndLiveResize"
 											   object:imageView];
-    
+
+	/* MW-3: PreferenceController posts this instead of calling
+	   -setPreferences directly. */
+	[[NSNotificationCenter defaultCenter] addObserver:self
+											 selector:@selector(preferencesDidChange:)
+												 name:@"PreferencesDidChange"
+											   object:nil];
+
 
     openLinkMode = (int)[defaults integerForKey:@"OpenLinkMode"];
 	[defaults setInteger:openLinkMode forKey:@"OpenLinkMode"];
@@ -543,14 +552,12 @@ static const int DIALOG_CANCEL	= 129;
 		//NSLog(@"%@ %@ left is big",nowVer,plist);
 		[defaults setObject:[[[NSBundle mainBundle] infoDictionary] objectForKey:@"CFBundleVersion"] forKey:@"Version"];
 	}
-	[self setupRemoteControl];
-	
 	[imageView setPreferences];
 }
 
 
- - (void)applicationDidFinishLaunching:(NSNotification *)notification
-{		
+ - (void)applicationDidFinishLaunchingSetup:(NSNotification *)notification
+{
 	NSEnumerator *enu = [keyArray objectEnumerator];
 	id object;
 	NSMutableArray *array = [NSMutableArray arrayWithArray:keyArray];
@@ -582,29 +589,6 @@ static const int DIALOG_CANCEL	= 129;
 		}
 	}
  }
- 
-#pragma mark appleRemote
-- (void)setupRemoteControl
-{
-	remoteControl = [[AppleRemote alloc] initWithDelegate: self];
-	[remoteControl setDelegate: self];	
-	
-	// OPTIONAL CODE 
-	// The MultiClickRemoteBehavior adds extra functionality.
-	// It works like a middle man between the delegate and the remote control
-	remoteControlBehavior = [MultiClickRemoteBehavior new];		
-	[remoteControlBehavior setDelegate: self];
-	[remoteControlBehavior setSimulateHoldEvent:YES];
-	[remoteControl setOpenInExclusiveMode:YES];
-	[remoteControl setDelegate: remoteControlBehavior];
-    [remoteControl startListening: self];
-}
-- (void)applicationWillBecomeActive:(NSNotification *)aNotification {
-    [remoteControl startListening: self];
-}
-- (void)applicationWillResignActive:(NSNotification *)aNotification {
-    [remoteControl stopListening: self];
-}
 
 #pragma mark openFromAny
 - (IBAction)openTheLastPage:(id)sender
@@ -963,10 +947,10 @@ static const int DIALOG_CANCEL	= 129;
 		[defaults removeObjectForKey:@"RecentItems"];
 	}
 	[self setOpenRecentMenu];
-	NSMenu *menu=[openRecentMenuItem submenu];
+	NSMenu *menu=[[appController openRecentMenuItem] submenu];
 	[[menu itemAtIndex:0] setState:NSOnState];
 	[[menu itemAtIndex:0] setEnabled:NO];
-	
+
 	[defaults synchronize];
 	
 	
@@ -1360,19 +1344,16 @@ static const int DIALOG_CANCEL	= 129;
 
 
 #pragma mark dock
-- (NSMenu *)applicationDockMenu:(NSApplication *)sender
+/* -[AppController applicationDockMenu:] (MW-3) queries this instead of
+   reading imageView directly. */
+- (BOOL)hasBookOpen
 {
-	NSMenu *menu=[[[NSMenu alloc] init] autorelease];
-	
-	if (![imageView image]) {
-		NSMenuItem *menuItem;
-		menuItem=[[NSMenuItem alloc] init];
-		[menuItem setTitle:NSLocalizedString(@"Open the last page", @"")];
-		[menuItem setAction:@selector(openTheLastPage:)];
-		[menu addItem:menuItem];
-		[menuItem release];
-	}
-	return menu;
+	return [imageView image] != nil;
+}
+
+- (id)thumController
+{
+	return thumController;
 }
 
 
@@ -1718,9 +1699,12 @@ static const int DIALOG_CANCEL	= 129;
 
 #pragma mark -
 #pragma mark preferences
-- (IBAction)preferences:(id)sender
+
+/* PreferenceController posts this (MW-3) instead of calling
+   -[Controller setPreferences] directly. */
+- (void)preferencesDidChange:(NSNotification *)notification
 {
-	[prefController preferences];
+	[self setPreferences];
 }
 
 - (void)setPreferences
@@ -1774,7 +1758,7 @@ static const int DIALOG_CANCEL	= 129;
 			[defaults setObject:array forKey:@"RecentItems"];
 			[self setOpenRecentMenu];
 			if ([imageView image]) {
-				NSMenu *menu=[openRecentMenuItem submenu];
+				NSMenu *menu=[[appController openRecentMenuItem] submenu];
 				[[menu itemAtIndex:0] setState:NSOnState];
 				[[menu itemAtIndex:0] setEnabled:NO];
 			}
@@ -2252,18 +2236,19 @@ static const int DIALOG_CANCEL	= 129;
 		return;
 	}
 	
+	id bookmarkMenuItem = [appController bookmarkMenuItem];
 	if ([bookmarkMenuItem numberOfItems] > 2) {
 		while ([bookmarkMenuItem numberOfItems] > 2) {
 			[bookmarkMenuItem removeItemAtIndex:2];
 		}
 	}
-	
+
 	int i;
 	for (i=0; i<[bookmarkArray count]; i++)	{
 		NSMenuItem*	menuItem;
-		menuItem = [[NSMenuItem alloc] 
-                initWithTitle:[[bookmarkArray objectAtIndex:i] objectForKey:@"name"] 
-					   action:@selector(goBookmark:) 
+		menuItem = [[NSMenuItem alloc]
+                initWithTitle:[[bookmarkArray objectAtIndex:i] objectForKey:@"name"]
+					   action:@selector(goBookmark:)
                 keyEquivalent:@""];
 		[menuItem autorelease];
 		[menuItem setTarget:self];
@@ -2279,7 +2264,7 @@ static const int DIALOG_CANCEL	= 129;
 }
 -(void)setSameFolderMenu:(BOOL)force
 {
-	NSMenu *menu = [openSameFolderMenuItem submenu];
+	NSMenu *menu = [[appController openSameFolderMenuItem] submenu];
 	if (currentBookPath == nil) {
 		[menu removeAllItems];
 		return;
@@ -2365,7 +2350,7 @@ static const int DIALOG_CANCEL	= 129;
 	} else {
 		array = [NSMutableArray arrayWithArray:[defaults arrayForKey:@"RecentItems"]];
 	}
-	NSMenu *menu=[openRecentMenuItem submenu];
+	NSMenu *menu=[[appController openRecentMenuItem] submenu];
 	while ([menu numberOfItems] > 2) {
 		[menu removeItemAtIndex:0];
 	}
@@ -2416,13 +2401,6 @@ static const int DIALOG_CANCEL	= 129;
 		}
 	}
 }
-- (IBAction)clearRecent:(id)sender
-{
-	[defaults removeObjectForKey:@"RecentItems"];
-	[defaults synchronize];
-	[self setOpenRecentMenu];
-}
-
 
 #pragma mark -
 
@@ -2730,15 +2708,16 @@ static const int DIALOG_CANCEL	= 129;
 			[timer invalidate];
 			timerSwitch=NO;
 		}
+		id bookmarkMenuItem = [appController bookmarkMenuItem];
 		if ([bookmarkMenuItem numberOfItems] > 2) {
 			while ([bookmarkMenuItem numberOfItems] > 2) {
 				[bookmarkMenuItem removeItemAtIndex:2];
 			}
 		}
 		int iA;
-		for (iA=0; iA<[[openSameFolderMenuItem submenu] numberOfItems]; iA++) {
-			if ([[[openSameFolderMenuItem submenu] itemAtIndex:iA] state] == NSOnState) {
-				[[[openSameFolderMenuItem submenu] itemAtIndex:iA] setState:NSOffState];
+		for (iA=0; iA<[[[appController openSameFolderMenuItem] submenu] numberOfItems]; iA++) {
+			if ([[[[appController openSameFolderMenuItem] submenu] itemAtIndex:iA] state] == NSOnState) {
+				[[[[appController openSameFolderMenuItem] submenu] itemAtIndex:iA] setState:NSOffState];
 				break;
 			}
 		}
@@ -2875,24 +2854,11 @@ static const int DIALOG_CANCEL	= 129;
 	}
 }
 
-- (void)applicationWillTerminate:(NSNotification *)notification
-{
-	[defaults synchronize];
-}
-- (void)applicationDidBecomeActive:(NSNotification *)aNotification {
-	/* checkCurrentFolderUpdated stats the parent folder of the current book
-	   (and may re-enumerate it via setSameFolderMenu:). Doing that every time
-	   the app regains focus hits the parent folder constantly and can trigger
-	   macOS folder-access permission prompts repeatedly. It's now run lazily,
-	   right before the "Open from same folder" submenu is actually shown —
-	   see menuNeedsUpdate:. */
-}
-
 #pragma mark NSMenuDelegate
 
 - (void)menuNeedsUpdate:(NSMenu *)menu
 {
-	if (menu == [openSameFolderMenuItem submenu]) {
+	if (menu == [[appController openSameFolderMenuItem] submenu]) {
 		/* Both of these touch the parent folder of the current book
 		   (contentsOfDirectoryAtPath: / attributesOfItemAtPath:). Doing this
 		   only when the user is about to open this submenu — rather than on
@@ -3050,7 +3016,7 @@ static const int DIALOG_CANCEL	= 129;
 
 - (id)openSameFolderMenuItem
 {
-	return [openSameFolderMenuItem submenu];
+	return [[appController openSameFolderMenuItem] submenu];
 }
 
 - (int)sortMode
@@ -3445,7 +3411,7 @@ static const int DIALOG_CANCEL	= 129;
 			if(result == NSAlertFirstButtonReturn) {
 				updateMenu = YES;
 			} else {
-				NSEnumerator *enumerator = [[[openSameFolderMenuItem submenu] itemArray] objectEnumerator];
+				NSEnumerator *enumerator = [[[[appController openSameFolderMenuItem] submenu] itemArray] objectEnumerator];
 				id object;
 				while (object = [enumerator nextObject]) {
 					if ([object state] == NSOnState){

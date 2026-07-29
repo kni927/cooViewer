@@ -1,68 +1,17 @@
 #import "Controller.h"
+#import "AppController.h"	/* appController outlet accessors (MW-3) */
 #import "CustomWindow.h"
 #import "BookmarkController.h"
 #import "CustomImageView.h"
 #import "FullImagePanel.h"
 @implementation Controller (Input)
 
-static BOOL appleRemoteHoldDown = NO;
-
 #pragma mark action
-- (void)remoteButton:(RemoteControlEventIdentifier)buttonIdentifier pressedDown: (BOOL) pressedDown clickCount: (unsigned int)clickCount
-{
-	appleRemoteHoldDown = NO;
-	if (!pressedDown) {
-		return;
-	}
-	UpdateSystemActivity( OverallAct );
-	//UpdateSystemActivity(UsrActivity);
-	
-    unichar character = buttonIdentifier;
-	switch(buttonIdentifier) {
-		case kRemoteButtonRight_Hold:
-			appleRemoteHoldDown = YES;
-			character = kRemoteButtonRight;
-			break;	
-		case kRemoteButtonLeft_Hold:
-			appleRemoteHoldDown = YES;
-			character = kRemoteButtonLeft;
-			break;			
-		case kRemoteButtonPlus_Hold:
-			appleRemoteHoldDown = YES;
-			character = kRemoteButtonPlus;
-			break;				
-		case kRemoteButtonMinus_Hold:
-			appleRemoteHoldDown = YES;
-			character = kRemoteButtonMinus;
-			break;				
-		case kRemoteButtonPlay_Hold:
-			appleRemoteHoldDown = YES;
-			character = kRemoteButtonPlay;
-			break;			
-		case kRemoteButtonMenu_Hold:
-			appleRemoteHoldDown = YES;
-			character = kRemoteButtonMenu;
-			break;
-		default:
-			break;
-	}
-	NSString *characters = [NSString stringWithCharacters:&character length:1];
-	
-	if (![window isVisible] || ![window isKeyWindow]) {
-		if ([prefController inKeyEdit]) {
-			[prefController setKeyCharacters:characters];
-			appleRemoteHoldDown = NO;
-			return;
-		}
-		if (![thumController isVisible]) {
-			appleRemoteHoldDown = NO;
-			return;
-		}
-	}
-	[self timeredRemoteButtonEvent:characters];
-}
+/* -remoteButton:pressedDown:clickCount: and the appleRemoteHoldDown state it
+   maintains moved to AppController (MW-3, together with setupRemoteControl).
+   This method is still reached from there via -timeredRemoteButtonEvent:. */
 - (void)timeredRemoteButtonEvent:(NSString*)characters;
-{	
+{
 	if ([thumController isVisible]) {
 		[thumController appleRemoteAction:characters];
 	} else {
@@ -88,7 +37,7 @@ static BOOL appleRemoteHoldDown = NO;
 			}
 		}
 	}
-	if (!appleRemoteHoldDown) return;
+	if (![appController appleRemoteHoldDown]) return;
 	[self performSelector:@selector(timeredRemoteButtonEvent:) withObject:characters afterDelay:0.1];
 }
 
@@ -2551,8 +2500,8 @@ static BOOL appleRemoteHoldDown = NO;
 
 -(void)nextFolder
 {
-	if ([[[openSameFolderMenuItem submenu] itemArray] count] > 0) {
-		NSEnumerator *enumerator = [[[openSameFolderMenuItem submenu] itemArray] objectEnumerator];
+	if ([[[[appController openSameFolderMenuItem] submenu] itemArray] count] > 0) {
+		NSEnumerator *enumerator = [[[[appController openSameFolderMenuItem] submenu] itemArray] objectEnumerator];
 		id object;
 		while (object = [enumerator nextObject]) {
 			if ([object state] == NSOnState){
@@ -2563,7 +2512,7 @@ static BOOL appleRemoteHoldDown = NO;
 					}
 				}
 				if (!object) {
-					object = [[[openSameFolderMenuItem submenu] itemArray] objectAtIndex:0];
+					object = [[[[appController openSameFolderMenuItem] submenu] itemArray] objectAtIndex:0];
 				}
 				[object setState:NSOnState];
 				break;
@@ -2575,8 +2524,8 @@ static BOOL appleRemoteHoldDown = NO;
 
 -(void)backFolder
 {
-	if ([[[openSameFolderMenuItem submenu] itemArray] count] > 0) {
-		NSEnumerator *enumerator = [[[openSameFolderMenuItem submenu] itemArray] reverseObjectEnumerator];
+	if ([[[[appController openSameFolderMenuItem] submenu] itemArray] count] > 0) {
+		NSEnumerator *enumerator = [[[[appController openSameFolderMenuItem] submenu] itemArray] reverseObjectEnumerator];
 		id object;
 		while (object = [enumerator nextObject]) {
 			if ([object state] == NSOnState){
@@ -2587,7 +2536,7 @@ static BOOL appleRemoteHoldDown = NO;
 					}
 				}				
 				if (!object) {
-					object = [[[openSameFolderMenuItem submenu] itemArray] lastObject];
+					object = [[[[appController openSameFolderMenuItem] submenu] itemArray] lastObject];
 				}
 				[object setState:NSOnState];
 				break;
@@ -2599,8 +2548,8 @@ static BOOL appleRemoteHoldDown = NO;
 
 -(void)backFolderLast
 {
-	if ([[[openSameFolderMenuItem submenu] itemArray] count] > 0) {
-		NSEnumerator *enumerator = [[[openSameFolderMenuItem submenu] itemArray] reverseObjectEnumerator];
+	if ([[[[appController openSameFolderMenuItem] submenu] itemArray] count] > 0) {
+		NSEnumerator *enumerator = [[[[appController openSameFolderMenuItem] submenu] itemArray] reverseObjectEnumerator];
 		id object;
 		while (object = [enumerator nextObject]) {
 			if ([object state] == NSOnState){
@@ -2611,7 +2560,7 @@ static BOOL appleRemoteHoldDown = NO;
 					}
 				}				
 				if (!object) {
-					object = [[[openSameFolderMenuItem submenu] itemArray] lastObject];
+					object = [[[[appController openSameFolderMenuItem] submenu] itemArray] lastObject];
 				}
 				[object setState:NSOnState];
 				break;
@@ -2888,15 +2837,17 @@ static BOOL appleRemoteHoldDown = NO;
 }
 
 
-static NSTimer* dontSleepTimer = nil;
+/* dontSleepTimer moved to AppController (MW-3): it retained one controller
+   via target:self and was never rebuilt, which only worked because
+   Controller used to be a nib singleton that is never deallocated. It must
+   not be tied to one window controller's lifetime. */
 
 -(IBAction)slideshow:(id)sender
 {
-	if ([window isVisible]) {		
+	if ([window isVisible]) {
 		[NSCursor setHiddenUntilMouseMoves:YES];
 		if (timerSwitch) {
-			[dontSleepTimer invalidate];
-			dontSleepTimer = nil;
+			[appController dontSleepTimerStop];
 			[timer invalidate];
 			timerSwitch=NO;
 			[imageView setSlideshow:NO];
@@ -2907,13 +2858,7 @@ static NSTimer* dontSleepTimer = nil;
 												   userInfo:NULL
 													repeats:YES];
 			timerSwitch=YES;
-			if (dontSleepTimer == nil) {
-				dontSleepTimer = [NSTimer scheduledTimerWithTimeInterval:25.0
-																  target:self
-																selector:@selector(dontSleep)
-																userInfo:NULL
-																 repeats:YES];
-			}
+			[appController dontSleepTimerStart];
 			[imageView setSlideshow:YES];
 		}
 	}
@@ -2924,12 +2869,6 @@ static NSTimer* dontSleepTimer = nil;
 	[lock lock];
 	[lock unlock];
 	[self imageDisplay];
-}
-
--(void)dontSleep
-{
-	UpdateSystemActivity( OverallAct );
-	//UpdateSystemActivity( UsrActivity );
 }
 
 - (void)switchSingleWithPage:(int)page

@@ -544,6 +544,17 @@ Backlog item. **Not part of the multi-window plan** — MW-2 removes the
 retiring the preference, and deliberately nothing else. Fixing the
 pattern generally is a separate task.
 
+**Partially addressed by MW-3 (2026-07-29).** The specific ordering hazard
+in the third bullet below — `registerDefaults:` itself, plus the
+KeyArray/MouseArray "set default if absent" calls, racing another nib
+object's `awakeFromNib` — is now structurally impossible: that code moved
+from `-[Controller awakeFromNib]` into `+[Controller initialize]`
+(`Controller.m`), which is guaranteed to run before any nib object's
+`awakeFromNib`. The write-back pattern itself (every other row in the table
+below, and the general "registered defaults are one-shot" / "reset settings
+doesn't reset" consequences) is **unchanged** — that generalized fix remains
+its own separate, unscoped backlog task as described below.
+
 `-[Controller awakeFromNib]` registers application defaults
 (`Controller.m:63-90`) and then, for a number of keys, **reads the value
 and immediately writes it back** into the persistent domain:

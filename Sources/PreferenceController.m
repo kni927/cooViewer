@@ -1,6 +1,7 @@
 #import "PreferenceController.h"
 #import "COColorPopUpButton.h"
 #import "Controller.h"
+#import "RemoteControl.h"	/* kRemoteButton* constants used by the default key/mouse array builders */
 #import "AccessorySettingView.h"
 #import "NSDictionary_Adding.h"
 
@@ -1583,7 +1584,9 @@ static const int DIALOG_CANCEL	= 129;
 		if ([window isVisible]) {
 			[[NSApp keyWindow] makeKeyAndOrderFront:self];
 		}
-		[controller setPreferences];
+		/* MW-3: broadcast instead of reaching into one window controller
+		   directly, so every window picks up the change. */
+		[[NSNotificationCenter defaultCenter] postNotificationName:@"PreferencesDidChange" object:self];
 		return;
     } else if(result == NSRunAbortedResponse) {
 		[keyArray release];

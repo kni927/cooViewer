@@ -517,3 +517,43 @@ user has always seen.
 reintroduce an intermediate composite — see the two-path table and the
 inviolable constraint at the top of `CLAUDE.md`, which has been updated
 to describe the single remaining path.
+
+---
+
+## MW-3 `AppController` extraction: implementation-time refinements (2026-07-29)
+
+**Decision:** two narrow deviations from `docs/multiwindow-plan.md`'s MW-3
+scope text, both discovered while implementing and both required for
+correctness or to keep the task safely committable in slices.
+
+1. **Only `registerDefaults:` and the KeyArray/MouseArray "set default if
+   absent" calls moved to `+[Controller initialize]`** — not the whole
+   "defaults bootstrap and version-migration block" as the scope bullet's
+   wording suggests. The skip-page substitution and the four
+   `#pragma mark only under 1.2bNN` version-migration blocks stay in
+   `-awakeFromNib`, unchanged. Reason: those blocks share one `oldVersion`
+   snapshot with the final `Version` write-back; splitting them across two
+   run times (`+initialize` before any instance exists, `-awakeFromNib`
+   after) would make a genuinely-fresh-install run see a `Version` key
+   already written by the time the 1.2b10 alias-migration check runs,
+   silently skipping migration for a real upgrade-from-ancient-version
+   profile. The 1.2b10 block also calls the instance-only
+   `-pathFromAliasData:` (Alias Manager helpers), which cannot run from a
+   class method without turning those helpers into class methods too — out
+   of MW-3's scope. This still fully closes the ordering hazard
+   `KNOWN_ISSUES` #19 is about (registration itself can no longer race
+   another nib object's `awakeFromNib`); see the update there.
+2. **The single-writer persistence API (`RecentItems`/`LastPages`/
+   `BookSettings`) was not implemented in this pass.** `AppController` and
+   the app-delegate/menu-outlet/remote-control split were completed and
+   verified as their own commits; the persistence-API refactor touches the
+   three highest-line-count, highest-regression-risk call sites
+   (`openPage:last:`, `windowWillClose:`, `strongSetBookmark`) against real
+   user data and was deferred to keep it from being rushed. See the MW-3
+   task archive in `docs/tasks/` for the exact remaining call sites.
+
+**How to apply:** a future task picking up the persistence-API piece
+should read the MW-3 task archive first — it records exactly which
+`openRecentMenuItem`/`bookmarkMenuItem`/`openSameFolderMenuItem` accessor
+plumbing already exists on `AppController` (reusable) versus what's still
+inline in `Controller.m`.

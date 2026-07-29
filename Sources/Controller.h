@@ -9,19 +9,15 @@
 
 #import "COImageLoader.h"
 
-#import "AppleRemote.h"
-#import "GlobalKeyboardDevice.h"
-#import "KeyspanFrontRowControl.h"
-#import "MultiClickRemoteBehavior.h"
-
-@class RemoteControl;
-@class MultiClickRemoteBehavior;
+@class AppController;
 
 @interface Controller : NSObject <NSMenuDelegate>
 {
-	RemoteControl *remoteControl;
-	MultiClickRemoteBehavior* remoteControlBehavior;
-	
+	/* MW-3: the application delegate. Owns prefController and the
+	   app-level menu-item outlets; Controller reaches them through its
+	   accessors. */
+	IBOutlet id appController;
+
 	NSMutableDictionary *currentBookSetting;
 	int threadCount;
 	//NSMutableArray *recentItems;
@@ -36,8 +32,7 @@
 	//NSWindow *accWindow;
 	IBOutlet id progressIndicator;
 	int rotateMode;
-	IBOutlet id openRecentMenuItem;	
-	
+
 	BOOL alwaysRememberLastPage;
 	
 	
@@ -47,11 +42,7 @@
 	int changeCurrentFolderMode;
 	
 	COImageLoader *imageLoader;
-	
-	IBOutlet id prefController;	
-	
-	
-	
+
 	int interpolation;
 	
 	NSMutableArray *marksArray;
@@ -92,11 +83,8 @@
 	
 	IBOutlet id fullImagePanel;
     IBOutlet id fullImageView;
-	
-	
-	IBOutlet id openSameFolderMenuItem;
-	
-	
+
+
 	/* Archive-load session (MW-1). The COArchive read runs on a
 	 * background thread; these are written there and read on the main
 	 * thread while the progress sheet's modal loop runs, so they are
@@ -118,10 +106,7 @@
     IBOutlet id window;
 	
 	int maxEnlargement;
-	
-    IBOutlet id bookmarkMenuItem;
-	
-	
+
 	NSUserDefaults *defaults;
 	BOOL timerSwitch;
 	//BOOL loopSwitch;
@@ -173,7 +158,9 @@
 }
 - (void)awakeFromNib;
 
-- (void)setupRemoteControl;
+/* Called by -[AppController applicationDidFinishLaunching:] (MW-3): almost
+   the entire original delegate method body is window-level. */
+- (void)applicationDidFinishLaunchingSetup:(NSNotification *)notification;
 
 - (IBAction)openTheLastPage:(id)sender;
 - (BOOL)application:(NSApplication *)theApplication openFile:(NSString *)filename;
@@ -223,8 +210,10 @@
 - (void)lockedImageDisplay;
 
 
-- (IBAction)preferences:(id)sender;
 - (void)setPreferences;
+/* PreferenceController posts PreferencesDidChange (MW-3) instead of
+   calling -setPreferences directly. */
+- (void)preferencesDidChange:(NSNotification *)notification;
 - (void)strongSetBookmark;
 
 - (BOOL)validateMenuItem:(NSMenuItem *)anItem;
@@ -232,7 +221,6 @@
 - (void)setSameFolderMenu;
 - (void)setSameFolderMenu:(BOOL)force;
 - (void)setOpenRecentMenu;
-- (IBAction)clearRecent:(id)sender;
 
 
 - (void)setPageTextField;
@@ -255,7 +243,6 @@
 
 - (void)viewSet;
 - (void)windowWillClose:(NSNotification *)aNotofication;
-- (void)applicationWillTerminate:(NSNotification *)notification;
 
 
 - (void)viewDidEndLiveResize:(NSNotification *)aNotification;
@@ -278,6 +265,14 @@
 - (id)openSameFolderMenuItem;
 - (int)sortMode;
 - (int)openLinkMode;
+
+/* Whether a book is currently open, i.e. whether there is anything to show
+   in a dock menu / continue-reading sense. Used by -[AppController
+   applicationDockMenu:] (MW-3) in place of directly reading imageView. */
+- (BOOL)hasBookOpen;
+/* Exposes the window-side ThumbnailController to -[AppController
+   remoteButton:pressedDown:clickCount:] (MW-3). */
+- (id)thumController;
 
 
 
