@@ -21,7 +21,18 @@
 	id appController;
 
 	NSMutableDictionary *currentBookSetting;
+	/* Lookahead threads that have entered the body — incremented after
+	   `lock` is taken, so it says "a lookahead is running", not "a lookahead
+	   exists". -lockedImageDisplay reads it to decide whether waiting for a
+	   second page is worth it. */
 	int threadCount;
+	/* Lookahead threads that have been *detached* and not yet returned,
+	   including one that has not reached -lookahead yet. This is the one
+	   -joinLookaheadThreads waits on: `threadCount` cannot answer "is it
+	   safe to tear the book down", because a thread blocked on `lock` has
+	   not incremented it yet. Written from both the main thread and the
+	   lookahead threads. */
+	_Atomic int pendingLookaheadCount;
 	//NSMutableArray *recentItems;
 	//NSMutableDictionary *bookSettings;
 	
@@ -270,6 +281,10 @@
 - (NSImage*)loadImage:(int)index;
 - (void)lookahead;
 - (void)lookaheadAndCompose;
+/* Waits for every detached lookahead thread of this window to return, so a
+   book can be torn down without one still writing into imageMutableArray /
+   cacheArray or reading imageLoader. Bounded — see the .m. */
+- (void)joinLookaheadThreads;
 
 
 - (BOOL)isSmallImage:(NSImage *)image page:(int)page;

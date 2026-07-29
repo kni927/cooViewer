@@ -937,7 +937,12 @@ static NSPoint gNextWindowCascadePoint;
 		//currentBookPathではなくoldBookPath
 		//currentBookNameではなくoldBookName
 		//なことに注意する事！
-		
+
+		/* The previous book is about to be torn down — its imageLoader
+		   released and its page arrays emptied. Anything the outgoing book
+		   left reading ahead has to be finished with them first. */
+		[self joinLookaheadThreads];
+
 		/*clear cache*/
 		[cacheArray removeAllObjects];
 		if (oldBookPath != nil) {
@@ -1540,6 +1545,64 @@ static NSPoint gNextWindowCascadePoint;
 	return image;
 }
 
+/* The two thread entry points. -lookahead and -lookaheadAndCompose are also
+   called directly on the main thread (the loop branches in
+   -lockedImageDisplay), where nothing needs counting because they cannot
+   outlive their caller; only a *detached* run does. The count is incremented
+   before the detach, not here, so a thread that has not been scheduled yet is
+   already accounted for.
+
+   Each gets its own autorelease pool: the existing bodies create one only
+   after taking `lock`, so anything autoreleased while blocked on it would
+   otherwise have no pool. */
+-(void)lookaheadThread
+{
+	NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];
+	[self lookahead];
+	atomic_fetch_sub(&pendingLookaheadCount, 1);
+	[pool release];
+}
+
+-(void)lookaheadAndComposeThread
+{
+	NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];
+	[self lookaheadAndCompose];
+	atomic_fetch_sub(&pendingLookaheadCount, 1);
+	[pool release];
+}
+
+/* Called before either place that tears a book down: -windowWillClose: and
+   -openPage:last:'s replacement of the previous book. Both release
+   imageLoader and empty imageMutableArray / cacheArray, which is exactly
+   what a lookahead thread is writing into.
+
+   `threadStop` asks a running lookahead to stop at its next page boundary;
+   the wait then covers the case `threadStop` cannot reach — a thread that
+   was detached but has not entered the body yet.
+
+   The wait is bounded on purpose. -loadImage: can reach an archive read, and
+   a read that ends up on the main thread's modal progress path would
+   deadlock an unbounded wait; timing out just leaves the pre-existing
+   behaviour, in which the thread is harmless because
+   +detachNewThreadSelector:toTarget: retains this object for its duration. */
+- (void)joinLookaheadThreads
+{
+	threadStop = YES;
+	NSDate *deadline = [NSDate dateWithTimeIntervalSinceNow:2.0];
+	while (atomic_load(&pendingLookaheadCount) > 0 && [deadline timeIntervalSinceNow] > 0) {
+		[NSThread sleepUntilDate:[NSDate dateWithTimeIntervalSinceNow:0.001]];
+	}
+	/* A thread that saw the flag has already cleared it; clear it for the
+	   case where none did, since this window controller may open another
+	   book (it does, when it is the last one and survives its close). */
+	threadStop = NO;
+
+	/* Final barrier, and what -windowWillClose: did on its own before this
+	   method existed: a lookahead that is mid-page holds `lock`. */
+	[lock lock];
+	[lock unlock];
+}
+
 -(void)lookahead
 {
 	[lock lock];
@@ -1725,7 +1788,8 @@ static NSPoint gNextWindowCascadePoint;
 			[imageView setImage:firstImage];
 			//[imageView setImage:[imageMutableArray objectAtIndex:0]];
 			[imageMutableArray removeObjectAtIndex:0];
-			[NSThread detachNewThreadSelector:@selector(lookahead) toTarget:self withObject:nil];
+			atomic_fetch_add(&pendingLookaheadCount, 1);
+			[NSThread detachNewThreadSelector:@selector(lookaheadThread) toTarget:self withObject:nil];
 		}
 	} else {
 		if (nowPage < [completeMutableArray count]) {			
@@ -1774,7 +1838,8 @@ static NSPoint gNextWindowCascadePoint;
 				//[imageView setImage:[imageMutableArray objectAtIndex:0]];
 				[imageMutableArray removeObjectAtIndex:0];
 			}
-			[NSThread detachNewThreadSelector:@selector(lookaheadAndCompose) toTarget:self withObject:nil];
+			atomic_fetch_add(&pendingLookaheadCount, 1);
+			[NSThread detachNewThreadSelector:@selector(lookaheadAndComposeThread) toTarget:self withObject:nil];
 		} else if (nowPage == [completeMutableArray count]) {
 			if (loopCheck == 0) {
 				nowPage = 0;
@@ -2823,8 +2888,11 @@ static NSPoint gNextWindowCascadePoint;
 
 - (void)windowWillClose:(NSNotification *)aNotofication
 {
-	[lock lock];
-	[lock unlock];
+	/* Was a bare [lock lock]/[lock unlock] pair, which waits only for a
+	   lookahead that is already *inside* the body. A thread detached a
+	   moment earlier and still blocked on that same lock would sail past it
+	   and go on writing into the arrays torn down below. */
+	[self joinLookaheadThreads];
 	/* MW-6 item 4: tear the book down only if there is one. This used to test
 	   [[self window] isVisible], which is YES for the whole of -windowWillClose:
 	   even when the window is being closed by -openPage:last: after a failed
