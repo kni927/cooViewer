@@ -745,3 +745,63 @@ ordering. `[nil release]` is a no-op, so the guard buys nothing. The same
 shape still exists in `-[AccessoryView setInfoString:]`; it is unreachable
 today and is recorded in #25 rather than changed, since that task was scoped
 to the actual over-release.
+
+---
+
+## MW-6: per-window identity is a registry slot, and shared menu rebuilds stay lazy (2026-07-29)
+
+Four decisions taken while removing the last "there is only one window"
+assumptions. See `docs/tasks/2026-07-29-10-mw6-per-window-behaviour.md`.
+
+**1. One per-window identity, assigned by the registry, used for every
+autosave name.** The plan lists the main window's frame (item 1) and the
+panels' frames (item 2) as independent, and they are not: both need to know
+*which* window they belong to. `BookWindowController` therefore carries a
+`windowIndex` — its slot in `AppController`'s window registry — assigned
+before the nib loads, because the panel controllers in `BookWindow.xib` read
+it from their own `-awakeFromNib`. All names go through
+`-[BookWindowController frameAutosaveName:]`.
+
+**Slot 0 keeps the historical, unsuffixed names** (`"NormalWindow"`,
+`"Bookmark"`, `"FilterPanel"`). This is not cosmetic: it is what makes every
+frame a user has already saved keep restoring, and it is why the
+single-window case is bit-for-bit unchanged. The general rule for the rest of
+the arc: **when a shared resource becomes per-window, the first window keeps
+the old key.** A slot, rather than a monotonic counter, is also what keeps the
+set of `NSWindow Frame …` defaults keys bounded once windows open and close —
+MW-7 hands out the first free slot.
+
+**2. The window controller owns window placement, not the window class.**
+`setFrameAutosaveName:` moved out of `-[CustomWindow awakeFromNib]`. Whether a
+window restores a saved frame or cascades off the previous one is a decision
+about the window's *place in a set of windows*, which the `NSWindow` subclass
+cannot know. Cascading is done by hand with `-cascadeTopLeftFromPoint:` seeded
+from `NSZeroPoint`, which leaves the first window's restored frame untouched
+and still produces the offset for the second;
+`NSWindowController`'s own `-shouldCascadeWindows` is switched **off**
+explicitly, because it acts only from `-showWindow:` and this app shows the
+book window with `-makeKeyAndOrderFront:` — it would never have run, and two
+cascade mechanisms must not silently coexist in MW-7.
+
+**3. Rebuilding shared menu state on `-windowDidBecomeMain:` must not become
+eager I/O.** The bookmark menu and the read/sort check-marks are pure
+functions of the front window's ivars and are rebuilt outright. The "Open from
+same folder" submenu is not: building it enumerates the book's parent folder,
+and making that happen on every window activation is exactly the
+folder-access-prompt problem the lazy `-menuNeedsUpdate:` build was
+introduced to avoid. So activation only re-points the submenu's *delegate* and
+sets a flag; the next `-menuNeedsUpdate:` turns that flag into a forced
+rebuild. The forced part is required — `-setSameFolderMenu:` keeps the
+existing items when the folder has not changed, and those items carry the
+previous window's `target`. The delegate check also makes the whole method a
+no-op when the front window has not actually changed.
+
+**4. Read and sort check-marks are rebuilt by re-running
+`-validateMenuItem:`, not by a second copy of its title dispatch.** They are
+per-book overrides on a global default, so they follow the front *book*; the
+logic that computes that from `readMode`/`sortMode` already exists in eight
+localized-title branches of `-validateMenuItem:`. The rebuild walks the main
+menu for items whose action is `changeReadModeMenu:` or `changeSortModeMenu:`
+and calls that method on them. This is the same reasoning as MW-4's decision
+not to duplicate or convert the title dispatch: one copy of a fragile
+mechanism is better than two consistent copies that can drift.

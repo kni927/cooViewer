@@ -820,3 +820,30 @@ composeImage → [imageView setImages:secondImage]
   RTL: secondImage=LEFT, firstImage=RIGHT
   LTR: firstImage=LEFT, secondImage=RIGHT
 ```
+
+### Multi-window refactor (MW-6): per-window window behaviour (2026-07-29)
+
+The last task before multiple windows exist. Still one window; what changed is
+that nothing in the code now assumes so. The book window's frame and the
+per-window panels' frames are keyed on the window's registry slot instead of
+one shared autosave name, with slot 0 keeping the historical names so saved
+frames still restore and later windows cascading instead; the shared main-menu
+state that describes a book — bookmark menu, "Open from same folder", read/sort
+check-marks — is rebuilt from whichever window becomes main, with the
+folder-touching part of that kept lazy; `[window isVisible]` and
+`[imageView image]` as stand-ins for "a book is open" are replaced by explicit
+controller state behind MW-3's `-hasBookOpen`; and Preferences returns focus to
+the window it was opened from rather than to whatever `[NSApp keyWindow]`
+happens to be after the panel is dismissed. `AccessoryView` also finally got a
+`-dealloc`, in its own commit, since with one window it can never run — that
+and the audit finding that **no** per-window class in `BookWindow.xib` has one
+are `docs/KNOWN_ISSUES.md` #26, an explicit MW-7 verification item; the
+Recent Books menu's per-window targets are #27.
+
+Verified with a byte-identical render capture, an empty warning diff against
+the 312-warning baseline, an `NSZombieEnabled` run with no zombie message, and
+a zero-delta defaults round-trip. The per-book read/sort check-marks were
+confirmed to follow the book across an A → B → A switch — the subtle bug this
+task was most likely to introduce. **MW-6 is closed**; see
+`docs/tasks/2026-07-29-10-mw6-per-window-behaviour.md`. MW-7, the feature
+itself, is unblocked.

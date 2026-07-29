@@ -946,3 +946,72 @@ follow-ups filed here as its own task:
    after confirming it had no observable effect; the reasoning is in that
    archive.
 
+
+## 26. No per-window class in `BookWindow.xib` has a `-dealloc` (MW-7 verification item)
+
+Audited during MW-6 item 6 (`docs/tasks/2026-07-29-10-mw6-per-window-behaviour.md`),
+which the task asked for while adding the one `-dealloc` it was scoped to.
+
+Every object that MW-5 moved into `BookWindow.xib` is per-window, so from MW-7
+onwards each closed window destroys a set of them. Of the eleven classes
+involved, **only `AccessoryView` now has a `-dealloc`**:
+
+| class | `-dealloc` |
+|---|---|
+| `AccessoryView` | **added in MW-6** (never runs yet — see below) |
+| `BookWindowController` | none |
+| `CustomImageView` | none |
+| `CustomWindow` | none |
+| `AccessoryWindow` | none |
+| `ThumbnailController` | none |
+| `ThumbnailMatrix` | none |
+| `ThumbnailPanel` | none |
+| `BookmarkController` | none |
+| `BookmarkPanel` | none |
+| `FullImagePanel` / `FullImageView` | none |
+| `FilterPanelController` | none |
+
+This is latent, not a live defect: there is one window, it is never closed in
+a way that destroys these objects, and the process exit reclaims everything.
+`BookWindowController` is the largest of them — roughly forty retained ivars,
+several `NSMutableArray`s and an `NSLock` — and it is also the one whose
+teardown interacts with the lookahead threads, so it is not a mechanical
+addition.
+
+**Two things MW-7 must verify, which MW-6 could not:**
+
+1. **`-[AccessoryView dealloc]` has never executed.** It was written from the
+   ownership visible in the class (see the commit message on `58a66bf` for
+   the full argument), not from a leak trace, and with one window the view
+   lives as long as the app. The first window close under MW-7 is its first
+   run. Both timers are `repeats:NO` and target `self`, so the run loop keeps
+   the view alive for up to their 2 s interval after the window goes — the
+   `-invalidate` calls in `-dealloc` therefore guard a *future* repeating
+   timer rather than making `-dealloc` reachable. A repeating timer added
+   later without an explicit teardown call would keep the view alive forever.
+2. **Whether the rest of the table gets the same treatment.** MW-5 already
+   deferred "no leaked nib top-level objects" to MW-7; this table is what
+   that check has to cover. Recommended approach when it is done: a dealloc
+   log or `leaks` on a build that opens and closes several windows, rather
+   than writing eleven `-dealloc`s from inspection.
+
+## 27. `Recent Books` menu items are targeted at whichever window built them
+
+Found while implementing MW-6 item 3, which fixed the same shape for the
+bookmark menu, the "Open from same folder" submenu and the read/sort
+check-marks — but Recent Books was not in that item's list, so it was left
+alone.
+
+`-[BookWindowController setOpenRecentMenu]` builds the shared Recent Books
+submenu and sets `[menuItem setTarget:self]` on every item. The *contents* are
+app-wide (they come from the `RecentItems` default), so unlike the other three
+menus they do not go stale — but the targets are per-window. With more than
+one window, choosing a recent book would open it into whichever window last
+rebuilt the menu, not the front one.
+
+Harmless today: one window, one target. Two ways to fix it in MW-7 — rebuild
+the menu in `-windowDidBecomeMain:` alongside the bookmark menu, or drop the
+explicit target so `-openFromOpenRecent:` resolves through the responder chain
+like the actions MW-4 retargeted. The second is smaller and matches the
+direction of travel, but note `-setOpenRecentMenu` is also called from
+`-[AppController clearRecent:]` and from `-openPage:last:`.
