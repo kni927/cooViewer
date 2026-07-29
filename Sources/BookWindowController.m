@@ -2384,7 +2384,15 @@ static NSPoint gNextWindowCascadePoint;
 				}
 				[menuItem setRepresentedObject:object];
 				[menuItem autorelease];
-				[menuItem setTarget:self];
+				/* MW-7 (KNOWN_ISSUES #27): deliberately no target. The
+				   *contents* of this menu are app-wide — they come from the
+				   RecentItems default — so unlike the bookmark and same-folder
+				   menus it does not go stale when the front window changes;
+				   only the target did, because -setTarget:self froze it to
+				   whichever window last rebuilt the menu. With no target,
+				   -openFromOpenRecent: resolves through the responder chain to
+				   the front window, the same way the actions MW-4 retargeted
+				   at First Responder do. */
 				[menu insertItem:menuItem atIndex:0];
 			} else {
 				NSMenuItem *menuItem = [[NSMenuItem alloc] 
