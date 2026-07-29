@@ -655,41 +655,65 @@ for why the path went rather than the bug being fixed in place.
 
 ---
 
-## 22. Dev-Session Sandboxes: `open -a` / Direct Apple Events Work, Accessibility/Screen Capture Does Not
+## 22. Dev-Session Sandboxes: `open -a` / Direct Apple Events / Accessibility Can Work; Screen Recording Is a Separate, Harder Gate
 
 Some dev sessions (agent sandboxes, headless/remote setups) run with a real
-process launcher and `NSWorkspace`/Apple Event dispatch, but **no genuine
-interactive window-server session** — `lsappinfo info -only front` returns
-nothing even right after launching an app. In that state:
+process launcher and `NSWorkspace`/Apple Event dispatch, but the *degree* of
+GUI access beyond that varies — this is two separate macOS TCC permission
+categories (Accessibility, Screen Recording) plus whether a real
+window-server session is attached at all, and they can be unlocked
+independently.
+
+**Baseline (no screen/accessibility at all)** — `lsappinfo info -only
+front` returns nothing even right after launching an app:
 
 - `open -a cooViewer.app <file>` launches the app for real and exercises its
-  full logic (menu actions triggered by `NSApplication`, `application:openFile:`,
-  defaults reads/writes) — this works and is a reliable way to exercise
-  app behaviour headlessly.
+  full logic (menu actions triggered by `NSApplication`,
+  `application:openFile:`, defaults reads/writes) — this works and is a
+  reliable way to exercise app behaviour headlessly.
 - A **direct Apple Event sent to the app itself** (e.g.
   `osascript -e 'tell application "cooViewer" to quit'`) also works reliably
   — `quit` runs the app's normal termination sequence, which does send
   `windowWillClose:` to open windows before the process exits.
-- **`osascript`/`System Events` UI scripting does not work**: `tell
-  application "System Events" to tell process "X" to count windows` returns
-  `0` even for an app that is definitely running with a document open, `keystroke`
-  commands silently no-op, and accessibility-tree queries either hang or time
-  out. `screencapture -x` fails outright (`could not create image from
+- `System Events` UI scripting does not work at all: `tell application
+  "System Events" to tell process "X" to count windows` returns `0` even for
+  an app that is definitely running with a document open, `keystroke`
+  commands silently no-op, and accessibility-tree queries either hang or
+  time out. `screencapture -x` fails outright (`could not create image from
   display`).
 
-**How to apply:** when on-device verification is needed in such a session and
-GUI automation isn't available, don't burn time retrying `System Events`/
-`screencapture` (2-3 attempts is enough to confirm the limitation, as it was
-here and in the MW-3 session before it, `docs/tasks/2026-07-29-03-mw3-extract-appcontroller.md`).
-Prefer verifying through **observable side effects instead of pixels**: back
-up the real defaults domain (`defaults export <bundle id> <file>`), drive the
-app via `open -a`/direct Apple Events (`open`, `quit`, and — per each app's
-own scriptability — other verbs), inspect the result with `defaults read`,
-then restore the backup (`defaults import <bundle id> <file>`) so the
-session's exercising doesn't leave test artifacts in the real profile. This
-was enough to verify cooViewer's RecentItems/LastPages/BookSettings
-persistence end-to-end in
-`docs/tasks/2026-07-29-04-mw3-persistence-api.md` without any working
-screen. Pixel-level checks (image quality, PDF rendering, dock menu
-appearance) genuinely need a real interactive session and should be reported
-as not verified rather than guessed at.
+**With a screen-sharing session attached (e.g. Jump Desktop/Screen
+Sharing) but the sandbox's own process still lacking Screen Recording** —
+observed 2026-07-29 in `docs/tasks/2026-07-29-05-mw3-visual-verification.md`:
+`System Events` UI scripting **starts working properly**
+(`count of windows`, `entire contents`, `click`, setting `AXValue`,
+`AXShowMenu` on Dock icons, reading menu bar / sheet / table contents all
+behaved correctly and matched real app state), but `screencapture -x` still
+fails with "could not create image from display" — Accessibility and Screen
+Recording are separate TCC grants, and only one had actually taken effect.
+`lsappinfo info -only front` still reported no front app even while
+`System Events` could see and interact with the target process correctly —
+don't use `lsappinfo` as the sole signal for whether UI scripting will work;
+just try a concrete `System Events` query.
+
+**How to apply:** when on-device verification is needed in such a session,
+try a targeted `System Events` query rather than assuming the baseline case
+applies — the two-permission split above means UI scripting alone can
+recover a lot of verification power even without pixels. Structural/state
+checks (menu contents, sheet field values, window titles, table rows) can
+substitute for a screenshot in most cases: e.g. reading a `Bookmark` menu's
+items or a `BookSettings` dictionary via `defaults read` after an add/quit/
+relaunch cycle proves a persistence round-trip as convincingly as looking at
+it. Only pixel-level checks (image quality, PDF page rendering correctness,
+literal visual appearance) genuinely require Screen Recording; if
+`screencapture -x` still fails after confirming `System Events` works,
+report that specific gap rather than the screen being unavailable outright,
+and don't retry more than 2-3 times — request the permission be granted (or
+the check be done by the human directly) instead of hunting for a
+workaround. Always back up the real defaults domain (`defaults export
+<bundle id> <file>`) before UI-driving an app with real user data, and
+restore it (`defaults import <bundle id> <file>`) afterward so exercising
+doesn't leave test artifacts in the real profile — done for both
+`RecentItems`/`LastPages`/`BookSettings` in
+`docs/tasks/2026-07-29-04-mw3-persistence-api.md` and the bookmark/
+`OpenLastFolder` checks in `...-05-mw3-visual-verification.md`.

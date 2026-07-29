@@ -587,3 +587,22 @@ Remote) is still not verified — this session had a working process launcher
 and Apple Event dispatch but no working accessibility/screen-capture session,
 so nothing pixel- or UI-tree-based could be checked; see
 `docs/KNOWN_ISSUES.md` #22. MW-3 is not yet fully closed on that basis.
+
+**Update (2026-07-29, `docs/tasks/2026-07-29-05-mw3-visual-verification.md`):**
+a screen-sharing session made most of that checklist checkable after all —
+`System Events` UI scripting (unlike the two prior sessions) worked
+correctly, so dock menu (both states), the bookmark add→persist-on-close→
+reopen→menu-restore round-trip, and `OpenLastFolder`-at-launch were all
+verified with real UI actions against real app state and all **passed**
+with no defects found. `Recent Books`/Open Recent was re-confirmed, no
+regression. Two items remain open, both **environment gaps, not code
+defects**: PDF pixel-level rendering couldn't be checked because Screen
+Recording permission (separate from Accessibility, which *was* granted) is
+still missing in this session — the app opens PDFs and renders a
+plausibly-sized image, just not pixel-verified; and Apple Remote remains
+unverified for lack of hardware, as in every prior session. Whether to
+accept these two as a permanent gap (as Apple Remote already has been every
+session) and call MW-3 closed, or hold for a session with Screen Recording
+granted, is left to the project owner — **not decided by this session**.
+See `docs/KNOWN_ISSUES.md` #22 (rewritten this session) for the exact
+Accessibility-vs-Screen-Recording finding.
