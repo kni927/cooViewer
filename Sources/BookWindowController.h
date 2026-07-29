@@ -242,7 +242,6 @@
 - (void)applicationDidFinishLaunchingSetup:(NSNotification *)notification;
 
 - (IBAction)openTheLastPage:(id)sender;
-- (BOOL)application:(NSApplication *)theApplication openFile:(NSString *)filename;
 - (IBAction)open:(id)sender;
 /* MW-7: opens `path` in *this* window. The entry point AppController uses
    for a window it has just created, so the book-choosing UI can stay app

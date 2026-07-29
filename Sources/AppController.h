@@ -103,6 +103,10 @@
    test is on the *resolved* book path (Step-0 decision 2). */
 - (void)openBookInNewWindow:(NSString *)path;
 
+/* A registered window with no book open, preferring the front one, or nil.
+   What a new book is opened into before a window is created for it. */
+- (id)emptyWindowController;
+
 /* Called by -[BookWindowController windowDidBecomeMain:]. */
 - (void)windowControllerDidBecomeFront:(id)aController;
 /* Called by -[BookWindowController windowWillClose:]. Unregisters and

@@ -779,19 +779,10 @@ static NSPoint gNextWindowCascadePoint;
 }
 
 
-- (BOOL)application:(NSApplication *)theApplication openFile:(NSString *)filename
-{
-	if (timerSwitch) {
-		[timer invalidate];
-		timerSwitch=NO;
-	}
-
-	[self setCurrentBookPathAndOldBookPath:filename];
-
-	[self openPage:0 last:NO];
-	return YES;
-}
-
+/* -application:openFile: used to live here, doing exactly what
+   -openBookAtPath: does. AppController answers -application:openFiles: now,
+   which routes Finder opens through the window registry, so the singular
+   callback has no caller and no separate behaviour to preserve. */
 
 -(IBAction)open:(id)sender
 {

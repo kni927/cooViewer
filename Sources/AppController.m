@@ -65,12 +65,26 @@ static const int DIALOG_CANCEL	= 129;
 	   see -[BookWindowController menuNeedsUpdate:]. */
 }
 
-/* Step-0 decision 3 covers File ▸ Open only: a book handed to us by the
-   Finder, the Dock or a drag still replaces the front window's book, as it
-   always has. ⌥⌘O is the one route that opens a window (decision A1). */
-- (BOOL)application:(NSApplication *)theApplication openFile:(NSString *)filename
+/* Finder "Open With", a drag onto the Dock icon, and the launch document
+   event all arrive here. MW-7 forwarded the singular -application:openFile:
+   straight to the front window, so a book opened from the Finder replaced
+   whatever that window was showing. It now goes through exactly the path
+   ⌥⌘O uses: de-duplicate on the resolved book path, reuse an empty window
+   if there is one, otherwise open a new window — one per file, since this
+   is the plural callback and a multiple selection is a request for all of
+   them. Step-0 decision 3 is unaffected: File ▸ Open still replaces the
+   front window's book, because that is a different command.
+
+   AppKit prefers this over -application:openFile: when both exist, so the
+   singular one is gone rather than left as an unreachable second path. */
+- (void)application:(NSApplication *)sender openFiles:(NSArray *)filenames
 {
-	return [[self frontController] application:theApplication openFile:filename];
+	NSEnumerator *enu = [filenames objectEnumerator];
+	NSString *filename;
+	while (filename = [enu nextObject]) {
+		[self openBookInNewWindow:filename];
+	}
+	[sender replyToOpenOrPrint:NSApplicationDelegateReplySuccess];
 }
 
 - (NSMenu *)applicationDockMenu:(NSApplication *)sender
@@ -358,16 +372,37 @@ static const int DIALOG_CANCEL	= 129;
 		return;
 	}
 
-	/* An empty front window — the one at launch, or the last one left after
-	   its book was closed — is used rather than adding a second window
-	   beside it. It is what File ▸ Open would have used, and leaving it
-	   behind bookless would be the empty-window state Step-0 decision 4
-	   exists to avoid. */
-	id aController = [self frontController];
-	if ([aController hasBookOpen]) {
+	/* An empty window — the one at launch, or the last one left after its
+	   book was closed — is used rather than adding a second window beside
+	   it. It is what File ▸ Open would have used, and leaving it behind
+	   bookless would be the empty-window state Step-0 decision 4 exists to
+	   avoid. */
+	id aController = [self emptyWindowController];
+	if (!aController) {
 		aController = [self newWindowController];
 	}
 	[aController openBookAtPath:path];
+}
+
+/* A registered window with no book in it, or nil. The front one wins, but
+   the search does not stop there: -application:openFiles: opens a whole list
+   in one pass, and -frontController only changes when AppKit sends
+   -windowDidBecomeMain:, so relying on the front window alone would make the
+   second file of a multi-file open depend on when that notification lands. */
+- (id)emptyWindowController
+{
+	id front = [self frontController];
+	if (front && ![front hasBookOpen]) {
+		return front;
+	}
+	NSEnumerator *enu = [windowControllers objectEnumerator];
+	id aController;
+	while (aController = [enu nextObject]) {
+		if (![aController hasBookOpen]) {
+			return aController;
+		}
+	}
+	return nil;
 }
 
 - (void)windowControllerDidBecomeFront:(id)aController
