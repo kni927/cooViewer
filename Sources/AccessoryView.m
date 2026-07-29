@@ -684,13 +684,17 @@ NSRect COIntRect(NSRect aRect)
 		return;
 	}
 	NSRect oldRect=NSUnionRect(infoStringRect,pageStringRect);
-	
-	if (!infoString) {
-		infoString = [[NSAttributedString alloc] initWithString:string attributes:pageStringAttr];
-	} else {
-		[infoString release];
-		infoString = [[NSAttributedString alloc] initWithString:string attributes:pageStringAttr];
-	}
+
+	/* Same create-then-release ordering as -setPageString:, for the same
+	   reason — see docs/DECISIONS.md, "MRC setters build the new value before
+	   releasing the old one". Prophylactic here: infoString has no getter and
+	   every caller passes a freshly built string, so nothing can currently
+	   pass [infoString string] and hit the KNOWN_ISSUES #25 crash. Adding
+	   such a getter would have re-created it. */
+	NSAttributedString *newInfoString =
+		[[NSAttributedString alloc] initWithString:string attributes:pageStringAttr];
+	[infoString release];
+	infoString = newInfoString;
 	if (NSIsEmptyRect(oldRect)) {
 		[self displayRect:NSUnionRect([self infoStringRect],[self pageStringRect])];
 	} else {
