@@ -23,6 +23,58 @@ NSRect COIntRect(NSRect aRect)
 	tempRect.size.height = (int)(tempRect.size.height+0.5);
 	return tempRect;
 }
+/* MW-6 item 6. This class had no -dealloc at all, so everything it retains
+   was released only by process exit. Harmless while it is a nib top-level
+   object living for the whole run of the app — but MW-7 gives every window
+   its own AccessoryView, and then each closed window leaks this view and
+   everything below.
+
+   Written from the ownership actually visible in the class, not from a
+   leak trace: `controller` and `imageView` are IBOutlets and are not
+   retained; every other object ivar is retained (see -setPreferences,
+   -setFrame:, -setPageString: and -setInfoString:) and so is released here.
+   `pageBarCursor` is only ever assigned inside the commented-out body of
+   -resetCursorRects, so it is always nil today — released anyway, because
+   the ivar is declared owning and -release on nil costs nothing.
+
+   The two timers are scheduled with target:self, so the run loop retains
+   this view until they fire; both are repeats:NO and so cannot keep it
+   alive for longer than their 2 s interval. Invalidating them here is
+   therefore belt-and-braces rather than the thing that makes -dealloc
+   reachable — but it is what stops a future repeating timer from firing
+   into a freed view.
+
+   *Not verified in MW-6*: with one window this method never runs, because
+   the view lives as long as the app. It is an explicit MW-7 verification
+   item — see docs/KNOWN_ISSUES.md. */
+- (void)dealloc
+{
+	[infoStringTimer invalidate];
+	infoStringTimer = nil;
+	[accessoryTimer invalidate];
+	accessoryTimer = nil;
+
+	[pageStringAttr release];
+	[pageBarBezierPath release];
+	[pageBarCursor release];
+
+	[pageBarFont release];
+	[pageBarFontColor release];
+	[pageBarBGColor release];
+	[pageBarBorderColor release];
+	[pageBarReadedColor release];
+
+	[textFont release];
+	[textFontColor release];
+	[textBGColor release];
+	[textBorderColor release];
+
+	[pageString release];
+	[infoString release];
+
+	[super dealloc];
+}
+
 - (void)setPreferences
 {
 	if (!didFirst) {
