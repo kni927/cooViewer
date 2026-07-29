@@ -184,7 +184,17 @@ NSRect COIntRect(NSRect aRect)
 			textFont,NSFontAttributeName,
 			nil] retain];
 	}
-	if (didFirst) [self setPageString:[self pageString]];
+	/* MW-5 follow-up: `if (didFirst) [self setPageString:[self pageString]];`
+	   used to sit here, duplicating the call at the end of this method.
+	   -[AccessoryView pageString] *is* [pageString string], so the two calls
+	   were the same expression, and `didFirst` is unconditionally YES by this
+	   point (it is set at the top of this method), so the guard was dead too.
+	   The only thing that changed between the two was autoHidedPageString,
+	   which -setPageString: consults solely to decide whether to mark a dirty
+	   rect — and [self display] below redraws the whole view regardless. So
+	   the earlier call only cost one extra NSAttributedString alloc/release
+	   per Preferences OK. Both lines date from the file's first commit
+	   (77b2275), so there is no later intent to preserve. */
 	if (autoHidePageBar) {
 		autoHidedPageBar=YES;
 	} else {
