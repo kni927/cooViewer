@@ -19,12 +19,13 @@
 	[self setCollectionBehavior:[self collectionBehavior] |
 	                            NSWindowCollectionBehaviorFullScreenPrimary];
 
-	/* AppKit persists and restores the windowed frame, and correctly
-	   ignores frames taken while full screen — which is what the old
-	   manual saveFrameUsingName:/setFrameUsingName: pair in -awakeFromNib
-	   and -[BookWindowController windowDidMove:/windowDidResize:] was doing by hand.
-	   MW-6 revisits this name when there is more than one window. */
-	[self setFrameAutosaveName:@"NormalWindow"];
+	/* MW-6 item 1: the frame autosave name moved to
+	   -[BookWindowController windowDidLoad]. AppKit still persists and
+	   restores the windowed frame (and still correctly ignores frames taken
+	   while full screen) — but *which* name a window uses, and whether it
+	   restores a saved frame at all or cascades off the previous window, is
+	   a per-window decision the window controller makes, not something this
+	   class can know. */
 }
 
 - (void)setFrame:(NSRect)windowFrame display:(BOOL)displayViews

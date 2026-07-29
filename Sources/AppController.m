@@ -23,6 +23,14 @@ static const int DIALOG_CANCEL	= 129;
 	   is opened. */
 	controller = [[BookWindowController alloc] initWithWindowNibName:@"BookWindow"];
 	[controller setAppController:self];
+	/* MW-6 item 1: the window's slot in this registry. It is what the
+	   per-window frame autosave names are keyed on, so it has to be set
+	   before the nib loads. Slot 0 is the one that keeps the historical
+	   unsuffixed names ("NormalWindow", "Bookmark", "FilterPanel") and
+	   therefore the frames users already have saved; with exactly one window
+	   it is the only slot there is. MW-7 hands out the first free slot
+	   instead of a constant. */
+	[controller setWindowIndex:0];
 	[controller window];
 
 	[self setupRemoteControl];

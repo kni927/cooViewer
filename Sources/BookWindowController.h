@@ -165,6 +165,12 @@
 	
 	NSDate *lastSameFolderMenuUpdate;
 
+	/* MW-6 item 1: this window's slot in AppController's window registry.
+	   Assigned by AppController before the nib loads, and the only thing the
+	   per-window frame autosave names are keyed on — see
+	   -frameAutosaveName:. Always 0 while there is exactly one window. */
+	int windowIndex;
+
 	/* MW-6 item 4: explicit "this window has a book open" state. It replaces
 	   the two proxies the code used to test — [[self window] isVisible] and
 	   [imageView image] — neither of which is the question being asked:
@@ -187,6 +193,19 @@
 /* Set by AppController right after -initWithWindowNibName:, before the nib
    is loaded, because -windowDidLoad reads it. */
 - (void)setAppController:(id)anAppController;
+
+/* MW-6 item 1. Also set by AppController before the nib is loaded: both
+   -windowDidLoad and the panel controllers in BookWindow.xib derive their
+   frame autosave names from it during nib load. */
+- (void)setWindowIndex:(int)index;
+- (int)windowIndex;
+
+/* The frame autosave name this window should use for `baseName`. The first
+   window keeps the historical unsuffixed name so frames saved by earlier
+   versions still restore; later windows get a suffixed one so they do not
+   all write over the same saved frame. Panels living in BookWindow.xib are
+   per-window and must ask for their name through here. */
+- (NSString *)frameAutosaveName:(NSString *)baseName;
 
 /* MW-5: the Filter panel and its controller moved into BookWindow.xib, so
    the Filter menu item can no longer target the controller directly. It

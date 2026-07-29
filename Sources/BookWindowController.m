@@ -87,6 +87,33 @@
 	appController = anAppController;
 }
 
+#pragma mark per-window identity (MW-6 item 1)
+
+/* Where the second and later windows are placed. NSZeroPoint means "nothing
+   has cascaded yet", which is exactly what -cascadeTopLeftFromPoint: wants:
+   given NSZeroPoint it leaves the window where it is and just returns the
+   point the next window should use. So the first window keeps its restored
+   frame and still seeds the cascade for the ones after it. */
+static NSPoint gNextWindowCascadePoint;
+
+- (void)setWindowIndex:(int)index
+{
+	windowIndex = index;
+}
+
+- (int)windowIndex
+{
+	return windowIndex;
+}
+
+- (NSString *)frameAutosaveName:(NSString *)baseName
+{
+	if (windowIndex == 0) {
+		return baseName;
+	}
+	return [NSString stringWithFormat:@"%@-%i",baseName,windowIndex+1];
+}
+
 /* MW-5 item 4. This body was -awakeFromNib until BookWindowController became
    the File's Owner of its own nib. -windowDidLoad is the documented
    NSWindowController hook: it runs once, after the whole of BookWindow.xib is
@@ -108,6 +135,25 @@
 	//composeLock = [[NSLock allocWithZone:NULL] init];
 	
 	[imageView setTarget:self];
+
+	/* MW-6 item 1: window placement. The frame used to be autosaved under one
+	   shared name, set in -[CustomWindow awakeFromNib] — with more than one
+	   window that means every window restores onto the same rectangle and
+	   whichever moved last overwrites the others' saved frame. The first
+	   window keeps that name (and therefore the frame users already have
+	   saved) while every window after it cascades down-right from the
+	   previous one instead.
+
+	   We cascade by hand rather than through NSWindowController's own
+	   -shouldCascadeWindows, which only acts from -showWindow: — this app
+	   shows the book window with -makeKeyAndOrderFront: (see
+	   -openPage:last:), so that machinery would never run. Turned off
+	   explicitly so the two can never both apply. */
+	[self setShouldCascadeWindows:NO];
+	if (windowIndex == 0) {
+		[[self window] setFrameAutosaveName:[self frameAutosaveName:@"NormalWindow"]];
+	}
+	gNextWindowCascadePoint = [[self window] cascadeTopLeftFromPoint:gNextWindowCascadePoint];
 
 	/* "Open from same folder" submenu is populated lazily (on menuNeedsUpdate:)
 	   to avoid touching the parent folder — and triggering macOS folder-access
