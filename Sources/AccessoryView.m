@@ -770,12 +770,21 @@ NSRect COIntRect(NSRect aRect)
 	}
 	NSRect oldRect=pageStringRect;
 
-	if (!pageString) {
-		pageString = [[NSAttributedString alloc] initWithString:string attributes:pageStringAttr];
-	} else {
-		[pageString release];
-		pageString = [[NSAttributedString alloc] initWithString:string attributes:pageStringAttr];
-	}
+	/* Build the new value *before* releasing the old one. `string` is very
+	   often the old pageString's own -string: -[AccessoryView setPreferences]
+	   re-renders the current page string with the new attributes by calling
+	   -setPageString:[pageString string], and -[AccessoryView pageString]
+	   returns that same inner object. -[NSAttributedString string] is owned by
+	   the attributed string, so releasing pageString first deallocated the
+	   argument, and the next line read it — the over-release behind
+	   KNOWN_ISSUES #25 (Preferences OK crashed whenever a book was open, i.e.
+	   whenever pageString was non-nil). Releasing after the new value exists
+	   makes the setter safe against that aliasing; [nil release] is a no-op,
+	   so the previous !pageString special case is unnecessary. */
+	NSAttributedString *newPageString =
+		[[NSAttributedString alloc] initWithString:string attributes:pageStringAttr];
+	[pageString release];
+	pageString = newPageString;
 	if (!autoHidedPageString) {
 		if (NSIsEmptyRect(oldRect)) {
 			[self setNeedsDisplayInRect:[self pageStringRect]];

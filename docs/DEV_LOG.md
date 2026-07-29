@@ -314,6 +314,24 @@ closed**; see
 `docs/tasks/2026-07-29-07-mw5-bookwindow-controller.md`. Fixing #25 should
 come before MW-6.
 
+### Fixed the Preferences ▸ OK crash (KNOWN_ISSUES #25, 2026-07-29)
+
+A crash that had been in the tree since before the multi-window work: with a
+book open, Preferences ▸ OK killed the app with no crash dialog and no crash
+report. Root cause was an aliasing bug in
+`-[AccessoryView setPageString:]` — it released the old `pageString`
+(an `NSAttributedString`) before building the new one, while
+`-[AccessoryView setPreferences]` legitimately passes
+`[pageString string]`, the old attributed string's own backing store, so the
+argument was freed one line before it was read. Fixed with the standard MRC
+create-then-release setter ordering; no `retain` added at the crash site, no
+caller changed. Verified under `NSZombieEnabled` (crash gone *and* zombie
+message gone, not just the crash window moved), plus Cancel, the no-book
+case, a settings round-trip and a byte-identical render check. The identical
+latent ordering in `-setInfoString:` is documented in #25 and deliberately
+left alone — no caller can trigger it. Unblocks MW-6; see
+`docs/tasks/2026-07-29-08-fix-preferences-ok-crash.md`.
+
 ### v1.5.2 released (2026-07-25)
 
 First release actually distributed since v1.5.0 — v1.5.1 was tagged and

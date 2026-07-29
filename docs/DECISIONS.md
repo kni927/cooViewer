@@ -715,3 +715,33 @@ difference is therefore exactly 0 and the sharpness measure is trivially
 unchanged. Moving the view between nibs is safe **when the whole `<customView>`
 element is moved verbatim**, which is what makes the guarantee hold — a
 hand-rebuilt view in Interface Builder would not have.
+
+---
+
+## MRC setters build the new value before releasing the old one (2026-07-29)
+
+**Decision:** in this MRC codebase, an object setter must allocate/retain its
+new value **before** releasing the old one, even when the argument looks
+unrelated to it. Established while fixing `docs/KNOWN_ISSUES.md` #25.
+
+The crash there was not a missing `retain` at some distant call site. It was
+`-[AccessoryView setPageString:]` doing
+
+```objc
+[pageString release];
+pageString = [[NSAttributedString alloc] initWithString:string ...];
+```
+
+where `string` was `[pageString string]` — an object *owned by* the value
+being released. `-[AccessoryView setPreferences]` passes exactly that, because
+re-rendering the current page string with new attributes is what it is for.
+Reordering to build-then-release makes the setter correct for every caller,
+including the self-referential one, and is why the fix needed no change on
+the calling side.
+
+**Consequence:** `if (!ivar) { ivar = alloc… } else { [ivar release]; ivar = alloc… }`
+is an anti-pattern here, not just verbose — the `else` branch is the unsafe
+ordering. `[nil release]` is a no-op, so the guard buys nothing. The same
+shape still exists in `-[AccessoryView setInfoString:]`; it is unreachable
+today and is recorded in #25 rather than changed, since that task was scoped
+to the actual over-release.

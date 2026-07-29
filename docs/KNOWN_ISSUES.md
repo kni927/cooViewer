@@ -831,7 +831,7 @@ lives in `AllBookmarkController` and was verified by temporarily forcing
 
 ---
 
-## 25. Preferences ▸ OK Crashes the App When a Book Is Open (pre-existing, over-release)
+## 25. ~~Preferences ▸ OK Crashes the App When a Book Is Open (pre-existing, over-release)~~ — FIXED (2026-07-29)
 
 Found 2026-07-29 during MW-5 on-device verification. **Pre-existing — not
 introduced by MW-5.** Bisected by building and running three commits with the
@@ -881,3 +881,54 @@ released without a matching retain is the shape to look for.
 Not fixed in MW-5, which is a no-logic-change task by definition. It should be
 its own task; `NSZombieEnabled` plus a breakpoint on the zombie message will
 name the string in one run.
+
+**Resolved 2026-07-29** (`docs/tasks/2026-07-29-08-fix-preferences-ok-crash.md`).
+
+The over-released string was the page bar's, and the unbalanced release was
+inside `-[AccessoryView setPageString:]` itself — an aliasing bug, not a
+missing retain anywhere else. Full backtrace at the zombie message:
+
+```
+-[BookWindowController setPreferences]
+  -> -[CustomImageView setPreferences]
+    -> -[AccessoryView setPreferences]
+      -> -[AccessoryView setPageString:]
+        -> -[NSConcreteAttributedString initWithString:attributes:]   <- reads freed memory
+```
+
+`AccessoryView` keeps the page string as an `NSAttributedString *pageString`,
+and `-[AccessoryView pageString]` returns `[pageString string]` — the
+attributed string's **own** backing store, whose lifetime is the attributed
+string's. `-[AccessoryView setPreferences]` re-renders the current page string
+with the newly built attributes by calling `-setPageString:[pageString string]`
+(`AccessoryView.m:187` and `:198`), so the argument is owned by the ivar. The
+setter then did:
+
+```objc
+[pageString release];                                    // frees `string` too
+pageString = [[NSAttributedString alloc] initWithString:string ...];  // reads it
+```
+
+That is the whole bug: **a setter that released its old value before consuming
+its argument, with a caller that legitimately passes a value owned by that old
+value.** It only fired with a book open because with no book
+`-[BookWindowController]` sets the page string to nil, `pageString` is nil, and
+`-setPageString:` takes its `if (!string)` early return.
+
+Fixed by giving the setter the standard MRC create-then-release ordering:
+build the new attributed string, *then* release the old one, then assign. The
+`if (!pageString)` special case went away with it (`[nil release]` is a no-op).
+No `retain` was added at the crash site and no caller changed.
+
+Verified on device with `NSZombieEnabled=YES`: Preferences OK with a book open
+no longer crashes and logs no zombie message; the page bar still renders its
+string correctly afterwards; Cancel, the no-book case, and a settings
+round-trip (change -> OK -> reopen -> persisted) all behave as before.
+
+**Note for the next reader — one latent instance of the same shape remains.**
+`-[AccessoryView setInfoString:]` (`AccessoryView.m:681`) has the identical
+release-then-consume ordering. It cannot fire today: `infoString` has no
+getter and all of its callers pass freshly built strings, never
+`[infoString string]`. It was left alone because this task was scoped to the
+actual over-release; give it the same ordering if that file is touched again.
+
