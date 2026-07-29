@@ -13,6 +13,18 @@
 	attrString = nil;
 }
 
+/* MW-7 item 2 (KNOWN_ISSUES #26). Both object ivars are owned: `bmarray` by
+   -awakeFromNib, `attrString` by -mouseMoved:'s page-name overlay, which
+   releases it again on the next draw — so it is normally nil, but not if the
+   window is closed with the pointer still over a cell. */
+- (void)dealloc
+{
+	[bmarray release];
+	[attrString release];
+
+	[super dealloc];
+}
+
 - (void)setBookmarkIconAtRow:(int)row column:(int)column left:(BOOL)b
 {
 	[bmarray addObject:[NSDictionary dictionaryWithObjectsAndKeys:

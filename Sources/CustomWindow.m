@@ -28,6 +28,20 @@
 	   class can know. */
 }
 
+/* MW-7 item 2 (KNOWN_ISSUES #26). This class owns no object ivars —
+   `target`, `controller` and `view` are all borrowed — so the only thing to
+   undo is the cursor-hide timer. It is scheduled with target:self and so
+   retains this window; being repeats:NO it can only do so for its 3 s
+   interval, which means invalidating it here guards a future repeating timer
+   rather than making -dealloc reachable. */
+- (void)dealloc
+{
+	[cursorTimer invalidate];
+	cursorTimer = nil;
+
+	[super dealloc];
+}
+
 - (void)setFrame:(NSRect)windowFrame display:(BOOL)displayViews
 {
 	[super setFrame:windowFrame display:displayViews];

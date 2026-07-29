@@ -87,6 +87,82 @@
 	appController = anAppController;
 }
 
+/* MW-7 item 2 (KNOWN_ISSUES #26). Until MW-7 a window controller lived for
+   the whole run of the app, so it had no -dealloc at all; now every closed
+   window that is not the last one destroys one, along with everything below.
+
+   Not released here: `appController` and `defaults` are borrowed, and every
+   IBOutlet points at an object in BookWindow.xib — NSWindowController owns
+   that nib's top-level objects and releases them, and the rest are subviews
+   released with their window. `lastInput` is declared owning but nothing in
+   this class ever assigns it (it is PreferenceController that keeps one of
+   the same name); released anyway, as -release on nil costs nothing.
+
+   The three timers are scheduled with target:self, so the run loop retains
+   this object until they fire and -dealloc cannot run while one is pending
+   — the slideshow timer in particular repeats, so it would keep the window
+   controller alive for ever. -windowWillClose: already invalidates it;
+   these calls are what makes that guaranteed rather than incidental. */
+- (void)dealloc
+{
+	[[NSNotificationCenter defaultCenter] removeObserver:self];
+
+	[timer invalidate];
+	timer = nil;
+	[wheelUpTimer invalidate];
+	wheelUpTimer = nil;
+	[wheelDownTimer invalidate];
+	wheelDownTimer = nil;
+
+	[keyArray release];
+	[keyArrayMode2 release];
+	[keyArrayMode3 release];
+	[mouseArray release];
+	[mouseArrayMode2 release];
+	[mouseArrayMode3 release];
+	[lastInput release];
+
+	[imageLoader release];
+	[completeMutableArray release];
+	[imageMutableArray release];
+	[cacheArray release];
+	[bookmarkArray release];
+	[marksArray release];
+	[currentBookSetting release];
+
+	[firstImage release];
+	[secondImage release];
+
+	[currentBookPath release];
+	[currentBookName release];
+	[currentBookAlias release];
+	[oldBookPath release];
+	[oldBookName release];
+	[oldBookAlias release];
+
+	[lastSameFolderMenuUpdate release];
+	/* The progress bar, label and cancel button are subviews of this
+	   window's content view and go with it. */
+	[archiveProgressSheet release];
+
+	[lock release];
+
+	[super dealloc];
+}
+
+/* MW-7. The one place that decides what "the book at this path" means; both
+   -openPage:last: (which then remembers the file it was pointed at, so it
+   can open on that page) and AppController's already-open check go through
+   it, so the two cannot drift apart. */
++ (NSString *)resolvedBookPath:(NSString *)path
+{
+	if ([[NSImage imageFileTypes] containsObject:[[path pathExtension] lowercaseString]]
+		&& [[path pathExtension] compare:@"pdf" options:NSCaseInsensitiveSearch] != NSOrderedSame) {
+		return [path stringByDeletingLastPathComponent];
+	}
+	return path;
+}
+
 #pragma mark per-window identity (MW-6 item 1)
 
 /* Where the second and later windows are placed. NSZeroPoint means "nothing

@@ -24,6 +24,34 @@
     }
     return self;
 }
+/* MW-7 item 2 (KNOWN_ISSUES #26). `target`, `accessoryWindow` and
+   `accessoryView` are borrowed (outlet or nib sibling); everything released
+   below is retained by -setPreferences, -setImages:, -filterValueDidChange:,
+   -setLoupe or -resetCursorRects. `timer` is declared but nothing in this
+   class ever schedules one. The notification registration in -initWithFrame:
+   is what makes this method mandatory rather than tidy: a dangling observer
+   is a crash on the next FilterUIValueDidChange, not a leak. */
+- (void)dealloc
+{
+	[[NSNotificationCenter defaultCenter] removeObserver:self];
+
+	if (lensWindow) {
+		/* Ordered out and released the way -setLoupe does it: the window is
+		   releasedWhenClosed:YES and is a child of the book window. */
+		[[lensWindow parentWindow] removeChildWindow:lensWindow];
+		[lensWindow close];
+		lensWindow = nil;
+	}
+
+	[_image release];
+	[filters release];
+	[crossCursor release];
+	[dragScrollDic release];
+	[urlRectArray release];
+
+	[super dealloc];
+}
+
 - (void)setTarget:(id)tar
 {
 	target = tar;

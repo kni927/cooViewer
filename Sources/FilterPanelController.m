@@ -159,6 +159,34 @@
         }
     }
 }
+/* MW-7 item 2 (KNOWN_ISSUES #26). The four collections are owned by
+   -awakeFromNib; the outlets are borrowed from BookWindow.xib.
+   -drawFilterUIViews registers this object as a KVO observer of every input
+   key of every selected CIFilter, and those filters are held in
+   `selectedFilters` — releasing that dictionary without unregistering first
+   would deallocate an observed object, which is a hard error rather than a
+   leak. (The same registration is not undone by -deleteFilter:, which is a
+   separate pre-existing defect and is left alone here.) */
+- (void)dealloc
+{
+    NSEnumerator *enu = [selectedFilters objectEnumerator];
+    CIFilter *filter;
+    while (filter = [enu nextObject]) {
+        NSEnumerator *keys = [[filter inputKeys] objectEnumerator];
+        NSString *attrkey;
+        while (attrkey = [keys nextObject]) {
+            [filter removeObserver:self forKeyPath:attrkey];
+        }
+    }
+
+    [selectedFilters release];
+    [selectedFilterKeys release];
+    [selectedFilterUIViews release];
+    [filterDic release];
+
+    [super dealloc];
+}
+
 - (BOOL)validateMenuItem:(NSMenuItem *)anItem
 {
     return YES;

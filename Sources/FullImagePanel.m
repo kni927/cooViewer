@@ -187,6 +187,16 @@
 	}
 }
 
+/* MW-7 item 2 (KNOWN_ISSUES #26). `keyArray` is the only owned ivar
+   (-setPageKey:, called per window from -[BookWindowController
+   setupInputMappings]); `target` is borrowed. */
+-(void)dealloc
+{
+	[keyArray release];
+
+	[super dealloc];
+}
+
 -(void)setPageKey:(NSArray*)array
 {
 	[keyArray autorelease];

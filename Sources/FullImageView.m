@@ -9,7 +9,19 @@
 
 @implementation FullImageView
 
-- (BOOL)isFlipped { return YES; } 
+- (BOOL)isFlipped { return YES; }
+
+/* MW-7 item 2 (KNOWN_ISSUES #26). The one owning ivar. It is always nil
+   today — the only code that assigned it is commented out in -setImage:,
+   which now defers to NSImageView's own storage — but the ivar is declared
+   owning, and -release on nil costs nothing. */
+- (void)dealloc
+{
+	[image release];
+
+	[super dealloc];
+}
+
 
 
 - (void)setImage:(NSImage *)im

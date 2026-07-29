@@ -21,6 +21,20 @@ static const int DIALOG_CANCEL	= 129;
 	[bookmarkPanel setFrameAutosaveName:[controller frameAutosaveName:@"Bookmark"]];
 }
 
+/* MW-7 item 2 (KNOWN_ISSUES #26). `bookmarkArray` and `bookName` are
+   retained by -editBookmark: for as long as the sheet is up and released
+   again when it ends, so they are normally nil here — not if the window is
+   closed with the Bookmark sheet still open. `directoryPath` is borrowed
+   from the dictionary -setPathDic: is handed, and `sheetWindow` and every
+   IBOutlet are borrowed too. */
+-(void)dealloc
+{
+	[bookmarkArray release];
+	[bookName release];
+
+	[super dealloc];
+}
+
 -(void)setPathDic:(NSDictionary*)dic
 {
 	directoryPath = [dic objectForKey:@"dirPath"];

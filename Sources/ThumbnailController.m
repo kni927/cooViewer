@@ -47,6 +47,26 @@
 
 }
 
+/* MW-7 item 2 (KNOWN_ISSUES #26). Every IBOutlet here points into
+   BookWindow.xib and is borrowed, as are `imageLoader` and `pathArray` —
+   both are handed in by BookWindowController, which owns them. `pathDic` is
+   declared owning but nothing assigns it (see -clearAll); released anyway.
+   The two wheel timers target self and so retain this object while pending;
+   both are repeats:NO. */
+-(void)dealloc
+{
+	[wheelUpTimer invalidate];
+	wheelUpTimer = nil;
+	[wheelDownTimer invalidate];
+	wheelDownTimer = nil;
+
+	[thumImageArray release];
+	[keyArray release];
+	[pathDic release];
+
+	[super dealloc];
+}
+
 -(void)setImageLoader:(COImageLoader*)loader
 {
 	[sortPopUpButton setEnabled:YES];
