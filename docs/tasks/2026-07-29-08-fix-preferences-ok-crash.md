@@ -194,11 +194,21 @@ so it was left alone rather than silently widened.
 
 - Give `-[AccessoryView setInfoString:]` the same create-then-release ordering
   next time that file is touched (latent, not currently reachable).
-- `-[AccessoryView setPreferences]` reassigns the retained `pageStringAttr`
+- ~~`-[AccessoryView setPreferences]` reassigns the retained `pageStringAttr`
   ivar (`AccessoryView.m:175`, `:182`) **without releasing the previous
   dictionary** — a small leak of one `NSDictionary` per Preferences ▸ OK. It is
   an under-release, the opposite of the bug this task was about, so it was not
-  folded in. Worth a one-line fix in its own change.
+  folded in. Worth a one-line fix in its own change.~~
+  **Retracted 2026-07-29 — this suggestion was wrong.** There is no leak. The
+  method's `didFirst` `else` branch releases `pageStringAttr` at
+  `AccessoryView.m:75`, before the reassignment at `:175`/`:182`, and the
+  first call sets it to nil at `:58`; both paths are balanced. The note was
+  written from the assignment sites alone, without reading the release block
+  at the top of the same method. Re-checked at runtime as well: `leaks` on a
+  running build reports 327 leaks / 25408 bytes both before and after three
+  Preferences ▸ OK cycles, with no allocation attributed to
+  `-[AccessoryView setPreferences]`. See
+  `docs/tasks/2026-07-29-09-accessoryview-followups.md`.
 - `-[AccessoryView setPreferences]` calls `-setPageString:` twice with the same
   value (`:187` guarded by `didFirst`, then `:198` unconditionally). The first
   call appears redundant; confirm before removing.

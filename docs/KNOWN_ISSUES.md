@@ -932,3 +932,17 @@ getter and all of its callers pass freshly built strings, never
 `[infoString string]`. It was left alone because this task was scoped to the
 actual over-release; give it the same ordering if that file is touched again.
 
+**Closed out 2026-07-29** by
+`docs/tasks/2026-07-29-09-accessoryview-followups.md`, which took the three
+follow-ups filed here as its own task:
+
+1. `-setInfoString:` now has the safe ordering (prophylactic; still no caller
+   that could trigger it).
+2. The `pageStringAttr` "leak" **did not exist** — that follow-up note was
+   written from the assignment sites without reading the release block at the
+   top of the same method (`AccessoryView.m:75`). Retracted, with runtime
+   evidence, in the #25 task archive. No code change.
+3. The duplicated `-setPageString:` call in `-setPreferences` was removed
+   after confirming it had no observable effect; the reasoning is in that
+   archive.
+
