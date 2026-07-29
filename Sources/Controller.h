@@ -285,11 +285,9 @@
 - (AliasHandle)aliasFromData:(NSData*)data;
 
 
-- (id)searchFromBookSettings:(NSString*)path key:(NSString**)key;
-- (id)searchFromRecentItems:(NSString*)path index:(int*)index;
-- (id)searchFromLastPages:(NSString*)path index:(int*)index;
-
-- (id)searchFromBookSettings:(NSString*)path key:(NSString**)key more:(BOOL)b;
+/* searchFromBookSettings:key:[more:] / searchFromRecentItems:index: /
+ * searchFromLastPages:index: moved to AppController (MW-3 cont.,
+ * single-writer persistence API); Controller calls [appController ...]. */
 /*
 - (id)searchFromRecentItems:(NSString*)path index:(int*)index more:(BOOL)b;
 - (id)searchFromLastPages:(NSString*)path index:(int*)index more:(BOOL)b;

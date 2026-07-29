@@ -557,3 +557,33 @@ should read the MW-3 task archive first — it records exactly which
 `openRecentMenuItem`/`bookmarkMenuItem`/`openSameFolderMenuItem` accessor
 plumbing already exists on `AppController` (reusable) versus what's still
 inline in `Controller.m`.
+
+**Update (2026-07-29, `docs/tasks/2026-07-29-04-mw3-persistence-api.md`):**
+the persistence API landed. `AppController` gained the single-writer methods
+`-recordClosingBookSettings:...` (the `openPage:last:` "close the old book"
+path), `-recordBookSettingsOnWindowClose:...` (the `windowWillClose:` path),
+and the four `searchFrom*` read helpers (moved bodily from `Controller`);
+`Controller` now calls `[appController ...]` at every site that used to touch
+`RecentItems`/`LastPages`/`BookSettings` directly, except the ones this task
+was explicitly not scoped to touch (`setOpenRecentMenu`'s self-healing
+RecentItems write, the `preferencesDidChange:` RecentItems-limit truncation,
+the 1.2b10 version-migration block, and `PreferenceController`'s/
+`BookmarkController`'s own writes to these keys — a fully single-writer API
+would need to cover those too, left as a follow-up). The two write methods
+were kept deliberately un-unified: `-recordBookSettingsOnWindowClose:...`
+still removes a stale `RecentItems`/`LastPages` entry by a plain
+`-pathFromAliasData:` comparison where `-recordClosingBookSettings:...` uses
+`-searchFromRecentItems:`/`-searchFromLastPages:`, a pre-existing divergence
+between `openPage:last:` and `windowWillClose:` that predates this refactor
+and was preserved rather than reconciled. Verified end-to-end against the
+real defaults domain (not a mock): opening a second test fixture while a
+first was open exercised `-recordClosingBookSettings:...` (confirmed via
+`defaults read` — the closed book gained a `page` entry in `RecentItems`),
+and quitting the app with a book open exercised `-recordBookSettingsOnWindowClose:...`
+the same way (`windowWillClose:` fires during `NSApplication`'s normal
+terminate sequence). MW-3's on-device visual checklist (dock menu, bookmark
+round-trip via the UI, `OpenLastFolder`-at-launch, PDF pixel rendering, Apple
+Remote) is still not verified — this session had a working process launcher
+and Apple Event dispatch but no working accessibility/screen-capture session,
+so nothing pixel- or UI-tree-based could be checked; see
+`docs/KNOWN_ISSUES.md` #22. MW-3 is not yet fully closed on that basis.

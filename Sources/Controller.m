@@ -596,7 +596,7 @@ static const int DIALOG_CANCEL	= 129;
 	if ([imageView image]) {
 		int page;
 		if ([defaults arrayForKey:@"RecentItems"]) {
-			id object = [self searchFromRecentItems:currentBookPath index:nil];
+			id object = [appController searchFromRecentItems:currentBookPath index:nil];
 			if (object) {
 				if ([object objectForKey:@"page"]) {
 					page = [[object objectForKey:@"page"] intValue];
@@ -771,98 +771,22 @@ static const int DIALOG_CANCEL	= 129;
 		/*clear cache*/
 		[cacheArray removeAllObjects];
 		if (oldBookPath != nil) {
-			NSData *aliasData = oldBookAlias;	
-			
-			/*bookmark&booksettings保存*/			
-			NSMutableDictionary *dic;
-			if (![defaults dictionaryForKey:@"BookSettings"]) {
-				dic = [NSMutableDictionary dictionary];
-			} else {
-				dic = [NSMutableDictionary dictionaryWithDictionary:[defaults dictionaryForKey:@"BookSettings"]];
-			}
-			id key;
-			[self searchFromBookSettings:oldBookPath key:&key];
-			
-			[currentBookSetting setObject:aliasData forKey:@"alias"];
-			[currentBookSetting setObject:oldBookPath forKey:@"temppath"];
-			if ([bookmarkArray count]>0) {
-				[currentBookSetting setObject:bookmarkArray forKey:@"bookmarks"];
-			} else if ([bookmarkArray count]==0) {
-				[currentBookSetting removeObjectForKey:@"bookmarks"];
-			}
-			if ([currentBookSetting count]>2) {
-				if (!key) {
-					key = oldBookName;
-					int i = 2;
-					while ([dic objectForKey:key]) {
-						key = [NSString stringWithFormat:@"%@#%i",oldBookName,i];
-						i++;
-					}
-					[dic setObject:currentBookSetting forKey:key];
-				} else {
-					[dic setObject:currentBookSetting forKey:key];
-				}
-				[defaults setObject:dic forKey:@"BookSettings"];
-			}
-	
-			
-			/*historyの処理*/			
+			/*historyの処理*/
 			if (secondImage) {
 				nowPage -= 2;
 			} else {
 				nowPage--;
 			}
-			NSNumber *pageNumber = [NSNumber numberWithInt:nowPage];
-			if (openRecentLimit>0) {
-				NSMutableArray *newRecentItems;
-				if (![defaults arrayForKey:@"RecentItems"]) {
-					newRecentItems = [NSMutableArray array];
-				} else {
-					newRecentItems = [NSMutableArray arrayWithArray:[defaults arrayForKey:@"RecentItems"]];
-				}
-				int index = 0;
-				id object = [self searchFromRecentItems:oldBookPath index:&index];
-				if (object) {
-					[newRecentItems removeObjectAtIndex:index];
-				}
-				while ([newRecentItems count] >= openRecentLimit) {
-					[newRecentItems removeLastObject];
-				}
-				[newRecentItems insertObject:[NSDictionary dictionaryWithObjectsAndKeys:aliasData,@"alias",pageNumber,@"page",oldBookPath,@"temppath",nil] atIndex:0];
-				[defaults setObject:newRecentItems forKey:@"RecentItems"];
-			} else {
-				[defaults removeObjectForKey:@"RecentItems"];
-			}
-			if (alwaysRememberLastPage && nowPage > 0) {				
-				NSMutableArray *lastPages;
-				if (![defaults arrayForKey:@"LastPages"]) {
-					lastPages = [NSMutableArray array];
-				} else {
-					lastPages = [NSMutableArray arrayWithArray:[defaults arrayForKey:@"LastPages"]];
-				}
-				int index;
-				id object = [self searchFromLastPages:oldBookPath index:&index];
-				if (object) {
-					[lastPages removeObjectAtIndex:index];
-				}
-				[lastPages addObject:[NSDictionary dictionaryWithObjectsAndKeys:aliasData,@"alias",pageNumber,@"page",oldBookPath,@"temppath",nil]];
-				[defaults setObject:lastPages forKey:@"LastPages"];
-			} else if (!alwaysRememberLastPage || nowPage == 0) {
-				NSMutableArray *lastPages;
-				if (![defaults arrayForKey:@"LastPages"]) {
-					lastPages = [NSMutableArray array];
-				} else {
-					lastPages = [NSMutableArray arrayWithArray:[defaults arrayForKey:@"LastPages"]];
-				}
-				int index;
-				id object = [self searchFromLastPages:oldBookPath index:&index];
-				if (object) {
-					[lastPages removeObjectAtIndex:index];
-				}
-				[defaults setObject:lastPages forKey:@"LastPages"];
-			}
+			[appController recordClosingBookSettings:oldBookPath
+												  name:oldBookName
+												 alias:oldBookAlias
+											 bookmarks:bookmarkArray
+										   bookSetting:currentBookSetting
+												  page:nowPage
+									   openRecentLimit:openRecentLimit
+								alwaysRememberLastPage:alwaysRememberLastPage];
 		}
-		
+
 		[completeMutableArray release];
 		completeMutableArray = nil;
 		[imageMutableArray removeAllObjects];
@@ -882,11 +806,11 @@ static const int DIALOG_CANCEL	= 129;
 	}
 	
 	
-	id tempCurrentBookSetting = [self searchFromBookSettings:currentBookPath key:nil more:YES];
+	id tempCurrentBookSetting = [appController searchFromBookSettings:currentBookPath key:nil more:YES];
 	if (tempCurrentBookSetting) {
 		[currentBookSetting setDictionary:tempCurrentBookSetting];
 	}
-	
+
 	NSMutableArray *newRecentItems;
 	if (![defaults arrayForKey:@"RecentItems"]) {
 		newRecentItems = [NSMutableArray array];
@@ -903,12 +827,12 @@ static const int DIALOG_CANCEL	= 129;
 	
 	/*goto lastpage?*/
 	if (goToLastPageMode<2 && !last && page == 0) {
-		id object = [self searchFromRecentItems:currentBookPath index:nil];
+		id object = [appController searchFromRecentItems:currentBookPath index:nil];
 		if (object) {
 			page = [[object objectForKey:@"page"] intValue];
 		}
 		if (!page) {
-			object = [self searchFromLastPages:currentBookPath index:nil];
+			object = [appController searchFromLastPages:currentBookPath index:nil];
 			if (object) {
 				page = [[object objectForKey:@"page"] intValue];
 			}
@@ -929,13 +853,13 @@ static const int DIALOG_CANCEL	= 129;
 	if (openRecentLimit>0) {
 		NSDictionary *newDic = [NSDictionary dictionaryWithObjectsAndKeys:aliasData,@"alias",currentBookPath,@"temppath",nil];
 		if (alwaysRememberLastPage) {
-			id object = [self searchFromLastPages:currentBookPath index:nil];
+			id object = [appController searchFromLastPages:currentBookPath index:nil];
 			if (object) {
 				newDic = object;
 			}
 		}
 		int index = 0;
-		id objectS = [self searchFromRecentItems:currentBookPath index:&index];
+		id objectS = [appController searchFromRecentItems:currentBookPath index:&index];
 		if (objectS) {
 			[newRecentItems removeObjectAtIndex:index];
 			newDic = objectS;
@@ -2216,11 +2140,11 @@ static const int DIALOG_CANCEL	= 129;
 {
 	//allBookmarkEditで本を開いた後ブックマーク編集してから戻って来たとき用
 	[currentBookSetting removeAllObjects];
-	id tempCurrentBookSetting = [self searchFromBookSettings:currentBookPath key:nil more:YES];
+	id tempCurrentBookSetting = [appController searchFromBookSettings:currentBookPath key:nil more:YES];
 	if (tempCurrentBookSetting) {
 		[currentBookSetting setDictionary:tempCurrentBookSetting];
 	}
-	
+
 	[bookmarkArray removeAllObjects];
 	if (currentBookSetting) {
 		if ([currentBookSetting objectForKey:@"bookmarks"]) {
@@ -2722,108 +2646,24 @@ static const int DIALOG_CANCEL	= 129;
 			}
 		}
 		if (currentBookPath != nil) {
-			NSData *aliasData = currentBookAlias;
-			
-			/*bookmark&booksettings保存*/	
-			NSMutableDictionary *dic;
-			if (![defaults dictionaryForKey:@"BookSettings"]) {
-				dic = [NSMutableDictionary dictionary];
-			} else {
-				dic = [NSMutableDictionary dictionaryWithDictionary:[defaults dictionaryForKey:@"BookSettings"]];
-			}
-			id key;
-			[self searchFromBookSettings:currentBookPath key:&key];
-			
-			if (!rememberBookSettings) {
-				[currentBookSetting removeAllObjects];
-			}
-			
-			[currentBookSetting setObject:aliasData forKey:@"alias"];
-			[currentBookSetting setObject:currentBookPath forKey:@"temppath"];
-			if ([bookmarkArray count]>0) {
-				[currentBookSetting setObject:bookmarkArray forKey:@"bookmarks"];
-			} else if ([bookmarkArray count]==0) {
-				[currentBookSetting removeObjectForKey:@"bookmarks"];
-			}
-			if ([currentBookSetting count]>2) {
-				if (!key) {
-					key = currentBookName;
-					int i = 2;
-					while ([dic objectForKey:key]) {
-						key = [NSString stringWithFormat:@"%@#%i",currentBookName,i];
-						i++;
-					}
-					[dic setObject:currentBookSetting forKey:key];
-				} else {
-					[dic setObject:currentBookSetting forKey:key];
-				}
-				[defaults setObject:dic forKey:@"BookSettings"];
-			}
-			
-			/*historyの処理*/	
+			/*historyの処理*/
 			if (secondImage) {
 				nowPage -= 2;
 			} else {
 				nowPage--;
 			}
-			NSNumber *pageNumber = [NSNumber numberWithInt:nowPage];
-			if (openRecentLimit>0) {			
-				NSMutableArray *array;
-				if (![defaults arrayForKey:@"RecentItems"]) {
-					array = [NSMutableArray array];
-				} else {
-					array = [NSMutableArray arrayWithArray:[defaults arrayForKey:@"RecentItems"]];
-				}
-				NSEnumerator *enu = [array objectEnumerator];
-				id object;
-				while (object = [enu nextObject]) {
-					if ([[self pathFromAliasData:[object objectForKey:@"alias"]] isEqualToString:currentBookPath]) {
-						[array removeObject:object];
-						break;
-					}
-				}
-				while ([array count] >= openRecentLimit) {
-					[array removeLastObject];
-				}
-				[array insertObject:[NSDictionary dictionaryWithObjectsAndKeys:aliasData,@"alias",pageNumber,@"page",currentBookPath,@"temppath",nil] atIndex:0];
-				[defaults setObject:array forKey:@"RecentItems"];
-			} else {
-				[defaults removeObjectForKey:@"RecentItems"];
-			}
-			if (alwaysRememberLastPage && nowPage > 0) {
-				NSMutableArray *array;
-				if (![defaults arrayForKey:@"LastPages"]) {
-					array = [NSMutableArray array];
-				} else {
-					array = [NSMutableArray arrayWithArray:[defaults arrayForKey:@"LastPages"]];
-				}
-				NSEnumerator *enu = [array objectEnumerator];
-				id object;
-				while (object = [enu nextObject]) {
-					if ([[self pathFromAliasData:[object objectForKey:@"alias"]] isEqualToString:currentBookPath]) {
-						[array removeObject:object];
-						break;
-					}
-				}
-				[array addObject:[NSDictionary dictionaryWithObjectsAndKeys:aliasData,@"alias",pageNumber,@"page",currentBookPath,@"temppath",nil]];
-				[defaults setObject:array forKey:@"LastPages"];
-			} else if (!alwaysRememberLastPage || nowPage == 0) {
-				NSMutableArray *lastPages;
-				if (![defaults arrayForKey:@"LastPages"]) {
-					lastPages = [NSMutableArray array];
-				} else {
-					lastPages = [NSMutableArray arrayWithArray:[defaults arrayForKey:@"LastPages"]];
-				}
-				int index;
-				id object = [self searchFromLastPages:currentBookPath index:&index];
-				if (object) {
-					[lastPages removeObjectAtIndex:index];
-				}
-				[defaults setObject:lastPages forKey:@"LastPages"];
-			}
-			[defaults synchronize];
+			[appController recordBookSettingsOnWindowClose:currentBookPath
+													   name:currentBookName
+													  alias:currentBookAlias
+												  bookmarks:bookmarkArray
+												bookSetting:currentBookSetting
+													   page:nowPage
+											openRecentLimit:openRecentLimit
+									 alwaysRememberLastPage:alwaysRememberLastPage
+									  rememberBookSettings:rememberBookSettings];
 		}
-		
+
+
 		[imageView setPageString:nil];
 		[NSCursor setHiddenUntilMouseMoves:NO];
 		[imageView setImage:nil];
@@ -3181,188 +3021,6 @@ static const int DIALOG_CANCEL	= 129;
 }
 
 
-#pragma mark searchFrom
-- (id)searchFromBookSettings:(NSString*)path key:(NSString**)key
-{
-	if ([defaults dictionaryForKey:@"BookSettings"]) {
-		NSEnumerator *enu = [[defaults dictionaryForKey:@"BookSettings"] objectEnumerator];
-		id object;
-		while (object = [enu nextObject]) {
-			if ([[object objectForKey:@"temppath"] isEqualToString:path]) {
-				if ([[self pathFromAliasData:[object objectForKey:@"alias"]] isEqualToString:path]) {
-					if (key) {
-						*key = [[[defaults dictionaryForKey:@"BookSettings"] allKeysForObject:object] objectAtIndex:0];
-						//*key = [NSString stringWithString:[[settings allKeysForObject:object] objectAtIndex:0]];
-					}
-					return [NSDictionary dictionaryWithDictionary:object];
-				}
-			}
-		}
-		
-		NSMutableDictionary *newDic = [NSMutableDictionary dictionaryWithDictionary:[defaults dictionaryForKey:@"BookSettings"]];
-		NSEnumerator *enuS = [newDic keyEnumerator];
-		id tempKey;
-		while (tempKey = [enuS nextObject]) {
-			if ([[self pathFromAliasData:[[newDic objectForKey:tempKey] objectForKey:@"alias"]] isEqualToString:path]) {
-				NSMutableDictionary *newInnerDic = [NSMutableDictionary dictionaryWithDictionary:[newDic objectForKey:tempKey]];
-				[newInnerDic setObject:path forKey:@"temppath"];
-				[newDic setObject:newInnerDic forKey:tempKey];
-				
-				if (key) {
-					*key = tempKey;
-				}
-				[defaults setObject:newDic forKey:@"BookSettings"];
-				return [NSDictionary dictionaryWithDictionary:newInnerDic];
-			}
-		}		
-	}
-	if (key) *key = nil;
-	return nil;
-}
-
-- (id)searchFromRecentItems:(NSString*)path index:(int *)index
-{
-	if ([defaults arrayForKey:@"RecentItems"]) {
-		NSEnumerator *enu = [[defaults arrayForKey:@"RecentItems"] objectEnumerator];
-		id object;
-		while (object = [enu nextObject]) {
-			if ([[object objectForKey:@"temppath"] isEqualToString:path]) {
-				if ([[self pathFromAliasData:[object objectForKey:@"alias"]] isEqualToString:path]) {
-					if (index) {
-						*index = (int)[[defaults arrayForKey:@"RecentItems"] indexOfObject:object];
-					}
-					return [NSDictionary dictionaryWithDictionary:object];
-				}
-			}
-		}
-		
-		NSEnumerator *enuS = [[defaults arrayForKey:@"RecentItems"] objectEnumerator];
-		while (object = [enuS nextObject]) {
-			if ([[self pathFromAliasData:[object objectForKey:@"alias"]] isEqualToString:path]) {
-				NSMutableArray *newArray = [NSMutableArray arrayWithArray:[defaults arrayForKey:@"RecentItems"]];
-				NSMutableDictionary *newInnerDic = [NSMutableDictionary dictionaryWithDictionary:object];
-				int tempIndex = (int)[[defaults arrayForKey:@"RecentItems"] indexOfObject:object];
-				[newArray removeObjectAtIndex:tempIndex];
-				[newInnerDic setObject:path forKey:@"temppath"];
-				[newArray insertObject:newInnerDic atIndex:tempIndex];
-				
-				if (index) {
-					*index = tempIndex;
-					
-				}
-				[defaults setObject:newArray forKey:@"RecentItems"];
-				return [NSDictionary dictionaryWithDictionary:newInnerDic];
-			}
-		}
-		
-	}
-	if (index) *index = -1;
-	return nil;
-}
-
-- (id)searchFromLastPages:(NSString*)path index:(int*)index
-{
-	if ([defaults arrayForKey:@"LastPages"]) {
-		NSEnumerator *enu = [[defaults arrayForKey:@"LastPages"] objectEnumerator];
-		id object;
-		while (object = [enu nextObject]) {
-			if ([[object objectForKey:@"temppath"] isEqualToString:path]) {
-				if ([[self pathFromAliasData:[object objectForKey:@"alias"]] isEqualToString:path]) {
-					if (index) {
-						*index = (int)[[defaults arrayForKey:@"LastPages"] indexOfObject:object];
-					}
-					return [NSDictionary dictionaryWithDictionary:object];
-				}
-			}
-		}
-		
-		NSEnumerator *enuS = [[defaults arrayForKey:@"LastPages"] objectEnumerator];
-		while (object = [enuS nextObject]) {
-			if ([[self pathFromAliasData:[object objectForKey:@"alias"]] isEqualToString:path]) {
-				NSMutableArray *newArray = [NSMutableArray arrayWithArray:[defaults arrayForKey:@"LastPages"]];
-				NSMutableDictionary *newInnerDic = [NSMutableDictionary dictionaryWithDictionary:object];
-				int tempIndex = (int)[[defaults arrayForKey:@"LastPages"] indexOfObject:object];
-				[newArray removeObjectAtIndex:tempIndex];
-				[newInnerDic setObject:path forKey:@"temppath"];
-				[newArray insertObject:newInnerDic atIndex:tempIndex];
-				
-				if (index) {
-					*index = (int)[[defaults arrayForKey:@"LastPages"] indexOfObject:object];
-				}
-				[defaults setObject:newArray forKey:@"LastPages"];
-				return [NSDictionary dictionaryWithDictionary:newInnerDic];
-			}
-		}
-		
-	}
-	if (index) *index = -1;
-	return nil;
-}
-
-- (id)searchFromBookSettings:(NSString*)path key:(NSString**)key more:(BOOL)b
-{
-	id searched = [self searchFromBookSettings:path key:key];
-	if (searched) {
-		return searched;
-	} else if (!searched && b && [defaults dictionaryForKey:@"BookSettings"]) {
-		NSString *temp;
-		
-		NSMutableDictionary *newDic = [NSMutableDictionary dictionaryWithDictionary:[defaults dictionaryForKey:@"BookSettings"]];
-		NSEnumerator *enuS = [newDic keyEnumerator];
-		id tempKey;
-		
-		while (tempKey = [enuS nextObject]) {
-			temp = [self pathFromAliasData:[[newDic objectForKey:tempKey] objectForKey:@"alias"]];
-			if ([[temp lastPathComponent] isEqualToString:[path lastPathComponent]] && ![[NSFileManager defaultManager] fileExistsAtPath:temp]) {
-				
-				NSAlert *alert = [[[NSAlert alloc] init] autorelease];
-				[alert setMessageText:NSLocalizedString(@"Setting is not found",@"")];
-				[alert setInformativeText:[NSString stringWithFormat:NSLocalizedString(@"Setting of %@ is not found.\nDo you want to use a setting of %@ ?",@""),path,temp]];
-				[alert addButtonWithTitle:NSLocalizedString(@"OK",@"")];
-				[alert addButtonWithTitle:NSLocalizedString(@"Cancel",@"")];
-
-				if([alert runModal] == NSAlertFirstButtonReturn) {
-					/*LastPagesの修正*/
-					int lastPagesIndex;
-					id lastPage = [self searchFromLastPages:temp index:&lastPagesIndex];
-					if (lastPage) { 
-						NSMutableDictionary *newLastPage = [NSMutableDictionary dictionaryWithDictionary:lastPage];
-						NSMutableArray *newLastPagesArray = [NSMutableArray arrayWithArray:[defaults arrayForKey:@"LastPages"]];
-						[newLastPage setObject:path forKey:@"temppath"];
-						[newLastPage setObject:[self aliasDataFromPath:path] forKey:@"alias"];
-						[newLastPagesArray removeObjectAtIndex:lastPagesIndex];
-						[newLastPagesArray insertObject:newLastPage atIndex:lastPagesIndex];
-						[defaults setObject:newLastPagesArray forKey:@"LastPages"];
-					}
-					/*RecentItemsの修正*/
-					int recentItemsIndex;
-					id recentItem = [self searchFromRecentItems:temp index:&recentItemsIndex];
-					if (recentItem) { 
-						NSMutableDictionary *newRecentItem = [NSMutableDictionary dictionaryWithDictionary:recentItem];
-						NSMutableArray *newRecentItemsArray = [NSMutableArray arrayWithArray:[defaults arrayForKey:@"RecentItems"]];
-						[newRecentItem setObject:path forKey:@"temppath"];
-						[newRecentItem setObject:[self aliasDataFromPath:path] forKey:@"alias"];
-						[newRecentItemsArray removeObjectAtIndex:recentItemsIndex];
-						[newRecentItemsArray insertObject:newRecentItem atIndex:recentItemsIndex];
-						[defaults setObject:newRecentItemsArray forKey:@"RecentItems"];
-					}					
-					/*BookSettingsの修正*/
-					NSMutableDictionary *newInnerDic = [NSMutableDictionary dictionaryWithDictionary:[newDic objectForKey:tempKey]];
-					[newInnerDic setObject:path forKey:@"temppath"];
-					[newInnerDic setObject:[self aliasDataFromPath:path] forKey:@"alias"];
-					[newDic setObject:newInnerDic forKey:tempKey];
-					
-					if (key) {
-						*key = tempKey;
-					}
-					[defaults setObject:newDic forKey:@"BookSettings"];
-					return [NSDictionary dictionaryWithDictionary:newInnerDic];
-				}
-			}
-		}
-	}
-	return nil;
-}
 @end
 
 @implementation Controller(private)

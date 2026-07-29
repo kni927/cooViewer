@@ -652,3 +652,44 @@ It was never demonstrated to cause a visible defect, and it is now moot.
 
 See `docs/DECISIONS.md`, "Legacy 'Old' composited render path removed",
 for why the path went rather than the bug being fixed in place.
+
+---
+
+## 22. Dev-Session Sandboxes: `open -a` / Direct Apple Events Work, Accessibility/Screen Capture Does Not
+
+Some dev sessions (agent sandboxes, headless/remote setups) run with a real
+process launcher and `NSWorkspace`/Apple Event dispatch, but **no genuine
+interactive window-server session** — `lsappinfo info -only front` returns
+nothing even right after launching an app. In that state:
+
+- `open -a cooViewer.app <file>` launches the app for real and exercises its
+  full logic (menu actions triggered by `NSApplication`, `application:openFile:`,
+  defaults reads/writes) — this works and is a reliable way to exercise
+  app behaviour headlessly.
+- A **direct Apple Event sent to the app itself** (e.g.
+  `osascript -e 'tell application "cooViewer" to quit'`) also works reliably
+  — `quit` runs the app's normal termination sequence, which does send
+  `windowWillClose:` to open windows before the process exits.
+- **`osascript`/`System Events` UI scripting does not work**: `tell
+  application "System Events" to tell process "X" to count windows` returns
+  `0` even for an app that is definitely running with a document open, `keystroke`
+  commands silently no-op, and accessibility-tree queries either hang or time
+  out. `screencapture -x` fails outright (`could not create image from
+  display`).
+
+**How to apply:** when on-device verification is needed in such a session and
+GUI automation isn't available, don't burn time retrying `System Events`/
+`screencapture` (2-3 attempts is enough to confirm the limitation, as it was
+here and in the MW-3 session before it, `docs/tasks/2026-07-29-03-mw3-extract-appcontroller.md`).
+Prefer verifying through **observable side effects instead of pixels**: back
+up the real defaults domain (`defaults export <bundle id> <file>`), drive the
+app via `open -a`/direct Apple Events (`open`, `quit`, and — per each app's
+own scriptability — other verbs), inspect the result with `defaults read`,
+then restore the backup (`defaults import <bundle id> <file>`) so the
+session's exercising doesn't leave test artifacts in the real profile. This
+was enough to verify cooViewer's RecentItems/LastPages/BookSettings
+persistence end-to-end in
+`docs/tasks/2026-07-29-04-mw3-persistence-api.md` without any working
+screen. Pixel-level checks (image quality, PDF rendering, dock menu
+appearance) genuinely need a real interactive session and should be reported
+as not verified rather than guessed at.

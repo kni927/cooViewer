@@ -236,6 +236,20 @@ signing alone does not help (see `docs/KNOWN_ISSUES.md`).
 - Translated `CLAUDE.md` from Japanese to English
 - Added `README.md` (English, with feature descriptions, build instructions, upstream credits)
 
+### Multi-window refactor (MW-3): AppController persistence API (2026-07-29)
+
+`AppController` (split out of `Controller` earlier in MW-3) gained a
+single-writer API for the `RecentItems`/`LastPages`/`BookSettings` defaults
+keys — `Controller` no longer reads or writes those keys directly at its
+three highest-regression-risk call sites (`openPage:last:`,
+`windowWillClose:`, `strongSetBookmark`). Verified end-to-end against the
+real defaults domain via `open -a`/Apple Events rather than a mock; see
+`docs/DECISIONS.md` ("MW-3 `AppController` extraction: implementation-time
+refinements", 2026-07-29 update) and `docs/KNOWN_ISSUES.md` #22 for how.
+MW-3's on-device visual checklist (dock menu, bookmark round-trip, PDF
+rendering) remains unverified — no working accessibility/screen session in
+this dev session — so MW-3 is not yet fully closed and MW-4 has not started.
+
 ### v1.5.2 released (2026-07-25)
 
 First release actually distributed since v1.5.0 — v1.5.1 was tagged and
