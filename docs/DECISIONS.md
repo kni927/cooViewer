@@ -862,3 +862,72 @@ Left on screen they would outlive their window and then be deallocated
 under AppKit's feet. `-closeAuxiliaryPanels` runs only for a window that is
 actually being retired, so the last window — which is not — keeps the
 pre-MW-7 behaviour of leaving its panels up.
+
+---
+
+## Quit-on-last-close is gated on "a book was read this session"; the Finder opens windows, File ▸ Open still replaces (2026-07-30)
+
+The MW-7 follow-up task. See
+`docs/tasks/2026-07-30-01-mw7-followups.md`.
+
+**1. Step-0 decision 4 is implemented, guarded by session state rather
+than by classifying the close.** `-applicationShouldTerminateAfterLastWindowClosed:`
+returns YES only once some window has shown a book
+(`didShowBook`, set from `-openPage:last:`). The alternative the task
+offered — routing `-openPage:last:`'s failure close through a separate,
+non-counted teardown — was rejected: it would need a second close path
+whose only job is to be invisible to AppKit, and AppKit decides when to
+ask the delegate, so the flag would still have to exist somewhere. Asking
+"has this session read anything yet" answers the question directly, and
+the state it appears to leave undefined — app alive, a book already read,
+no window open — is unreachable, because reaching it is what terminates.
+
+**The failure path is narrower than MW-7 assumed, and worth recording so
+it is not re-derived.** A corrupt or empty book does *not* reach it:
+`-[COImageLoader initWithPath:displayPath:readSubFolder:controller:]`
+appends the bundled `empty.png` whenever a load yields no items, so
+`-openPage:last:`'s `[newImageLoader itemCount] < 1` test can never fire
+and a garbage `.cbz` opens as a one-page book. The reachable trigger is
+`mode = -1`: a **cancelled archive read**, or a **cancelled password
+prompt** on an encrypted archive. The second is one click away from a
+cold launch and did quit the app before the guard.
+
+**2. Panels are closed on every window close, not only on retirement.**
+MW-7 restricted `-closeAuxiliaryPanels` to retired windows so the last
+window would behave exactly as before. Decision 4 makes that impossible:
+a panel left on screen is a visible window, so AppKit never asks the
+delegate whether to terminate. This supersedes MW-7's decision 4 in that
+record.
+
+**3. The Finder opens windows; File ▸ Open still replaces.** MW-7 kept
+`-application:openFile:` forwarding to the front window, so a book opened
+from the Finder replaced that window's book. It is now the plural
+`-application:openFiles:`, and each file goes through the same path ⌥⌘O
+uses — de-duplicate on the resolved book path, reuse an empty window,
+otherwise open a new one — so a multiple selection opens one window per
+file. Step-0 decision 3 is unchanged and unaffected: File ▸ Open is a
+different command and still replaces the front window's book.
+
+**4. The Window menu was already correct and no code was written for
+it.** `MainMenu.xib`'s Window menu carries `systemMenu="window"`, so
+AppKit maintains the window list itself: titles, a check-mark on the
+front window, selection brings a window forward, titles follow a window's
+book, and the panels are excluded because `NSPanel` is excluded by
+default. Building a second list from `AppController`'s registry would
+have duplicated AppKit's tracking rather than avoided duplicating our
+own, which is what the task's guidance was protecting against.
+
+**5. The lookahead is per-window, and `threadCount` is not a join
+counter.** It is incremented *after* the lookahead takes `lock`, so it
+counts threads already inside the body; a thread detached a moment
+earlier and still blocked on that lock is invisible to it, which is why
+`-windowWillClose:`'s `[lock lock]`/`[lock unlock]` pair was not a join.
+`pendingLookaheadCount` is incremented before the detach instead.
+`-joinLookaheadThreads` runs at **both** points that destroy the state a
+lookahead writes — `-windowWillClose:` and `-openPage:last:`'s
+replacement of the previous book — and its wait is bounded at 2 s,
+because `-loadImage:` can reach an archive read whose progress path is
+driven from the main thread; a timeout degrades to the pre-existing
+behaviour, which is safe only because
+`+detachNewThreadSelector:toTarget:` retains the target for the thread's
+duration.

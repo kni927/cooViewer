@@ -877,3 +877,30 @@ render capture, empty warning diff, no zombies, zero-delta defaults
 round-trip. **MW-7 is closed**; see
 `docs/tasks/2026-07-29-11-mw7-open-in-new-window.md`. MW-8 (window
 restoration) is unblocked.
+
+### Multi-window refactor: the MW-7 follow-ups (2026-07-30)
+
+The four items MW-7 deferred, cleared before MW-8. Closing the last window
+now quits the app (Step-0 decision 4), guarded so that a *failed* first open
+of a session does not — the guard is "has anything been read yet", and the
+failure path turned out to be reachable not from a corrupt file (an empty
+book gets a placeholder page) but from cancelling an archive read or an
+encrypted archive's password prompt, which is one click from a cold launch.
+Finder "Open With", Dock drags and the launch document event go through
+`-application:openFiles:` and the MW-7 window registry now, so they
+de-duplicate on the resolved book path and open one window per file; File ▸
+Open still replaces the front window's book. The per-window lookahead threads
+are joined before either teardown point, closing a race `threadCount` looked
+like it covered but did not.
+
+**The Window menu needed no code:** `MainMenu.xib` already declares
+`systemMenu="window"`, so AppKit maintains the list — verified with three
+windows for titles, front-window check-mark, selection, title-follows-book
+and panel exclusion.
+
+Verified on device including the exact hazard MW-7 flagged, reproduced first
+and then shown fixed; empty warning diff against the 310 baseline; render
+capture byte-identical to a build of the pre-MW-7 commit taken under the same
+conditions; no zombies; no cooViewer object leaked; zero-delta defaults
+round-trip. See `docs/tasks/2026-07-30-01-mw7-followups.md`. **MW-8 (window
+restoration) is unblocked.**

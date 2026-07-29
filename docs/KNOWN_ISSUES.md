@@ -1100,3 +1100,39 @@ the migration is where it should be fixed rather than by patching individual
 Also still open from the MW-5 follow-up: the bounded 6-allocation
 `NSBezierPath` leak in `-[AccessoryView setFrame:]`, which shows in the same
 `leaks` output as a 3-block, 704-byte root leak.
+
+---
+
+## 30. An empty or unreadable book opens as a one-page book, not as a failure
+
+`-[COImageLoader initWithPath:displayPath:readSubFolder:controller:]` ends
+with:
+
+```objc
+if ([self itemCount]==0) {
+    [contentPathArray addObject:[[NSBundle mainBundle] pathForResource:@"empty" ofType:@"png"]];
+}
+```
+
+so a loader never reports zero items. Two consequences, both found while
+implementing Step-0 decision 4 (2026-07-30):
+
+- `-[BookWindowController openPage:last:]`'s guard
+  `[newImageLoader itemCount] < 1` is **dead** — it cannot fire. The only
+  live half of that condition is `[newImageLoader mode] < 0`, which means a
+  cancelled archive read or a cancelled/failed password prompt.
+- Opening a garbage archive or an empty folder therefore *succeeds*: a
+  window opens showing the placeholder page, and the path is added to
+  Recent Books as a real book. There is no error reported to the user
+  beyond a line in the console.
+
+Not fixed here because it is a UX decision, not a defect with an obvious
+right answer: the placeholder also serves the legitimate case of a book
+whose pages fail to decode individually. Whoever changes it should
+distinguish "this book has no readable pages" from "this page failed",
+and then decide whether `-openPage:last:` should surface an alert rather
+than silently closing the window.
+
+Note for anyone testing the failure path: use a cancelled password prompt
+on an encrypted archive (`tests/engine/out/enc_aes.zip` works), not a
+corrupt file.
