@@ -332,6 +332,32 @@ latent ordering in `-setInfoString:` is documented in #25 and deliberately
 left alone — no caller can trigger it. Unblocks MW-6; see
 `docs/tasks/2026-07-29-08-fix-preferences-ok-crash.md`.
 
+### AccessoryView follow-ups from KNOWN_ISSUES #25 (2026-07-29)
+
+Cleanup of the three items the #25 crash fix deliberately left out.
+`-setInfoString:` got the same create-then-release setter ordering as
+`-setPageString:` — prophylactic, since `infoString` still has no getter and
+no caller can pass `[infoString string]`. The duplicated `-setPageString:`
+call in `-setPreferences` was removed: the two calls were literally the same
+expression (`-pageString` *is* `[pageString string]`), the `didFirst` guard on
+the first one was dead (`didFirst` is set earlier in the same method), and the
+only state changing between them affects a dirty rect that `[self display]`
+supersedes. Both lines dated from the file's first commit, so there was no
+intent to preserve.
+
+The third item — a claimed `pageStringAttr` leak — **turned out not to exist**:
+`-setPreferences` does release it (`AccessoryView.m:75`) before reassigning,
+and `leaks` on a running build reported an unchanged 327 leaks / 25408 bytes
+across three Preferences ▸ OK cycles. That follow-up note had been written
+from the assignment sites without reading the release block above them; it is
+retracted in the #25 archive so nobody acts on it. Two real, smaller findings
+came out of the `leaks` run instead and are recorded as follow-ups:
+a bounded 6-allocation leak under `-[AccessoryView setFrame:]`, and the fact
+that `AccessoryView` has no `-dealloc` at all — harmless while it is a
+lifetime-of-the-app nib object, but not once MW-7 gives every window its own.
+Verified under `NSZombieEnabled` with a byte-identical render capture; see
+`docs/tasks/2026-07-29-09-accessoryview-followups.md`. MW-6 unblocked.
+
 ### v1.5.2 released (2026-07-25)
 
 First release actually distributed since v1.5.0 — v1.5.1 was tagged and
