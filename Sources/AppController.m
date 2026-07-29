@@ -3,6 +3,8 @@
 #import "PreferenceController.h"
 #import "COImageLoader.h"	/* +fileTypes, for the Open in New Window panel */
 
+NSString * const CooViewerBookWindowRestorationIdentifier = @"cooViewerBookWindow";
+
 @implementation AppController
 
 static const int DIALOG_OK		= 128;
@@ -23,11 +25,20 @@ static const int DIALOG_CANCEL	= 129;
 	windowControllers = [[NSMutableArray alloc] init];
 	[self newWindowController];
 
+	/* MW-8: the backstop that ends any restoration a window never got a
+	   -restoreStateWithCoder: for. Registered here because this runs during
+	   the MainMenu.xib load, which is before the restoration pass. */
+	[[NSNotificationCenter defaultCenter] addObserver:self
+											 selector:@selector(applicationDidFinishRestoringWindows:)
+												 name:NSApplicationDidFinishRestoringWindowsNotification
+											   object:nil];
+
 	[self setupRemoteControl];
 }
 
 - (void)dealloc
 {
+	[[NSNotificationCenter defaultCenter] removeObserver:self];
 	[windowControllers release];
 	[super dealloc];
 }
@@ -36,10 +47,38 @@ static const int DIALOG_CANCEL	= 129;
 
 - (void)applicationDidFinishLaunching:(NSNotification *)notification
 {
+	/* MW-8 / Step-0 decision 5: OpenLastFolder is the *fallback* now. Window
+	   restoration is governed by the system's "Close windows when quitting an
+	   app" setting, so when it is on there is nothing to restore and this
+	   preference is still what reopens a book; when it is off the system has
+	   already brought back every window that was open, and running
+	   OpenLastFolder as well would open one of those books a second time.
+	   What is countable here is how many windows AppKit *asked* for: those
+	   requests all arrive before this method, but the windows' state is
+	   decoded after it and their books are opened a run-loop pass later
+	   still, so neither -hasBookOpen nor a count of successfully decoded
+	   books exists yet. Asking "did the system restore any windows" is also
+	   exactly the question the plan gates this on. A restored window whose
+	   book has since been deleted therefore suppresses OpenLastFolder and is
+	   left empty — the system did restore a window, it just has nothing to
+	   show; the window stays available for the next book. */
+	if (restoredWindowCount > 0) {
+		return;
+	}
+
 	/* Almost the entire body is window-level (pushes keyArray/mouseArray
 	   into the window's outlets, then the OpenLastFolder gate) — see the
 	   MW-3 pre-implementation inventory in docs/multiwindow-plan.md. */
 	[[self frontController] applicationDidFinishLaunchingSetup:notification];
+}
+
+/* macOS 12 and later. Restorable state is archived with secure coding when
+   this answers YES, which is what the two -encodeRestorableStateWithCoder:
+   participants here already assume: BookWindowController encodes NSData and
+   two ints, and decodes the NSData with -decodeObjectOfClass:forKey:. */
+- (BOOL)applicationSupportsSecureRestorableState:(NSApplication *)app
+{
+	return YES;
 }
 
 - (void)applicationWillTerminate:(NSNotification *)notification
@@ -416,17 +455,80 @@ static const int DIALOG_CANCEL	= 129;
 - (id)emptyWindowController
 {
 	id front = [self frontController];
-	if (front && ![front hasBookOpen]) {
+	if (front && ![front hasBookOpen] && ![front isAwaitingRestoredBook]) {
 		return front;
 	}
 	NSEnumerator *enu = [windowControllers objectEnumerator];
 	id aController;
 	while (aController = [enu nextObject]) {
-		if (![aController hasBookOpen]) {
+		if (![aController hasBookOpen] && ![aController isAwaitingRestoredBook]) {
 			return aController;
 		}
 	}
 	return nil;
+}
+
+#pragma mark window restoration (MW-8)
+
+/* Step-0 decision 5, the NSWindowRestoration half. AppKit calls this once
+   per saved window, during the restoration pass between
+   applicationWillFinishLaunching: and applicationDidFinishLaunching:. All it
+   has to do is hand back a window; which book that window shows is decoded
+   by -[BookWindowController restoreStateWithCoder:], out of the same coder
+   that is passed in here.
+
+   The window at launch is empty, so the first restored window is opened into
+   it rather than beside it — the same reuse -openBookInNewWindow: does, and
+   what keeps the "a window always has a book" invariant Step-0 decision 4
+   rests on. -beginRestoration takes that window out of the empty pool
+   immediately, so the second call does not pick the same one back up before
+   the first has decoded its book. */
++ (void)restoreWindowWithIdentifier:(NSUserInterfaceItemIdentifier)identifier
+							  state:(NSCoder *)state
+				  completionHandler:(void (^)(NSWindow *, NSError *))completionHandler
+{
+	if (![identifier isEqualToString:CooViewerBookWindowRestorationIdentifier]) {
+		completionHandler(nil, nil);
+		return;
+	}
+	id appController = [NSApp delegate];
+	if (![appController isKindOfClass:[AppController class]]) {
+		completionHandler(nil, nil);
+		return;
+	}
+
+	[appController noteWindowRestorationRequested];
+
+	id aController = [appController emptyWindowController];
+	if (!aController) {
+		aController = [appController newWindowController];
+	}
+	[aController beginRestoration];
+	completionHandler([aController window], nil);
+}
+
+/* The backstop for a window that was handed back above but never got a
+   -restoreStateWithCoder: — nothing in AppKit's contract promises one, and a
+   window left flagged "restoring" would never be reused as an empty window
+   again. Restoration is over by the time this runs, so anything still
+   flagged is not going to be restored. */
+- (void)applicationDidFinishRestoringWindows:(NSNotification *)notification
+{
+	NSEnumerator *enu = [windowControllers objectEnumerator];
+	id aController;
+	while (aController = [enu nextObject]) {
+		[aController endRestoration];
+	}
+}
+
+- (void)noteWindowRestorationRequested
+{
+	restoredWindowCount++;
+}
+
+- (int)restoredWindowCount
+{
+	return restoredWindowCount;
 }
 
 - (void)windowControllerDidBecomeFront:(id)aController

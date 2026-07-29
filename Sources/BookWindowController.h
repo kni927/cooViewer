@@ -198,6 +198,29 @@
 	   Set when a load completes, cleared when the window's book is torn down
 	   in -windowWillClose:. Read through -hasBookOpen. */
 	BOOL bookOpen;
+
+	/* MW-8 (Step-0 decision 5). A security-scoped NSURL bookmark for the
+	   book open in this window, made once when the book is opened rather
+	   than at encode time — -encodeRestorableStateWithCoder: runs after
+	   every page turn, and creating a bookmark touches the file system.
+	   This is the one place the app uses NSURL bookmarks; everything else
+	   still goes through the Alias Manager helpers (KNOWN_ISSUES #29). */
+	NSData *currentBookBookmark;
+
+	/* The book a restoration decoded for this window, and the state to open
+	   it with. `restoredBookURL` is held for as long as the security scope
+	   is: it is what -stopAccessingSecurityScopedResource has to be sent to,
+	   so it outlives the open. The two flags are what
+	   -isAwaitingRestoredBook answers with: `restorationInFlight` covers the
+	   window between AppKit asking for it and -restoreStateWithCoder:
+	   answering, `restoredBookPending` from there until the book has
+	   actually been opened. */
+	NSURL *restoredBookURL;
+	BOOL restoredAccessStarted;
+	BOOL restorationInFlight;
+	BOOL restoredBookPending;
+	int restoredPage;
+	int restoredFitScreenMode;
 }
 /* MW-5 item 4: the setup that used to run in -awakeFromNib runs here
    instead. -windowDidLoad is NSWindowController's documented hook and runs
@@ -366,6 +389,25 @@
 - (id)openSameFolderMenuItem;
 - (int)sortMode;
 - (int)openLinkMode;
+
+#pragma mark window restoration (MW-8)
+
+/* -[AppController restoreWindowWithIdentifier:state:completionHandler:]
+   brackets a restoration with these. Between them the window is neither
+   empty nor open: its book has been asked for but not read yet, which is
+   what -isAwaitingRestoredBook answers so the window registry does not
+   reuse it as an empty window. -endRestoration only clears the "AppKit is
+   still deciding" half; a window with a decoded book stays unavailable
+   until that book is actually open. */
+- (void)beginRestoration;
+- (void)endRestoration;
+- (BOOL)isAwaitingRestoredBook;
+
+/* The page -encodeRestorableStateWithCoder: stores and -openPage:last:
+   would be given to come back to it: the first of the pages on screen,
+   whereas `nowPage` is the one after the last of them. Same conversion the
+   RecentItems/LastPages writers do. */
+- (int)restorablePageIndex;
 
 /* Whether a book is currently open in this window. Added in MW-3 for
    -[AppController applicationDockMenu:]; MW-6 item 4 generalises it into the

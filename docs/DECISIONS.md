@@ -931,3 +931,66 @@ driven from the main thread; a timeout degrades to the pre-existing
 behaviour, which is safe only because
 `+detachNewThreadSelector:toTarget:` retains the target for the thread's
 duration.
+
+---
+
+## MW-8 window restoration: the delegate pair is the live hook, and `OpenLastFolder` is gated on the *request* count (2026-07-30)
+
+Step-0 decision 5 — restore every window that was open at quit — is
+implemented with `NSWindowRestoration`: `AppController` is the restoration
+class, and `BookWindowController` carries the book. Four things about how
+were settled by measurement rather than by the API's shape, and are
+recorded so they are not re-derived.
+
+**1. AppKit does not call the window controller's own restorable-state
+methods.** `NSWindowRestoration.h` says the coder holds "the combined
+restorable state of the window, its delegate, the window controller, and
+any document". Instrumenting all four hooks on macOS 26 showed only the
+`NSWindowDelegate` pair — `-window:willEncodeRestorableState:` and
+`-window:didDecodeRestorableState:` — firing; the `NSResponder` methods
+`-encodeRestorableStateWithCoder:` / `-restoreStateWithCoder:` are never
+sent to a plain, document-less `NSWindowController`. Those two methods are
+still where the work lives (the plan names them), and the delegate pair —
+which `BookWindowController` also is — forwards into them. Decoding is
+idempotent so that a future AppKit calling both changes nothing.
+
+**2. `OpenLastFolder` is gated on how many windows the system *asked* to
+restore, not on how many books came back.** The restoration requests all
+arrive before `-applicationDidFinishLaunching:`, but the windows' state is
+decoded *after* it (measured: ~200 ms later), and the books are opened a
+run-loop pass later still. So at the only moment the gate can be evaluated,
+neither `-hasBookOpen` nor a count of successfully decoded books exists.
+"Did the system restore any windows" is also exactly the question the plan
+gates the preference on. Consequence, accepted: a restored window whose
+book has since been deleted suppresses `OpenLastFolder` and is left empty
+— usable, never shown, and reused by the next open.
+
+**3. The book is opened one run-loop pass after the restoration pass.**
+`-openPage:last:` is long, orders its window front, and can run modal (the
+archive progress sheet, a password prompt, the "go to the last page?"
+alert). Running that inside AppKit's restoration pass — before the app has
+finished launching, before the window has its restored frame, and before
+it has been put back into full screen — is asking for trouble. Deferring
+by `-performSelector:withObject:afterDelay:0.0` means the book opens
+exactly as any other book does, and the full-screen transition that
+follows drives the existing `-windowDidEnterFullScreen:` →
+`-recomposeForCurrentSize`. Restoration therefore adds **no** resampling
+step: verified with a spread capture off a restored window, whose softness
+measure was no higher than a plain re-open's.
+
+**4. The book is stored as a security-scoped `NSURL` bookmark — the one
+carve-out from "Alias Manager → `NSURL` bookmarks is out of scope for the
+MW arc".** It is what the plan asked for, and it earns its keep: a book
+renamed between quit and relaunch came back on its new path, which a stored
+path could not do. cooViewer is not sandboxed, so the security scope is
+inert today; requesting it costs nothing (creation succeeds unsandboxed)
+and keeps the stored data valid if the app is ever sandboxed. The bookmark
+is built once per book open, not per encode — encoding runs again after
+every page turn.
+
+**A window that is mid-restoration is neither empty nor open.** The window
+registry's `-emptyWindowController` would otherwise hand the same window to
+two restoration requests, since a restored window has no book until its
+deferred open runs. `-beginRestoration` / `-endRestoration` bracket it,
+with `NSApplicationDidFinishRestoringWindowsNotification` as the backstop
+for a window AppKit never decodes state into.

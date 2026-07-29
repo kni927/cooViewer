@@ -1136,3 +1136,44 @@ than silently closing the window.
 Note for anyone testing the failure path: use a cancelled password prompt
 on an encrypted archive (`tests/engine/out/enc_aes.zip` works), not a
 corrupt file.
+
+---
+
+## 31. The first open into a freshly shown window is not pixel-identical to a later open of the same book
+
+Found while verifying MW-8's image-quality gate (2026-07-30), and
+**unrelated to window restoration** — it reproduces with restoration
+switched off.
+
+Reproduction, same session, same window, same book, same page, window not
+moved or resized in between:
+
+1. Let the app open a book into a window that has just been created and
+   shown (a Finder open into a new window, or `OpenLastFolder` at launch).
+   Capture the content area.
+2. In the same window, switch to another book via File ▸ Recent Books and
+   back again. Capture the same rectangle.
+
+The two captures differ: the page borders move by about one pixel and the
+glyph edges pick up a thin anti-aliasing outline. Measured on a 3340×1960
+capture: ~46 700 differing samples, max delta 58; the diff map is outlines
+only, never fills. Two captures of the *same* state are byte-identical, so
+this is not capture noise.
+
+That means one of the two composes against a slightly different view
+bounds — almost certainly the first one, since `-openPage:last:` orders the
+window front and then displays, whereas the second open runs with the view
+already laid out. `CLAUDE.md` calls out that spread geometry now comes
+entirely from `-[CustomImageView getDrawImagesInfo:and:]` with no
+compositor in between, so "when does the view learn its bounds" is a
+rendering concern.
+
+Not a resampling-count defect: the softness measurement (fraction of pixels
+that are neither near-black nor near-white, which is what an extra resample
+raises) does not go up — in the MW-8 measurements the first/restored render
+was slightly *sharper* than the re-open, not blurrier. So this is a layout
+rounding difference, not a second scaling step.
+
+Whoever picks this up should establish which of the two is drawn at the
+right size before changing anything, and must count resampling steps before
+and after per the inviolable rule at the top of `CLAUDE.md`.

@@ -904,3 +904,28 @@ capture byte-identical to a build of the pre-MW-7 commit taken under the same
 conditions; no zombies; no cooViewer object leaked; zero-delta defaults
 round-trip. See `docs/tasks/2026-07-30-01-mw7-followups.md`. **MW-8 (window
 restoration) is unblocked.**
+
+### Multi-window refactor: MW-8, window restoration (2026-07-30)
+
+Step-0 decision 5 landed: quit with N book windows and relaunch, and macOS
+brings all of them back — same books, same pages, same per-window view
+mode, and a window that was in native full screen comes back full screen.
+`AppController` is the `NSWindowRestoration` class;
+`BookWindowController` encodes a security-scoped `NSURL` bookmark, the page
+and the fit mode. `OpenLastFolder` is now the fallback for when the system
+restored nothing, so nothing is opened twice.
+
+Two things had to be measured rather than read: AppKit never calls the
+restorable-state methods on a document-less `NSWindowController` (only the
+window *delegate* pair fires), and window state is decoded *after*
+`-applicationDidFinishLaunching:`, which is what decides how the
+`OpenLastFolder` gate can be written. Both are recorded in
+`docs/DECISIONS.md`.
+
+Verified on device with three windows including a full-screen one, with
+system restoration switched off, with a renamed book (the bookmark tracked
+it) and a deleted one (one console line, no broken window); empty warning
+diff against the 310 baseline; no extra resampling step on a restored
+window; no zombies; no new leaks; zero-delta defaults round-trip. See
+`docs/tasks/2026-07-30-02-mw8-window-restoration.md`. **MW-9 (regression
+pass and release readiness) is unblocked.**

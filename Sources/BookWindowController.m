@@ -106,6 +106,13 @@
 - (void)dealloc
 {
 	[[NSNotificationCenter defaultCenter] removeObserver:self];
+	/* MW-8. The pending -openRestoredBook a restoration leaves behind is
+	   cancelled in -windowWillClose:, not here: the run loop retains this
+	   object until such a request fires, so -dealloc cannot run while one is
+	   outstanding — the same reason the timers below are invalidated
+	   there. */
+	[self releaseRestoredBookAccess];
+	[currentBookBookmark release];
 
 	[timer invalidate];
 	timer = nil;
@@ -230,6 +237,15 @@ static NSPoint gNextWindowCascadePoint;
 		[[self window] setFrameAutosaveName:[self frameAutosaveName:@"NormalWindow"]];
 	}
 	gNextWindowCascadePoint = [[self window] cascadeTopLeftFromPoint:gNextWindowCascadePoint];
+
+	/* MW-8 (Step-0 decision 5). The identifier is what makes AppKit save
+	   this window's state at all, and the restoration class is what it calls
+	   to get the window back; both have to be set before the window is ever
+	   shown. The frame, and whether the window was in native full screen,
+	   are the window's own restorable state and are handled by AppKit —
+	   -encodeRestorableStateWithCoder: below adds only the book. */
+	[[self window] setIdentifier:CooViewerBookWindowRestorationIdentifier];
+	[[self window] setRestorationClass:[AppController class]];
 
 	/* "Open from same folder" submenu is populated lazily (on menuNeedsUpdate:)
 	   to avoid touching the parent folder — and triggering macOS folder-access
@@ -828,6 +844,230 @@ static NSPoint gNextWindowCascadePoint;
 }
 
 
+#pragma mark window restoration (MW-8)
+/* Step-0 decision 5, the per-window half. AppController is the restoration
+   class and produces the window; everything about *which book* that window
+   shows is here.
+
+   Image quality: what is encoded is a bookmark, a page number and the view
+   mode — never a rendered image, and nothing here touches the render path.
+   A restored window reaches the screen through -openPage:last: →
+   -imageDisplay, the same single-resample path every other open uses, and a
+   window restored into full screen is recomposed by
+   -windowDidEnterFullScreen: → -recomposeForCurrentSize, which already
+   existed. */
+
+static NSString * const kBookBookmarkKey = @"cooViewerBookBookmark";
+static NSString * const kBookPageKey     = @"cooViewerBookPage";
+static NSString * const kBookViewModeKey = @"cooViewerBookViewMode";
+
+- (void)beginRestoration
+{
+	restorationInFlight = YES;
+}
+
+- (void)endRestoration
+{
+	restorationInFlight = NO;
+}
+
+- (BOOL)isAwaitingRestoredBook
+{
+	/* Both halves matter: the first covers the window while AppKit is still
+	   deciding what to restore into it, the second covers it from the moment
+	   a book has been decoded until -openRestoredBook has opened it. The URL
+	   itself cannot answer this — it is kept for the lifetime of the
+	   security scope, which outlives the open. */
+	return (restorationInFlight || restoredBookPending);
+}
+
+- (int)restorablePageIndex
+{
+	/* `nowPage` is the page *after* the last one displayed, so a spread on
+	   pages n and n+1 leaves it at n+2 — the same conversion
+	   -windowWillClose: and -openPage:last: apply before writing a page
+	   number into RecentItems/LastPages. */
+	int page = nowPage - (secondImage ? 2 : 1);
+	return (page < 0) ? 0 : page;
+}
+
+/* A security-scoped NSURL bookmark, deliberately not the Alias Manager data
+   the rest of the app persists: restorable state is written by AppKit into
+   the app's saved state, and this is the one place the plan carves out of
+   "Alias Manager → NSURL bookmarks is out of scope for the MW arc"
+   (docs/multiwindow-plan.md). cooViewer is not sandboxed, so the security
+   scope is inert today; asking for it costs nothing and is what makes the
+   stored bookmark still work if the app is ever sandboxed. */
+- (void)setCurrentBookBookmarkForPath:(NSString *)path
+{
+	[currentBookBookmark release];
+	currentBookBookmark = nil;
+	if (path == nil) {
+		return;
+	}
+
+	NSError *error = nil;
+	NSData *bookmark = [[NSURL fileURLWithPath:path]
+						bookmarkDataWithOptions:NSURLBookmarkCreationWithSecurityScope
+						includingResourceValuesForKeys:nil
+						relativeToURL:nil
+						error:&error];
+	if (bookmark == nil) {
+		/* Not fatal: the window simply will not be restored. */
+		NSLog(@"cooViewer: could not bookmark %@ for window restoration: %@",
+			  path, [error localizedDescription]);
+		return;
+	}
+	currentBookBookmark = [bookmark retain];
+}
+
+- (void)releaseRestoredBookAccess
+{
+	if (restoredBookURL == nil) {
+		return;
+	}
+	if (restoredAccessStarted) {
+		[restoredBookURL stopAccessingSecurityScopedResource];
+		restoredAccessStarted = NO;
+	}
+	[restoredBookURL release];
+	restoredBookURL = nil;
+	restoredBookPending = NO;
+}
+
+/* The window's restorable state is one coder shared by the window, its
+   delegate and its window controller — and this object is both the delegate
+   and the window controller. In practice AppKit only calls the *delegate*
+   pair (-window:willEncodeRestorableState: / -window:didDecodeRestorableState:
+   below); the NSResponder methods it would call on a window controller are
+   not sent to a plain, document-less NSWindowController. Verified on macOS
+   26 by instrumenting all four: only the delegate pair fired.
+
+   So the two methods the plan names are still the implementation, and the
+   delegate pair is what drives them. If a future AppKit does start calling
+   these directly the result is unchanged: encoding writes the same keys with
+   the same values, and decoding is guarded against running twice. */
+- (void)window:(NSWindow *)window willEncodeRestorableState:(NSCoder *)state
+{
+	[self encodeRestorableStateWithCoder:state];
+}
+
+- (void)window:(NSWindow *)window didDecodeRestorableState:(NSCoder *)state
+{
+	[self restoreStateWithCoder:state];
+}
+
+- (void)encodeRestorableStateWithCoder:(NSCoder *)coder
+{
+	[super encodeRestorableStateWithCoder:coder];
+
+	if (![self hasBookOpen] || currentBookBookmark == nil) {
+		return;
+	}
+	[coder encodeObject:currentBookBookmark forKey:kBookBookmarkKey];
+	[coder encodeInt:[self restorablePageIndex] forKey:kBookPageKey];
+	[coder encodeInt:fitScreenMode forKey:kBookViewModeKey];
+}
+
+- (void)restoreStateWithCoder:(NSCoder *)coder
+{
+	[super restoreStateWithCoder:coder];
+
+	/* Once is enough — see -window:didDecodeRestorableState: above. */
+	if (restoredBookURL != nil || [self hasBookOpen]) {
+		return;
+	}
+
+	/* Whatever happens below, AppKit is done deciding about this window. */
+	[self endRestoration];
+
+	NSData *bookmark = [coder decodeObjectOfClass:[NSData class] forKey:kBookBookmarkKey];
+	if (bookmark == nil) {
+		return;
+	}
+
+	/* `stale` is read but not acted on: a stale bookmark still resolves, and
+	   the one this window stores is rebuilt from the resolved path the
+	   moment the book opens, so it heals itself without a special case. */
+	BOOL stale = NO;
+	NSError *error = nil;
+	NSURL *url = [NSURL URLByResolvingBookmarkData:bookmark
+										   options:NSURLBookmarkResolutionWithSecurityScope
+									 relativeToURL:nil
+							   bookmarkDataIsStale:&stale
+											 error:&error];
+	/* A book that has been deleted or is on an unmounted volume resolves to
+	   nothing, or to a path that is no longer there. Leaving the window
+	   empty is the graceful outcome: it is never shown (only -openPage:last:
+	   shows it), and it stays available as the window the next book opens
+	   into. OpenLastFolder is not run in its place — the system did restore
+	   a window, so the gate in -[AppController applicationDidFinishLaunching:]
+	   has already been decided by then. */
+	if (url == nil || ![url isFileURL]
+		|| ![[NSFileManager defaultManager] fileExistsAtPath:[url path]]) {
+		NSLog(@"cooViewer: window restoration skipped, the book could not be found (%@)",
+			  error ? [error localizedDescription] : @"no longer at the recorded location");
+		return;
+	}
+
+	restoredBookURL = [url retain];
+	restoredAccessStarted = [url startAccessingSecurityScopedResource];
+	restoredBookPending = YES;
+	restoredPage = [coder decodeIntForKey:kBookPageKey];
+	restoredFitScreenMode = [coder decodeIntForKey:kBookViewModeKey];
+
+	/* Not opened here. This runs inside AppKit's restoration pass, before
+	   the app has finished launching and before the window has been given
+	   its restored frame or put back into full screen; -openPage:last: is a
+	   long, modal-capable operation that orders the window front. One
+	   run-loop pass later the window is fully restored and the app is
+	   running normally, and the book opens exactly as any other book does —
+	   including the recompose that follows the full-screen transition. */
+	[self performSelector:@selector(openRestoredBook) withObject:nil afterDelay:0.0];
+}
+
+- (void)openRestoredBook
+{
+	if (restoredBookURL == nil) {
+		return;
+	}
+	NSString *path = [[[restoredBookURL path] copy] autorelease];
+	int page = restoredPage;
+	int viewMode = restoredFitScreenMode;
+	/* The window is no longer waiting for a book — whether or not the open
+	   below succeeds, nothing else is going to open one into it, and it has
+	   to be reusable as an empty window if it fails. The URL and its
+	   security scope stay until the book is torn down in
+	   -windowWillClose:. */
+	restoredBookPending = NO;
+	restoredPage = 0;
+	restoredFitScreenMode = 0;
+
+	/* View mode before the book, so the spread is composed once, in the mode
+	   it is going to be shown in. These are the same actions the View menu
+	   sends — no scaling logic is duplicated or added here. */
+	switch (viewMode) {
+		case 1: [self fitToScreenWidth:self]; break;
+		case 2: [self noScale:self]; break;
+		case 3: [self fitToScreenWidthDivide:self]; break;
+		default: break;
+	}
+
+	[self setCurrentBookPathAndOldBookPath:path];
+
+	/* Restoration knows which page it wants, so -openPage:last:'s "go to the
+	   last page?" handling — which only triggers on page 0, and can put up a
+	   modal alert — must not run: the page it would offer is the one being
+	   restored anyway. goToLastPageMode is read by -openPage:last: alone,
+	   and is put back from the preference straight afterwards. */
+	int savedGoToLastPageMode = goToLastPageMode;
+	goToLastPageMode = 2;
+	[self openPage:page last:NO];
+	goToLastPageMode = savedGoToLastPageMode;
+}
+
+#pragma mark -
+
 -(void)openFromSameDir:(id)sender
 {
 	[self openFromSameDir:sender last:NO];
@@ -1128,6 +1368,10 @@ static NSPoint gNextWindowCascadePoint;
 	   before the display pass, since -imageDisplay is what used to make the
 	   old [imageView image] test start answering YES. */
 	bookOpen = YES;
+	/* MW-8: and this is the book window restoration will bring back. Made
+	   here, once per open, rather than in -encodeRestorableStateWithCoder:,
+	   which runs again after every page turn. */
+	[self setCurrentBookBookmarkForPath:currentBookPath];
 	/* And this is the point at which closing the last window means the user
 	   is finished, rather than a first open having failed — see
 	   -[AppController applicationShouldTerminateAfterLastWindowClosed:]. */
@@ -1738,7 +1982,13 @@ static NSPoint gNextWindowCascadePoint;
 	NSDisableScreenUpdates();
     [self lockedImageDisplay];
     NSEnableScreenUpdates();
-	
+
+	/* MW-8: the page this window would come back to has changed. This is the
+	   only way into -lockedImageDisplay from outside, so it is the one place
+	   a page turn has to be reported from. AppKit coalesces the invalidation
+	   and re-encodes once, at the end of the run loop pass. */
+	[[self window] invalidateRestorableState];
+
 	//[window enableFlushWindow];
 	//[window flushWindowIfNeeded];
 	
@@ -2720,6 +2970,8 @@ static NSPoint gNextWindowCascadePoint;
 	[[self window] enableFlushWindow];
 	[[self window] flushWindowIfNeeded];
 	[imageView setInfoString:[NSString stringWithFormat:@"Fit to Screen"]];
+	/* MW-8: the view mode is part of what this window restores to. */
+	[[self window] invalidateRestorableState];
 }
 
 - (IBAction)fitToScreenWidth:(id)sender
@@ -2749,6 +3001,7 @@ static NSPoint gNextWindowCascadePoint;
 	[[self window] enableFlushWindow];
 	[[self window] flushWindowIfNeeded];
 	[imageView setInfoString:[NSString stringWithFormat:@"Fit to Screen Width"]];
+	[[self window] invalidateRestorableState];
 }
 
 - (IBAction)fitToScreenWidthDivide:(id)sender
@@ -2778,6 +3031,7 @@ static NSPoint gNextWindowCascadePoint;
 	[[self window] enableFlushWindow];
 	[[self window] flushWindowIfNeeded];
 	[imageView setInfoString:[NSString stringWithFormat:@"Fit to Screen Width(Divide)"]];
+	[[self window] invalidateRestorableState];
 }
 
 - (IBAction)noScale:(id)sender
@@ -2807,6 +3061,7 @@ static NSPoint gNextWindowCascadePoint;
 	[[self window] enableFlushWindow];
 	[[self window] flushWindowIfNeeded];
 	[imageView setInfoString:[NSString stringWithFormat:@"No Scale"]];
+	[[self window] invalidateRestorableState];
 }
 
 - (IBAction)rotateRight:(id)sender
@@ -2883,6 +3138,14 @@ static NSPoint gNextWindowCascadePoint;
 
 - (void)windowWillClose:(NSNotification *)aNotofication
 {
+	/* MW-8: a window closed before its restored book was opened must not
+	   have it opened afterwards — the pending request also retains this
+	   object, which would keep a retired window controller alive. */
+	[NSObject cancelPreviousPerformRequestsWithTarget:self
+											 selector:@selector(openRestoredBook)
+											   object:nil];
+	[self releaseRestoredBookAccess];
+
 	/* Was a bare [lock lock]/[lock unlock] pair, which waits only for a
 	   lookahead that is already *inside* the body. A thread detached a
 	   moment earlier and still blocked on that same lock would sail past it
@@ -2958,6 +3221,9 @@ static NSPoint gNextWindowCascadePoint;
 			[imageLoader release];
 			imageLoader = nil;
 		}
+		/* MW-8: there is no book here to restore any more. */
+		[currentBookBookmark release];
+		currentBookBookmark = nil;
 	}
 
 	/* This window's panels go with it, whether or not the registry retires

@@ -21,7 +21,15 @@
 @class RemoteControl;
 @class MultiClickRemoteBehavior;
 
-@interface AppController : NSObject
+/* MW-8 / Step-0 decision 5. The NSWindow identifier every book window
+   carries, and therefore the identifier AppKit hands back to
+   +restoreWindowWithIdentifier:state:completionHandler:. It is one shared
+   identifier rather than one per window: the saved state already keeps a
+   separate record per window, and which book each record describes comes
+   from the coder, not from the identifier. */
+extern NSString * const CooViewerBookWindowRestorationIdentifier;
+
+@interface AppController : NSObject <NSWindowRestoration>
 {
 	RemoteControl *remoteControl;
 	MultiClickRemoteBehavior *remoteControlBehavior;
@@ -45,6 +53,13 @@
 	   the .m for why the question has to be about the session rather than
 	   about the window that just closed. */
 	BOOL didShowBook;
+
+	/* MW-8: how many windows the system asked to have restored this launch.
+	   Counted in +restoreWindowWithIdentifier:state:completionHandler:, which
+	   is the only part of restoration that is guaranteed to have finished by
+	   -applicationDidFinishLaunching: — the state of those windows is decoded
+	   later — and so the only thing the OpenLastFolder gate can ask. */
+	int restoredWindowCount;
 
 	/* The app-wide All Bookmark browser (MW-5 item 5). */
 	IBOutlet id allBookmarkController;
@@ -110,8 +125,19 @@
 - (void)openBookInNewWindow:(NSString *)path;
 
 /* A registered window with no book open, preferring the front one, or nil.
-   What a new book is opened into before a window is created for it. */
+   What a new book is opened into before a window is created for it. MW-8:
+   a window the system is in the middle of restoring a book into is not
+   empty — its book simply has not been read yet — so it is skipped here. */
 - (id)emptyWindowController;
+
+#pragma mark window restoration (MW-8)
+
+/* How many windows the system asked to have restored this launch. Final
+   from -applicationDidFinishLaunching: onwards, and counted by
+   +restoreWindowWithIdentifier:state:completionHandler: through the
+   method below. */
+- (void)noteWindowRestorationRequested;
+- (int)restoredWindowCount;
 
 /* Called by -[BookWindowController windowDidBecomeMain:]. */
 - (void)windowControllerDidBecomeFront:(id)aController;
