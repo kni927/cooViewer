@@ -947,7 +947,7 @@ follow-ups filed here as its own task:
    archive.
 
 
-## 26. No per-window class in `BookWindow.xib` has a `-dealloc` (MW-7 verification item)
+## 26. ~~No per-window class in `BookWindow.xib` has a `-dealloc`~~ — FIXED (2026-07-29, MW-7)
 
 Audited during MW-6 item 6 (`docs/tasks/2026-07-29-10-mw6-per-window-behaviour.md`),
 which the task asked for while adding the one `-dealloc` it was scoped to.
@@ -995,7 +995,33 @@ addition.
    log or `leaks` on a build that opens and closes several windows, rather
    than writing eleven `-dealloc`s from inspection.
 
-## 27. `Recent Books` menu items are targeted at whichever window built them
+**Resolution (MW-7, `7abc21a`).** Nine classes gained a `-dealloc`:
+`BookWindowController`, `CustomWindow`, `CustomImageView`,
+`ThumbnailController`, `ThumbnailMatrix`, `BookmarkController`,
+`FullImagePanel`, `FullImageView` and `FilterPanelController`.
+`ThumbnailPanel`, `BookmarkPanel` and `AccessoryWindow` own no object ivars
+and deliberately got **no** `-dealloc` rather than an empty one.
+
+Verified, not inferred: a build with a temporary `NSLog` in each `-dealloc`
+(and a temporary one added to the three classes that ship without) was driven
+through a three-window session, and **all thirteen classes logged exactly one
+deallocation per retired window**, `-[AccessoryView dealloc]` included — its
+first ever execution. `leaks` on the shipping build showed no cooViewer
+per-window object leaked after opening and closing a second window.
+
+Two things the write-from-inspection approach would have missed and the run
+confirmed:
+
+- **The window/view group is released one close behind.** `CustomWindow`,
+  `CustomImageView`, `AccessoryWindow` and `AccessoryView` are not
+  deallocated when their own window closes but when the *next* window does
+  (AppKit holds the most recently closed window). Do not read a missing
+  dealloc for those four immediately after a close as a leak.
+- **The last window is never retired**, so its objects are never deallocated
+  — see `docs/DECISIONS.md`, MW-7 decision 1. That is the one path these
+  methods do not exercise.
+
+## 27. ~~`Recent Books` menu items are targeted at whichever window built them~~ — FIXED (2026-07-29, MW-7)
 
 Found while implementing MW-6 item 3, which fixed the same shape for the
 bookmark menu, the "Open from same folder" submenu and the read/sort
@@ -1015,3 +1041,62 @@ explicit target so `-openFromOpenRecent:` resolves through the responder chain
 like the actions MW-4 retargeted. The second is smaller and matches the
 direction of travel, but note `-setOpenRecentMenu` is also called from
 `-[AppController clearRecent:]` and from `-openPage:last:`.
+
+**Resolution (MW-7, `44b3a82`).** The second option: `-setOpenRecentMenu` no
+longer sets a target, so `-openFromOpenRecent:` resolves through the responder
+chain. The submenu is `autoenablesItems="NO"` in `MainMenu.xib`, so the
+explicit `setEnabled:NO` on missing files still stands and no validation pass
+was introduced. Verified with two windows: with the *slot 0* window front and
+the *slot 1* window the last to have rebuilt the menu, choosing a recent book
+replaced the front window's book and left the other window alone.
+
+## 28. `-[FilterPanelController deleteFilter:]` drops a `CIFilter` without unregistering its KVO observers
+
+Found while writing that class's `-dealloc` in MW-7 (KNOWN_ISSUES #26).
+
+`-drawFilterUIViews` registers the controller as a KVO observer of **every
+input key of every selected `CIFilter`**:
+
+```objc
+[newFilter addObserver:self forKeyPath:attrkey options:… context:nil];
+```
+
+Nothing removes those registrations when the user clicks a filter's close
+button. `-deleteFilter:` just does
+`[selectedFilters removeObjectForKey:[sender identifier]]`, which releases
+the filter while it is still observed — "was deallocated while key value
+observers were still registered", which is a hard error, not a leak.
+
+Not observed in practice, which is why it is recorded rather than fixed: the
+filter is also retained by the KVO machinery and by
+`-setUserDefaults`'s `NSKeyedArchiver` pass, so it does not actually reach
+`-dealloc` at that moment on the paths exercised so far. It is a live trap
+for anyone who changes the ownership around `selectedFilters`.
+
+`-[FilterPanelController dealloc]` (MW-7) does unregister, because there the
+release is guaranteed. The fix is the same three lines in `-deleteFilter:`;
+it was left out because MW-7's scope was the window lifetime, not the filter
+UI, and the fix wants a test with a filter actually applied.
+
+---
+
+## 29. Alias Manager path helpers leak a few `CFString`s per book open
+
+Measured in MW-7 with `leaks` and `MallocStackLogging`: opening and closing
+a second window adds roughly four small `ROOT LEAK: <CFString>` blocks
+(~350 bytes), attributed to `-[BookWindowController pathFromAlias:]` under
+`-setOpenRecentMenu` / `-openPage:last:`. No cooViewer *object* leaks — the
+whole per-window object graph is destroyed correctly (#26) — so this is a
+bounded, per-open string leak, not a growing one per window.
+
+The cause is the deprecated Alias Manager (`FSNewAliasFromPath`,
+`FSCopyAliasInfo`, …) wrapped in `-aliasFromPath:` / `-pathFromAlias:` /
+`-dataFromAlias:` / `-aliasFromData:`. `docs/multiwindow-plan.md` already
+lists **Alias Manager → `NSURL` bookmark data** as an out-of-scope follow-up
+for the whole MW arc; this is the concrete cost of not having done it, and
+the migration is where it should be fixed rather than by patching individual
+`CFRelease` calls into the existing helpers.
+
+Also still open from the MW-5 follow-up: the bounded 6-allocation
+`NSBezierPath` leak in `-[AccessoryView setFrame:]`, which shows in the same
+`leaks` output as a 3-block, 704-byte root leak.

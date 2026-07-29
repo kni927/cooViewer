@@ -847,3 +847,33 @@ confirmed to follow the book across an A → B → A switch — the subtle bug t
 task was most likely to introduce. **MW-6 is closed**; see
 `docs/tasks/2026-07-29-10-mw6-per-window-behaviour.md`. MW-7, the feature
 itself, is unblocked.
+
+### Multi-window refactor (MW-7): multiple windows, for real (2026-07-29)
+
+cooViewer opens more than one book at a time. **Open in New Window… (⌥⌘O)**
+is the in-app route to a second window; `AppController`'s single window
+outlet became an owning registry with a front-window pointer, windows
+cascade off each other with slot 0 keeping the frame autosave names users
+already have, and reopening a book that is already open brings its window
+forward instead of duplicating it. File ▸ Open still replaces the front
+window's book — only ⌥⌘O opens a window.
+
+Closing a window now destroys it, which made the two latent problems MW-6
+recorded live and both are fixed: the eleven per-window classes in
+`BookWindow.xib` have `-dealloc`s (KNOWN_ISSUES #26), and Recent Books items
+resolve through the responder chain instead of carrying the target of
+whichever window last rebuilt the menu (#27). The last remaining window is
+kept rather than retired, so the app still runs with no book open; quitting
+on the last close (Step-0 decision 4) is left to a later task, for the
+reason recorded in `docs/DECISIONS.md`.
+
+Verified on device with two and three live windows: cascade offsets, per
+window `NSWindow Frame FilterPanel` / `FilterPanel-2`, read/sort check-marks
+swapping on focus change, de-duplication, and Recent Books opening into the
+front window. Every one of the thirteen per-window classes was observed to
+be deallocated on window close via temporary instrumentation — including
+`-[AccessoryView dealloc]`, which had never run before. Byte-identical
+render capture, empty warning diff, no zombies, zero-delta defaults
+round-trip. **MW-7 is closed**; see
+`docs/tasks/2026-07-29-11-mw7-open-in-new-window.md`. MW-8 (window
+restoration) is unblocked.

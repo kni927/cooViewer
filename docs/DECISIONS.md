@@ -805,3 +805,60 @@ menu for items whose action is `changeReadModeMenu:` or `changeSortModeMenu:`
 and calls that method on them. This is the same reasoning as MW-4's decision
 not to duplicate or convert the title dispatch: one copy of a fragile
 mechanism is better than two consistent copies that can drift.
+
+---
+
+## MW-7: the window registry keeps the last window, and de-duplication is keyed on the resolved book path (2026-07-29)
+
+Decisions taken while enabling multiple windows. See
+`docs/tasks/2026-07-29-11-mw7-open-in-new-window.md`.
+
+**1. Step-0 decision 4 — "the last window closed quits the app" — is
+deliberately not implemented yet, and MW-7 ships without it.** MW-7's scope
+is Open in New Window and the cleanup needed to close windows safely;
+quitting on the last close is a user-visible behaviour change with a
+concrete hazard the task did not budget for. `-openPage:last:` closes the
+window it has just ordered front when a *first* open fails, so with
+`applicationShouldTerminateAfterLastWindowClosed:` returning YES, opening a
+corrupt file as the first action of a session would quit the app. Instead,
+`-[AppController retireWindowController:]` retires every closing window
+*except the last*: that controller stays, bookless and hidden, and is what
+File ▸ Open, Open the last page and the dock menu reuse — which is exactly
+what the app did before MW-7, so nothing about the one-window experience
+changes. Whoever implements decision 4 owns that failed-first-open path;
+until then there is no empty-window state to design, because the surviving
+window is never shown without a book.
+
+Two consequences worth knowing: the surviving controller is whichever one
+closed last, so it may not be slot 0 and may therefore be using suffixed
+autosave names; and because it is never deallocated, its own teardown is
+the one path the per-window `-dealloc`s do not exercise.
+
+**2. "The book at this path" has exactly one definition.**
+`+[BookWindowController resolvedBookPath:]` — a single image file resolves
+to its parent folder, a PDF does not. It is what `-openPage:last:` already
+did inline, lifted out so the de-duplication check (Step-0 decision 2) uses
+the identical rule. This is the concrete form of the argument in the
+multi-window decision above for why `NSDocumentController`'s `fileURL`-keyed
+"already open" test would have been wrong: book identity is not file-URL
+identity, and the one place that knows the difference must not be
+duplicated.
+
+**3. Open in New Window… targets AppController, not First Responder.**
+MW-4 retargeted the render-path and book actions at First Responder so they
+resolve to the front window. This one goes the other way on purpose:
+creating a window is not something a window does, and the command has to
+stay available when the front window has no book — or, once decision 4
+lands, when there is no key window at all. The same split explains why
+File ▸ Open keeps replacing the front window's book: only ⌥⌘O opens a
+window, and a book handed over by the Finder or the Dock still replaces,
+as it always has.
+
+**4. A retired window's panels are closed with it.** The thumbnail,
+bookmark, full-image and filter panels are separate windows in the same nib
+as the book window, so closing the book window does not close them and
+`NSWindowController` releases them when the controller is deallocated.
+Left on screen they would outlive their window and then be deallocated
+under AppKit's feet. `-closeAuxiliaryPanels` runs only for a window that is
+actually being retired, so the last window — which is not — keeps the
+pre-MW-7 behaviour of leaving its panels up.
