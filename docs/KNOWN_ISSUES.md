@@ -790,3 +790,41 @@ Discovered 2026-07-29 during MW-4 on-device verification
   the intended PID from `build/cooViewer.app`, and export the defaults
   domain first regardless, since the launch command itself is a place this
   can go wrong even when the intent was correct.
+
+---
+
+## 24. Bookmark ▸ Edit Bookmark… Is Disabled With No Book Open, So the All Bookmark Browser Is Unreachable
+
+Discovered 2026-07-29 while verifying MW-5's `BookmarkController` split
+(`docs/tasks/2026-07-29-08-mw5-bookmark-controller-split.md`).
+
+`-[Controller editBookmark:]` has two branches: with a book open it raises
+the per-book Bookmark sheet, and with no book open it raises the app-wide
+**All Bookmark** browser (the panel that edits every book's bookmarks and
+can reopen a book with its "Open" button).
+
+MW-4 retargeted the `Edit Bookmark...` menu item from `target="484"`
+(Controller) to First Responder (`MainMenu.xib`, item `609`). `Controller`
+reaches the responder chain only as the window's delegate, so when no window
+is open there is no target for `editBookmark:` and AppKit disables the item
+before `-validateMenuItem:` is consulted — even though that method's
+`Edit Bookmark...` branch deliberately returns YES in exactly that case
+(`Controller.m:1927-1933`, with the older `return NO` commented out).
+
+Net effect: the All Bookmark browser has no UI entry point at all. Verified
+on device — the menu item is greyed with no window open, and enabled (taking
+the per-book branch) with one open. It was reachable before MW-4.
+
+Not fixed in MW-5, which is explicitly a no-logic-change task. Two candidate
+fixes, to be decided when the arc reaches it:
+
+- Move the no-book branch to `AppController` (which is always in the
+  responder chain) and target the item there — but note MW-7 decision 4
+  makes "no window open" impossible while the app runs, which would leave
+  the branch dead by design instead.
+- Give the browser its own always-enabled menu item on `AppController`,
+  separate from the per-book sheet.
+
+The MW-5 split preserved both branches as they are; the app-wide half now
+lives in `AllBookmarkController` and was verified by temporarily forcing
+`-editBookmark:` down the no-book branch in a throwaway build.

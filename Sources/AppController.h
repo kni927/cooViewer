@@ -27,6 +27,9 @@
 	/* The window registry (MW-3: still exactly one entry). */
 	IBOutlet id controller;
 
+	/* The app-wide All Bookmark browser (MW-5 item 5). */
+	IBOutlet id allBookmarkController;
+
 	IBOutlet id prefController;
 	IBOutlet id openRecentMenuItem;
 	IBOutlet id openSameFolderMenuItem;
@@ -56,6 +59,12 @@
 - (id)openRecentMenuItem;
 - (id)openSameFolderMenuItem;
 - (id)bookmarkMenuItem;
+
+/* The book window controller (one entry today) and the app-wide All Bookmark
+   browser. MW-5 item 5: the browser is reached through here rather than from
+   a window controller, since it outlives any one window. */
+- (id)controller;
+- (id)allBookmarkController;
 
 /* MW-4: validates AppController's own items only (Open, Open the last page,
  * Preferences, Clear Recent) — see the .m for why. The book/view actions'

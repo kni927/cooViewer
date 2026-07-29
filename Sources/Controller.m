@@ -2,6 +2,7 @@
 #import "AppController.h"	/* appController outlet accessors (MW-3) */
 #import "CustomWindow.h"
 #import "BookmarkController.h"
+#import "AllBookmarkController.h"	/* MW-5 item 5: app-wide half, reached via appController */
 #import "CustomImageView.h"
 #import "FullImagePanel.h"
 #import "RemoteControl.h"	/* kRemoteButton* constants used by the 1.2b14 migration block below */
@@ -2451,7 +2452,9 @@ static const int DIALOG_CANCEL	= 129;
 		[bookmarkController setPathDic:dic];
 		[bookmarkController editBookmark:bookmarkArray];
 	} else {
-		[bookmarkController editAllBookmark:bookmarkArray];
+		/* MW-5 item 5: the All Bookmark browser is app-wide and no longer
+		   part of this window's BookmarkController. */
+		[[appController allBookmarkController] editAllBookmark:bookmarkArray];
 	}
 }
 

@@ -219,6 +219,22 @@
 	return bookmarkMenuItem;
 }
 
+#pragma mark window registry / app-wide panels (MW-5)
+
+/* The book window controller. Exactly one entry today; MW-6 turns this into
+   "the front window". */
+- (id)controller
+{
+	return controller;
+}
+
+/* The All Bookmark browser (MW-5 item 5). App-wide, so it lives here rather
+   than on a window controller. */
+- (id)allBookmarkController
+{
+	return allBookmarkController;
+}
+
 #pragma mark validation
 
 /* MW-4: this used to forward wholesale to -[Controller validateMenuItem:],

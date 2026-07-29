@@ -1840,6 +1840,7 @@ Gw
         <customObject id="6001" userLabel="AppController" customClass="AppController">
             <!-- MW-3: the application delegate, split out of Controller. -->
             <connections>
+                <outlet property="allBookmarkController" destination="MW5-ab-ctl" id="MW5-ab-c7"/>
                 <outlet property="bookmarkMenuItem" destination="607" id="625"/>
                 <outlet property="controller" destination="484" id="6002"/>
                 <outlet property="openRecentMenuItem" destination="2024" id="2045"/>
@@ -2099,18 +2100,29 @@ Gw
             <point key="canvasLocation" x="140.5" y="1654.5"/>
         </window>
         <customObject id="617" userLabel="BookmarkController" customClass="BookmarkController">
+            <!-- MW-5 item 5: the per-book Bookmark sheet only. The All
+                 Bookmark browser's outlets moved to AllBookmarkController
+                 below; the "window" outlet is gone because -editBookmark:
+                 always overwrote it with the key window. -->
             <connections>
-                <outlet property="allBookNameTableView" destination="997" id="1020"/>
-                <outlet property="allBookmarkPanel" destination="983" id="1019"/>
-                <outlet property="allBookmarkSplitView" destination="1519" id="1647"/>
-                <outlet property="allBookmarkTableView" destination="984" id="1021"/>
-                <outlet property="allNewBookmarkTextField" destination="989" id="1073"/>
                 <outlet property="bookmarkPanel" destination="561" id="627"/>
                 <outlet property="bookmarkTableView" destination="612" id="628"/>
                 <outlet property="contextMenuItem" destination="638" id="650"/>
                 <outlet property="controller" destination="484" id="1516"/>
                 <outlet property="newBookmarkTextField" destination="713" id="715"/>
-                <outlet property="window" destination="21" id="621"/>
+            </connections>
+        </customObject>
+        <customObject id="MW5-ab-ctl" userLabel="AllBookmarkController" customClass="AllBookmarkController">
+            <!-- MW-5 item 5: the app-wide All Bookmark browser, split out of
+                 BookmarkController so that the per-book half can move into
+                 BookWindow.xib. -->
+            <connections>
+                <outlet property="allBookNameTableView" destination="997" id="MW5-ab-c1"/>
+                <outlet property="allBookmarkPanel" destination="983" id="MW5-ab-c2"/>
+                <outlet property="allBookmarkSplitView" destination="1519" id="MW5-ab-c3"/>
+                <outlet property="allBookmarkTableView" destination="984" id="MW5-ab-c4"/>
+                <outlet property="allNewBookmarkTextField" destination="989" id="MW5-ab-c5"/>
+                <outlet property="appController" destination="6001" id="MW5-ab-c6"/>
             </connections>
         </customObject>
         <menu title="Menu" id="638" userLabel="TableMenu">
@@ -2243,7 +2255,7 @@ DQ
 </string>
                         </buttonCell>
                         <connections>
-                            <action selector="ok:" target="617" id="1025"/>
+                            <action selector="ok:" target="MW5-ab-ctl" id="1025"/>
                         </connections>
                     </button>
                     <textField verticalHuggingPriority="750" fixedFrame="YES" translatesAutoresizingMaskIntoConstraints="NO" id="989">
@@ -2270,7 +2282,7 @@ DQ
                             <font key="font" metaFont="system"/>
                         </buttonCell>
                         <connections>
-                            <action selector="addNewBookmark:" target="617" id="1026"/>
+                            <action selector="addNewBookmark:" target="MW5-ab-ctl" id="1026"/>
                         </connections>
                     </button>
                     <button verticalHuggingPriority="750" fixedFrame="YES" translatesAutoresizingMaskIntoConstraints="NO" id="994">
@@ -2284,7 +2296,7 @@ Gw
 </string>
                         </buttonCell>
                         <connections>
-                            <action selector="cancel:" target="617" id="1024"/>
+                            <action selector="cancel:" target="MW5-ab-ctl" id="1024"/>
                         </connections>
                     </button>
                     <splitView fixedFrame="YES" vertical="YES" translatesAutoresizingMaskIntoConstraints="NO" id="1519">
@@ -2402,7 +2414,7 @@ Gw
                             <real value="250"/>
                         </holdingPriorities>
                         <connections>
-                            <outlet property="delegate" destination="617" id="1646"/>
+                            <outlet property="delegate" destination="MW5-ab-ctl" id="1646"/>
                         </connections>
                     </splitView>
                     <button verticalHuggingPriority="750" fixedFrame="YES" translatesAutoresizingMaskIntoConstraints="NO" id="1576">
@@ -2413,7 +2425,7 @@ Gw
                             <font key="font" metaFont="miniSystem"/>
                         </buttonCell>
                         <connections>
-                            <action selector="openInFinder:" target="617" id="1577"/>
+                            <action selector="openInFinder:" target="MW5-ab-ctl" id="1577"/>
                         </connections>
                     </button>
                     <button verticalHuggingPriority="750" fixedFrame="YES" translatesAutoresizingMaskIntoConstraints="NO" id="1579">
@@ -2424,14 +2436,14 @@ Gw
                             <font key="font" metaFont="miniSystem"/>
                         </buttonCell>
                         <connections>
-                            <action selector="openInSelf:" target="617" id="1580"/>
+                            <action selector="openInSelf:" target="MW5-ab-ctl" id="1580"/>
                         </connections>
                     </button>
                 </subviews>
             </view>
             <connections>
-                <outlet property="delegate" destination="617" id="1023"/>
-                <outlet property="target" destination="617" id="1027"/>
+                <outlet property="delegate" destination="MW5-ab-ctl" id="1023"/>
+                <outlet property="target" destination="MW5-ab-ctl" id="1027"/>
             </connections>
             <point key="canvasLocation" x="139.5" y="2774.5"/>
         </window>
