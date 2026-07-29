@@ -909,9 +909,20 @@ static const int DIALOG_CANCEL	= 129;
 
 #pragma mark preferences
 - (void)preferences
-{	
+{
+	/* MW-6 item 5. Both exits from the modal loop below used to end with
+	   [[NSApp keyWindow] makeKeyAndOrderFront:self], asking for the key
+	   window *after* the Preferences panel had been ordered out — by then
+	   NSApp has already picked some other window, or none, so the call
+	   either re-fronted a window nobody chose or did nothing at all. What it
+	   means is "give the focus back to the window Preferences was opened
+	   from", so that window is captured here, while it is still key, and
+	   restored by name afterwards. Correct for any number of windows; with
+	   one window it is the same window either way. */
+	NSWindow *invokingWindow = [NSApp keyWindow];
+
 	[accessorySettingView setPreferences];
-	
+
 	keyArray = [[NSMutableArray alloc] initWithArray:[defaults arrayForKey:@"KeyArray"]];
 	keyArrayMode2 = [[NSMutableArray alloc] initWithArray:[defaults arrayForKey:@"KeyArrayMode2"]];
 	keyArrayMode3 = [[NSMutableArray alloc] initWithArray:[defaults arrayForKey:@"KeyArrayMode3"]];
@@ -1582,9 +1593,7 @@ static const int DIALOG_CANCEL	= 129;
 		currentMouseArray = nil;
 		
 		
-		if ([[[appController controller] window] isVisible]) {
-			[[NSApp keyWindow] makeKeyAndOrderFront:self];
-		}
+		[invokingWindow makeKeyAndOrderFront:self];
 		/* MW-3: broadcast instead of reaching into one window controller
 		   directly, so every window picks up the change. */
 		[[NSNotificationCenter defaultCenter] postNotificationName:@"PreferencesDidChange" object:self];
@@ -1604,7 +1613,7 @@ static const int DIALOG_CANCEL	= 129;
 		mouseArrayMode3 = nil;
 		currentKeyArray = nil;
 		currentMouseArray = nil;
-		[[NSApp keyWindow] makeKeyAndOrderFront:self];
+		[invokingWindow makeKeyAndOrderFront:self];
 		return;
     }
 }
