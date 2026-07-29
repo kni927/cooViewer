@@ -1,6 +1,7 @@
 #import "AppController.h"
 #import "BookWindowController.h"
 #import "PreferenceController.h"
+#import "COImageLoader.h"	/* +fileTypes, for the Open in New Window panel */
 
 @implementation AppController
 
@@ -14,31 +15,20 @@ static const int DIALOG_CANCEL	= 129;
    preserves that timing. */
 - (void)awakeFromNib
 {
-	/* MW-5 item 6: exactly one BookWindowController, created here rather
-	   than instantiated from MainMenu.xib. -setAppController: has to happen
-	   before the nib loads because -windowDidLoad reads it, and the -window
-	   call then forces BookWindow.xib to load now — the same launch-time
-	   moment at which MainMenu.xib used to instantiate this object and run
-	   its -awakeFromNib. The window itself is still not shown until a book
-	   is opened. */
-	controller = [[BookWindowController alloc] initWithWindowNibName:@"BookWindow"];
-	[controller setAppController:self];
-	/* MW-6 item 1: the window's slot in this registry. It is what the
-	   per-window frame autosave names are keyed on, so it has to be set
-	   before the nib loads. Slot 0 is the one that keeps the historical
-	   unsuffixed names ("NormalWindow", "Bookmark", "FilterPanel") and
-	   therefore the frames users already have saved; with exactly one window
-	   it is the only slot there is. MW-7 hands out the first free slot
-	   instead of a constant. */
-	[controller setWindowIndex:0];
-	[controller window];
+	/* MW-5 item 6: BookWindowControllers are created here rather than
+	   instantiated from MainMenu.xib. The first one is created at the same
+	   launch-time moment at which MainMenu.xib used to instantiate this
+	   object and run its -awakeFromNib. Its window is still not shown until
+	   a book is opened. */
+	windowControllers = [[NSMutableArray alloc] init];
+	[self newWindowController];
 
 	[self setupRemoteControl];
 }
 
 - (void)dealloc
 {
-	[controller release];
+	[windowControllers release];
 	[super dealloc];
 }
 
@@ -49,7 +39,7 @@ static const int DIALOG_CANCEL	= 129;
 	/* Almost the entire body is window-level (pushes keyArray/mouseArray
 	   into the window's outlets, then the OpenLastFolder gate) — see the
 	   MW-3 pre-implementation inventory in docs/multiwindow-plan.md. */
-	[controller applicationDidFinishLaunchingSetup:notification];
+	[[self frontController] applicationDidFinishLaunchingSetup:notification];
 }
 
 - (void)applicationWillTerminate:(NSNotification *)notification
@@ -75,19 +65,21 @@ static const int DIALOG_CANCEL	= 129;
 	   see -[BookWindowController menuNeedsUpdate:]. */
 }
 
+/* Step-0 decision 3 covers File ▸ Open only: a book handed to us by the
+   Finder, the Dock or a drag still replaces the front window's book, as it
+   always has. ⌥⌘O is the one route that opens a window (decision A1). */
 - (BOOL)application:(NSApplication *)theApplication openFile:(NSString *)filename
 {
-	return [controller application:theApplication openFile:filename];
+	return [[self frontController] application:theApplication openFile:filename];
 }
 
 - (NSMenu *)applicationDockMenu:(NSApplication *)sender
 {
 	/* MW-3 finding: this used to read the per-window [imageView image]
-	   directly; with exactly one window it now asks that window controller
-	   whether a book is open. "The front window" (plural) is MW-7's job. */
+	   directly; it asks the front window controller whether a book is open. */
 	NSMenu *menu = [[[NSMenu alloc] init] autorelease];
 
-	if (![controller hasBookOpen]) {
+	if (![[self frontController] hasBookOpen]) {
 		NSMenuItem *menuItem;
 		menuItem = [[NSMenuItem alloc] init];
 		[menuItem setTitle:NSLocalizedString(@"Open the last page", @"")];
@@ -126,8 +118,8 @@ static const int DIALOG_CANCEL	= 129;
 /* Moved from BookWindowController_input.m together with setupRemoteControl (MW-3
    finding #4). The body still needs window-side state (the window's
    visible/key state, the thumbnail panel, and the actual key dispatch in
-   -timeredRemoteButtonEvent:), which stays on BookWindowController and is reached
-   through it — there is exactly one controller to route to until MW-7. */
+   -timeredRemoteButtonEvent:), which stays on BookWindowController; MW-7
+   routes it to the front window. */
 - (void)remoteButton:(RemoteControlEventIdentifier)buttonIdentifier pressedDown:(BOOL)pressedDown clickCount:(unsigned int)clickCount
 {
 	appleRemoteHoldDown = NO;
@@ -168,6 +160,9 @@ static const int DIALOG_CANCEL	= 129;
 	}
 	NSString *characters = [NSString stringWithCharacters:&character length:1];
 
+	/* Resolved once: the remote acts on one window, and -frontController
+	   must not be re-read part-way through this dispatch. */
+	id controller = [self frontController];
 	NSWindow *bookWindow = [controller sheetParentWindow];
 	if (![bookWindow isVisible] || ![bookWindow isKeyWindow]) {
 		if ([prefController inKeyEdit]) {
@@ -210,11 +205,32 @@ static const int DIALOG_CANCEL	= 129;
 
 - (IBAction)open:(id)sender
 {
-	[controller open:sender];
+	[[self frontController] open:sender];
 }
+
+/* MW-7 / decision A1. Deliberately targeted at AppController rather than
+   First Responder (unlike the render-path and book actions MW-4 retargeted):
+   creating a window is not something a window does, and the command must
+   stay available when the front window has no book — or, later, when there
+   is no key window at all. */
+- (IBAction)openInNewWindow:(id)sender
+{
+	NSOpenPanel *openPanel = [NSOpenPanel openPanel];
+
+	[openPanel setCanChooseDirectories:YES];
+	[openPanel setAllowedFileTypes:[NSMutableArray arrayWithArray:[COImageLoader fileTypes]]];
+	/* NSModalResponseOK, not the NSOKButton the older -[BookWindowController
+	   open:] uses: the same value, but not deprecated, so this does not add
+	   to the project's deprecation warning baseline. */
+	if ([openPanel runModal] != NSModalResponseOK) {
+		return;
+	}
+	[self openBookInNewWindow:[[openPanel URL] path]];
+}
+
 - (IBAction)openTheLastPage:(id)sender
 {
-	[controller openTheLastPage:sender];
+	[[self frontController] openTheLastPage:sender];
 }
 
 #pragma mark preferences
@@ -227,7 +243,7 @@ static const int DIALOG_CANCEL	= 129;
 {
 	[[NSUserDefaults standardUserDefaults] removeObjectForKey:@"RecentItems"];
 	[[NSUserDefaults standardUserDefaults] synchronize];
-	[controller setOpenRecentMenu];
+	[[self frontController] setOpenRecentMenu];
 }
 
 #pragma mark menu outlet accessors
@@ -247,13 +263,136 @@ static const int DIALOG_CANCEL	= 129;
 	return bookmarkMenuItem;
 }
 
-#pragma mark window registry / app-wide panels (MW-5)
+#pragma mark window registry / app-wide panels (MW-5, MW-7)
 
-/* The book window controller. Exactly one entry today; MW-6 turns this into
-   "the front window". */
+/* The book window controller app-level code should act on. Every existing
+   caller of this accessor meant "the window", which from MW-7 on means "the
+   front window". */
 - (id)controller
 {
-	return controller;
+	return [self frontController];
+}
+
+- (NSArray *)windowControllers
+{
+	return windowControllers;
+}
+
+- (id)frontController
+{
+	if (frontWindowController) {
+		return frontWindowController;
+	}
+	/* Before any window has become main — at launch, and after the front
+	   window has been retired without another taking over yet. */
+	return [windowControllers lastObject];
+}
+
+/* Slot 0 keeps the historical unsuffixed frame autosave names
+   ("NormalWindow", "Bookmark", "FilterPanel") and therefore the frames users
+   already have saved, so slots are handed out lowest-free-first rather than
+   monotonically: close window 2 and reopen it and it is window 2 again,
+   sitting on its own saved frames instead of accumulating new ones. */
+- (int)firstFreeWindowIndex
+{
+	int index;
+	for (index = 0; ; index++) {
+		BOOL taken = NO;
+		NSEnumerator *enu = [windowControllers objectEnumerator];
+		id aController;
+		while (aController = [enu nextObject]) {
+			if ([aController windowIndex] == index) {
+				taken = YES;
+				break;
+			}
+		}
+		if (!taken) {
+			return index;
+		}
+	}
+}
+
+- (id)newWindowController
+{
+	BookWindowController *aController = [[BookWindowController alloc] initWithWindowNibName:@"BookWindow"];
+
+	/* -setAppController: and -setWindowIndex: both have to happen before the
+	   nib loads: -windowDidLoad reads the first, and the second is what the
+	   per-window frame autosave names are keyed on, which the panels in
+	   BookWindow.xib ask for during nib load (MW-6 items 1 and 2). */
+	[aController setAppController:self];
+	[aController setWindowIndex:[self firstFreeWindowIndex]];
+	/* Registered before the nib loads, so anything that resolves the front
+	   window during the load finds this one rather than the window it is
+	   being opened from. */
+	[windowControllers addObject:aController];
+	[aController release];
+
+	/* Forces BookWindow.xib to load now. The window is not shown until a
+	   book is opened in it. */
+	[aController window];
+	return aController;
+}
+
+- (id)windowControllerShowingBook:(NSString *)bookPath
+{
+	NSEnumerator *enu = [windowControllers objectEnumerator];
+	id aController;
+	while (aController = [enu nextObject]) {
+		if ([aController hasBookOpen]
+			&& [[aController currentBookPath] isEqualToString:bookPath]) {
+			return aController;
+		}
+	}
+	return nil;
+}
+
+- (void)openBookInNewWindow:(NSString *)path
+{
+	/* Step-0 decision 2: keyed on the resolved book path, not the path the
+	   user picked — a single image file opens its parent folder as the book,
+	   which is exactly the case where de-duplication matters. */
+	id existing = [self windowControllerShowingBook:[BookWindowController resolvedBookPath:path]];
+	if (existing) {
+		[[existing window] makeKeyAndOrderFront:self];
+		return;
+	}
+
+	/* An empty front window — the one at launch, or the last one left after
+	   its book was closed — is used rather than adding a second window
+	   beside it. It is what File ▸ Open would have used, and leaving it
+	   behind bookless would be the empty-window state Step-0 decision 4
+	   exists to avoid. */
+	id aController = [self frontController];
+	if ([aController hasBookOpen]) {
+		aController = [self newWindowController];
+	}
+	[aController openBookAtPath:path];
+}
+
+- (void)windowControllerDidBecomeFront:(id)aController
+{
+	frontWindowController = aController;
+}
+
+- (BOOL)retireWindowController:(id)aController
+{
+	if ([windowControllers count] < 2) {
+		/* The last window stays. Closing it leaves the app running with no
+		   book open, as it always has, and this controller is what File ▸
+		   Open, Open the last page and the dock menu reuse. Step-0 decision
+		   4 (quit after the last window closes) is a separate change — see
+		   docs/DECISIONS.md. */
+		return NO;
+	}
+	if (frontWindowController == aController) {
+		frontWindowController = nil;
+	}
+	/* -windowWillClose: is running inside this object; the release has to
+	   outlive the rest of that call and AppKit's own close sequence. */
+	[[aController retain] autorelease];
+	[windowControllers removeObject:aController];
+	return YES;
 }
 
 /* The All Bookmark browser (MW-5 item 5). App-wide, so it lives here rather
@@ -289,7 +428,7 @@ static const int DIALOG_CANCEL	= 129;
 - (BOOL)validateMenuItem:(NSMenuItem *)anItem
 {
 	if ([[anItem title] isEqualToString:NSLocalizedString(@"Open the last page", @"")] == YES) {
-		return [controller validateOpenTheLastPageMenuItem];
+		return [[self frontController] validateOpenTheLastPageMenuItem];
 	}
 	return YES;
 }
@@ -307,7 +446,7 @@ static const int DIALOG_CANCEL	= 129;
 		id object;
 		while (object = [enu nextObject]) {
 			if ([[object objectForKey:@"temppath"] isEqualToString:path]) {
-				if ([[controller pathFromAliasData:[object objectForKey:@"alias"]] isEqualToString:path]) {
+				if ([[[self frontController] pathFromAliasData:[object objectForKey:@"alias"]] isEqualToString:path]) {
 					if (key) {
 						*key = [[[defaults dictionaryForKey:@"BookSettings"] allKeysForObject:object] objectAtIndex:0];
 					}
@@ -320,7 +459,7 @@ static const int DIALOG_CANCEL	= 129;
 		NSEnumerator *enuS = [newDic keyEnumerator];
 		id tempKey;
 		while (tempKey = [enuS nextObject]) {
-			if ([[controller pathFromAliasData:[[newDic objectForKey:tempKey] objectForKey:@"alias"]] isEqualToString:path]) {
+			if ([[[self frontController] pathFromAliasData:[[newDic objectForKey:tempKey] objectForKey:@"alias"]] isEqualToString:path]) {
 				NSMutableDictionary *newInnerDic = [NSMutableDictionary dictionaryWithDictionary:[newDic objectForKey:tempKey]];
 				[newInnerDic setObject:path forKey:@"temppath"];
 				[newDic setObject:newInnerDic forKey:tempKey];
@@ -345,7 +484,7 @@ static const int DIALOG_CANCEL	= 129;
 		id object;
 		while (object = [enu nextObject]) {
 			if ([[object objectForKey:@"temppath"] isEqualToString:path]) {
-				if ([[controller pathFromAliasData:[object objectForKey:@"alias"]] isEqualToString:path]) {
+				if ([[[self frontController] pathFromAliasData:[object objectForKey:@"alias"]] isEqualToString:path]) {
 					if (index) {
 						*index = (int)[[defaults arrayForKey:@"RecentItems"] indexOfObject:object];
 					}
@@ -356,7 +495,7 @@ static const int DIALOG_CANCEL	= 129;
 
 		NSEnumerator *enuS = [[defaults arrayForKey:@"RecentItems"] objectEnumerator];
 		while (object = [enuS nextObject]) {
-			if ([[controller pathFromAliasData:[object objectForKey:@"alias"]] isEqualToString:path]) {
+			if ([[[self frontController] pathFromAliasData:[object objectForKey:@"alias"]] isEqualToString:path]) {
 				NSMutableArray *newArray = [NSMutableArray arrayWithArray:[defaults arrayForKey:@"RecentItems"]];
 				NSMutableDictionary *newInnerDic = [NSMutableDictionary dictionaryWithDictionary:object];
 				int tempIndex = (int)[[defaults arrayForKey:@"RecentItems"] indexOfObject:object];
@@ -384,7 +523,7 @@ static const int DIALOG_CANCEL	= 129;
 		id object;
 		while (object = [enu nextObject]) {
 			if ([[object objectForKey:@"temppath"] isEqualToString:path]) {
-				if ([[controller pathFromAliasData:[object objectForKey:@"alias"]] isEqualToString:path]) {
+				if ([[[self frontController] pathFromAliasData:[object objectForKey:@"alias"]] isEqualToString:path]) {
 					if (index) {
 						*index = (int)[[defaults arrayForKey:@"LastPages"] indexOfObject:object];
 					}
@@ -395,7 +534,7 @@ static const int DIALOG_CANCEL	= 129;
 
 		NSEnumerator *enuS = [[defaults arrayForKey:@"LastPages"] objectEnumerator];
 		while (object = [enuS nextObject]) {
-			if ([[controller pathFromAliasData:[object objectForKey:@"alias"]] isEqualToString:path]) {
+			if ([[[self frontController] pathFromAliasData:[object objectForKey:@"alias"]] isEqualToString:path]) {
 				NSMutableArray *newArray = [NSMutableArray arrayWithArray:[defaults arrayForKey:@"LastPages"]];
 				NSMutableDictionary *newInnerDic = [NSMutableDictionary dictionaryWithDictionary:object];
 				int tempIndex = (int)[[defaults arrayForKey:@"LastPages"] indexOfObject:object];
@@ -429,7 +568,7 @@ static const int DIALOG_CANCEL	= 129;
 		id tempKey;
 
 		while (tempKey = [enuS nextObject]) {
-			temp = [controller pathFromAliasData:[[newDic objectForKey:tempKey] objectForKey:@"alias"]];
+			temp = [[self frontController] pathFromAliasData:[[newDic objectForKey:tempKey] objectForKey:@"alias"]];
 			if ([[temp lastPathComponent] isEqualToString:[path lastPathComponent]] && ![[NSFileManager defaultManager] fileExistsAtPath:temp]) {
 
 				NSAlert *alert = [[[NSAlert alloc] init] autorelease];
@@ -446,7 +585,7 @@ static const int DIALOG_CANCEL	= 129;
 						NSMutableDictionary *newLastPage = [NSMutableDictionary dictionaryWithDictionary:lastPage];
 						NSMutableArray *newLastPagesArray = [NSMutableArray arrayWithArray:[defaults arrayForKey:@"LastPages"]];
 						[newLastPage setObject:path forKey:@"temppath"];
-						[newLastPage setObject:[controller aliasDataFromPath:path] forKey:@"alias"];
+						[newLastPage setObject:[[self frontController] aliasDataFromPath:path] forKey:@"alias"];
 						[newLastPagesArray removeObjectAtIndex:lastPagesIndex];
 						[newLastPagesArray insertObject:newLastPage atIndex:lastPagesIndex];
 						[defaults setObject:newLastPagesArray forKey:@"LastPages"];
@@ -458,7 +597,7 @@ static const int DIALOG_CANCEL	= 129;
 						NSMutableDictionary *newRecentItem = [NSMutableDictionary dictionaryWithDictionary:recentItem];
 						NSMutableArray *newRecentItemsArray = [NSMutableArray arrayWithArray:[defaults arrayForKey:@"RecentItems"]];
 						[newRecentItem setObject:path forKey:@"temppath"];
-						[newRecentItem setObject:[controller aliasDataFromPath:path] forKey:@"alias"];
+						[newRecentItem setObject:[[self frontController] aliasDataFromPath:path] forKey:@"alias"];
 						[newRecentItemsArray removeObjectAtIndex:recentItemsIndex];
 						[newRecentItemsArray insertObject:newRecentItem atIndex:recentItemsIndex];
 						[defaults setObject:newRecentItemsArray forKey:@"RecentItems"];
@@ -466,7 +605,7 @@ static const int DIALOG_CANCEL	= 129;
 					/*BookSettingsの修正*/
 					NSMutableDictionary *newInnerDic = [NSMutableDictionary dictionaryWithDictionary:[newDic objectForKey:tempKey]];
 					[newInnerDic setObject:path forKey:@"temppath"];
-					[newInnerDic setObject:[controller aliasDataFromPath:path] forKey:@"alias"];
+					[newInnerDic setObject:[[self frontController] aliasDataFromPath:path] forKey:@"alias"];
 					[newDic setObject:newInnerDic forKey:tempKey];
 
 					if (key) {
@@ -639,7 +778,7 @@ static const int DIALOG_CANCEL	= 129;
 		NSEnumerator *enu = [array objectEnumerator];
 		id object;
 		while (object = [enu nextObject]) {
-			if ([[controller pathFromAliasData:[object objectForKey:@"alias"]] isEqualToString:path]) {
+			if ([[[self frontController] pathFromAliasData:[object objectForKey:@"alias"]] isEqualToString:path]) {
 				[array removeObject:object];
 				break;
 			}
@@ -662,7 +801,7 @@ static const int DIALOG_CANCEL	= 129;
 		NSEnumerator *enu = [array objectEnumerator];
 		id object;
 		while (object = [enu nextObject]) {
-			if ([[controller pathFromAliasData:[object objectForKey:@"alias"]] isEqualToString:path]) {
+			if ([[[self frontController] pathFromAliasData:[object objectForKey:@"alias"]] isEqualToString:path]) {
 				[array removeObject:object];
 				break;
 			}

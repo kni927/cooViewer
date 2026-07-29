@@ -692,17 +692,24 @@ static NSPoint gNextWindowCascadePoint;
 		[defaults setObject:[[[NSBundle mainBundle] infoDictionary] objectForKey:@"CFBundleVersion"] forKey:@"Version"];
 	}
 	[imageView setPreferences];
+	[self setupInputMappings];
 }
 
 
- - (void)applicationDidFinishLaunchingSetup:(NSNotification *)notification
+/* MW-7: this was the first half of -applicationDidFinishLaunchingSetup:, and
+   it is per-window — it pushes this window's key/mouse mappings into this
+   window's panels and image view. Every window needs it, not just the one
+   that happens to exist when the app finishes launching, so it runs from
+   -windowDidLoad instead. Nothing here reaches outside BookWindow.xib, whose
+   objects are all instantiated and connected by then. */
+- (void)setupInputMappings
 {
-	NSEnumerator *enu = [keyArray objectEnumerator];
 	id object;
+	NSEnumerator *enu;
 	NSMutableArray *array = [NSMutableArray arrayWithArray:keyArray];
 	[fullImagePanel setPageKey:array];
 	[thumController setPageKey:array];
-	
+
 	NSMutableArray *array2 = [NSMutableArray array];
 	enu = [mouseArrayMode2 objectEnumerator];
 	while (object = [enu nextObject]) {
@@ -711,7 +718,7 @@ static NSPoint gNextWindowCascadePoint;
 		}
 	}
 	[imageView setDragScroll:array2 mode:1];
-	
+
 	NSMutableArray *array3 = [NSMutableArray array];
 	enu = [mouseArrayMode3 objectEnumerator];
 	while (object = [enu nextObject]) {
@@ -721,7 +728,10 @@ static NSPoint gNextWindowCascadePoint;
 	}
 	[imageView setDragScroll:array3 mode:2];
 	[imageView setDragScroll:array3 mode:3];
-	
+}
+
+ - (void)applicationDidFinishLaunchingSetup:(NSNotification *)notification
+{
 	if ([defaults boolForKey:@"OpenLastFolder"] == YES) {
 		/* MW-6 item 4: "nothing was opened for us at launch" — by an
 		   application:openFile: Apple event, typically. This used to test
@@ -812,6 +822,21 @@ static NSPoint gNextWindowCascadePoint;
 }
 
 
+/* MW-7: what -open: does once the path is known, without the panel. Used by
+   -[AppController openBookInNewWindow:], which runs the panel itself because
+   the choice of *which* window opens the book is an app-level one. */
+-(void)openBookAtPath:(NSString *)path
+{
+	if (timerSwitch) {
+		[timer invalidate];
+		timerSwitch=NO;
+	}
+	[self setCurrentBookPathAndOldBookPath:path];
+
+	[self openPage:0 last:NO];
+}
+
+
 -(void)openFromSameDir:(id)sender
 {
 	[self openFromSameDir:sender last:NO];
@@ -865,13 +890,16 @@ static NSPoint gNextWindowCascadePoint;
 	
 
 	NSString *fromFileName = nil;
-	if ([[NSImage imageFileTypes] containsObject:[[currentBookPath pathExtension] lowercaseString]]) {
-		if ([[currentBookPath pathExtension] compare:@"pdf" options:NSCaseInsensitiveSearch] != NSOrderedSame) {
-			fromFileName = currentBookPath;
-			[currentBookName release];
-			[currentBookAlias release];
-			[self setCurrentBookPath:[currentBookPath stringByDeletingLastPathComponent]];
-		}
+	NSString *resolvedBookPath = [BookWindowController resolvedBookPath:currentBookPath];
+	if (![resolvedBookPath isEqualToString:currentBookPath]) {
+		/* A single image file: the book is its folder, and this page is the
+		   one to open on. fromFileName carries currentBookPath's retain —
+		   -setCurrentBookPath: overwrites the ivar without releasing it —
+		   and is released once the page index has been taken from it. */
+		fromFileName = currentBookPath;
+		[currentBookName release];
+		[currentBookAlias release];
+		[self setCurrentBookPath:resolvedBookPath];
 	}
 	
 	COImageLoader *newImageLoader = [[COImageLoader alloc] initWithPath:currentBookPath readSubFolder:readSubFolder controller:self];
@@ -2868,6 +2896,28 @@ static NSPoint gNextWindowCascadePoint;
 			imageLoader = nil;
 		}
 	}
+
+	/* MW-7: hand the window back to the registry. It is retired — removed
+	   and released — unless it is the last one, which stays as the window
+	   File ▸ Open and Open the last page reuse. */
+	if ([appController retireWindowController:self]) {
+		[self closeAuxiliaryPanels];
+	}
+}
+
+/* The thumbnail, bookmark, full-image and filter panels are separate windows
+   in the same nib as this window, so they are neither closed with it nor
+   owned by it — NSWindowController releases them with the rest of the nib's
+   top-level objects when it is deallocated. Left on screen they would
+   outlive the window they belong to, and then be deallocated under AppKit's
+   feet. Only reached for a window that is actually being retired: with one
+   window nothing is deallocated and the panels behave as they always have. */
+- (void)closeAuxiliaryPanels
+{
+	[thumController closePanel];
+	[bookmarkController closePanel];
+	[filterPanelController closePanel];
+	[fullImagePanel orderOut:self];
 }
 
 #pragma mark shared main-menu state (MW-6 item 3)
@@ -2880,6 +2930,11 @@ static NSPoint gNextWindowCascadePoint;
    Rebuilding them here makes the front window the one they describe. */
 - (void)windowDidBecomeMain:(NSNotification *)notification
 {
+	/* MW-7: this is what makes this window "the front one" for every
+	   app-level command AppController routes — File ▸ Open, Open the last
+	   page, the dock menu, the Apple Remote. */
+	[appController windowControllerDidBecomeFront:self];
+
 	NSMenu *sameFolderMenu = [[appController openSameFolderMenuItem] submenu];
 	if ([sameFolderMenu delegate] != self) {
 		/* The submenu is built lazily by -menuNeedsUpdate:, so taking over as
@@ -3032,6 +3087,11 @@ static NSPoint gNextWindowCascadePoint;
 		return [completeMutableArray objectAtIndex:nowPage - 1];
 	}
 	return nil;
+}
+
+-(NSString*)currentBookPath
+{
+	return currentBookPath;
 }
 
 -(NSDictionary*)imageInfoForClickPoint:(NSPoint)windowPoint

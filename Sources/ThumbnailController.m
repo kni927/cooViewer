@@ -994,6 +994,14 @@
 	return NO;
 }
 
+/* MW-7: this panel belongs to one window, so it goes when that window is
+   closed and its controller retired — see
+   -[BookWindowController closeAuxiliaryPanels]. */
+-(void)closePanel
+{
+	[panel orderOut:self];
+}
+
 - (BOOL)validateMenuItem:(NSMenuItem *)anItem
 {
 	if ([[anItem title] isEqualToString:NSLocalizedString(@"Creation Date", @"")] == YES) {

@@ -214,6 +214,13 @@
    per-window and must ask for their name through here. */
 - (NSString *)frameAutosaveName:(NSString *)baseName;
 
+/* The book a path opens. A single image file is a *page*, so its book is the
+   parent folder (PDFs are books in their own right) — the resolution
+   -openPage:last: performs on currentBookPath. Step-0 decision 2's
+   "this book is already open" test is keyed on the result, not on the path
+   the user picked. */
++ (NSString *)resolvedBookPath:(NSString *)path;
+
 /* MW-5: the Filter panel and its controller moved into BookWindow.xib, so
    the Filter menu item can no longer target the controller directly. It
    targets First Responder now and resolves here. */
@@ -226,6 +233,10 @@
 - (IBAction)openTheLastPage:(id)sender;
 - (BOOL)application:(NSApplication *)theApplication openFile:(NSString *)filename;
 - (IBAction)open:(id)sender;
+/* MW-7: opens `path` in *this* window. The entry point AppController uses
+   for a window it has just created, so the book-choosing UI can stay app
+   level while the opening stays window level. */
+- (void)openBookAtPath:(NSString *)path;
 - (void)openFromSameDir:(id)sender;
 - (void)openFromSameDir:(id)sender last:(BOOL)isLast;
 - (void)openFromOpenRecent:(id)sender;
@@ -332,6 +343,10 @@
 - (int)nowPage;
 - (int)pageCount;
 - (NSString*)currentImagePath;
+/* The resolved path of the book open in this window, or nil. Read by
+   -[AppController windowControllerShowingBook:] for the de-duplication in
+   Step-0 decision 2. */
+- (NSString*)currentBookPath;
 - (NSDictionary*)imageInfoForClickPoint:(NSPoint)windowPoint;
 - (NSArray*)bookmarkArray;
 - (id)openSameFolderMenuItem;

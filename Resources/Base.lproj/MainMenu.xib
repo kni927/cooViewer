@@ -75,6 +75,12 @@
                                     <action selector="open:" target="6001" id="487"/>
                                 </connections>
                             </menuItem>
+                            <menuItem title="Open in New Window..." keyEquivalent="o" id="MW7-new-window">
+                                <modifierMask key="keyEquivalentModifierMask" option="YES" command="YES"/>
+                                <connections>
+                                    <action selector="openInNewWindow:" target="6001" id="MW7-new-window-a"/>
+                                </connections>
+                            </menuItem>
                             <menuItem title="Open the last page" keyEquivalent="O" id="1513">
                                 <connections>
                                     <action selector="openTheLastPage:" target="6001" id="1515"/>

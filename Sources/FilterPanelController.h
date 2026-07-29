@@ -29,6 +29,8 @@
 }
 - (BOOL)validateMenuItem:(NSMenuItem *)anItem;
 - (IBAction)openFilterPanel:(id)sender;
+/* MW-7: ordered out when the owning window is closed and retired. */
+- (void)closePanel;
 @end
 
 @interface FilterPanelController(private)

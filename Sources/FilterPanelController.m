@@ -68,6 +68,14 @@
 {
     [filterPanel orderFront:self];
 }
+
+/* MW-7: this panel belongs to one window, so it goes when that window is
+   closed and its controller retired — see
+   -[BookWindowController closeAuxiliaryPanels]. */
+- (void)closePanel
+{
+    [filterPanel orderOut:self];
+}
 - (IBAction)filterSelected:(id)sender
 {
     NSString *filterName = [filterDic objectForKey:[sender title]];

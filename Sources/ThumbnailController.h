@@ -56,6 +56,8 @@
 
 
 -(BOOL)isVisible;
+/* MW-7: ordered out when the owning window is closed and retired. */
+-(void)closePanel;
 
 -(void)setCellRow:(int)rowI column:(int)columnI;
 

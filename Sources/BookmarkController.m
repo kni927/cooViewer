@@ -40,6 +40,14 @@ static const int DIALOG_CANCEL	= 129;
 	directoryPath = [dic objectForKey:@"dirPath"];
 }
 
+/* MW-7: this sheet belongs to one window, so it goes when that window is
+   closed and its controller retired — see
+   -[BookWindowController closeAuxiliaryPanels]. */
+-(void)closePanel
+{
+	[bookmarkPanel orderOut:self];
+}
+
 
 #pragma mark editBookmark
 -(void)editBookmark:(NSMutableArray*)array

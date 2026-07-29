@@ -32,6 +32,8 @@
 }
 
 -(void)setPathDic:(NSDictionary*)dic;
+/* MW-7: ordered out when the owning window is closed and retired. */
+-(void)closePanel;
 -(void)editBookmark:(NSMutableArray*)array;
 - (BOOL)validateMenuItem:(NSMenuItem *)anItem;
 

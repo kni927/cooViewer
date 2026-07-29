@@ -1,9 +1,14 @@
 /* AppController
  *
  * MW-3 (docs/multiwindow-plan.md): the application delegate, split out of
- * BookWindowController so that BookWindowController can become a purely per-window object in
- * later MW steps. Single window today — `controller` is the window
- * registry, with exactly one entry, per MW-3's scope.
+ * BookWindowController so that BookWindowController can become a purely
+ * per-window object in later MW steps.
+ *
+ * MW-7: the registry is a real list now. `windowControllers` holds every
+ * live BookWindowController in creation order, `frontWindowController` is
+ * whichever of them last became main, and -controller — the accessor every
+ * app-level caller has always used — answers "the front window" rather than
+ * "the window".
  */
 
 #import <Cocoa/Cocoa.h>
@@ -24,8 +29,16 @@
 
 	NSTimer *dontSleepTimer;
 
-	/* The window registry (MW-3: still exactly one entry). */
-	IBOutlet id controller;
+	/* The window registry (MW-7). Every live BookWindowController, in
+	   creation order; it owns them, and each one is released when its
+	   window closes. Never empty while the app runs — see
+	   -retireWindowController:. */
+	NSMutableArray *windowControllers;
+
+	/* The window that last became main. Not retained: `windowControllers`
+	   owns the objects, and this is cleared when the front window is
+	   retired. */
+	id frontWindowController;
 
 	/* The app-wide All Bookmark browser (MW-5 item 5). */
 	IBOutlet id allBookmarkController;
@@ -52,6 +65,9 @@
 - (void)dontSleepTimerStop;
 
 - (IBAction)open:(id)sender;
+/* MW-7 / decision A1: the only in-app route to a second window. File ▸ Open
+ * still replaces the front window's book (Step-0 decision 3). */
+- (IBAction)openInNewWindow:(id)sender;
 - (IBAction)openTheLastPage:(id)sender;
 - (IBAction)preferences:(id)sender;
 - (IBAction)clearRecent:(id)sender;
@@ -66,11 +82,35 @@
 - (id)openSameFolderMenuItem;
 - (id)bookmarkMenuItem;
 
-/* The book window controller (one entry today) and the app-wide All Bookmark
-   browser. MW-5 item 5: the browser is reached through here rather than from
-   a window controller, since it outlives any one window. */
+/* The front book window controller, and the app-wide All Bookmark browser.
+   MW-5 item 5: the browser is reached through here rather than from a window
+   controller, since it outlives any one window. */
 - (id)controller;
 - (id)allBookmarkController;
+
+#pragma mark window registry (MW-7)
+
+/* Every live window controller, in creation order. */
+- (NSArray *)windowControllers;
+/* The window controller app-level commands act on: the one whose window last
+   became main, falling back to the most recently created. Never nil. */
+- (id)frontController;
+/* Creates, registers and nib-loads a window controller. The window itself is
+   not shown until a book is opened in it. */
+- (id)newWindowController;
+/* Brings the window already showing `bookPath` to the front, or opens the
+   book in a new window. `path` is what the user chose; the "already open"
+   test is on the *resolved* book path (Step-0 decision 2). */
+- (void)openBookInNewWindow:(NSString *)path;
+
+/* Called by -[BookWindowController windowDidBecomeMain:]. */
+- (void)windowControllerDidBecomeFront:(id)aController;
+/* Called by -[BookWindowController windowWillClose:]. Unregisters and
+   releases the controller, and returns YES when it did. Returns NO for the
+   last remaining window: the app keeps running with no book open (as it
+   always has), and that window controller is what File ▸ Open, the dock menu
+   and Open the last page reuse. */
+- (BOOL)retireWindowController:(id)aController;
 
 /* MW-4: validates AppController's own items only (Open, Open the last page,
  * Preferences, Clear Recent) — see the .m for why. The book/view actions'

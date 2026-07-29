@@ -22,6 +22,9 @@
 /* Class = "NSMenuItem"; title = "Open..."; ObjectID = "72"; */
 "72.title" = "Open...";
 
+/* Class = "NSMenuItem"; title = "Open in New Window..."; ObjectID = "MW7-new-window"; */
+"MW7-new-window.title" = "Open in New Window...";
+
 /* Class = "NSMenuItem"; title = "Close"; ObjectID = "73"; */
 "73.title" = "Close";
 
