@@ -282,6 +282,38 @@ fully reverted, verified by diff). **MW-4 is closed**; see
 `docs/tasks/2026-07-29-06-mw4-menu-actions-responder-chain.md`. MW-5 can
 start next.
 
+### Multi-window refactor (MW-5): `BookWindow.xib` + `BookWindowController` (2026-07-29)
+
+The largest mechanical step in the arc. `MainMenu.xib` was split: the book
+window, `CustomImageView`, the progress indicator, the accessory (page-bar)
+window, `RightMenu`, the thumbnail panel and its controller/matrix/menu, the
+per-book bookmark panel, the full-image panel and the filter panel now live
+in a new `Resources/Base.lproj/BookWindow.xib`, with `ja`/`en`
+`MainMenu.strings` split the same way. `Controller` became
+`BookWindowController`, an `NSWindowController` and File's Owner of that nib;
+`Controller_input.m` followed as `BookWindowController_input.m`. Its
+`-awakeFromNib` became `-windowDidLoad`, which is ordered after every nib
+object is connected — the body pushes settings into `imageView`,
+`thumController` and `fullImagePanel`, so the old undefined ordering was the
+same hazard as KNOWN_ISSUES #19. `AppController` now creates the single
+window controller. `BookmarkController` had to be split first (per-book sheet
+vs. app-wide All Bookmark browser) because one nib object cannot own
+top-level objects in two nibs — a correction to the ordering TASK.md
+proposed. The `window` ivar collision with `NSWindowController` was cleared
+in its own commit ahead of the rename.
+
+Image quality: per-window `screencapture` of a single page and of a two-page
+spread are **byte-identical (same SHA-256) before and after**, so the arc's
+highest-rated hazard — `CustomImageView`'s external configuration and bounds
+handling changing as it moved nibs — did not materialise. Every panel was
+exercised on device. Two pre-existing defects surfaced and were recorded, not
+fixed: `docs/KNOWN_ISSUES.md` #24 (the All Bookmark browser has had no UI
+entry point since MW-4) and #25 (Preferences ▸ OK crashes with a book open,
+an over-released `NSString`; bisected to the last pushed commit). **MW-5 is
+closed**; see
+`docs/tasks/2026-07-29-07-mw5-bookwindow-controller.md`. Fixing #25 should
+come before MW-6.
+
 ### v1.5.2 released (2026-07-25)
 
 First release actually distributed since v1.5.0 — v1.5.1 was tagged and

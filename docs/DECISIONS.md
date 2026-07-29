@@ -657,3 +657,61 @@ retargeted item. `Open the last page` correctly stayed enabled with no
 window open (real `RecentItems` was non-empty) and invoking it correctly
 reopened the last book, confirming the extracted accessor behaves
 identically to the original inline branch.
+
+---
+
+## MW-5 nib split: `BookmarkController` must be split *before* the nib, and `-windowDidLoad` replaces `-awakeFromNib` (2026-07-29)
+
+Three decisions taken while splitting `MainMenu.xib` into `MainMenu.xib` +
+`BookWindow.xib`. See
+`docs/tasks/2026-07-29-07-mw5-bookwindow-controller.md`.
+
+**1. The class split precedes the nib split, not the other way round.**
+`docs/multiwindow-plan.md`'s MW-5 lists the `BookmarkController` split as
+item 5 and TASK.md's suggested commit order put it after the nib work
+("Land B before D/E"). That ordering is not possible. `BookmarkController`
+was one nib object owning *two* panels: the per-book Bookmark sheet, which
+belongs to a book window, and the app-wide All Bookmark browser, which does
+not. A single object cannot be a top-level object's owner in two nibs, so the
+class had to be split into `BookmarkController` + `AllBookmarkController`
+*first*, and only then could the per-book half move into `BookWindow.xib`.
+The general rule for the rest of the arc: **an object that owns UI with two
+different lifetimes is a prerequisite for, not a consequence of, splitting the
+nib that holds that UI.**
+
+**2. `-awakeFromNib` → `-windowDidLoad` for the window controller.**
+`NSWindowController` gives the class a documented once-only hook that runs
+after the whole nib is instantiated and connected. `-awakeFromNib` does not:
+AppKit leaves the order between nib objects' `-awakeFromNib` undefined, the
+same hazard recorded as `docs/KNOWN_ISSUES.md` #19 and the reason MW-3 moved
+`registerDefaults:` into `+initialize`. The body pushes settings into
+`imageView`, `thumController` and `fullImagePanel`, so it genuinely depended
+on that undefined order. `AppController` must therefore assign itself with
+`-setAppController:` between `-initWithWindowNibName:` and the first `-window`
+call, because `-windowDidLoad` reads it — the nib load is lazy and that
+window is the trigger.
+
+**3. Cross-nib connections go through `AppController`, never through a
+second outlet into the other nib.** Seven connections crossed the new
+boundary. `PreferenceController` (app-wide, stays in `MainMenu.xib`) lost its
+`controller` and `window` outlets and gained an `appController` outlet;
+`AllBookmarkController` did the same in the previous commit.
+`-sheetOk:`/`-sheetCancel:` moved to `AppController` because their only
+callers are the Preferences panel's buttons, which stay in `MainMenu.xib`.
+The Filter menu item, whose controller moved *into* `BookWindow.xib`, now
+targets First Responder and resolves to a one-line forwarder on
+`BookWindowController` — the same mechanism MW-4 established for book/view
+actions, extended to a panel that is now genuinely per-window.
+
+**Image quality.** The plan rated MW-5 the highest-risk task in the arc for
+rendering, on the grounds that `CustomImageView`'s external configuration
+(`setUseCalayer:`, `setInterpolation:`, `setIgnoreImageDpi:`, autoresizing)
+and its bounds handling had to survive being recreated in another nib.
+Verified by pixel comparison rather than inspection: a per-window
+`screencapture -l` of the book window, taken at the same size and
+`fitScreenMode` before and after the move, is **byte-identical (same
+SHA-256)** for both a single page and a two-page spread. Mean absolute
+difference is therefore exactly 0 and the sharpness measure is trivially
+unchanged. Moving the view between nibs is safe **when the whole `<customView>`
+element is moved verbatim**, which is what makes the guarantee hold — a
+hand-rebuilt view in Interface Builder would not have.
