@@ -8,6 +8,54 @@
 static const int DIALOG_OK		= 128;
 static const int DIALOG_CANCEL	= 129;
 
+/* MW-3 / KNOWN_ISSUES #19 (narrow fix). registerDefaults: and the
+ * key/mouse-array "set default if absent" calls used to run in
+ * -awakeFromNib, which made their effect on NSUserDefaults race any other
+ * nib object's own -awakeFromNib (AppKit does not define the order between
+ * them). +initialize runs once, before any instance exists and before the
+ * main nib loads, so it cannot race.
+ *
+ * Only the pure-NSUserDefaults registration moves here. The skip-page
+ * substitution and the version-migration blocks in -awakeFromNib stay
+ * there: the 1.2b10 block calls the instance-only -pathFromAliasData:
+ * (Alias Manager helpers, out of MW-3's scope to change), and all of the
+ * migration steps share one `oldVersion` snapshot that must not be split
+ * across two run times without risking a fresh-install / old-profile
+ * migration bug. */
++ (void)initialize
+{
+	if (self != [Controller class]) return;
+
+	NSUserDefaults *defaults = [NSUserDefaults standardUserDefaults];
+	NSMutableDictionary *appDefault = [NSMutableDictionary dictionary];
+
+	float wheelSensitivity = 0.1;  // default: highest sensitivity (slider at max/high)
+
+	[appDefault setObject:[NSNumber numberWithBool:YES] forKey:@"OpenLastFolder"];
+	[appDefault setObject:[NSNumber numberWithFloat:wheelSensitivity] forKey:@"WheelSensitivity"];
+
+	[appDefault setObject:[NSNumber numberWithInt:0] forKey:@"PrevPageMode"];
+	[appDefault setObject:[NSNumber numberWithInt:0] forKey:@"CanScrollMode"];
+	[appDefault setObject:[NSNumber numberWithInt:2] forKey:@"PrevPagePageBarPositionMode"];
+
+	[appDefault setObject:[NSNumber numberWithBool:YES] forKey:@"ShowPageBar"];
+	[appDefault setObject:[NSNumber numberWithBool:YES] forKey:@"ShowNumber"];
+	[appDefault setObject:[NSNumber numberWithBool:YES] forKey:@"ShowResolution"];
+
+	[appDefault setObject:[NSNumber numberWithInt:10] forKey:@"OpenRecentLimit"];
+
+	[appDefault setObject:[NSNumber numberWithInt:NO] forKey:@"IgnoreImageDpi"];
+
+	[defaults registerDefaults:appDefault];
+
+	if (![defaults arrayForKey:@"KeyArray"]) [PreferenceController setDefaultKeyArray];
+	if (![defaults arrayForKey:@"KeyArrayMode2"]) [PreferenceController setDefaultKeyArrayMode2];
+	if (![defaults arrayForKey:@"KeyArrayMode3"]) [PreferenceController setDefaultKeyArrayMode3];
+	if (![defaults arrayForKey:@"MouseArray"]) [PreferenceController setDefaultMouseArray];
+	if (![defaults arrayForKey:@"MouseArrayMode2"]) [PreferenceController setDefaultMouseArrayMode2];
+	if (![defaults arrayForKey:@"MouseArrayMode3"]) [PreferenceController setDefaultMouseArrayMode3];
+}
+
 /*
 	NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];
 	[lock lock];
@@ -54,47 +102,18 @@ static const int DIALOG_CANCEL	= 129;
 
 
 
-	defaults = [NSUserDefaults standardUserDefaults];	
-	
-#pragma mark default
-	BOOL openLastFolder;
-	
-	NSMutableDictionary *appDefault = [NSMutableDictionary dictionary];
-	
-	openLastFolder = YES;
-	wheelSensitivity = 0.1;  // default: highest sensitivity (slider at max/high)
-	
-	[appDefault setObject:[NSNumber numberWithBool:openLastFolder] forKey:@"OpenLastFolder"];
+	defaults = [NSUserDefaults standardUserDefaults];
 
-	[appDefault setObject:[NSNumber numberWithFloat:wheelSensitivity] forKey:@"WheelSensitivity"];
-	
-	[appDefault setObject:[NSNumber numberWithInt:0] forKey:@"PrevPageMode"];
-	[appDefault setObject:[NSNumber numberWithInt:0] forKey:@"CanScrollMode"];
-	[appDefault setObject:[NSNumber numberWithInt:2] forKey:@"PrevPagePageBarPositionMode"];
-		
-	[appDefault setObject:[NSNumber numberWithBool:YES] forKey:@"ShowPageBar"];
-	[appDefault setObject:[NSNumber numberWithBool:YES] forKey:@"ShowNumber"];
-	[appDefault setObject:[NSNumber numberWithBool:YES] forKey:@"ShowResolution"];
-	
-	[appDefault setObject:[NSNumber numberWithInt:10] forKey:@"OpenRecentLimit"];
-	
-	[appDefault setObject:[NSNumber numberWithInt:NO] forKey:@"IgnoreImageDpi"];
-
-	[defaults registerDefaults:appDefault];
-	
+	/* registerDefaults: and the key/mouse-array "set default if absent"
+	   calls now run in +initialize, before this method can ever run — see
+	   the comment there. */
 	fitScreenMode = 0;
 	rotateMode=0;
-	
-	if (![defaults arrayForKey:@"KeyArray"]) [PreferenceController setDefaultKeyArray];
-	if (![defaults arrayForKey:@"KeyArrayMode2"]) [PreferenceController setDefaultKeyArrayMode2];
-	if (![defaults arrayForKey:@"KeyArrayMode3"]) [PreferenceController setDefaultKeyArrayMode3];
+
 	keyArray = [[NSMutableArray alloc] initWithArray:[defaults arrayForKey:@"KeyArray"]];
 	keyArrayMode2 = [[NSMutableArray alloc] initWithArray:[defaults arrayForKey:@"KeyArrayMode2"]];
 	keyArrayMode3 = [[NSMutableArray alloc] initWithArray:[defaults arrayForKey:@"KeyArrayMode3"]];
-	
-	if (![defaults arrayForKey:@"MouseArray"]) [PreferenceController setDefaultMouseArray];
-	if (![defaults arrayForKey:@"MouseArrayMode2"]) [PreferenceController setDefaultMouseArrayMode2];
-	if (![defaults arrayForKey:@"MouseArrayMode3"]) [PreferenceController setDefaultMouseArrayMode3];
+
 	mouseArray = [[NSMutableArray alloc] initWithArray:[defaults arrayForKey:@"MouseArray"]];
 	mouseArrayMode2 = [[NSMutableArray alloc] initWithArray:[defaults arrayForKey:@"MouseArrayMode2"]];
 	mouseArrayMode3 = [[NSMutableArray alloc] initWithArray:[defaults arrayForKey:@"MouseArrayMode3"]];
@@ -268,7 +287,7 @@ static const int DIALOG_CANCEL	= 129;
 	bookmarkArray = [[NSMutableArray allocWithZone:NULL] init];
 	currentBookSetting = [[NSMutableDictionary allocWithZone:NULL] init];
 	marksArray = [[NSMutableArray allocWithZone:NULL] init];
-	openLastFolder = [defaults boolForKey:@"OpenLastFolder"];
+	BOOL openLastFolder = [defaults boolForKey:@"OpenLastFolder"];
 	[defaults setBool:openLastFolder forKey:@"OpenLastFolder"];
 	[self setOpenRecentMenu];
 	
