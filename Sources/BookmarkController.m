@@ -12,7 +12,13 @@ static const int DIALOG_CANCEL	= 129;
 	NSArray *tableRowTypes = [NSArray arrayWithObject:@"row"];
 	[bookmarkTableView registerForDraggedTypes:tableRowTypes];
 
-	[bookmarkPanel setFrameAutosaveName:@"Bookmark"];
+	/* MW-6 item 2: this panel lives in BookWindow.xib, so there is one per
+	   window and they cannot share an autosave name. (The panel is only ever
+	   raised as a sheet on the book window — see -editBookmark: — so the
+	   saved frame has no observable effect today; the name is made
+	   per-window anyway rather than left as a trap for whoever detaches it
+	   from the sheet.) */
+	[bookmarkPanel setFrameAutosaveName:[controller frameAutosaveName:@"Bookmark"]];
 }
 
 -(void)setPathDic:(NSDictionary*)dic

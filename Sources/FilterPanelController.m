@@ -6,11 +6,14 @@
 //
 
 #import "FilterPanelController.h"
+#import "BookWindowController.h"	/* -frameAutosaveName: (MW-6 item 2) */
 
 @implementation FilterPanelController
 -(void)awakeFromNib
 {
-    [filterPanel setFrameAutosaveName:@"FilterPanel"];
+    /* MW-6 item 2: one Filter panel per window (it lives in BookWindow.xib),
+       so they must not all autosave their frame under the same name. */
+    [filterPanel setFrameAutosaveName:[controller frameAutosaveName:@"FilterPanel"]];
     
     filterDic = [[NSMutableDictionary alloc] init];
     selectedFilterUIViews = [[NSMutableDictionary alloc] init];

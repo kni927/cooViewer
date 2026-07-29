@@ -596,6 +596,9 @@ Gw
         <customObject id="7Ik-II-pge" customClass="FilterPanelController">
             <connections>
                 <outlet property="contentsView" destination="1oQ-cG-8Uy" id="jcQ-9l-poF"/>
+                <!-- MW-6 item 2: File's Owner, for the per-window frame
+                     autosave name. -->
+                <outlet property="controller" destination="-2" id="MW6-fp-ctl"/>
                 <outlet property="filterPanel" destination="EcN-5h-84Q" id="oAh-ao-fcl"/>
                 <outlet property="popupButton" destination="xTo-RC-5eC" id="kYz-xQ-6JN"/>
                 <outlet property="scrollView" destination="T7G-gM-l9s" id="clS-kK-aPT"/>

@@ -22,6 +22,10 @@ static const int DIALOG_CANCEL	= 129;
 
 	defaults = [NSUserDefaults standardUserDefaults];
 
+	/* MW-6 item 2 checked this half too: the All Bookmark browser is app-wide
+	   — one instance, in MainMenu.xib, outliving any window (MW-5 item 5) —
+	   so there is nothing to share a name with and the name stays shared and
+	   unsuffixed on purpose. */
 	[allBookmarkPanel setFrameAutosaveName:@"AllBookmark"];
 	if ([defaults stringForKey:@"AllBookmarkSplitPotision"]) {
 		[self setSplitViewPosition:allBookmarkSplitView position:[defaults stringForKey:@"AllBookmarkSplitPotision"]];
