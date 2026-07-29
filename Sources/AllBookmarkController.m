@@ -1,6 +1,6 @@
 #import "AllBookmarkController.h"
 #import "AppController.h"
-#import "Controller.h"
+#import "BookWindowController.h"
 #import "NSString_Compare.h"
 
 @implementation AllBookmarkController

@@ -32,7 +32,11 @@
 	IBOutlet id thumbnailCacheTextField;
 	
     IBOutlet id canScrollActionPopUpButton;
-    IBOutlet id controller;
+    /* MW-5: BookWindowController is the File's Owner of BookWindow.xib now,
+       so Preferences (which stays in MainMenu.xib) reaches it — and its
+       window — through the application delegate instead of holding outlets
+       into the other nib. */
+    IBOutlet id appController;
     IBOutlet id enlargePopUpButton;
     IBOutlet id fitOriginalCheck;
     IBOutlet id inputTabView;
@@ -80,7 +84,6 @@
     IBOutlet id thumbnailTextFieldCol;
     IBOutlet id thumbnailTextFieldRow;
     IBOutlet id wheelSlider;
-    IBOutlet id window;
     IBOutlet id viewBackGroundColor;
     IBOutlet id alwaysRememberLastCheck;
     IBOutlet id numberOfOpenRecentTextField;

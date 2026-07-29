@@ -65,8 +65,8 @@
 		7696BFDE0C369D6F0081E12E /* COPopUpTextField.m in Sources */ = {isa = PBXBuildFile; fileRef = 7696BFDC0C369D6F0081E12E /* COPopUpTextField.m */; };
 		769762A70D657268009CFDBE /* AccessorySettingView.h in Headers */ = {isa = PBXBuildFile; fileRef = 769762A50D657268009CFDBE /* AccessorySettingView.h */; };
 		769762A80D657268009CFDBE /* AccessorySettingView.m in Sources */ = {isa = PBXBuildFile; fileRef = 769762A60D657268009CFDBE /* AccessorySettingView.m */; };
-		76B19AC307C9C15A00A6FB97 /* Controller.h in Headers */ = {isa = PBXBuildFile; fileRef = 76B19AC107C9C15A00A6FB97 /* Controller.h */; };
-		76B19AC407C9C15A00A6FB97 /* Controller.m in Sources */ = {isa = PBXBuildFile; fileRef = 76B19AC207C9C15A00A6FB97 /* Controller.m */; };
+		76B19AC307C9C15A00A6FB97 /* BookWindowController.h in Headers */ = {isa = PBXBuildFile; fileRef = 76B19AC107C9C15A00A6FB97 /* BookWindowController.h */; };
+		76B19AC407C9C15A00A6FB97 /* BookWindowController.m in Sources */ = {isa = PBXBuildFile; fileRef = 76B19AC207C9C15A00A6FB97 /* BookWindowController.m */; };
 		AC5CB0E7594B62AE2AE92F65 /* AppController.h in Headers */ = {isa = PBXBuildFile; fileRef = EB7DB1493EE5A016E15D1542 /* AppController.h */; };
 		C44CE0C9ACB5A78C3BFB7747 /* AppController.m in Sources */ = {isa = PBXBuildFile; fileRef = 4D3A27A4D5584E25AF4BF513 /* AppController.m */; };
 		76B85F8D099BB20B0077A211 /* NSDictionary_Adding.h in Headers */ = {isa = PBXBuildFile; fileRef = 76B85F8B099BB20B0077A211 /* NSDictionary_Adding.h */; };
@@ -86,7 +86,7 @@
 		76B88ED2097FC1D8006DDB12 /* COPDFImage.m in Sources */ = {isa = PBXBuildFile; fileRef = 76B88ED0097FC1D8006DDB12 /* COPDFImage.m */; };
 		76C6BEA708C2927300377076 /* PreferenceController.h in Headers */ = {isa = PBXBuildFile; fileRef = 76C6BEA508C2927300377076 /* PreferenceController.h */; };
 		76C6BEA808C2927300377076 /* PreferenceController.m in Sources */ = {isa = PBXBuildFile; fileRef = 76C6BEA608C2927300377076 /* PreferenceController.m */; };
-		76CB9075097B9E110009A972 /* Controller_input.m in Sources */ = {isa = PBXBuildFile; fileRef = 76CB9073097B9E100009A972 /* Controller_input.m */; };
+		76CB9075097B9E110009A972 /* BookWindowController_input.m in Sources */ = {isa = PBXBuildFile; fileRef = 76CB9073097B9E100009A972 /* BookWindowController_input.m */; };
 		76D3F8D1082F6A5100B9E97E /* ThumbnailPanel.m in Sources */ = {isa = PBXBuildFile; fileRef = 76D3F8CF082F6A5100B9E97E /* ThumbnailPanel.m */; };
 		76D3F8D2082F6A5100B9E97E /* ThumbnailPanel.h in Headers */ = {isa = PBXBuildFile; fileRef = 76D3F8D0082F6A5100B9E97E /* ThumbnailPanel.h */; };
 		76D5AA440D69E41C0057EF7A /* RemoteControl.h in Headers */ = {isa = PBXBuildFile; fileRef = 76D5AA400D69E41C0057EF7A /* RemoteControl.h */; };
@@ -120,6 +120,7 @@
 		A39D6C3323BEB590002FD912 /* LoupeView.h in Headers */ = {isa = PBXBuildFile; fileRef = A39D6C3223BEB590002FD912 /* LoupeView.h */; };
 		A39D6C3523BEB597002FD912 /* LoupeView.m in Sources */ = {isa = PBXBuildFile; fileRef = A39D6C3423BEB597002FD912 /* LoupeView.m */; };
 		E412D4A223BE1A7400CDEAB5 /* MainMenu.xib in Resources */ = {isa = PBXBuildFile; fileRef = E412D4A023BE1A7400CDEAB5 /* MainMenu.xib */; };
+		MW5BW00000000000000000B1 /* BookWindow.xib in Resources */ = {isa = PBXBuildFile; fileRef = MW5BW00000000000000000V1 /* BookWindow.xib */; };
 		8E4B34E6312F418BB4839E56 /* ThumbnailProvider.m in Sources */ = {isa = PBXBuildFile; fileRef = 07ECD17BB50C4F1FA98B3ABB /* ThumbnailProvider.m */; };
 		48655072BE0C4F3F96E08C8C /* COArchive.m in Sources */ = {isa = PBXBuildFile; fileRef = AC0DE00A1CA7A106A55E7500 /* COArchive.m */; };
 		3EFABE9EC3DA4111A39DF578 /* COZipArchive.m in Sources */ = {isa = PBXBuildFile; fileRef = AC0DE0111CA7A106A55E7500 /* COZipArchive.m */; };
@@ -285,8 +286,8 @@
 		7696BFDC0C369D6F0081E12E /* COPopUpTextField.m */ = {isa = PBXFileReference; fileEncoding = 0; lastKnownFileType = sourcecode.c.objc; path = Sources/COPopUpTextField.m; sourceTree = "<group>"; };
 		769762A50D657268009CFDBE /* AccessorySettingView.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = Sources/AccessorySettingView.h; sourceTree = "<group>"; };
 		769762A60D657268009CFDBE /* AccessorySettingView.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = Sources/AccessorySettingView.m; sourceTree = "<group>"; };
-		76B19AC107C9C15A00A6FB97 /* Controller.h */ = {isa = PBXFileReference; fileEncoding = 0; lastKnownFileType = sourcecode.c.h; path = Sources/Controller.h; sourceTree = "<group>"; };
-		76B19AC207C9C15A00A6FB97 /* Controller.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = Sources/Controller.m; sourceTree = "<group>"; };
+		76B19AC107C9C15A00A6FB97 /* BookWindowController.h */ = {isa = PBXFileReference; fileEncoding = 0; lastKnownFileType = sourcecode.c.h; path = Sources/BookWindowController.h; sourceTree = "<group>"; };
+		76B19AC207C9C15A00A6FB97 /* BookWindowController.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = Sources/BookWindowController.m; sourceTree = "<group>"; };
 		EB7DB1493EE5A016E15D1542 /* AppController.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = Sources/AppController.h; sourceTree = "<group>"; };
 		4D3A27A4D5584E25AF4BF513 /* AppController.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = Sources/AppController.m; sourceTree = "<group>"; };
 		76B85F8B099BB20B0077A211 /* NSDictionary_Adding.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = Sources/NSDictionary_Adding.h; sourceTree = "<group>"; };
@@ -306,7 +307,7 @@
 		76B88ED0097FC1D8006DDB12 /* COPDFImage.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = Sources/COPDFImage.m; sourceTree = "<group>"; };
 		76C6BEA508C2927300377076 /* PreferenceController.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = Sources/PreferenceController.h; sourceTree = "<group>"; };
 		76C6BEA608C2927300377076 /* PreferenceController.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = Sources/PreferenceController.m; sourceTree = "<group>"; };
-		76CB9073097B9E100009A972 /* Controller_input.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = Sources/Controller_input.m; sourceTree = "<group>"; };
+		76CB9073097B9E100009A972 /* BookWindowController_input.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = Sources/BookWindowController_input.m; sourceTree = "<group>"; };
 		76D3F8CF082F6A5100B9E97E /* ThumbnailPanel.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = Sources/ThumbnailPanel.m; sourceTree = "<group>"; };
 		76D3F8D0082F6A5100B9E97E /* ThumbnailPanel.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = Sources/ThumbnailPanel.h; sourceTree = "<group>"; };
 		76D5AA3D0D69E3FC0057EF7A /* MultiClickRemoteBehavior.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = Sources/MultiClickRemoteBehavior.h; sourceTree = "<group>"; };
@@ -343,6 +344,8 @@
 		A39D6C8823BF85C4002FD912 /* ja */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = ja; path = Resources/ja.lproj/Localizable.strings; sourceTree = "<group>"; };
 		A39D6C8923BF85D6002FD912 /* ja */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = ja; path = Resources/ja.lproj/MainMenu.strings; sourceTree = "<group>"; };
 		A39D6C8A23BF8667002FD912 /* Base */ = {isa = PBXFileReference; lastKnownFileType = file.xib; name = Base; path = Resources/Base.lproj/MainMenu.xib; sourceTree = "<group>"; };
+		MW5BW00000000000000000R1 /* Base */ = {isa = PBXFileReference; lastKnownFileType = file.xib; name = Base; path = Resources/Base.lproj/BookWindow.xib; sourceTree = "<group>"; };
+		MW5BW00000000000000000R2 /* ja */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = ja; path = Resources/ja.lproj/BookWindow.strings; sourceTree = "<group>"; };
 		4C480DEC52894A9BBE3FB769 /* ThumbnailProvider.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = ThumbnailProvider.h; sourceTree = "<group>"; };
 		07ECD17BB50C4F1FA98B3ABB /* ThumbnailProvider.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = ThumbnailProvider.m; sourceTree = "<group>"; };
 		539E48837DCD4FEEBFDDBEC0 /* Info.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
@@ -497,6 +500,7 @@
 			children = (
 				AC0DE0011CA7A106A55E7500 /* Assets.xcassets */,
 				E412D4A023BE1A7400CDEAB5 /* MainMenu.xib */,
+				MW5BW00000000000000000V1 /* BookWindow.xib */,
 				76181B7D08BE17BC000A527E /* Credits.rtf */,
 				089C165DFE840E0CC02AAC07 /* InfoPlist.strings */,
 				8D1107310486CEB800E47090 /* Info.plist */,
@@ -634,9 +638,9 @@
 		76CB9167097BA6750009A972 /* mainController */ = {
 			isa = PBXGroup;
 			children = (
-				76B19AC107C9C15A00A6FB97 /* Controller.h */,
-				76B19AC207C9C15A00A6FB97 /* Controller.m */,
-				76CB9073097B9E100009A972 /* Controller_input.m */,
+				76B19AC107C9C15A00A6FB97 /* BookWindowController.h */,
+				76B19AC207C9C15A00A6FB97 /* BookWindowController.m */,
+				76CB9073097B9E100009A972 /* BookWindowController_input.m */,
 				EB7DB1493EE5A016E15D1542 /* AppController.h */,
 				4D3A27A4D5584E25AF4BF513 /* AppController.m */,
 			);
@@ -762,7 +766,7 @@
 				76F0929A07DBF79E00643E4F /* BookmarkController.h in Headers */,
 				MW5AB00000000000000000H1 /* AllBookmarkController.h in Headers */,
 				76EA136607E3FC39008EB0E1 /* BookmarkPanel.h in Headers */,
-				76B19AC307C9C15A00A6FB97 /* Controller.h in Headers */,
+				76B19AC307C9C15A00A6FB97 /* BookWindowController.h in Headers */,
 				AC5CB0E7594B62AE2AE92F65 /* AppController.h in Headers */,
 				7601F5F807D5508700457A5B /* CustomImageView.h in Headers */,
 				768E1DEC07CC6B740023AF61 /* CustomWindow.h in Headers */,
@@ -900,6 +904,7 @@
 				76B8606C099BEF0F0077A211 /* coo_zip.icns in Resources */,
 				76B8606D099BEF0F0077A211 /* coo_cbr.icns in Resources */,
 				E412D4A223BE1A7400CDEAB5 /* MainMenu.xib in Resources */,
+				MW5BW00000000000000000B1 /* BookWindow.xib in Resources */,
 				76B8606E099BEF0F0077A211 /* coo_tiff.icns in Resources */,
 				76B86070099BEF0F0077A211 /* coo_gif.icns in Resources */,
 				76B86071099BEF0F0077A211 /* coo_rar.icns in Resources */,
@@ -942,7 +947,7 @@
 				AC0DE0171CA7A106A55E7500 /* CORarArchive.m in Sources */,
 				AC0DE01B1CA7A106A55E7500 /* CORarHeaderIndex.m in Sources */,
 				AC0DE01F1CA7A106A55E7500 /* COCoverExtractor.m in Sources */,
-				76B19AC407C9C15A00A6FB97 /* Controller.m in Sources */,
+				76B19AC407C9C15A00A6FB97 /* BookWindowController.m in Sources */,
 				C44CE0C9ACB5A78C3BFB7747 /* AppController.m in Sources */,
 				768E1DED07CC6B740023AF61 /* CustomWindow.m in Sources */,
 				7601F5F907D5508700457A5B /* CustomImageView.m in Sources */,
@@ -956,7 +961,7 @@
 				A39D6C3523BEB597002FD912 /* LoupeView.m in Sources */,
 				76C6BEA808C2927300377076 /* PreferenceController.m in Sources */,
 				76344C0B09595C74003761DA /* COImageLoader.m in Sources */,
-				76CB9075097B9E110009A972 /* Controller_input.m in Sources */,
+				76CB9075097B9E110009A972 /* BookWindowController_input.m in Sources */,
 				76B88ED2097FC1D8006DDB12 /* COPDFImage.m in Sources */,
 				7655CDD009806A8F00465FD1 /* COPDFImageRep.m in Sources */,
 				766DE03909936CF5004DD915 /* COColorPopUpButton.m in Sources */,
@@ -1033,6 +1038,15 @@
 				A39D6C8823BF85C4002FD912 /* ja */,
 			);
 			name = Localizable.strings;
+			sourceTree = "<group>";
+		};
+		MW5BW00000000000000000V1 /* BookWindow.xib */ = {
+			isa = PBXVariantGroup;
+			children = (
+				MW5BW00000000000000000R2 /* ja */,
+				MW5BW00000000000000000R1 /* Base */,
+			);
+			name = BookWindow.xib;
 			sourceTree = "<group>";
 		};
 		E412D4A023BE1A7400CDEAB5 /* MainMenu.xib */ = {

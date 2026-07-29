@@ -9,7 +9,7 @@
 #import "AccessorySettingView.h"
 #import "NSBezierPath_Adding.h"
 #import "NSAttributedString_Adding.h"
-#import "Controller.h"
+#import "BookWindowController.h"
 
 
 @implementation AccessorySettingView

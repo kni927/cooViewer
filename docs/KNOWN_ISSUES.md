@@ -828,3 +828,56 @@ fixes, to be decided when the arc reaches it:
 The MW-5 split preserved both branches as they are; the app-wide half now
 lives in `AllBookmarkController` and was verified by temporarily forcing
 `-editBookmark:` down the no-book branch in a throwaway build.
+
+---
+
+## 25. Preferences ▸ OK Crashes the App When a Book Is Open (pre-existing, over-release)
+
+Found 2026-07-29 during MW-5 on-device verification. **Pre-existing — not
+introduced by MW-5.** Bisected by building and running three commits with the
+same steps:
+
+| build | result |
+|---|---|
+| `3d88521` (MW-4, last pushed) | crashes |
+| `2cacdc2` (MW-5 2/5) | crashes |
+| MW-5 3/5 (`BookWindow.xib`) | crashes |
+
+**Reproduction** (100% so far):
+
+1. Launch, open any book (a folder of images is enough).
+2. cooViewer ▸ Settings… (⌘,).
+3. Press **OK** (Cancel is fine; the crash is specific to OK).
+
+The app disappears with no crash dialog and no `.ips` report in
+`~/Library/Logs/DiagnosticReports`, which is why it can look like a clean
+quit. With **no** book open, OK does not crash.
+
+**Evidence**
+
+- Under `lldb`: `EXC_BAD_ACCESS (code=1)` on the main thread in
+  `objc_msgSend`, with a garbage receiver — the classic MRC
+  message-to-freed-object signature.
+- With `NSZombieEnabled=YES`:
+  `*** -[CFString copyWithZone:]: message sent to deallocated instance`.
+  So the over-released object is an `NSString`, and it is copied (not just
+  retained) by whatever touches it after the free.
+- Immediately before the crash the log shows
+  `-[NSWindow makeKeyWindow] called on <AccessoryWindow …> which returned NO
+  from -[NSWindow canBecomeKeyWindow]`, i.e. the
+  `[[NSApp keyWindow] makeKeyAndOrderFront:self]` line in the DIALOG_OK branch
+  of `-[PreferenceController preferences]` resolved `keyWindow` to the page-bar
+  child window. That is the last identifiable step before the fault.
+
+**Where to look.** The OK branch runs a long block of
+`[defaults setObject:…]` calls, releases the six key/mouse arrays, then posts
+`PreferencesDidChange`, which reaches
+`-[BookWindowController preferencesDidChange:]` → `-setPreferences`. The
+"book open" precondition points at `-setPreferences` (or something it drives,
+such as the page-bar/accessory rebuild), not at the defaults writing, since
+the no-book case takes the same writing path and survives. A string ivar
+released without a matching retain is the shape to look for.
+
+Not fixed in MW-5, which is a no-logic-change task by definition. It should be
+its own task; `NSZombieEnabled` plus a breakpoint on the zombie message will
+name the string in one run.

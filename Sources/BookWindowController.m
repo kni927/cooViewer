@@ -1,4 +1,4 @@
-#import "Controller.h"
+#import "BookWindowController.h"
 #import "AppController.h"	/* appController outlet accessors (MW-3) */
 #import "CustomWindow.h"
 #import "BookmarkController.h"
@@ -7,9 +7,9 @@
 #import "FullImagePanel.h"
 #import "RemoteControl.h"	/* kRemoteButton* constants used by the 1.2b14 migration block below */
 
-@implementation Controller
-static const int DIALOG_OK		= 128;
-static const int DIALOG_CANCEL	= 129;
+@implementation BookWindowController
+/* MW-5: DIALOG_OK/DIALOG_CANCEL went to AppController with -sheetOk:/
+   -sheetCancel:, their only users here. */
 
 /* MW-3 / KNOWN_ISSUES #19 (narrow fix). registerDefaults: and the
  * key/mouse-array "set default if absent" calls used to run in
@@ -27,7 +27,7 @@ static const int DIALOG_CANCEL	= 129;
  * migration bug. */
 + (void)initialize
 {
-	if (self != [Controller class]) return;
+	if (self != [BookWindowController class]) return;
 
 	NSUserDefaults *defaults = [NSUserDefaults standardUserDefaults];
 	NSMutableDictionary *appDefault = [NSMutableDictionary dictionary];
@@ -80,24 +80,24 @@ static const int DIALOG_CANCEL	= 129;
  NSLog(@"%f",elapsed);
  */
 
-/* MW-5 (item 3). The nib connects its "window" outlet through this setter.
-   Assignment is deliberately weak, exactly as the former `IBOutlet id window`
-   ivar was: the window is a nib top-level object and its lifetime is the
-   nib's, not this object's. When Controller becomes an NSWindowController
-   subclass these two methods and the _window ivar go away and the
-   superclass's storage takes over. */
-- (NSWindow *)window
+/* Set before the nib is loaded (see -[AppController awakeFromNib]), because
+   -windowDidLoad below reads it. */
+- (void)setAppController:(id)anAppController
 {
-	return _window;
+	appController = anAppController;
 }
 
-- (void)setWindow:(NSWindow *)aWindow
+/* MW-5 item 4. This body was -awakeFromNib until BookWindowController became
+   the File's Owner of its own nib. -windowDidLoad is the documented
+   NSWindowController hook: it runs once, after the whole of BookWindow.xib is
+   instantiated and connected, so the pushes into imageView / thumController /
+   fullImagePanel below no longer race those objects' own -awakeFromNib.
+   AppKit does not order -awakeFromNib between nib objects — the same hazard
+   as KNOWN_ISSUES #19. */
+- (void)windowDidLoad
 {
-	_window = aWindow;
-}
+	[super windowDidLoad];
 
--(void)awakeFromNib
-{	
 	threadCount = 0;
 	imageLoader = nil;
 	wheelUpTimer = nil;
@@ -1279,9 +1279,9 @@ static const int DIALOG_CANCEL	= 129;
 	return ([entered length] > 0) ? entered : nil;
 }
 
-/* shared modal helpers (used by the Preferences window's OK/Cancel) */
-- (IBAction)sheetOk:(id)sender{[NSApp stopModalWithCode:DIALOG_OK];}
-- (IBAction)sheetCancel:(id)sender{[NSApp stopModalWithCode:DIALOG_CANCEL];}
+/* MW-5: -sheetOk:/-sheetCancel: moved to AppController. Their only users are
+   the Preferences window's OK/Cancel buttons, and Preferences stays in
+   MainMenu.xib while this class became the File's Owner of BookWindow.xib. */
 
 
 #pragma mark dock
@@ -1642,7 +1642,7 @@ static const int DIALOG_CANCEL	= 129;
 #pragma mark preferences
 
 /* PreferenceController posts this (MW-3) instead of calling
-   -[Controller setPreferences] directly. */
+   -[BookWindowController setPreferences] directly. */
 - (void)preferencesDidChange:(NSNotification *)notification
 {
 	[self setPreferences];
@@ -2605,6 +2605,15 @@ static const int DIALOG_CANCEL	= 129;
     [editor makeKeyAndOrderFront:nil];
 }
 
+/* MW-5: FilterPanelController moved into BookWindow.xib, so the Filter menu
+   item in MainMenu.xib cannot target it directly any more. The item targets
+   First Responder and lands here, on the window's own controller, which
+   forwards to that window's panel. */
+- (IBAction)openFilterPanel:(id)sender
+{
+	[filterPanelController openFilterPanel:sender];
+}
+
 #pragma mark -
 
 
@@ -3046,7 +3055,7 @@ static const int DIALOG_CANCEL	= 129;
 
 @end
 
-@implementation Controller(private)
+@implementation BookWindowController(private)
 -(void)setCurrentBookPath:(NSString *)new
 {	
 	currentBookPath = [new retain];

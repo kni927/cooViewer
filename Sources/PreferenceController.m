@@ -1,6 +1,7 @@
 #import "PreferenceController.h"
 #import "COColorPopUpButton.h"
-#import "Controller.h"
+#import "AppController.h"
+#import "BookWindowController.h"
 #import "RemoteControl.h"	/* kRemoteButton* constants used by the default key/mouse array builders */
 #import "AccessorySettingView.h"
 #import "NSDictionary_Adding.h"
@@ -1276,7 +1277,7 @@ static const int DIALOG_CANCEL	= 129;
 	[slideshowSlider setFloatValue:sliderValue];
 	[slideshowTextField setStringValue:[NSString stringWithFormat:@"%.1f", sliderValue]];
 	
-	if ([window isVisible]) {
+	if ([[[appController controller] window] isVisible]) {
 		[preferences setLevel:NSModalPanelWindowLevel];
 	}
 	int result;
@@ -1581,7 +1582,7 @@ static const int DIALOG_CANCEL	= 129;
 		currentMouseArray = nil;
 		
 		
-		if ([window isVisible]) {
+		if ([[[appController controller] window] isVisible]) {
 			[[NSApp keyWindow] makeKeyAndOrderFront:self];
 		}
 		/* MW-3: broadcast instead of reaching into one window controller
@@ -1876,7 +1877,7 @@ static const int DIALOG_CANCEL	= 129;
 		id tempKey;
 		
 		if (tempKey = [currnetBookSettingEnu nextObject]) {
-			temp = [controller pathFromAliasData:[[currentBookSettingDic objectForKey:tempKey] objectForKey:@"alias"]];
+			temp = [[appController controller] pathFromAliasData:[[currentBookSettingDic objectForKey:tempKey] objectForKey:@"alias"]];
 			if ([[NSFileManager defaultManager] fileExistsAtPath:temp]) {
 				[newtBookSettingDic setObject:[currentBookSettingDic objectForKey:tempKey] forKey:tempKey];
 			}
@@ -1884,7 +1885,7 @@ static const int DIALOG_CANCEL	= 129;
 	} else {
 		id object;
 		if (object = [currentLastPageEnu nextObject]) {
-			temp = [controller pathFromAliasData:[object objectForKey:@"alias"]];
+			temp = [[appController controller] pathFromAliasData:[object objectForKey:@"alias"]];
 			if ([[NSFileManager defaultManager] fileExistsAtPath:temp]) {
 				[newtLastPageArray addObject:object];
 			}

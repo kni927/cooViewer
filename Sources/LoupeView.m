@@ -10,7 +10,7 @@
 
 @implementation LoupeView
 
--(void)setTargetController:(Controller *)c
+-(void)setTargetController:(BookWindowController *)c
 {
     targetController = c;
 }

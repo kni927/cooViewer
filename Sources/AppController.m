@@ -1,17 +1,37 @@
 #import "AppController.h"
-#import "Controller.h"
+#import "BookWindowController.h"
 #import "PreferenceController.h"
 
 @implementation AppController
 
-/* Same timing as before MW-3: Controller's own -awakeFromNib called
+static const int DIALOG_OK		= 128;
+static const int DIALOG_CANCEL	= 129;
+
+/* Same timing as before MW-3: BookWindowController's own -awakeFromNib called
    -setupRemoteControl as its last step, during nib load rather than at
    applicationDidFinishLaunching: time. AppController is a nib object too
    now (wired as NSApplication's delegate), so its own -awakeFromNib
    preserves that timing. */
 - (void)awakeFromNib
 {
+	/* MW-5 item 6: exactly one BookWindowController, created here rather
+	   than instantiated from MainMenu.xib. -setAppController: has to happen
+	   before the nib loads because -windowDidLoad reads it, and the -window
+	   call then forces BookWindow.xib to load now — the same launch-time
+	   moment at which MainMenu.xib used to instantiate this object and run
+	   its -awakeFromNib. The window itself is still not shown until a book
+	   is opened. */
+	controller = [[BookWindowController alloc] initWithWindowNibName:@"BookWindow"];
+	[controller setAppController:self];
+	[controller window];
+
 	[self setupRemoteControl];
+}
+
+- (void)dealloc
+{
+	[controller release];
+	[super dealloc];
 }
 
 #pragma mark NSApplicationDelegate
@@ -44,7 +64,7 @@
 	   the app regains focus hits the parent folder constantly and can trigger
 	   macOS folder-access permission prompts repeatedly. It's now run lazily,
 	   right before the "Open from same folder" submenu is actually shown —
-	   see -[Controller menuNeedsUpdate:]. */
+	   see -[BookWindowController menuNeedsUpdate:]. */
 }
 
 - (BOOL)application:(NSApplication *)theApplication openFile:(NSString *)filename
@@ -95,10 +115,10 @@
 
 #pragma mark action
 
-/* Moved from Controller_input.m together with setupRemoteControl (MW-3
+/* Moved from BookWindowController_input.m together with setupRemoteControl (MW-3
    finding #4). The body still needs window-side state (the window's
    visible/key state, the thumbnail panel, and the actual key dispatch in
-   -timeredRemoteButtonEvent:), which stays on Controller and is reached
+   -timeredRemoteButtonEvent:), which stays on BookWindowController and is reached
    through it — there is exactly one controller to route to until MW-7. */
 - (void)remoteButton:(RemoteControlEventIdentifier)buttonIdentifier pressedDown:(BOOL)pressedDown clickCount:(unsigned int)clickCount
 {
@@ -203,8 +223,8 @@
 }
 
 #pragma mark menu outlet accessors
-/* Builder methods for these menus stay on Controller (they read per-window
-   book state); Controller reaches the items through these accessors. */
+/* Builder methods for these menus stay on BookWindowController (they read per-window
+   book state); BookWindowController reaches the items through these accessors. */
 
 - (id)openRecentMenuItem
 {
@@ -235,19 +255,28 @@
 	return allBookmarkController;
 }
 
+#pragma mark shared modal helpers
+
+/* MW-5: moved here from BookWindowController. The only users are the
+   Preferences window's OK/Cancel buttons; Preferences is app-wide and stays
+   in MainMenu.xib, while BookWindowController became the File's Owner of
+   BookWindow.xib. Codes unchanged. */
+- (IBAction)sheetOk:(id)sender{[NSApp stopModalWithCode:DIALOG_OK];}
+- (IBAction)sheetCancel:(id)sender{[NSApp stopModalWithCode:DIALOG_CANCEL];}
+
 #pragma mark validation
 
-/* MW-4: this used to forward wholesale to -[Controller validateMenuItem:],
+/* MW-4: this used to forward wholesale to -[BookWindowController validateMenuItem:],
  * which held all 44 title branches (including the AppController items,
- * since everything but Controller itself was target="484" back then). Now
+ * since everything but BookWindowController itself was target="484" back then). Now
  * that the render-path/book actions target First Responder and resolve to
- * Controller via the window's delegate, Controller's method only needs to
+ * BookWindowController via the window's delegate, BookWindowController's method only needs to
  * validate items still explicitly targeted at it (the RightMenu
  * contextAction/sheet items) plus whatever the responder chain search finds
  * it for. This method now only needs to handle AppController's own items:
  * "Open the last page" keeps its original per-window check (moved to
- * -[Controller validateOpenTheLastPageMenuItem]); Open/Preferences/Clear
- * Recent had no special-case branch before (they fell through Controller's
+ * -[BookWindowController validateOpenTheLastPageMenuItem]); Open/Preferences/Clear
+ * Recent had no special-case branch before (they fell through BookWindowController's
  * default) and still don't. */
 - (BOOL)validateMenuItem:(NSMenuItem *)anItem
 {
@@ -258,7 +287,7 @@
 }
 
 #pragma mark persistence (MW-3 cont.)
-/* Moved bodily from Controller.m, unchanged apart from -pathFromAliasData:/
+/* Moved bodily from BookWindowController.m, unchanged apart from -pathFromAliasData:/
    -aliasDataFromPath: calls now going through the `controller` outlet
    (those helpers stayed window-side). */
 
@@ -542,7 +571,7 @@
    -pathFromAliasData: comparison instead of -searchFromRecentItems:
    (temppath+alias match) — see the divergence note in AppController.h.
    Kept as an independent, faithful port of
-   -[Controller windowWillClose:]'s original body rather than reconciled
+   -[BookWindowController windowWillClose:]'s original body rather than reconciled
    with -recordClosingBookSettings:...'s. */
 - (void)recordBookSettingsOnWindowClose:(NSString *)path
                                     name:(NSString *)name

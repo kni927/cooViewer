@@ -1,5 +1,5 @@
 #import "ThumbnailController.h"
-#import "Controller.h"
+#import "BookWindowController.h"
 #import "ThumbnailMatrix.h"
 
 

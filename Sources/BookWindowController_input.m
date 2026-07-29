@@ -1,10 +1,10 @@
-#import "Controller.h"
+#import "BookWindowController.h"
 #import "AppController.h"	/* appController outlet accessors (MW-3) */
 #import "CustomWindow.h"
 #import "BookmarkController.h"
 #import "CustomImageView.h"
 #import "FullImagePanel.h"
-@implementation Controller (Input)
+@implementation BookWindowController (Input)
 
 #pragma mark action
 /* -remoteButton:pressedDown:clickCount: and the appleRemoteHoldDown state it
@@ -2839,7 +2839,7 @@
 
 /* dontSleepTimer moved to AppController (MW-3): it retained one controller
    via target:self and was never rebuilt, which only worked because
-   Controller used to be a nib singleton that is never deallocated. It must
+   BookWindowController used to be a nib singleton that is never deallocated. It must
    not be tied to one window controller's lifetime. */
 
 -(IBAction)slideshow:(id)sender

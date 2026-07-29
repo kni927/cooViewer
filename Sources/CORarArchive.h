@@ -58,7 +58,7 @@
 //    whichever single thread initializes the object, exactly like the
 //    base COArchive full-extraction path. Since MW-1 that is normally
 //    a background thread, not the main thread: the host runs the read
-//    off-main behind a progress sheet (see -[Controller
+//    off-main behind a progress sheet (see -[BookWindowController
 //    runArchiveLoadNamed:usingBlock:]). This is safe because the pass
 //    is still confined to one thread — what must never happen is two
 //    threads touching the stream at once.

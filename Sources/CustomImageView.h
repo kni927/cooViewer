@@ -1,5 +1,5 @@
 #import <Cocoa/Cocoa.h>
-#import "Controller.h"
+#import "BookWindowController.h"
 #import "LoupeView.h"
 
 @interface CustomImageView : NSImageView
@@ -37,7 +37,7 @@
 	BOOL rightPage;
 	
 	//id target; 
-	Controller *target;
+	BookWindowController *target;
 	SEL selector;
 	double time;
 	NSTimer *timer;

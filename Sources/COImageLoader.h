@@ -61,7 +61,7 @@
 - (void)setInTempDir:(BOOL)b;
 
 /* Password accepted for an encrypted ZIP, or nil. Set during opening by
- * the password prompt (see -[Controller askArchivePassword:wrongPassword:]);
+ * the password prompt (see -[BookWindowController askArchivePassword:wrongPassword:]);
  * kept so nested archives and reopens can reuse it. */
 - (NSString *)password;
 /*

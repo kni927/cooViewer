@@ -12,38 +12,6 @@
         </customObject>
         <customObject id="-1" userLabel="First Responder" customClass="FirstResponder"/>
         <customObject id="-3" userLabel="Application" customClass="NSObject"/>
-        <window title="Viewer" allowsToolTipsWhenApplicationIsInactive="NO" autorecalculatesKeyViewLoop="NO" releasedWhenClosed="NO" visibleAtLaunch="NO" animationBehavior="default" id="21" userLabel="Window" customClass="CustomWindow">
-            <windowStyleMask key="styleMask" titled="YES" closable="YES" miniaturizable="YES" resizable="YES"/>
-            <windowPositionMask key="initialPositionMask" leftStrut="YES" rightStrut="YES" topStrut="YES" bottomStrut="YES"/>
-            <rect key="contentRect" x="103" y="366" width="480" height="360"/>
-            <rect key="screenRect" x="0.0" y="0.0" width="2560" height="1415"/>
-            <view key="contentView" id="2">
-                <rect key="frame" x="0.0" y="0.0" width="480" height="360"/>
-                <autoresizingMask key="autoresizingMask"/>
-                <subviews>
-                    <customView fixedFrame="YES" translatesAutoresizingMaskIntoConstraints="NO" id="263" customClass="CustomImageView">
-                        <rect key="frame" x="0.0" y="0.0" width="480" height="360"/>
-                        <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
-                        <connections>
-                            <outlet property="accessoryView" destination="2811" id="2815"/>
-                            <outlet property="accessoryWindow" destination="2809" id="2812"/>
-                            <outlet property="menu" destination="791" id="841"/>
-                        </connections>
-                    </customView>
-                    <progressIndicator horizontalHuggingPriority="750" verticalHuggingPriority="750" fixedFrame="YES" maxValue="100" displayedWhenStopped="NO" bezeled="NO" indeterminate="YES" style="spinning" translatesAutoresizingMaskIntoConstraints="NO" id="2051">
-                        <rect key="frame" x="224" y="164" width="32" height="32"/>
-                        <autoresizingMask key="autoresizingMask" flexibleMinX="YES" flexibleMaxX="YES" flexibleMinY="YES" flexibleMaxY="YES"/>
-                    </progressIndicator>
-                </subviews>
-            </view>
-            <connections>
-                <outlet property="controller" destination="484" id="2860"/>
-                <outlet property="delegate" destination="484" id="502"/>
-                <outlet property="target" destination="484" id="1014"/>
-                <outlet property="view" destination="263" id="2791"/>
-            </connections>
-            <point key="canvasLocation" x="140" y="147"/>
-        </window>
         <menu title="MainMenu" systemMenu="main" id="29" userLabel="MainMenu">
             <items>
                 <menuItem title="cooViewer" id="56">
@@ -327,7 +295,7 @@
                                 <modifierMask key="keyEquivalentModifierMask" shift="YES" command="YES"/>
                                 <connections>
                                     <accessibilityConnection property="link" destination="1666" id="IB4-9B-nE9"/>
-                                    <action selector="openFilterPanel:" target="7Ik-II-pge" id="MAU-Fs-HTe"/>
+                                    <action selector="openFilterPanel:" target="-1" id="MAU-Fs-HTe"/>
                                 </connections>
                             </menuItem>
                         </items>
@@ -1804,7 +1772,7 @@ go to the last page always.</string>
                             <font key="font" metaFont="system"/>
                         </buttonCell>
                         <connections>
-                            <action selector="sheetOk:" target="484" id="913"/>
+                            <action selector="sheetOk:" target="6001" id="913"/>
                         </connections>
                     </button>
                     <button verticalHuggingPriority="750" fixedFrame="YES" translatesAutoresizingMaskIntoConstraints="NO" id="883">
@@ -1818,31 +1786,18 @@ Gw
 </string>
                         </buttonCell>
                         <connections>
-                            <action selector="sheetCancel:" target="484" id="914"/>
+                            <action selector="sheetCancel:" target="6001" id="914"/>
                         </connections>
                     </button>
                 </subviews>
             </view>
             <point key="canvasLocation" x="141.5" y="715"/>
         </window>
-        <customObject id="484" userLabel="Controller" customClass="Controller">
-            <connections>
-                <outlet property="appController" destination="6001" id="6003"/>
-                <outlet property="bookmarkController" destination="617" id="1491"/>
-                <outlet property="fullImagePanel" destination="772" id="775"/>
-                <outlet property="fullImageView" destination="777" id="779"/>
-                <outlet property="imageView" destination="263" id="504"/>
-                <outlet property="progressIndicator" destination="2051" id="2052"/>
-                <outlet property="thumController" destination="1113" id="1117"/>
-                <outlet property="window" destination="21" id="495"/>
-            </connections>
-        </customObject>
         <customObject id="6001" userLabel="AppController" customClass="AppController">
             <!-- MW-3: the application delegate, split out of Controller. -->
             <connections>
                 <outlet property="allBookmarkController" destination="MW5-ab-ctl" id="MW5-ab-c7"/>
                 <outlet property="bookmarkMenuItem" destination="607" id="625"/>
-                <outlet property="controller" destination="484" id="6002"/>
                 <outlet property="openRecentMenuItem" destination="2024" id="2045"/>
                 <outlet property="openSameFolderMenuItem" destination="846" id="847"/>
                 <outlet property="prefController" destination="1673" id="1675"/>
@@ -1962,156 +1917,6 @@ Gw
             </view>
             <point key="canvasLocation" x="141.5" y="1280.5"/>
         </window>
-        <window title="Bookmark" allowsToolTipsWhenApplicationIsInactive="NO" autorecalculatesKeyViewLoop="NO" hidesOnDeactivate="YES" releasedWhenClosed="NO" visibleAtLaunch="NO" animationBehavior="default" id="561" userLabel="BookmarkPanel" customClass="BookmarkPanel">
-            <windowStyleMask key="styleMask" titled="YES" resizable="YES"/>
-            <windowPositionMask key="initialPositionMask" leftStrut="YES" rightStrut="YES" topStrut="YES" bottomStrut="YES"/>
-            <rect key="contentRect" x="422" y="173" width="581" height="379"/>
-            <rect key="screenRect" x="0.0" y="0.0" width="2560" height="1415"/>
-            <view key="contentView" id="562">
-                <rect key="frame" x="0.0" y="0.0" width="581" height="379"/>
-                <autoresizingMask key="autoresizingMask"/>
-                <subviews>
-                    <scrollView fixedFrame="YES" horizontalLineScroll="19" horizontalPageScroll="10" verticalLineScroll="19" verticalPageScroll="10" usesPredominantAxisScrolling="NO" translatesAutoresizingMaskIntoConstraints="NO" id="611">
-                        <rect key="frame" x="20" y="50" width="541" height="279"/>
-                        <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
-                        <clipView key="contentView" id="Cu5-Wy-5Gx">
-                            <rect key="frame" x="1" y="1" width="528" height="266"/>
-                            <autoresizingMask key="autoresizingMask"/>
-                            <subviews>
-                                <tableView verticalHuggingPriority="750" allowsExpansionToolTips="YES" columnAutoresizingStyle="firstColumnOnly" alternatingRowBackgroundColors="YES" columnReordering="NO" autosaveColumns="NO" headerView="4441" id="612">
-                                    <rect key="frame" x="0.0" y="0.0" width="528" height="243"/>
-                                    <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
-                                    <size key="intercellSpacing" width="3" height="2"/>
-                                    <color key="backgroundColor" red="1" green="1" blue="1" alpha="1" colorSpace="calibratedRGB"/>
-                                    <color key="gridColor" name="gridColor" catalog="System" colorSpace="catalog"/>
-                                    <tableColumns>
-                                        <tableColumn identifier="name" width="470" minWidth="40" maxWidth="1000" id="610">
-                                            <tableHeaderCell key="headerCell" lineBreakMode="truncatingTail" borderStyle="border" alignment="left" title="Name">
-                                                <color key="textColor" name="headerTextColor" catalog="System" colorSpace="catalog"/>
-                                                <color key="backgroundColor" white="0.33333299" alpha="1" colorSpace="calibratedWhite"/>
-                                            </tableHeaderCell>
-                                            <textFieldCell key="dataCell" selectable="YES" editable="YES" sendsActionOnEndEditing="YES" alignment="left" id="651">
-                                                <font key="font" metaFont="cellTitle"/>
-                                                <color key="textColor" name="controlTextColor" catalog="System" colorSpace="catalog"/>
-                                                <color key="backgroundColor" name="textBackgroundColor" catalog="System" colorSpace="catalog"/>
-                                            </textFieldCell>
-                                            <tableColumnResizingMask key="resizingMask" resizeWithTable="YES" userResizable="YES"/>
-                                        </tableColumn>
-                                        <tableColumn identifier="page" width="43" minWidth="33.141998291015625" maxWidth="1000" id="613">
-                                            <tableHeaderCell key="headerCell" lineBreakMode="truncatingTail" borderStyle="border" alignment="left" title="Page">
-                                                <color key="textColor" name="headerTextColor" catalog="System" colorSpace="catalog"/>
-                                                <color key="backgroundColor" white="0.33333299" alpha="1" colorSpace="calibratedWhite"/>
-                                            </tableHeaderCell>
-                                            <textFieldCell key="dataCell" selectable="YES" editable="YES" sendsActionOnEndEditing="YES" alignment="right" id="652">
-                                                <numberFormatter key="formatter" formatterBehavior="10_0" positiveFormat="0" negativeFormat="0" hasThousandSeparators="NO" thousandSeparator="," id="1662">
-                                                    <attributedString key="attributedStringForZero">
-                                                        <fragment content="0"/>
-                                                    </attributedString>
-                                                    <decimal key="minimum" value="NaN"/>
-                                                    <decimal key="maximum" value="NaN"/>
-                                                </numberFormatter>
-                                                <font key="font" metaFont="cellTitle"/>
-                                                <color key="textColor" name="controlTextColor" catalog="System" colorSpace="catalog"/>
-                                                <color key="backgroundColor" name="textBackgroundColor" catalog="System" colorSpace="catalog"/>
-                                            </textFieldCell>
-                                            <tableColumnResizingMask key="resizingMask" resizeWithTable="YES" userResizable="YES"/>
-                                        </tableColumn>
-                                    </tableColumns>
-                                    <connections>
-                                        <outlet property="menu" destination="638" id="643"/>
-                                    </connections>
-                                </tableView>
-                            </subviews>
-                        </clipView>
-                        <scroller key="horizontalScroller" wantsLayer="YES" verticalHuggingPriority="750" controlSize="small" horizontal="YES" id="4440">
-                            <rect key="frame" x="1" y="267" width="528" height="11"/>
-                            <autoresizingMask key="autoresizingMask"/>
-                        </scroller>
-                        <scroller key="verticalScroller" wantsLayer="YES" verticalHuggingPriority="750" controlSize="small" horizontal="NO" id="4442">
-                            <rect key="frame" x="529" y="24" width="11" height="243"/>
-                            <autoresizingMask key="autoresizingMask"/>
-                        </scroller>
-                        <tableHeaderView key="headerView" id="4441">
-                            <rect key="frame" x="0.0" y="0.0" width="528" height="23"/>
-                            <autoresizingMask key="autoresizingMask"/>
-                        </tableHeaderView>
-                    </scrollView>
-                    <button verticalHuggingPriority="750" fixedFrame="YES" translatesAutoresizingMaskIntoConstraints="NO" id="614">
-                        <rect key="frame" x="489" y="12" width="78" height="32"/>
-                        <autoresizingMask key="autoresizingMask" flexibleMinX="YES" flexibleMaxY="YES"/>
-                        <buttonCell key="cell" type="push" title="OK" bezelStyle="rounded" alignment="center" borderStyle="border" inset="2" id="4325">
-                            <behavior key="behavior" pushIn="YES" lightByBackground="YES" lightByGray="YES"/>
-                            <font key="font" metaFont="system"/>
-                            <string key="keyEquivalent" base64-UTF8="YES">
-DQ
-</string>
-                        </buttonCell>
-                        <connections>
-                            <action selector="ok:" target="617" id="622"/>
-                        </connections>
-                    </button>
-                    <button verticalHuggingPriority="750" fixedFrame="YES" translatesAutoresizingMaskIntoConstraints="NO" id="615">
-                        <rect key="frame" x="384" y="12" width="105" height="32"/>
-                        <autoresizingMask key="autoresizingMask" flexibleMinX="YES" flexibleMaxY="YES"/>
-                        <buttonCell key="cell" type="push" title="Cancel" bezelStyle="rounded" alignment="center" borderStyle="border" inset="2" id="4326">
-                            <behavior key="behavior" pushIn="YES" lightByBackground="YES" lightByGray="YES"/>
-                            <font key="font" metaFont="system"/>
-                            <string key="keyEquivalent" base64-UTF8="YES">
-Gw
-</string>
-                        </buttonCell>
-                        <connections>
-                            <action selector="cancel:" target="617" id="623"/>
-                        </connections>
-                    </button>
-                    <button verticalHuggingPriority="750" fixedFrame="YES" translatesAutoresizingMaskIntoConstraints="NO" id="703">
-                        <rect key="frame" x="74" y="12" width="189" height="32"/>
-                        <autoresizingMask key="autoresizingMask"/>
-                        <buttonCell key="cell" type="push" title="Add New Bookmark" bezelStyle="rounded" alignment="center" borderStyle="border" inset="2" id="4327">
-                            <behavior key="behavior" pushIn="YES" lightByBackground="YES" lightByGray="YES"/>
-                            <font key="font" metaFont="system"/>
-                        </buttonCell>
-                        <connections>
-                            <action selector="addNewBookmark:" target="617" id="716"/>
-                        </connections>
-                    </button>
-                    <textField verticalHuggingPriority="750" fixedFrame="YES" translatesAutoresizingMaskIntoConstraints="NO" id="713">
-                        <rect key="frame" x="25" y="20" width="47" height="19"/>
-                        <autoresizingMask key="autoresizingMask"/>
-                        <textFieldCell key="cell" controlSize="small" scrollable="YES" lineBreakMode="clipping" selectable="YES" editable="YES" sendsActionOnEndEditing="YES" state="on" borderStyle="bezel" alignment="right" title="1" drawsBackground="YES" id="4328">
-                            <numberFormatter key="formatter" formatterBehavior="10_0" positiveFormat="0" negativeFormat="0" localizesFormat="NO" hasThousandSeparators="NO" thousandSeparator="," id="714">
-                                <attributedString key="attributedStringForZero">
-                                    <fragment content="0"/>
-                                </attributedString>
-                                <decimal key="minimum" value="1"/>
-                                <decimal key="maximum" value="NaN"/>
-                            </numberFormatter>
-                            <font key="font" metaFont="smallSystem"/>
-                            <color key="textColor" name="controlTextColor" catalog="System" colorSpace="catalog"/>
-                            <color key="backgroundColor" name="textBackgroundColor" catalog="System" colorSpace="catalog"/>
-                        </textFieldCell>
-                    </textField>
-                </subviews>
-            </view>
-            <connections>
-                <outlet property="delegate" destination="617" id="702"/>
-                <outlet property="target" destination="617" id="1018"/>
-            </connections>
-            <point key="canvasLocation" x="140.5" y="1654.5"/>
-        </window>
-        <customObject id="617" userLabel="BookmarkController" customClass="BookmarkController">
-            <!-- MW-5 item 5: the per-book Bookmark sheet only. The All
-                 Bookmark browser's outlets moved to AllBookmarkController
-                 below; the "window" outlet is gone because -editBookmark:
-                 always overwrote it with the key window. -->
-            <connections>
-                <outlet property="bookmarkPanel" destination="561" id="627"/>
-                <outlet property="bookmarkTableView" destination="612" id="628"/>
-                <outlet property="contextMenuItem" destination="638" id="650"/>
-                <outlet property="controller" destination="484" id="1516"/>
-                <outlet property="newBookmarkTextField" destination="713" id="715"/>
-            </connections>
-        </customObject>
         <customObject id="MW5-ab-ctl" userLabel="AllBookmarkController" customClass="AllBookmarkController">
             <!-- MW-5 item 5: the app-wide All Bookmark browser, split out of
                  BookmarkController so that the per-book half can move into
@@ -2125,116 +1930,6 @@ Gw
                 <outlet property="appController" destination="6001" id="MW5-ab-c6"/>
             </connections>
         </customObject>
-        <menu title="Menu" id="638" userLabel="TableMenu">
-            <items>
-                <menuItem title="Delete this Bookmark" tag="1" id="640">
-                    <modifierMask key="keyEquivalentModifierMask"/>
-                    <connections>
-                        <action selector="deleteRow:" target="617" id="647"/>
-                    </connections>
-                </menuItem>
-            </items>
-        </menu>
-        <window title="Panel" allowsToolTipsWhenApplicationIsInactive="NO" autorecalculatesKeyViewLoop="NO" hidesOnDeactivate="YES" releasedWhenClosed="NO" visibleAtLaunch="NO" animationBehavior="default" id="772" userLabel="FullImagePanel" customClass="FullImagePanel">
-            <windowStyleMask key="styleMask" titled="YES" closable="YES" resizable="YES" utility="YES"/>
-            <windowPositionMask key="initialPositionMask" leftStrut="YES" rightStrut="YES" topStrut="YES" bottomStrut="YES"/>
-            <rect key="contentRect" x="490" y="257" width="449" height="351"/>
-            <rect key="screenRect" x="0.0" y="0.0" width="2560" height="1415"/>
-            <view key="contentView" id="771">
-                <rect key="frame" x="0.0" y="0.0" width="449" height="351"/>
-                <autoresizingMask key="autoresizingMask"/>
-                <subviews>
-                    <scrollView fixedFrame="YES" borderType="none" horizontalLineScroll="10" horizontalPageScroll="10" verticalLineScroll="10" verticalPageScroll="10" usesPredominantAxisScrolling="NO" translatesAutoresizingMaskIntoConstraints="NO" id="778">
-                        <rect key="frame" x="0.0" y="0.0" width="449" height="351"/>
-                        <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
-                        <clipView key="contentView" copiesOnScroll="NO" id="Bfm-Bs-9B9">
-                            <rect key="frame" x="0.0" y="0.0" width="434" height="336"/>
-                            <autoresizingMask key="autoresizingMask"/>
-                            <subviews>
-                                <imageView fixedFrame="YES" translatesAutoresizingMaskIntoConstraints="NO" id="777" customClass="FullImageView">
-                                    <rect key="frame" x="0.0" y="0.0" width="234" height="223"/>
-                                    <autoresizingMask key="autoresizingMask"/>
-                                    <imageCell key="cell" refusesFirstResponder="YES" alignment="left" id="4333"/>
-                                </imageView>
-                            </subviews>
-                        </clipView>
-                        <scroller key="horizontalScroller" wantsLayer="YES" verticalHuggingPriority="750" horizontal="YES" id="4443">
-                            <rect key="frame" x="0.0" y="335" width="449" height="16"/>
-                            <autoresizingMask key="autoresizingMask"/>
-                        </scroller>
-                        <scroller key="verticalScroller" wantsLayer="YES" verticalHuggingPriority="750" doubleValue="1" horizontal="NO" id="4444">
-                            <rect key="frame" x="433" y="0.0" width="16" height="351"/>
-                            <autoresizingMask key="autoresizingMask"/>
-                        </scroller>
-                    </scrollView>
-                </subviews>
-            </view>
-            <connections>
-                <outlet property="target" destination="484" id="1016"/>
-            </connections>
-            <point key="canvasLocation" x="140" y="2320"/>
-        </window>
-        <menu title="Menu" id="791" userLabel="RightMenu">
-            <items>
-                <menuItem title="Go to FirstPage" id="818">
-                    <modifierMask key="keyEquivalentModifierMask"/>
-                    <connections>
-                        <action selector="contextAction:" target="484" id="2918"/>
-                    </connections>
-                </menuItem>
-                <menuItem title="Start Slideshow" id="2099">
-                    <modifierMask key="keyEquivalentModifierMask"/>
-                    <connections>
-                        <action selector="contextAction:" target="484" id="2100"/>
-                    </connections>
-                </menuItem>
-                <menuItem isSeparatorItem="YES" id="2101">
-                    <modifierMask key="keyEquivalentModifierMask" command="YES"/>
-                </menuItem>
-                <menuItem title="Previous Bookmark" id="822">
-                    <modifierMask key="keyEquivalentModifierMask"/>
-                    <connections>
-                        <action selector="contextAction:" target="484" id="826"/>
-                    </connections>
-                </menuItem>
-                <menuItem title="Add Bookmark" id="816">
-                    <modifierMask key="keyEquivalentModifierMask"/>
-                    <connections>
-                        <action selector="contextAction:" target="484" id="827"/>
-                    </connections>
-                </menuItem>
-                <menuItem isSeparatorItem="YES" id="2102">
-                    <modifierMask key="keyEquivalentModifierMask" command="YES"/>
-                </menuItem>
-                <menuItem title="Previous Folder" id="934">
-                    <modifierMask key="keyEquivalentModifierMask"/>
-                    <connections>
-                        <action selector="contextAction:" target="484" id="935"/>
-                    </connections>
-                </menuItem>
-                <menuItem isSeparatorItem="YES" id="2103">
-                    <modifierMask key="keyEquivalentModifierMask" command="YES"/>
-                </menuItem>
-                <menuItem title="View at Original Size" id="792">
-                    <modifierMask key="keyEquivalentModifierMask"/>
-                    <connections>
-                        <action selector="contextAction:" target="484" id="1650"/>
-                    </connections>
-                </menuItem>
-                <menuItem title="Show Thumbnail" id="1314">
-                    <modifierMask key="keyEquivalentModifierMask"/>
-                    <connections>
-                        <action selector="contextAction:" target="484" id="1315"/>
-                    </connections>
-                </menuItem>
-                <menuItem title="Show in Finder" id="1648">
-                    <modifierMask key="keyEquivalentModifierMask"/>
-                    <connections>
-                        <action selector="contextAction:" target="484" id="1649"/>
-                    </connections>
-                </menuItem>
-            </items>
-        </menu>
         <window title="Bookmark" allowsToolTipsWhenApplicationIsInactive="NO" autorecalculatesKeyViewLoop="NO" hidesOnDeactivate="YES" releasedWhenClosed="NO" visibleAtLaunch="NO" animationBehavior="default" id="983" userLabel="AllBookmarkPanel" customClass="BookmarkPanel">
             <windowStyleMask key="styleMask" titled="YES" resizable="YES"/>
             <windowPositionMask key="initialPositionMask" leftStrut="YES" rightStrut="YES" topStrut="YES" bottomStrut="YES"/>
@@ -2447,195 +2142,6 @@ Gw
             </connections>
             <point key="canvasLocation" x="139.5" y="2774.5"/>
         </window>
-        <window title="thumbnail" allowsToolTipsWhenApplicationIsInactive="NO" autorecalculatesKeyViewLoop="NO" hidesOnDeactivate="YES" releasedWhenClosed="NO" visibleAtLaunch="NO" animationBehavior="default" id="1084" userLabel="ThumbnailPanel" customClass="ThumbnailPanel">
-            <windowStyleMask key="styleMask" titled="YES" closable="YES" utility="YES"/>
-            <windowPositionMask key="initialPositionMask" leftStrut="YES" rightStrut="YES" topStrut="YES" bottomStrut="YES"/>
-            <rect key="contentRect" x="407" y="253" width="608" height="389"/>
-            <rect key="screenRect" x="0.0" y="0.0" width="2560" height="1415"/>
-            <view key="contentView" id="1083">
-                <rect key="frame" x="0.0" y="0.0" width="608" height="389"/>
-                <autoresizingMask key="autoresizingMask"/>
-                <subviews>
-                    <textField verticalHuggingPriority="750" fixedFrame="YES" translatesAutoresizingMaskIntoConstraints="NO" id="1242">
-                        <rect key="frame" x="0.0" y="354" width="614" height="35"/>
-                        <autoresizingMask key="autoresizingMask" widthSizable="YES" flexibleMinY="YES"/>
-                        <textFieldCell key="cell" scrollable="YES" lineBreakMode="clipping" sendsActionOnEndEditing="YES" state="on" alignment="left" drawsBackground="YES" id="4340">
-                            <font key="font" metaFont="system"/>
-                            <color key="textColor" name="textColor" catalog="System" colorSpace="catalog"/>
-                            <color key="backgroundColor" red="0.0" green="0.0" blue="0.0" alpha="0.5" colorSpace="calibratedRGB"/>
-                        </textFieldCell>
-                    </textField>
-                    <matrix verticalHuggingPriority="750" fixedFrame="YES" mode="highlight" drawsBackground="YES" selectionByRect="NO" allowsEmptySelection="NO" translatesAutoresizingMaskIntoConstraints="NO" id="1175" customClass="ThumbnailMatrix">
-                        <rect key="frame" x="0.0" y="0.0" width="608" height="355"/>
-                        <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
-                        <color key="backgroundColor" red="0.0" green="0.0" blue="0.0" alpha="0.5" colorSpace="calibratedRGB"/>
-                        <size key="cellSize" width="608" height="71"/>
-                        <buttonCell key="prototype" type="square" bezelStyle="shadowlessSquare" imagePosition="above" alignment="center" tag="-1" inset="2" id="4423">
-                            <behavior key="behavior" pushIn="YES" lightByBackground="YES" lightByGray="YES"/>
-                            <font key="font" metaFont="label"/>
-                        </buttonCell>
-                        <cells>
-                            <column>
-                                <buttonCell type="square" bezelStyle="shadowlessSquare" imagePosition="above" alignment="center" id="1208">
-                                    <behavior key="behavior" lightByContents="YES"/>
-                                    <font key="font" metaFont="label"/>
-                                </buttonCell>
-                                <buttonCell type="square" bezelStyle="shadowlessSquare" imagePosition="above" alignment="center" tag="1" inset="2" id="1209">
-                                    <behavior key="behavior" lightByContents="YES"/>
-                                    <font key="font" metaFont="label"/>
-                                </buttonCell>
-                                <buttonCell type="square" bezelStyle="shadowlessSquare" imagePosition="overlaps" alignment="center" tag="2" inset="2" id="1210">
-                                    <behavior key="behavior" lightByContents="YES"/>
-                                    <font key="font" metaFont="label"/>
-                                </buttonCell>
-                                <buttonCell type="square" bezelStyle="shadowlessSquare" imagePosition="overlaps" alignment="center" tag="3" inset="2" id="1211">
-                                    <behavior key="behavior" lightByContents="YES"/>
-                                    <font key="font" metaFont="label"/>
-                                </buttonCell>
-                                <buttonCell type="square" bezelStyle="shadowlessSquare" imagePosition="overlaps" alignment="center" tag="4" inset="2" id="1212">
-                                    <behavior key="behavior" lightByContents="YES"/>
-                                    <font key="font" metaFont="label"/>
-                                </buttonCell>
-                            </column>
-                        </cells>
-                        <connections>
-                            <outlet property="menu" destination="2256" id="2268"/>
-                        </connections>
-                    </matrix>
-                    <button fixedFrame="YES" translatesAutoresizingMaskIntoConstraints="NO" id="1345">
-                        <rect key="frame" x="141" y="362" width="25" height="25"/>
-                        <autoresizingMask key="autoresizingMask" flexibleMinX="YES" flexibleMinY="YES"/>
-                        <buttonCell key="cell" type="square" bezelStyle="shadowlessSquare" image="left" imagePosition="only" alignment="center" inset="2" id="4344">
-                            <behavior key="behavior" lightByContents="YES"/>
-                            <font key="font" metaFont="label"/>
-                        </buttonCell>
-                        <connections>
-                            <action selector="next:" target="1113" id="1347"/>
-                        </connections>
-                    </button>
-                    <button fixedFrame="YES" translatesAutoresizingMaskIntoConstraints="NO" id="1346">
-                        <rect key="frame" x="165" y="362" width="25" height="25"/>
-                        <autoresizingMask key="autoresizingMask" flexibleMinX="YES" flexibleMinY="YES"/>
-                        <buttonCell key="cell" type="square" bezelStyle="shadowlessSquare" image="right" imagePosition="only" alignment="center" inset="2" id="4345">
-                            <behavior key="behavior" lightByContents="YES"/>
-                            <font key="font" metaFont="label"/>
-                        </buttonCell>
-                        <connections>
-                            <action selector="prev:" target="1113" id="1348"/>
-                        </connections>
-                    </button>
-                    <button fixedFrame="YES" translatesAutoresizingMaskIntoConstraints="NO" id="1558">
-                        <rect key="frame" x="4" y="365" width="20" height="20"/>
-                        <autoresizingMask key="autoresizingMask" flexibleMaxX="YES" flexibleMinY="YES"/>
-                        <buttonCell key="cell" type="square" bezelStyle="shadowlessSquare" image="close" imagePosition="only" alignment="center" inset="2" id="4346">
-                            <behavior key="behavior" lightByContents="YES"/>
-                            <font key="font" metaFont="label"/>
-                        </buttonCell>
-                        <connections>
-                            <action selector="performClose:" target="1084" id="1573"/>
-                        </connections>
-                    </button>
-                    <textField verticalHuggingPriority="750" fixedFrame="YES" translatesAutoresizingMaskIntoConstraints="NO" id="1243">
-                        <rect key="frame" x="483" y="366" width="122" height="19"/>
-                        <autoresizingMask key="autoresizingMask" flexibleMinX="YES" flexibleMinY="YES"/>
-                        <textFieldCell key="cell" controlSize="small" scrollable="YES" lineBreakMode="clipping" sendsActionOnEndEditing="YES" state="on" borderStyle="bezel" alignment="center" title="0" bezelStyle="round" id="4341">
-                            <font key="font" metaFont="smallSystem"/>
-                            <color key="textColor" name="textColor" catalog="System" colorSpace="catalog"/>
-                            <color key="backgroundColor" red="1" green="1" blue="1" alpha="1" colorSpace="calibratedRGB"/>
-                        </textFieldCell>
-                    </textField>
-                    <textField hidden="YES" verticalHuggingPriority="750" fixedFrame="YES" translatesAutoresizingMaskIntoConstraints="NO" id="2201" customClass="COPopUpTextField">
-                        <rect key="frame" x="30" y="364" width="119" height="19"/>
-                        <autoresizingMask key="autoresizingMask" widthSizable="YES" flexibleMinY="YES"/>
-                        <textFieldCell key="cell" controlSize="small" lineBreakMode="truncatingMiddle" sendsActionOnEndEditing="YES" state="on" baseWritingDirection="leftToRight" alignment="left" title="0" id="4347">
-                            <font key="font" metaFont="smallSystem"/>
-                            <color key="textColor" red="1" green="1" blue="1" alpha="1" colorSpace="calibratedRGB"/>
-                            <color key="backgroundColor" red="0.49456518999999999" green="0.49456518999999999" blue="0.49456518999999999" alpha="1" colorSpace="calibratedRGB"/>
-                        </textFieldCell>
-                    </textField>
-                    <imageView fixedFrame="YES" translatesAutoresizingMaskIntoConstraints="NO" id="2278">
-                        <rect key="frame" x="198" y="362" width="60" height="25"/>
-                        <autoresizingMask key="autoresizingMask" flexibleMinX="YES" flexibleMinY="YES"/>
-                        <imageCell key="cell" refusesFirstResponder="YES" alignment="left" animates="YES" imageScaling="axesIndependently" image="base" id="4350"/>
-                    </imageView>
-                    <button fixedFrame="YES" translatesAutoresizingMaskIntoConstraints="NO" id="2249">
-                        <rect key="frame" x="207" y="362" width="24" height="24"/>
-                        <autoresizingMask key="autoresizingMask" flexibleMinX="YES" flexibleMinY="YES"/>
-                        <buttonCell key="cell" type="bevel" bezelStyle="regularSquare" image="comic" imagePosition="only" alignment="left" alternateImage="comic_a" inset="2" id="4349">
-                            <behavior key="behavior" pushIn="YES" changeContents="YES" lightByContents="YES"/>
-                            <font key="font" metaFont="system"/>
-                        </buttonCell>
-                        <connections>
-                            <action selector="comicMode:" target="1113" id="2253"/>
-                        </connections>
-                    </button>
-                    <button fixedFrame="YES" translatesAutoresizingMaskIntoConstraints="NO" id="2232">
-                        <rect key="frame" x="230" y="362" width="24" height="24"/>
-                        <autoresizingMask key="autoresizingMask" flexibleMinX="YES" flexibleMinY="YES"/>
-                        <buttonCell key="cell" type="bevel" bezelStyle="regularSquare" image="bookmark" imagePosition="only" alignment="left" alternateImage="bookmark_a" inset="2" id="4348">
-                            <behavior key="behavior" pushIn="YES" changeContents="YES" lightByContents="YES"/>
-                            <font key="font" metaFont="system"/>
-                        </buttonCell>
-                        <connections>
-                            <action selector="onlyBookmark:" target="1113" id="2234"/>
-                        </connections>
-                    </button>
-                    <popUpButton verticalHuggingPriority="750" fixedFrame="YES" translatesAutoresizingMaskIntoConstraints="NO" id="1245">
-                        <rect key="frame" x="309" y="363" width="169" height="22"/>
-                        <autoresizingMask key="autoresizingMask" flexibleMinX="YES" flexibleMinY="YES"/>
-                        <popUpButtonCell key="cell" type="push" title="Name" bezelStyle="rounded" alignment="left" controlSize="small" lineBreakMode="clipping" state="on" borderStyle="borderAndBezel" inset="2" arrowPosition="arrowAtCenter" preferredEdge="maxY" selectedItem="1247" id="4342">
-                            <behavior key="behavior" pushIn="YES" lightByBackground="YES" lightByGray="YES"/>
-                            <font key="font" metaFont="smallSystem"/>
-                            <menu key="menu" title="OtherViews" id="1248">
-                                <items>
-                                    <menuItem title="Name" state="on" id="1247">
-                                        <connections>
-                                            <action selector="sort:" target="1113" id="1267"/>
-                                        </connections>
-                                    </menuItem>
-                                    <menuItem title="Creation Date" id="1261">
-                                        <connections>
-                                            <action selector="sort:" target="1113" id="1268"/>
-                                        </connections>
-                                    </menuItem>
-                                    <menuItem title="Modification Date" id="1260">
-                                        <connections>
-                                            <action selector="sort:" target="1113" id="2229"/>
-                                        </connections>
-                                    </menuItem>
-                                </items>
-                            </menu>
-                        </popUpButtonCell>
-                    </popUpButton>
-                    <textField verticalHuggingPriority="750" horizontalCompressionResistancePriority="250" fixedFrame="YES" translatesAutoresizingMaskIntoConstraints="NO" id="1250">
-                        <rect key="frame" x="254" y="368" width="53" height="14"/>
-                        <autoresizingMask key="autoresizingMask" flexibleMinX="YES" flexibleMinY="YES"/>
-                        <textFieldCell key="cell" sendsActionOnEndEditing="YES" alignment="right" title="sort :" id="4343">
-                            <font key="font" metaFont="smallSystem"/>
-                            <color key="textColor" red="1" green="1" blue="1" alpha="1" colorSpace="calibratedRGB"/>
-                            <color key="backgroundColor" name="controlColor" catalog="System" colorSpace="catalog"/>
-                        </textFieldCell>
-                    </textField>
-                </subviews>
-            </view>
-            <connections>
-                <outlet property="matrix" destination="1175" id="2231"/>
-            </connections>
-            <point key="canvasLocation" x="198" y="3245.5"/>
-        </window>
-        <customObject id="1113" userLabel="ThumbnailController" customClass="ThumbnailController">
-            <connections>
-                <outlet property="comicModeButton" destination="2249" id="2254"/>
-                <outlet property="contextMenu" destination="2256" id="2262"/>
-                <outlet property="controller" destination="484" id="1274"/>
-                <outlet property="matrix" destination="1175" id="1213"/>
-                <outlet property="nameTextField" destination="2201" id="2203"/>
-                <outlet property="onlyBookmarkButton" destination="2232" id="2255"/>
-                <outlet property="panel" destination="1084" id="1116"/>
-                <outlet property="sortPopUpButton" destination="1245" id="1263"/>
-                <outlet property="stateTextField" destination="1243" id="1262"/>
-            </connections>
-        </customObject>
         <window title="MousePanel" allowsToolTipsWhenApplicationIsInactive="NO" autorecalculatesKeyViewLoop="NO" hidesOnDeactivate="YES" releasedWhenClosed="NO" visibleAtLaunch="NO" animationBehavior="default" id="1436" userLabel="MouseConfigPanel" customClass="NSPanel">
             <windowStyleMask key="styleMask" titled="YES"/>
             <windowPositionMask key="initialPositionMask" leftStrut="YES" rightStrut="YES" topStrut="YES" bottomStrut="YES"/>
@@ -2819,7 +2325,7 @@ Gw
                 <outlet property="alwaysRememberLastCheck" destination="2013" id="2042"/>
                 <outlet property="canScrollActionPopUpButton" destination="1862" id="1877"/>
                 <outlet property="changeCurrentFolderPopUpButton" destination="4256" id="4263"/>
-                <outlet property="controller" destination="484" id="1674"/>
+                <outlet property="appController" destination="6001" id="MW5-pc-app"/>
                 <outlet property="disposeSettingPanel" destination="3296" id="3307"/>
                 <outlet property="disposeSettingProgress" destination="3300" id="3308"/>
                 <outlet property="enlargePopUpButton" destination="836" id="1688"/>
@@ -2886,39 +2392,8 @@ Gw
                 <outlet property="useCalayerCheck" destination="M2u-2q-BTd" id="hFy-2q-JXp"/>
                 <outlet property="viewBackGroundColor" destination="2143" id="2168"/>
                 <outlet property="wheelSlider" destination="1074" id="1718"/>
-                <outlet property="window" destination="21" id="1676"/>
             </connections>
         </customObject>
-        <customObject id="7Ik-II-pge" customClass="FilterPanelController">
-            <connections>
-                <outlet property="contentsView" destination="1oQ-cG-8Uy" id="jcQ-9l-poF"/>
-                <outlet property="filterPanel" destination="EcN-5h-84Q" id="oAh-ao-fcl"/>
-                <outlet property="popupButton" destination="xTo-RC-5eC" id="kYz-xQ-6JN"/>
-                <outlet property="scrollView" destination="T7G-gM-l9s" id="clS-kK-aPT"/>
-            </connections>
-        </customObject>
-        <menu title="Menu" id="2256" userLabel="ThumbnailMenu">
-            <items>
-                <menuItem title="Add Bookmark" id="2257">
-                    <connections>
-                        <action selector="contextAction:" target="1113" id="2265"/>
-                    </connections>
-                </menuItem>
-                <menuItem title="Switch Single/Bind" id="2258">
-                    <connections>
-                        <action selector="contextAction:" target="1113" id="2266"/>
-                    </connections>
-                </menuItem>
-                <menuItem isSeparatorItem="YES" id="2259">
-                    <modifierMask key="keyEquivalentModifierMask" command="YES"/>
-                </menuItem>
-                <menuItem title="Show in Finder" id="2260">
-                    <connections>
-                        <action selector="contextAction:" target="1113" id="2267"/>
-                    </connections>
-                </menuItem>
-            </items>
-        </menu>
         <menu title="Menu" id="2363" userLabel="KeyEditMenu">
             <items>
                 <menuItem title="Action" tag="-1" id="2456"/>
@@ -3255,27 +2730,6 @@ Gw
                 </menuItem>
             </items>
         </menu>
-        <window title="AccessoryWindow" allowsToolTipsWhenApplicationIsInactive="NO" autorecalculatesKeyViewLoop="NO" hasShadow="NO" releasedWhenClosed="NO" visibleAtLaunch="NO" animationBehavior="default" id="2809" userLabel="AccessoryWIndow" customClass="AccessoryWindow">
-            <windowStyleMask key="styleMask" titled="YES" closable="YES" miniaturizable="YES" resizable="YES"/>
-            <windowPositionMask key="initialPositionMask" leftStrut="YES" rightStrut="YES" topStrut="YES" bottomStrut="YES"/>
-            <rect key="contentRect" x="309" y="299" width="480" height="360"/>
-            <rect key="screenRect" x="0.0" y="0.0" width="2560" height="1415"/>
-            <view key="contentView" id="2810">
-                <rect key="frame" x="0.0" y="0.0" width="480" height="360"/>
-                <autoresizingMask key="autoresizingMask"/>
-                <subviews>
-                    <customView fixedFrame="YES" translatesAutoresizingMaskIntoConstraints="NO" id="2811" customClass="AccessoryView">
-                        <rect key="frame" x="0.0" y="0.0" width="480" height="360"/>
-                        <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
-                        <connections>
-                            <outlet property="controller" destination="484" id="2813"/>
-                            <outlet property="imageView" destination="263" id="2814"/>
-                        </connections>
-                    </customView>
-                </subviews>
-            </view>
-            <point key="canvasLocation" x="823" y="3658"/>
-        </window>
         <window title="Position and Size" allowsToolTipsWhenApplicationIsInactive="NO" autorecalculatesKeyViewLoop="NO" hidesOnDeactivate="YES" releasedWhenClosed="NO" visibleAtLaunch="NO" animationBehavior="default" id="2863" userLabel="AccessorySettingPanel" customClass="NSPanel">
             <windowStyleMask key="styleMask" titled="YES" closable="YES" resizable="YES" utility="YES"/>
             <windowPositionMask key="initialPositionMask" leftStrut="YES" rightStrut="YES" topStrut="YES" bottomStrut="YES"/>
@@ -3333,64 +2787,8 @@ Gw
             </view>
             <point key="canvasLocation" x="821" y="3309.5"/>
         </window>
-        <window title="Filter" allowsToolTipsWhenApplicationIsInactive="NO" autorecalculatesKeyViewLoop="NO" hidesOnDeactivate="YES" releasedWhenClosed="NO" visibleAtLaunch="NO" frameAutosaveName="" animationBehavior="default" titlebarAppearsTransparent="YES" id="EcN-5h-84Q" customClass="NSPanel">
-            <windowStyleMask key="styleMask" titled="YES" closable="YES" miniaturizable="YES" resizable="YES" utility="YES" HUD="YES"/>
-            <windowPositionMask key="initialPositionMask" leftStrut="YES" rightStrut="YES" topStrut="YES" bottomStrut="YES"/>
-            <rect key="contentRect" x="90" y="125" width="290" height="280"/>
-            <rect key="screenRect" x="0.0" y="0.0" width="2560" height="1415"/>
-            <view key="contentView" id="rHs-xr-KcK">
-                <rect key="frame" x="0.0" y="0.0" width="290" height="280"/>
-                <autoresizingMask key="autoresizingMask"/>
-                <subviews>
-                    <popUpButton verticalHuggingPriority="750" fixedFrame="YES" translatesAutoresizingMaskIntoConstraints="NO" id="xTo-RC-5eC">
-                        <rect key="frame" x="3" y="256" width="284" height="25"/>
-                        <autoresizingMask key="autoresizingMask" widthSizable="YES" flexibleMinY="YES"/>
-                        <popUpButtonCell key="cell" type="push" bezelStyle="rounded" alignment="left" lineBreakMode="truncatingTail" borderStyle="borderAndBezel" imageScaling="proportionallyDown" inset="2" id="vwO-sI-g9O">
-                            <behavior key="behavior" pushIn="YES" lightByBackground="YES" lightByGray="YES"/>
-                            <font key="font" metaFont="menu"/>
-                            <menu key="menu" id="h66-z4-Wfq"/>
-                        </popUpButtonCell>
-                        <connections>
-                            <action selector="filterSelected:" target="7Ik-II-pge" id="iCC-lV-ZLP"/>
-                        </connections>
-                    </popUpButton>
-                    <scrollView fixedFrame="YES" borderType="none" horizontalLineScroll="10" horizontalPageScroll="10" verticalLineScroll="10" verticalPageScroll="10" hasHorizontalScroller="NO" usesPredominantAxisScrolling="NO" scrollerKnobStyle="dark" translatesAutoresizingMaskIntoConstraints="NO" id="T7G-gM-l9s">
-                        <rect key="frame" x="5" y="7" width="279" height="244"/>
-                        <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
-                        <clipView key="contentView" drawsBackground="NO" copiesOnScroll="NO" id="RHv-Bg-9Br">
-                            <rect key="frame" x="0.0" y="0.0" width="264" height="244"/>
-                            <autoresizingMask key="autoresizingMask"/>
-                            <subviews>
-                                <view id="1oQ-cG-8Uy" customClass="NSStackView">
-                                    <rect key="frame" x="0.0" y="0.0" width="264" height="244"/>
-                                    <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
-                                </view>
-                            </subviews>
-                        </clipView>
-                        <scroller key="horizontalScroller" hidden="YES" wantsLayer="YES" verticalHuggingPriority="750" horizontal="YES" id="g84-jt-UhY">
-                            <rect key="frame" x="-100" y="-100" width="215" height="16"/>
-                            <autoresizingMask key="autoresizingMask"/>
-                        </scroller>
-                        <scroller key="verticalScroller" wantsLayer="YES" verticalHuggingPriority="750" doubleValue="1" horizontal="NO" id="ARX-10-Pr9">
-                            <rect key="frame" x="263" y="0.0" width="16" height="244"/>
-                            <autoresizingMask key="autoresizingMask"/>
-                        </scroller>
-                    </scrollView>
-                </subviews>
-            </view>
-            <connections>
-                <outlet property="delegate" destination="7Ik-II-pge" id="oNj-U9-alv"/>
-            </connections>
-            <point key="canvasLocation" x="581" y="57"/>
-        </window>
     </objects>
     <resources>
-        <image name="base" width="60" height="25"/>
-        <image name="bookmark" width="24" height="24"/>
-        <image name="bookmark_a" width="24" height="24"/>
-        <image name="close" width="25" height="25"/>
-        <image name="comic" width="26" height="24"/>
-        <image name="comic_a" width="26" height="24"/>
         <image name="left" width="25" height="25"/>
         <image name="right" width="25" height="25"/>
     </resources>

@@ -7,7 +7,7 @@
 //
 
 #import "AccessoryView.h"
-#import "Controller.h"
+#import "BookWindowController.h"
 #import "CustomImageView.h"
 #import "NSBezierPath_Adding.h"
 #import "NSAttributedString_Adding.h"
@@ -272,7 +272,7 @@ NSRect COIntRect(NSRect aRect)
 			}
 			temp = temp/tempRect.size.width;
 			
-			float fPage = [(Controller *)controller pageCount]*temp;
+			float fPage = [(BookWindowController *)controller pageCount]*temp;
 			int page = (int)fPage;
 			
 			NSMutableDictionary* attr = [NSMutableDictionary dictionary];

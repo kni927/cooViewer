@@ -1,0 +1,98 @@
+/* Class = "NSWindow"; title = "Viewer"; ObjectID = "21"; */
+"21.title" = "Viewer";
+
+/* Class = "NSWindow"; title = "Bookmark"; ObjectID = "561"; */
+"561.title" = "Bookmark";
+
+/* Class = "NSTableColumn"; headerCell.title = "Name"; ObjectID = "610"; */
+"610.headerCell.title" = "Name";
+
+/* Class = "NSTableColumn"; headerCell.title = "Page"; ObjectID = "613"; */
+"613.headerCell.title" = "Page";
+
+/* Class = "NSMenu"; title = "Menu"; ObjectID = "638"; */
+"638.title" = "Menu";
+
+/* Class = "NSMenuItem"; title = "Delete this Bookmark"; ObjectID = "640"; */
+"640.title" = "Delete this Bookmark";
+
+/* Class = "NSWindow"; title = "Panel"; ObjectID = "772"; */
+"772.title" = "Panel";
+
+/* Class = "NSMenu"; title = "Menu"; ObjectID = "791"; */
+"791.title" = "Menu";
+
+/* Class = "NSMenuItem"; title = "View at Original Size"; ObjectID = "792"; */
+"792.title" = "View at Original Size";
+
+/* Class = "NSMenuItem"; title = "Add Bookmark"; ObjectID = "816"; */
+"816.title" = "Add Bookmark";
+
+/* Class = "NSMenuItem"; title = "Go to FirstPage"; ObjectID = "818"; */
+"818.title" = "Go to FirstPage";
+
+/* Class = "NSMenuItem"; title = "Previous Bookmark"; ObjectID = "822"; */
+"822.title" = "Previous Bookmark";
+
+/* Class = "NSMenuItem"; title = "Previous Folder"; ObjectID = "934"; */
+"934.title" = "Previous Folder";
+
+/* Class = "NSWindow"; title = "thumbnail"; ObjectID = "1084"; */
+"1084.title" = "thumbnail";
+
+/* Class = "NSMenuItem"; title = "Name"; ObjectID = "1247"; */
+"1247.title" = "Name";
+
+/* Class = "NSMenu"; title = "OtherViews"; ObjectID = "1248"; */
+"1248.title" = "OtherViews";
+
+/* Class = "NSMenuItem"; title = "Modification Date"; ObjectID = "1260"; */
+"1260.title" = "Modification Date";
+
+/* Class = "NSMenuItem"; title = "Creation Date"; ObjectID = "1261"; */
+"1261.title" = "Creation Date";
+
+/* Class = "NSMenuItem"; title = "Show Thumbnail"; ObjectID = "1314"; */
+"1314.title" = "Show Thumbnail";
+
+/* Class = "NSMenuItem"; title = "Show in Finder"; ObjectID = "1648"; */
+"1648.title" = "Show in Finder";
+
+/* Class = "NSMenuItem"; title = "Start Slideshow"; ObjectID = "2099"; */
+"2099.title" = "Start Slideshow";
+
+/* Class = "NSMenu"; title = "Menu"; ObjectID = "2256"; */
+"2256.title" = "Menu";
+
+/* Class = "NSMenuItem"; title = "Add Bookmark"; ObjectID = "2257"; */
+"2257.title" = "Add Bookmark";
+
+/* Class = "NSMenuItem"; title = "Switch Single/Bind"; ObjectID = "2258"; */
+"2258.title" = "Switch Single/Bind";
+
+/* Class = "NSMenuItem"; title = "Show in Finder"; ObjectID = "2260"; */
+"2260.title" = "Show in Finder";
+
+/* Class = "NSWindow"; title = "AccessoryWindow"; ObjectID = "2809"; */
+"2809.title" = "AccessoryWindow";
+
+/* Class = "NSButtonCell"; title = "OK"; ObjectID = "4325"; */
+"4325.title" = "OK";
+
+/* Class = "NSButtonCell"; title = "Cancel"; ObjectID = "4326"; */
+"4326.title" = "Cancel";
+
+/* Class = "NSButtonCell"; title = "Add New Bookmark"; ObjectID = "4327"; */
+"4327.title" = "Add New Bookmark";
+
+/* Class = "NSTextFieldCell"; title = "1"; ObjectID = "4328"; */
+"4328.title" = "1";
+
+/* Class = "NSTextFieldCell"; title = "0"; ObjectID = "4341"; */
+"4341.title" = "0";
+
+/* Class = "NSTextFieldCell"; title = "sort :"; ObjectID = "4343"; */
+"4343.title" = "sort :";
+
+/* Class = "NSTextFieldCell"; title = "0"; ObjectID = "4347"; */
+"4347.title" = "0";

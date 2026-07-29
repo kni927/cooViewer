@@ -8,7 +8,7 @@
 {
 	keyArray = nil;
 }
--(void)setTarget:(Controller *)tar
+-(void)setTarget:(BookWindowController *)tar
 {
 	target = tar;
 }

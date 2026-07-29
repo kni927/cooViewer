@@ -1,4 +1,4 @@
-/* Controller */
+/* BookWindowController */
 
 #import <Cocoa/Cocoa.h>
 #include <stdatomic.h>
@@ -11,12 +11,14 @@
 
 @class AppController;
 
-@interface Controller : NSObject <NSMenuDelegate>
+@interface BookWindowController : NSWindowController <NSMenuDelegate>
 {
 	/* MW-3: the application delegate. Owns prefController and the
-	   app-level menu-item outlets; Controller reaches them through its
-	   accessors. */
-	IBOutlet id appController;
+	   app-level menu-item outlets; BookWindowController reaches them through its
+	   accessors. MW-5: no longer an outlet — AppController creates this object
+	   and assigns itself via -setAppController: before the nib loads, since
+	   the two now live in different nibs. */
+	id appController;
 
 	NSMutableDictionary *currentBookSetting;
 	int threadCount;
@@ -84,6 +86,9 @@
 	IBOutlet id fullImagePanel;
     IBOutlet id fullImageView;
 
+	/* MW-5: the Filter panel is per-window now and lives in BookWindow.xib. */
+	IBOutlet id filterPanelController;
+
 
 	/* Archive-load session (MW-1). The COArchive read runs on a
 	 * background thread; these are written there and read on the main
@@ -104,15 +109,10 @@
 	
     IBOutlet id imageView;
 
-	/* MW-5 (item 3): the book window. Was `IBOutlet id window`, a bare ivar
-	   read directly at ~80 sites. Controller becomes an NSWindowController
-	   subclass in the next step, and NSWindowController already declares
-	   -window/-setWindow: over its own storage — an ivar of the same name
-	   would let bare `window` and `[self window]` disagree. The ivar is now
-	   private to the accessors below and every use goes through
-	   `[self window]`, so the switch to the inherited storage is a pure
-	   deletion. The nib connects through -setWindow:, not the ivar. */
-	NSWindow *_window;
+	/* MW-5 (item 3): there is no `window` ivar. BookWindowController is an
+	   NSWindowController, so the book window lives in the superclass's own
+	   storage and every use goes through [self window]. The nib's File's
+	   Owner "window" outlet connects through -setWindow:. */
 
 
 	int maxEnlargement;
@@ -166,13 +166,23 @@
 	NSDate *lastSameFolderMenuUpdate;
 	
 }
-- (void)awakeFromNib;
+/* MW-5 item 4: the setup that used to run in -awakeFromNib runs here
+   instead. -windowDidLoad is NSWindowController's documented hook and runs
+   once, after every object in BookWindow.xib is instantiated and connected —
+   which -awakeFromNib does not guarantee, since AppKit leaves the order
+   between nib objects' -awakeFromNib undefined (KNOWN_ISSUES #19). This
+   matters because the body pushes settings into imageView, thumController
+   and fullImagePanel. */
+- (void)windowDidLoad;
 
-/* The book window. Deliberately named to match NSWindowController's own
-   accessors so that the superclass change in the next MW-5 step can simply
-   delete these two methods and the _window ivar. */
-- (NSWindow *)window;
-- (void)setWindow:(NSWindow *)aWindow;
+/* Set by AppController right after -initWithWindowNibName:, before the nib
+   is loaded, because -windowDidLoad reads it. */
+- (void)setAppController:(id)anAppController;
+
+/* MW-5: the Filter panel and its controller moved into BookWindow.xib, so
+   the Filter menu item can no longer target the controller directly. It
+   targets First Responder now and resolves here. */
+- (IBAction)openFilterPanel:(id)sender;
 
 /* Called by -[AppController applicationDidFinishLaunching:] (MW-3): almost
    the entire original delegate method body is window-level. */
@@ -208,8 +218,6 @@
  * the user cancelled (the archive then stays closed). Pass wrong = YES to
  * indicate the previous attempt was rejected. */
 - (NSString *)askArchivePassword:(COImageLoader *)loader wrongPassword:(BOOL)wrong;
-- (IBAction)sheetCancel:(id)sender;
-- (IBAction)sheetOk:(id)sender;
 
 
 - (NSImage*)loadThumbnailImage:(int)index;
@@ -309,14 +317,14 @@
 
 /* searchFromBookSettings:key:[more:] / searchFromRecentItems:index: /
  * searchFromLastPages:index: moved to AppController (MW-3 cont.,
- * single-writer persistence API); Controller calls [appController ...]. */
+ * single-writer persistence API); BookWindowController calls [appController ...]. */
 /*
 - (id)searchFromRecentItems:(NSString*)path index:(int*)index more:(BOOL)b;
 - (id)searchFromLastPages:(NSString*)path index:(int*)index more:(BOOL)b;
 */
 @end
 
-@interface Controller (Input)
+@interface BookWindowController (Input)
 - (void)timeredRemoteButtonEvent:(NSString*)characters;
 - (void)keyAction:(NSEvent*)sender;
 - (BOOL)getKeyAction:(unichar)character mod:(int)cMod mode:(int)mode slideshow:(BOOL)slideshow;
@@ -378,7 +386,7 @@
 - (void)prevOriginal;
 @end
 
-@interface Controller(private)
+@interface BookWindowController(private)
 -(void)setCurrentBookPath:(NSString *)new;
 -(void)setOldBookPath;
 -(void)setCurrentBookPathAndOldBookPath:(NSString *)new;

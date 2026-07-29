@@ -1,5 +1,5 @@
 #import "CustomWindow.h"
-#import "Controller.h"
+#import "BookWindowController.h"
 
 @implementation CustomWindow
 
@@ -22,7 +22,7 @@
 	/* AppKit persists and restores the windowed frame, and correctly
 	   ignores frames taken while full screen — which is what the old
 	   manual saveFrameUsingName:/setFrameUsingName: pair in -awakeFromNib
-	   and -[Controller windowDidMove:/windowDidResize:] was doing by hand.
+	   and -[BookWindowController windowDidMove:/windowDidResize:] was doing by hand.
 	   MW-6 revisits this name when there is more than one window. */
 	[self setFrameAutosaveName:@"NormalWindow"];
 }

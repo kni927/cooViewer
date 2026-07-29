@@ -1,5 +1,5 @@
 #import "COArchive.h"
-#import "Controller.h"
+#import "BookWindowController.h"
 #import "COImageLoader.h"
 
 @interface COImageLoader(private)
@@ -346,7 +346,7 @@ static NSArray *_COImageLoader_archiveTypes=nil;
 		/* The read is the expensive part of opening a book and the only
 		 * part that reports progress. Since MW-1 the host runs it off the
 		 * main thread behind a progress sheet (see
-		 * -[Controller runArchiveLoadNamed:usingBlock:]) so it can no
+		 * -[BookWindowController runArchiveLoadNamed:usingBlock:]) so it can no
 		 * longer freeze the UI or consume unrelated events. Hosts with no
 		 * controller — the QuickLook and Thumbnail extensions — keep the
 		 * plain synchronous read.

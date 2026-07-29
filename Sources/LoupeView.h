@@ -5,7 +5,7 @@
 //  Created by coo on 2020/01/02.
 //
 
-#import "Controller.h"
+#import "BookWindowController.h"
 #import <Cocoa/Cocoa.h>
 
 @interface LoupeView : NSView
@@ -16,7 +16,7 @@
     float lensRate;
     int rotateMode;
     
-    Controller *targetController;
+    BookWindowController *targetController;
     
     NSAffineTransform *transform;
     int lensSize;
@@ -28,7 +28,7 @@
 
 }
 
--(void)setTargetController:(Controller *)c;
+-(void)setTargetController:(BookWindowController *)c;
 -(void)setMPoint:(NSPoint)p;
 -(void)setFRect:(NSRect)fr;
 -(void)setSRect:(NSRect)sr;
