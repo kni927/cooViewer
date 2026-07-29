@@ -221,9 +221,24 @@
 
 #pragma mark validation
 
+/* MW-4: this used to forward wholesale to -[Controller validateMenuItem:],
+ * which held all 44 title branches (including the AppController items,
+ * since everything but Controller itself was target="484" back then). Now
+ * that the render-path/book actions target First Responder and resolve to
+ * Controller via the window's delegate, Controller's method only needs to
+ * validate items still explicitly targeted at it (the RightMenu
+ * contextAction/sheet items) plus whatever the responder chain search finds
+ * it for. This method now only needs to handle AppController's own items:
+ * "Open the last page" keeps its original per-window check (moved to
+ * -[Controller validateOpenTheLastPageMenuItem]); Open/Preferences/Clear
+ * Recent had no special-case branch before (they fell through Controller's
+ * default) and still don't. */
 - (BOOL)validateMenuItem:(NSMenuItem *)anItem
 {
-	return [controller validateMenuItem:anItem];
+	if ([[anItem title] isEqualToString:NSLocalizedString(@"Open the last page", @"")] == YES) {
+		return [controller validateOpenTheLastPageMenuItem];
+	}
+	return YES;
 }
 
 #pragma mark persistence (MW-3 cont.)

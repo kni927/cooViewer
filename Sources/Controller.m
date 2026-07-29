@@ -1867,7 +1867,37 @@ static const int DIALOG_CANCEL	= 129;
 
 #pragma mark menu
 
-
+/* MW-4: moved bodily out of -validateMenuItem: (formerly the "Open the last
+ * page" branch) so -[AppController validateMenuItem:] can call it for the
+ * title of an action that now targets AppController. Body unchanged. */
+- (BOOL)validateOpenTheLastPageMenuItem
+{
+	if ([window isVisible] || [window isMiniaturized]) {
+		if ([defaults arrayForKey:@"RecentItems"]) {
+			NSEnumerator *enu = [[defaults arrayForKey:@"RecentItems"] objectEnumerator];
+			id object;
+			while (object = [enu nextObject]) {
+				if ([[self pathFromAliasData:[object objectForKey:@"alias"]] isEqualToString:currentBookPath] && [object objectForKey:@"page"]) {
+					return YES;
+				}
+			}
+		}
+		if ([defaults arrayForKey:@"LastPages"]) {
+			NSEnumerator *enu = [[defaults arrayForKey:@"LastPages"] objectEnumerator];
+			id object;
+			while (object = [enu nextObject]) {
+				if ([[self pathFromAliasData:[object objectForKey:@"alias"]] isEqualToString:currentBookPath] && [object objectForKey:@"page"]) {
+					return YES;
+				}
+			}
+		}
+	} else {
+		if ([[defaults arrayForKey:@"RecentItems"] count]>0) {
+			return YES;
+		}
+	}
+	return NO;
+}
 
 - (BOOL)validateMenuItem:(NSMenuItem *)anItem
 {
@@ -1884,32 +1914,6 @@ static const int DIALOG_CANCEL	= 129;
 			//	return NO;
 			return YES;
 		}
-	} else if ([[anItem title] isEqualToString:NSLocalizedString(@"Open the last page", @"")] == YES) {
-		if ([window isVisible] || [window isMiniaturized]) {
-			if ([defaults arrayForKey:@"RecentItems"]) {
-				NSEnumerator *enu = [[defaults arrayForKey:@"RecentItems"] objectEnumerator];
-				id object;
-				while (object = [enu nextObject]) {
-					if ([[self pathFromAliasData:[object objectForKey:@"alias"]] isEqualToString:currentBookPath] && [object objectForKey:@"page"]) {
-						return YES;
-					}
-				}
-			}
-			if ([defaults arrayForKey:@"LastPages"]) {
-				NSEnumerator *enu = [[defaults arrayForKey:@"LastPages"] objectEnumerator];
-				id object;
-				while (object = [enu nextObject]) {
-					if ([[self pathFromAliasData:[object objectForKey:@"alias"]] isEqualToString:currentBookPath] && [object objectForKey:@"page"]) {
-						return YES;
-					}
-				}
-			}
-		} else {
-			if ([[defaults arrayForKey:@"RecentItems"] count]>0) {
-				return YES;
-			}
-		}
-		return NO;
 	} else if ([[anItem title] isEqualToString:NSLocalizedString(@"Delete Settings", @"")] == YES) {
 		if ([window isVisible]) {
 			return YES;

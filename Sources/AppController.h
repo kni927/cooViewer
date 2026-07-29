@@ -57,12 +57,11 @@
 - (id)openSameFolderMenuItem;
 - (id)bookmarkMenuItem;
 
-/* -[Controller validateMenuItem:] dispatches on 44 localized menu titles,
- * including ones for actions that now target AppController (Open, Open the
- * last page, Preferences, Clear Recent). Splitting it is MW-4's job, not
- * MW-3's; forwarding here preserves today's behaviour exactly (the method's
- * default case already returns YES for any title it does not special-case,
- * which covers Preferences/Clear Recent unchanged). */
+/* MW-4: validates AppController's own items only (Open, Open the last page,
+ * Preferences, Clear Recent) — see the .m for why. The book/view actions'
+ * titles stay in -[Controller validateMenuItem:], reached via First
+ * Responder resolution now that those actions target it, not AppController.
+ */
 - (BOOL)validateMenuItem:(NSMenuItem *)anItem;
 
 #pragma mark persistence (MW-3 cont.)

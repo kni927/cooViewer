@@ -190,7 +190,7 @@
                             <menuItem title="Start/Stop" id="275">
                                 <modifierMask key="keyEquivalentModifierMask"/>
                                 <connections>
-                                    <action selector="slideshow:" target="484" id="488"/>
+                                    <action selector="slideshow:" target="-1" id="488"/>
                                 </connections>
                             </menuItem>
                         </items>
@@ -201,7 +201,7 @@
                         <items>
                             <menuItem title="Edit Bookmark..." id="609">
                                 <connections>
-                                    <action selector="editBookmark:" target="484" id="829"/>
+                                    <action selector="editBookmark:" target="-1" id="829"/>
                                 </connections>
                             </menuItem>
                             <menuItem isSeparatorItem="YES" id="698">
@@ -218,22 +218,22 @@
                                     <items>
                                         <menuItem title="Right to Left" id="1534">
                                             <connections>
-                                                <action selector="changeReadModeMenu:" target="484" id="1543"/>
+                                                <action selector="changeReadModeMenu:" target="-1" id="1543"/>
                                             </connections>
                                         </menuItem>
                                         <menuItem title="Left to Right" id="1535">
                                             <connections>
-                                                <action selector="changeReadModeMenu:" target="484" id="1544"/>
+                                                <action selector="changeReadModeMenu:" target="-1" id="1544"/>
                                             </connections>
                                         </menuItem>
                                         <menuItem title="Right to Left (single)" id="1536">
                                             <connections>
-                                                <action selector="changeReadModeMenu:" target="484" id="1545"/>
+                                                <action selector="changeReadModeMenu:" target="-1" id="1545"/>
                                             </connections>
                                         </menuItem>
                                         <menuItem title="Left to Right (single)" id="1537">
                                             <connections>
-                                                <action selector="changeReadModeMenu:" target="484" id="1546"/>
+                                                <action selector="changeReadModeMenu:" target="-1" id="1546"/>
                                             </connections>
                                         </menuItem>
                                     </items>
@@ -244,17 +244,17 @@
                                     <items>
                                         <menuItem title="Name" id="2237">
                                             <connections>
-                                                <action selector="changeSortModeMenu:" target="484" id="2240"/>
+                                                <action selector="changeSortModeMenu:" target="-1" id="2240"/>
                                             </connections>
                                         </menuItem>
                                         <menuItem title="Creation Date" id="2238">
                                             <connections>
-                                                <action selector="changeSortModeMenu:" target="484" id="2241"/>
+                                                <action selector="changeSortModeMenu:" target="-1" id="2241"/>
                                             </connections>
                                         </menuItem>
                                         <menuItem title="Modification Date" id="2239">
                                             <connections>
-                                                <action selector="changeSortModeMenu:" target="484" id="2242"/>
+                                                <action selector="changeSortModeMenu:" target="-1" id="2242"/>
                                             </connections>
                                         </menuItem>
                                         <menuItem isSeparatorItem="YES" id="2801">
@@ -262,7 +262,7 @@
                                         </menuItem>
                                         <menuItem title="Shuffle" id="2800">
                                             <connections>
-                                                <action selector="changeSortModeMenu:" target="484" id="2802"/>
+                                                <action selector="changeSortModeMenu:" target="-1" id="2802"/>
                                             </connections>
                                         </menuItem>
                                     </items>
@@ -270,7 +270,7 @@
                             </menuItem>
                             <menuItem title="Switch Single/Bind" id="1663">
                                 <connections>
-                                    <action selector="switchSingle:" target="484" id="2269"/>
+                                    <action selector="switchSingle:" target="-1" id="2269"/>
                                 </connections>
                             </menuItem>
                             <menuItem isSeparatorItem="YES" id="1539">
@@ -278,7 +278,7 @@
                             </menuItem>
                             <menuItem title="Delete Settings" id="1540">
                                 <connections>
-                                    <action selector="deleteSettings:" target="484" id="1541"/>
+                                    <action selector="deleteSettings:" target="-1" id="1541"/>
                                 </connections>
                             </menuItem>
                         </items>
@@ -289,22 +289,22 @@
                         <items>
                             <menuItem title="Fit to Screen" keyEquivalent="1" id="1667">
                                 <connections>
-                                    <action selector="fitToScreen:" target="484" id="1671"/>
+                                    <action selector="fitToScreen:" target="-1" id="1671"/>
                                 </connections>
                             </menuItem>
                             <menuItem title="Fit to Screen Width" keyEquivalent="2" id="1668">
                                 <connections>
-                                    <action selector="fitToScreenWidth:" target="484" id="1670"/>
+                                    <action selector="fitToScreenWidth:" target="-1" id="1670"/>
                                 </connections>
                             </menuItem>
                             <menuItem title="No Scale" keyEquivalent="3" id="1746">
                                 <connections>
-                                    <action selector="noScale:" target="484" id="1747"/>
+                                    <action selector="noScale:" target="-1" id="1747"/>
                                 </connections>
                             </menuItem>
                             <menuItem title="Fit to Screen Width(divide)" keyEquivalent="4" id="2303">
                                 <connections>
-                                    <action selector="fitToScreenWidthDivide:" target="484" id="2304"/>
+                                    <action selector="fitToScreenWidthDivide:" target="-1" id="2304"/>
                                 </connections>
                             </menuItem>
                             <menuItem isSeparatorItem="YES" id="1891">
@@ -312,12 +312,12 @@
                             </menuItem>
                             <menuItem title="Rotate Left" keyEquivalent="5" id="1893">
                                 <connections>
-                                    <action selector="rotateLeft:" target="484" id="1895"/>
+                                    <action selector="rotateLeft:" target="-1" id="1895"/>
                                 </connections>
                             </menuItem>
                             <menuItem title="Rotate Right" keyEquivalent="6" id="1892">
                                 <connections>
-                                    <action selector="rotateRight:" target="484" id="1894"/>
+                                    <action selector="rotateRight:" target="-1" id="1894"/>
                                 </connections>
                             </menuItem>
                             <menuItem isSeparatorItem="YES" id="e0a-pk-KgN">

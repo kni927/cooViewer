@@ -257,6 +257,31 @@ accepted, permanent gap. **MW-3 is fully closed**; see
 `docs/DECISIONS.md`'s 2026-07-29 update and
 `docs/tasks/2026-07-29-05-mw3-visual-verification.md`. MW-4 can start next.
 
+### Multi-window refactor (MW-4): menu actions onto the responder chain (2026-07-29)
+
+The 18 book/view menu actions in `MainMenu.xib` (`slideshow:`,
+`editBookmark:`, read-mode ×4, sort-mode ×4, `switchSingle:`,
+`deleteSettings:`, fit-mode ×4, `rotateLeft:`/`rotateRight:`) now target
+First Responder instead of a hardcoded `Controller` pointer; they resolve to
+`Controller` via the window's delegate, since nothing overrides the default
+responder chain. `open:`/`openTheLastPage:`/`preferences:`/`clearRecent:`
+stay on `AppController` per MW-3. `-[Controller validateMenuItem:]` was
+split along the same line: the "Open the last page" branch moved out to a
+new `-[Controller validateOpenTheLastPageMenuItem]` accessor (body
+unchanged), called from `-[AppController validateMenuItem:]`, which no
+longer forwards wholesale. Render-path action bodies (`fitToScreen:` etc.)
+were not touched — only their nib target, per the image-quality constraint
+in `CLAUDE.md`. Verified on-device via `System Events` UI scripting: all 18
+items enable/respond correctly with a book open and disable gracefully
+with none, checkmarks track fit/read/sort-mode state, and invoking
+`rotateRight:`/`fitToScreenWidth:` produced the correct visible effect. See
+`docs/KNOWN_ISSUES.md` #23 for an `open`-invocation mistake hit during that
+session (accidentally launched the Homebrew `/Applications` install instead
+of the test build, which briefly touched real `RecentItems` — caught and
+fully reverted, verified by diff). **MW-4 is closed**; see
+`docs/tasks/2026-07-29-06-mw4-menu-actions-responder-chain.md`. MW-5 can
+start next.
+
 ### v1.5.2 released (2026-07-25)
 
 First release actually distributed since v1.5.0 — v1.5.1 was tagged and

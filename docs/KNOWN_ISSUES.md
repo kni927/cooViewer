@@ -744,3 +744,49 @@ sandbox screenshot: retake it after a couple of seconds, and cross-check
 against a different renderer if one is available (e.g. macOS Preview.app
 for a PDF) to rule out a source-file problem too. Don't fix or file the
 underlying app as broken on a single black frame.
+
+---
+
+## 23. `open <app-path> <file-path>` (No `-a`) Can Silently Launch the Wrong App — Always Use `open -a`
+
+Discovered 2026-07-29 during MW-4 on-device verification
+(`docs/tasks/2026-07-29-06-mw4-menu-actions-responder-chain.md`).
+
+- `open build/cooViewer.app tests/fixtures/generated/test.cbz` (two
+  arguments, no `-a`) does **not** mean "open the file with that app". `open`
+  treats each argument independently: the `.app` path launches itself (with
+  no file to open, since nothing told it to), and the file path is opened
+  with **its own LaunchServices-default handler** — on this machine that's
+  `/Applications/cooViewer.app` (the Homebrew-managed install; see #18 for
+  why `/Applications` reliably wins), not the freshly built test copy.
+- Both copies share the same bundle ID (`jp.coo.cooViewer`) and therefore
+  the same `NSUserDefaults` domain. The unintended `/Applications` launch
+  opened the real, personal `RecentItems`/`LastPages`/`BookSettings` data
+  and inserted a test-fixture entry into it — a real user-data mutation,
+  not a sandboxed side effect. Caught immediately via `defaults read` (the
+  test path was unexpectedly at index 0) and reverted by exporting the
+  domain, editing out only the identified inserted entry in binary-plist
+  form (XML `plutil`/`plistlib` output can choke on control characters
+  present in the archived `NSData` alias blobs — use
+  `plistlib.dump(..., fmt=plistlib.FMT_BINARY)` or equivalent), and
+  `defaults import`ing the corrected whole domain back. A full before/after
+  key-by-key diff confirmed nothing else changed.
+- **Always use `open -a "<absolute-path-to-test-build>.app" "<file>"`**
+  when launching a dev build with a file argument — `-a` is what actually
+  binds the file to that specific app instance instead of going through
+  default-handler resolution. This applies generally, not just to
+  cooViewer: any dev build that shares a bundle ID with an installed
+  release is at risk the same way.
+- Compounds #18: because `/Applications` wins LaunchServices dedup here,
+  the failure mode from a bare `open app file` mistake is not "nothing
+  happens" or "an error" — it's "the *other*, real copy opens the file and
+  quietly touches real persistent state." Treat any accidental extra
+  `cooViewer` process (check `pgrep -fl cooViewer` for more than one PID)
+  as a signal to check `defaults read jp.coo.cooViewer RecentItems` before
+  doing anything else.
+- Standing practice going forward (already established by #22's guidance
+  to back up before UI-driving an app with real data): before any on-device
+  session that opens a book, confirm `pgrep -fl cooViewer` shows exactly
+  the intended PID from `build/cooViewer.app`, and export the defaults
+  domain first regardless, since the launch command itself is a place this
+  can go wrong even when the intent was correct.

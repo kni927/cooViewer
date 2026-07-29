@@ -607,3 +607,53 @@ the same KNOWN_ISSUES entry.) Only Apple Remote remains unverified, for
 lack of hardware, as in every session across the whole multi-window
 refactor — an accepted, permanent gap, not a new problem. **With that as
 the sole remaining caveat, MW-3 is now fully closed; MW-4 can proceed.**
+
+---
+
+## MW-4 `validateMenuItem:` split: extract one branch to an accessor, don't duplicate or convert to selector dispatch (2026-07-29)
+
+**Decision:** now that the 18 book/view menu actions target First Responder
+(resolving to `Controller` via the window's delegate) and only
+`open:`/`openTheLastPage:`/`preferences:`/`clearRecent:` stay explicitly
+targeted at `AppController`, `-[AppController validateMenuItem:]` no longer
+needs to forward every call to `-[Controller validateMenuItem:]` — it is now
+only ever invoked for its own 4 items. Rather than leaving the wholesale
+forward in place (correct but pointless: `Controller`'s title-switch would
+run for titles it can no longer receive from anywhere else) or converting
+either method to selector-based dispatch (explicitly out of scope per
+`docs/multiwindow-plan.md`), the single title branch that actually belonged
+to an `AppController` item — "Open the last page" — was extracted verbatim
+into a new `-[Controller validateOpenTheLastPageMenuItem]` accessor. Its
+body is byte-for-byte the original branch; only its container changed.
+`-[AppController validateMenuItem:]` now checks that one title and calls the
+accessor, defaulting to `YES` for its other items — the same result
+`Controller`'s old default `contextMenu` fallthrough produced for them.
+
+**Why an accessor and not exposing the underlying ivars:** the branch reads
+`window`/`currentBookPath`/`defaults`, all private to `Controller`. Adding
+public accessors for each would leak window-side state for a single call
+site; a single-purpose accessor matches the existing pattern already used
+for `AppController`↔`Controller` communication (`hasBookOpen`,
+`sheetParentWindow`, `thumController`, `pathFromAliasData:`).
+
+**Why this doesn't touch the other 34 branches:** every other title belongs
+to an item still explicitly targeted at `Controller` (the 8 `RightMenu`
+`contextAction:` items, `sheetOk:`/`sheetCancel:`) or resolves to
+`Controller` via First-Responder chain search (the 18 retargeted actions) —
+in both cases AppKit calls `-validateMenuItem:` directly on `Controller`,
+so those branches must stay there unchanged.
+
+**Verified on-device** (`docs/tasks/2026-07-29-06-mw4-menu-actions-responder-chain.md`):
+with a book open, all 18 retargeted items show `enabled=true` via `System
+Events`, respond correctly when invoked (`rotateRight:` visibly rotated the
+page, `fitToScreenWidth:` moved the View-menu checkmark), and
+`editBookmark:` opened its sheet correctly. With the window closed, all 18
+show `enabled=false` — First-Responder resolution fails over to "no
+target found" and AppKit auto-disables, without `Controller`'s
+`validateMenuItem:` branches ever running, reproducing (and in one case —
+`editBookmark:`'s previously-always-`YES` dead-code path — correcting) the
+old `[window isVisible]` checks without any code duplicating that check per
+retargeted item. `Open the last page` correctly stayed enabled with no
+window open (real `RecentItems` was non-empty) and invoking it correctly
+reopened the last book, confirming the extracted accessor behaves
+identically to the original inline branch.

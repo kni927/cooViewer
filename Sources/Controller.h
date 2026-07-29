@@ -217,6 +217,12 @@
 - (void)strongSetBookmark;
 
 - (BOOL)validateMenuItem:(NSMenuItem *)anItem;
+/* MW-4: the "Open the last page" branch of -validateMenuItem: moved out to
+ * -[AppController validateMenuItem:], which owns that title now that
+ * -openTheLastPage: is targeted at AppController. The check still needs
+ * this object's window/currentBookPath/defaults state, so the logic stays
+ * here behind this accessor rather than exposing those ivars. */
+- (BOOL)validateOpenTheLastPageMenuItem;
 - (void)setBookmarkMenu;
 - (void)setSameFolderMenu;
 - (void)setSameFolderMenu:(BOOL)force;
