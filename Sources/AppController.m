@@ -87,6 +87,30 @@ static const int DIALOG_CANCEL	= 129;
 	[sender replyToOpenOrPrint:NSApplicationDelegateReplySuccess];
 }
 
+/* Step-0 decision 4. Deferred by MW-7 because -[BookWindowController
+   openPage:last:] closes the window it has just ordered front when a load
+   fails and the window had no book to fall back on — so a flat YES would
+   quit the app the moment someone opened a corrupt file as the first thing
+   in a session.
+
+   The discriminator is the session, not the close: this returns YES only
+   once some window has actually shown a book. A failed first open therefore
+   cannot quit the app, because nothing has been read yet; and once a book
+   has been read, "no windows left" really is the user having closed the
+   last one. The state that would otherwise need distinguishing — app alive,
+   a book already read, no window open — is unreachable, since reaching it
+   is precisely what now terminates. */
+- (BOOL)applicationShouldTerminateAfterLastWindowClosed:(NSApplication *)sender
+{
+	return didShowBook;
+}
+
+/* Called by -[BookWindowController openPage:last:] when a load completes. */
+- (void)windowControllerDidOpenBook:(id)aController
+{
+	didShowBook = YES;
+}
+
 - (NSMenu *)applicationDockMenu:(NSApplication *)sender
 {
 	/* MW-3 finding: this used to read the per-window [imageView image]

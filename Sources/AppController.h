@@ -40,6 +40,12 @@
 	   retired. */
 	id frontWindowController;
 
+	/* Whether any window has shown a book yet in this session. It is what
+	   -applicationShouldTerminateAfterLastWindowClosed: answers with — see
+	   the .m for why the question has to be about the session rather than
+	   about the window that just closed. */
+	BOOL didShowBook;
+
 	/* The app-wide All Bookmark browser (MW-5 item 5). */
 	IBOutlet id allBookmarkController;
 
@@ -109,6 +115,9 @@
 
 /* Called by -[BookWindowController windowDidBecomeMain:]. */
 - (void)windowControllerDidBecomeFront:(id)aController;
+/* Called by -[BookWindowController openPage:last:] once a load has
+   completed, which is what arms Step-0 decision 4. */
+- (void)windowControllerDidOpenBook:(id)aController;
 /* Called by -[BookWindowController windowWillClose:]. Unregisters and
    releases the controller, and returns YES when it did. Returns NO for the
    last remaining window: the app keeps running with no book open (as it

@@ -1128,6 +1128,10 @@ static NSPoint gNextWindowCascadePoint;
 	   before the display pass, since -imageDisplay is what used to make the
 	   old [imageView image] test start answering YES. */
 	bookOpen = YES;
+	/* And this is the point at which closing the last window means the user
+	   is finished, rather than a first open having failed — see
+	   -[AppController applicationShouldTerminateAfterLastWindowClosed:]. */
+	[appController windowControllerDidOpenBook:self];
 	[self viewSet];
 	[self imageDisplay];
 	
@@ -2956,12 +2960,18 @@ static NSPoint gNextWindowCascadePoint;
 		}
 	}
 
+	/* This window's panels go with it, whether or not the registry retires
+	   the controller. MW-7 did this only on retirement, to leave the last
+	   window behaving exactly as it did before; Step-0 decision 4 makes that
+	   impossible, because a panel left on screen is a visible window and
+	   AppKit would never ask
+	   -applicationShouldTerminateAfterLastWindowClosed: at all. */
+	[self closeAuxiliaryPanels];
+
 	/* MW-7: hand the window back to the registry. It is retired — removed
 	   and released — unless it is the last one, which stays as the window
 	   File ▸ Open and Open the last page reuse. */
-	if ([appController retireWindowController:self]) {
-		[self closeAuxiliaryPanels];
-	}
+	[appController retireWindowController:self];
 }
 
 /* The thumbnail, bookmark, full-image and filter panels are separate windows
@@ -2969,8 +2979,7 @@ static NSPoint gNextWindowCascadePoint;
    owned by it — NSWindowController releases them with the rest of the nib's
    top-level objects when it is deallocated. Left on screen they would
    outlive the window they belong to, and then be deallocated under AppKit's
-   feet. Only reached for a window that is actually being retired: with one
-   window nothing is deallocated and the panels behave as they always have. */
+   feet. */
 - (void)closeAuxiliaryPanels
 {
 	[thumController closePanel];
