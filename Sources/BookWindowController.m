@@ -2786,6 +2786,60 @@ static NSPoint gNextWindowCascadePoint;
 	}
 }
 
+#pragma mark shared main-menu state (MW-6 item 3)
+
+/* The bookmark menu, the "Open from same folder" submenu and the read-mode /
+   sort-mode check-marks are one shared object each, hanging off the
+   application's single main menu, but everything in them describes one
+   window's book. They are built when a book is opened and torn down when its
+   window closes, which is only correct as long as "the book" is unambiguous.
+   Rebuilding them here makes the front window the one they describe. */
+- (void)windowDidBecomeMain:(NSNotification *)notification
+{
+	NSMenu *sameFolderMenu = [[appController openSameFolderMenuItem] submenu];
+	if ([sameFolderMenu delegate] != self) {
+		/* The submenu is built lazily by -menuNeedsUpdate:, so taking over as
+		   its delegate is what redirects it at this window. Its *contents*
+		   are still stale — the items carry the previous window's target and
+		   represented paths — so flag it for a forced rebuild, but leave the
+		   rebuild itself to the next -menuNeedsUpdate:. Doing it here would
+		   enumerate the book's parent folder on every window activation,
+		   which is the folder-access-prompt problem the lazy build exists to
+		   avoid. */
+		[sameFolderMenu setDelegate:self];
+		sameFolderMenuNeedsRebuild = YES;
+	}
+	[self setBookmarkMenu];
+	[self updateReadAndSortModeMenuState];
+}
+
+/* Read mode and sort mode are per-book overrides on a global default
+   (currentBookSetting's "readMode"/"sortMode" over the ReadMode/SortMode
+   preferences, applied in -openPage:last:), so the check-marks have to
+   follow the front *book*, not the preference. -validateMenuItem: already
+   computes exactly that from this window's readMode/sortMode ivars, so the
+   items carrying those two actions are re-validated rather than having the
+   localized-title dispatch duplicated here. */
+- (void)updateReadAndSortModeMenuState
+{
+	[self updateReadAndSortModeMenuStateInMenu:[NSApp mainMenu]];
+}
+
+- (void)updateReadAndSortModeMenuStateInMenu:(NSMenu *)menu
+{
+	NSEnumerator *enu = [[menu itemArray] objectEnumerator];
+	NSMenuItem *item;
+	while (item = [enu nextObject]) {
+		if ([item action] == @selector(changeReadModeMenu:)
+			|| [item action] == @selector(changeSortModeMenu:)) {
+			[self validateMenuItem:item];
+		}
+		if ([item hasSubmenu]) {
+			[self updateReadAndSortModeMenuStateInMenu:[item submenu]];
+		}
+	}
+}
+
 #pragma mark NSMenuDelegate
 
 - (void)menuNeedsUpdate:(NSMenu *)menu
@@ -2797,7 +2851,12 @@ static NSPoint gNextWindowCascadePoint;
 		   every book open or app activation — keeps macOS folder-access
 		   permission prompts limited to actual use of the feature. */
 		[self checkCurrentFolderUpdated];
-		[self setSameFolderMenu:NO];
+		/* MW-6 item 3: force the rebuild if the submenu was last built for a
+		   different window. Without it -setSameFolderMenu: would keep the
+		   other window's items whenever both books sit in the same folder,
+		   and those items are targeted at that window. */
+		[self setSameFolderMenu:sameFolderMenuNeedsRebuild];
+		sameFolderMenuNeedsRebuild = NO;
 	}
 }
 

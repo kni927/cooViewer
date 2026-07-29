@@ -165,6 +165,13 @@
 	
 	NSDate *lastSameFolderMenuUpdate;
 
+	/* MW-6 item 3: set when this window becomes main while the "Open from
+	   same folder" submenu was last built for a different one, and consumed
+	   by -menuNeedsUpdate:. The rebuild has to stay lazy — it enumerates the
+	   book's parent folder, which is exactly what must not happen on every
+	   window activation (see -menuNeedsUpdate:). */
+	BOOL sameFolderMenuNeedsRebuild;
+
 	/* MW-6 item 1: this window's slot in AppController's window registry.
 	   Assigned by AppController before the nib loads, and the only thing the
 	   per-window frame autosave names are keyed on — see
@@ -301,6 +308,13 @@
 
 - (void)viewSet;
 - (void)windowWillClose:(NSNotification *)aNotofication;
+
+/* MW-6 item 3. The bookmark menu, the "Open from same folder" submenu and
+   the read-mode / sort-mode check-marks are single, shared main-menu objects
+   whose contents describe one window's book. They are built when that book
+   is opened, which is only correct while there is one window — so they are
+   also rebuilt from whichever window is now front. */
+- (void)windowDidBecomeMain:(NSNotification *)notification;
 
 
 - (void)viewDidEndLiveResize:(NSNotification *)aNotification;
