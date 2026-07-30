@@ -55,11 +55,43 @@ extern NSString * const CooViewerBookWindowRestorationIdentifier;
 	BOOL didShowBook;
 
 	/* MW-8: how many windows the system asked to have restored this launch.
-	   Counted in +restoreWindowWithIdentifier:state:completionHandler:, which
-	   is the only part of restoration that is guaranteed to have finished by
-	   -applicationDidFinishLaunching: — the state of those windows is decoded
-	   later — and so the only thing the OpenLastFolder gate can ask. */
+	   Counted in +restoreWindowWithIdentifier:state:completionHandler:. */
 	int restoredWindowCount;
+
+	/* KNOWN_ISSUES #32. Finder open requests that arrive while restoration is
+	   still in flight are held here instead of being acted on, then drained
+	   through -openBookInNewWindow: once every restored window has its book —
+	   at which point de-duplication can actually see those books. Empty and
+	   unused once the launch has settled: after that, -application:openFiles:
+	   takes the immediate path it always did. */
+	NSMutableArray *pendingLaunchOpenPaths;
+
+	/* NO until the launch's restoration has finished (or the drain deadline
+	   has passed). While NO, -application:openFiles: queues; once YES it never
+	   goes back, so the post-launch path is unchanged. */
+	BOOL launchSettled;
+
+	/* Whether -applicationDidFinishLaunching: has run. -settleLaunch waits for
+	   it so the OpenLastFolder fallback still runs at the moment it always
+	   has, rather than one run-loop pass earlier because the restoration
+	   notification happened to come first. */
+	BOOL launchDidFinish;
+
+	/* Absolute time after which -settleLaunch stops waiting for restoration
+	   and drains anyway, so a restoration that never completes cannot strand
+	   a file the user double-clicked. */
+	CFAbsoluteTime launchDrainDeadline;
+
+	/* Whether a Finder request was serviced for this launch. It is what gives
+	   an explicit request precedence over the OpenLastFolder fallback. */
+	BOOL launchOpenRequestServiced;
+
+	/* -applicationDidFinishLaunching:'s notification, held so -settleLaunch
+	   can still hand it to -applicationDidFinishLaunchingSetup: a run-loop
+	   pass later. That method does not read it today; passing it on keeps the
+	   fallback's signature honest rather than making a future reader wonder
+	   why it receives nil. */
+	NSNotification *launchNotification;
 
 	/* The app-wide All Bookmark browser (MW-5 item 5). */
 	IBOutlet id allBookmarkController;
@@ -138,6 +170,14 @@ extern NSString * const CooViewerBookWindowRestorationIdentifier;
    method below. */
 - (void)noteWindowRestorationRequested;
 - (int)restoredWindowCount;
+
+/* KNOWN_ISSUES #32. The one point at which the launch's restoration is known
+   to be over: it drains any Finder request held by -application:openFiles:
+   and then runs the OpenLastFolder fallback if nothing else opened a book.
+   Idempotent and self-rescheduling; kicked from
+   -applicationDidFinishRestoringWindows: and -applicationDidFinishLaunching:,
+   either of which may come first. */
+- (void)settleLaunch;
 
 /* Called by -[BookWindowController windowDidBecomeMain:]. */
 - (void)windowControllerDidBecomeFront:(id)aController;

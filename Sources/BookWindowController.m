@@ -881,6 +881,11 @@ static NSString * const kBookViewModeKey = @"cooViewerBookViewMode";
 	return (restorationInFlight || restoredBookPending);
 }
 
+- (BOOL)isRestoredBookUnfinished
+{
+	return (restorationInFlight || restoredBookPending || restoredBookOpening);
+}
+
 - (int)restorablePageIndex
 {
 	/* `nowPage` is the page *after* the last one displayed, so a spread on
@@ -1042,6 +1047,9 @@ static NSString * const kBookViewModeKey = @"cooViewerBookViewMode";
 	restoredBookPending = NO;
 	restoredPage = 0;
 	restoredFitScreenMode = 0;
+	/* KNOWN_ISSUES #32: cleared once the open below has returned, so a Finder
+	   request held for this launch is not drained into the middle of it. */
+	restoredBookOpening = YES;
 
 	/* View mode before the book, so the spread is composed once, in the mode
 	   it is going to be shown in. These are the same actions the View menu
@@ -1064,6 +1072,8 @@ static NSString * const kBookViewModeKey = @"cooViewerBookViewMode";
 	goToLastPageMode = 2;
 	[self openPage:page last:NO];
 	goToLastPageMode = savedGoToLastPageMode;
+
+	restoredBookOpening = NO;
 }
 
 #pragma mark -

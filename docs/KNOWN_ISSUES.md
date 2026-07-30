@@ -1180,12 +1180,18 @@ and after per the inviolable rule at the top of `CLAUDE.md`.
 
 ---
 
-## 32. A Finder open of a book that window restoration is bringing back gives two windows on the same book
+## 32. ~~A Finder open of a book that window restoration is bringing back gives two windows on the same book~~ — FIXED (2026-07-30)
 
-Found by the MW-9 regression pass (2026-07-30). It is the one interaction
-between MW-8's window restoration and Step-0 decision 2 ("the same book
-opened twice brings the existing window forward") that the de-duplication
-does not cover.
+Found by the MW-9 regression pass (2026-07-30) and fixed the same day; see
+`docs/tasks/2026-07-30-04-fix-duplicate-window-on-restored-book.md`. A Finder
+request that arrives during launch is now held until every restored window
+has its book, then routed through the same de-duplication, so the restored
+window is brought forward at its saved page instead of a second window being
+opened. The original report follows.
+
+It is the one interaction between MW-8's window restoration and Step-0
+decision 2 ("the same book opened twice brings the existing window forward")
+that the de-duplication did not cover.
 
 Reproduction (default settings, nothing disabled):
 
@@ -1199,22 +1205,29 @@ Control: close every window before quitting (File ▸ Close All, which also
 quits per decision 4), so there is nothing to restore, and the same Finder
 open produces exactly one window.
 
-Cause, from the MW-8 design: `application:openFile:` runs before AppKit
-decodes window state, so when the open request is de-duplicated no window
-has a book yet — `-[AppController]`'s resolved-book-path lookup has nothing
-to match against. The restored window then opens its book independently.
-`-emptyWindowController` already declines a window that is mid-restoration
-(`-isAwaitingRestoredBook`), which is why the open creates a new window
-rather than racing the restoration into the same one; what is missing is a
-*deferred* dedup — a book that is about to be restored is not yet a book
-that is open.
+Cause: when the open request is de-duplicated, no window has a book yet, so
+`-[AppController windowControllerShowingBook:]` has nothing to match against
+and the request opens a window of its own. `-emptyWindowController` already
+declines a window that is mid-restoration (`-isAwaitingRestoredBook`), which
+is why the open created a new window rather than racing the restoration into
+the same one; what was missing is a *deferred* dedup — a book that is about
+to be restored is not yet a book that is open.
 
-Not fixed here: MW-9 is a verification pass, and per its task text a fix
-belongs in its own task with its own commit and verification cycle. Whoever
-takes it should decide, before coding, which window wins — the restored one
-(at its saved page) or the freshly requested one (at page 1) — because
-decision 2 says "bring the existing window forward" and at that instant
-neither window is yet the existing one.
+*Correction to this entry's original wording (2026-07-30, made while fixing
+it):* the cause was first written up as "`application:openFile:` runs before
+AppKit decodes window state", inherited from the comment MW-8 left on
+`-applicationDidFinishLaunching:`. Instrumenting every launch hook on macOS 26
+shows that state is decoded **before** `-applicationDidFinishLaunching:`, and
+the open request arrives after that — what has not happened by then is the
+restored *book open*, which `-restoreStateWithCoder:` defers by one run-loop
+pass. The measured order is in `docs/DECISIONS.md`; it does not change the
+symptom, but it is what the fix had to be built on.
+
+MW-9 recorded this rather than fixing it, because that task was a
+verification pass. The fix is
+`docs/tasks/2026-07-30-04-fix-duplicate-window-on-restored-book.md`, and the
+question it had to settle first — which window wins — was decided by the
+project owner in that task: the restored window, at its saved page.
 
 ---
 

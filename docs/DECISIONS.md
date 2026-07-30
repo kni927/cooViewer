@@ -965,6 +965,15 @@ gates the preference on. Consequence, accepted: a restored window whose
 book has since been deleted suppresses `OpenLastFolder` and is left empty
 — usable, never shown, and reused by the next open.
 
+*Superseded in part (2026-07-30, KNOWN_ISSUES #32 — see "Launch-time Finder
+opens wait for restoration…" below).* Two things in this paragraph have since
+been corrected by re-measurement: the windows' state is decoded **before**
+`-applicationDidFinishLaunching:`, not after it (what comes after is the book
+open), and the gate is no longer evaluated in that method at all — it moved
+to `-[AppController settleLaunch]`, where the restoration outcome *and*
+whether a Finder request arrived are both known. The gate's question and the
+accepted consequence above are unchanged.
+
 **3. The book is opened one run-loop pass after the restoration pass.**
 `-openPage:last:` is long, orders its window front, and can run modal (the
 archive progress sheet, a password prompt, the "go to the last page?"
@@ -1010,3 +1019,72 @@ performed". Removal is deliberately not being done now: the only benefit —
 minor license cleanup — does not justify the Preferences-UI change it would
 require. Revisit only if a concrete cost appears, such as an actual
 licensing conflict.
+
+## Launch-time Finder opens wait for restoration, and take precedence over `OpenLastFolder` (2026-07-30)
+
+Fixing `docs/KNOWN_ISSUES.md` #32 — a Finder open of a book that window
+restoration was bringing back produced two windows on it.
+
+**1. The measured launch order, which everything below rests on.** Every hook
+was instrumented on macOS 26, with three windows to restore plus a Finder
+open:
+
+```
+applicationWillFinishLaunching:
++restoreWindowWithIdentifier:   x3
+-restoreStateWithCoder:         x3     <- which book each window gets is known here
+NSApplicationDidFinishRestoringWindows
+-application:openFiles:
+applicationDidFinishLaunching:
+-openRestoredBook               x3     <- ~0.3 s later; the books actually open here
+```
+
+This **corrects the comment MW-8 left** on `-applicationDidFinishLaunching:`,
+which said the restored windows' state is decoded after that method. It is
+decoded before it. What happens after it is the *book open*, which
+`-restoreStateWithCoder:` defers by one run-loop pass (deliberately — the
+window has not been given its restored frame or put back into full screen
+yet). `NSApplicationDidFinishRestoringWindows` also fires when there is
+nothing to restore, so it is a reliable "restoration is over" signal, but it
+is not a "the restored books are open" signal — AppKit has none.
+
+**2. A Finder request that arrives during launch is held, not acted on.**
+De-duplication asks which window is *showing* a book (Step-0 decision 2, on
+the resolved book path), and at the moment the request arrives no restored
+window has opened its book yet. So `-application:openFiles:` queues the paths
+and `-[AppController settleLaunch]` drains them through the same
+`-openBookInNewWindow:` once no window has restoration work left. The
+alternative — teaching de-duplication to also match a window's *pending*
+restored path — was rejected: it would work only while the decode keeps
+happening before the open request, which is an ordering AppKit does not
+promise, and it would put a second notion of "which book is this window's"
+next to the one every other caller uses.
+
+**3. The restored window wins; it keeps its saved page.** Decided by the
+project owner. The request brings that window forward and does not reset it
+to page 1, which is what the de-duplication MW-7 built already does — so the
+fix is a timing change, not a behaviour change.
+
+**4. The wait is a bounded poll, not a notification.** There is no
+notification for "the restored books are open" (see 1), and
+`-openPage:last:` spins the run loop (MW-1's modal session), so a drain
+scheduled with `-performSelector:afterDelay:` can land in the middle of a
+restored book's open. `-isRestoredBookUnfinished` therefore covers all three
+stages — AppKit deciding, decoded but not opened, and mid-open — and is
+polled until it is clear everywhere or a 3 s deadline passes. On the deadline
+the queue is drained anyway: a restoration that fails or never completes must
+not silently swallow a file the user double-clicked. Verified both ways by
+stalling `-openRestoredBook` by 2 s in a probe build: with the real deadline
+the poll waits and de-duplication still wins (one window); with the deadline
+forced to zero the file still opens, degrading to the old duplicate rather
+than to a lost file.
+
+**5. An explicit Finder request outranks `OpenLastFolder`.** The fallback used
+to run in `-applicationDidFinishLaunching:`, gated on "did the system restore
+any windows". That gate is now evaluated in `-settleLaunch` alongside the
+drain, because at `-applicationDidFinishLaunching:` time it is not yet known
+whether anything is going to open a book. It stands down for a restored
+window (as before) **and** for a serviced Finder request, since opening the
+last folder *and* the requested book is the same duplicate-window outcome
+from the other direction. With no restoration and no request it behaves
+exactly as it did.

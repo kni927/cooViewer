@@ -962,3 +962,27 @@ window open, then opening that same book from Finder, yields two windows on
 it — restoration and decision 2's de-duplication do not meet) and #33 (a
 book load, including the password sheet, is still application-modal, the
 deferral MW-1 named). See `docs/tasks/2026-07-30-03-mw9-regression-pass.md`.
+
+### KNOWN_ISSUES #32: the arc's one acceptance-gate failure closed (2026-07-30)
+
+The duplicate window MW-9 found is fixed: quitting with a book's window open
+and then opening that same book from Finder now brings the restored window
+forward at its saved page instead of opening a second window beside it. A
+Finder request that arrives during launch is held by
+`-[AppController application:openFiles:]` and drained by the new
+`-settleLaunch` once no window has restoration work left, so it goes through
+the de-duplication MW-7 already built rather than around it. `OpenLastFolder`
+moved to the same point and now stands down for an explicit request as well as
+for a restored window.
+
+The launch order had to be measured rather than assumed, and it corrected the
+MW-8 write-up: restorable state is decoded *before*
+`-applicationDidFinishLaunching:`; what happens after it is the book open, one
+run-loop pass later. There is no AppKit notification for "the restored books
+are open", so the wait is a bounded poll with a 3 s deadline — verified in both
+directions by stalling restoration in a probe build.
+
+Warning baseline unchanged (312 = 310 + 2, empty diff against a same-session
+build of the previous commit); render captures byte-identical; no leaked
+window controller, `NSURL` or queue; defaults domain zero-diff. See
+`docs/tasks/2026-07-30-04-fix-duplicate-window-on-restored-book.md`.

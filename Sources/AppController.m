@@ -10,6 +10,17 @@ NSString * const CooViewerBookWindowRestorationIdentifier = @"cooViewerBookWindo
 static const int DIALOG_OK		= 128;
 static const int DIALOG_CANCEL	= 129;
 
+/* KNOWN_ISSUES #32. How long -settleLaunch will wait for restoration to
+   finish before draining a held Finder request anyway. Measured ordering on
+   macOS 26 (see the comment on -settleLaunch) puts the last restored book
+   about 0.3 s after the open request arrives, so this is roughly ten times
+   the expected wait: long enough that a slow archive is not cut short,
+   short enough that a restoration which never completes cannot leave a
+   double-clicked file unopened. */
+static const CFAbsoluteTime kLaunchDrainTimeout = 3.0;
+/* How often -settleLaunch re-checks while it is still waiting. */
+static const NSTimeInterval kLaunchDrainPollInterval = 0.05;
+
 /* Same timing as before MW-3: BookWindowController's own -awakeFromNib called
    -setupRemoteControl as its last step, during nib load rather than at
    applicationDidFinishLaunching: time. AppController is a nib object too
@@ -25,6 +36,12 @@ static const int DIALOG_CANCEL	= 129;
 	windowControllers = [[NSMutableArray alloc] init];
 	[self newWindowController];
 
+	/* KNOWN_ISSUES #32: created here because this runs during the MainMenu.xib
+	   load, which is before both the restoration pass and the launch's
+	   -application:openFiles:. */
+	pendingLaunchOpenPaths = [[NSMutableArray alloc] init];
+	launchDrainDeadline = CFAbsoluteTimeGetCurrent() + kLaunchDrainTimeout;
+
 	/* MW-8: the backstop that ends any restoration a window never got a
 	   -restoreStateWithCoder: for. Registered here because this runs during
 	   the MainMenu.xib load, which is before the restoration pass. */
@@ -39,37 +56,30 @@ static const int DIALOG_CANCEL	= 129;
 - (void)dealloc
 {
 	[[NSNotificationCenter defaultCenter] removeObserver:self];
+	[NSObject cancelPreviousPerformRequestsWithTarget:self
+											 selector:@selector(settleLaunch)
+											   object:nil];
+	[pendingLaunchOpenPaths release];
+	[launchNotification release];
 	[windowControllers release];
 	[super dealloc];
 }
 
 #pragma mark NSApplicationDelegate
 
+/* MW-8 / Step-0 decision 5 put the OpenLastFolder fallback here, gated on
+   "did the system restore any windows". KNOWN_ISSUES #32 moved the fallback
+   itself into -settleLaunch: a Finder request that arrives during launch is
+   now held rather than acted on, so this method is too early to know whether
+   anything is going to open a book. Both the gate and the queue drain happen
+   at the one point where that is knowable, and this method only kicks it —
+   -settleLaunch is idempotent, and -applicationDidFinishRestoringWindows:
+   may kick it first (on macOS 26 it does). */
 - (void)applicationDidFinishLaunching:(NSNotification *)notification
 {
-	/* MW-8 / Step-0 decision 5: OpenLastFolder is the *fallback* now. Window
-	   restoration is governed by the system's "Close windows when quitting an
-	   app" setting, so when it is on there is nothing to restore and this
-	   preference is still what reopens a book; when it is off the system has
-	   already brought back every window that was open, and running
-	   OpenLastFolder as well would open one of those books a second time.
-	   What is countable here is how many windows AppKit *asked* for: those
-	   requests all arrive before this method, but the windows' state is
-	   decoded after it and their books are opened a run-loop pass later
-	   still, so neither -hasBookOpen nor a count of successfully decoded
-	   books exists yet. Asking "did the system restore any windows" is also
-	   exactly the question the plan gates this on. A restored window whose
-	   book has since been deleted therefore suppresses OpenLastFolder and is
-	   left empty — the system did restore a window, it just has nothing to
-	   show; the window stays available for the next book. */
-	if (restoredWindowCount > 0) {
-		return;
-	}
-
-	/* Almost the entire body is window-level (pushes keyArray/mouseArray
-	   into the window's outlets, then the OpenLastFolder gate) — see the
-	   MW-3 pre-implementation inventory in docs/multiwindow-plan.md. */
-	[[self frontController] applicationDidFinishLaunchingSetup:notification];
+	launchNotification = [notification retain];
+	launchDidFinish = YES;
+	[self performSelector:@selector(settleLaunch) withObject:nil afterDelay:0.0];
 }
 
 /* macOS 12 and later. Restorable state is archived with secure coding when
@@ -115,9 +125,28 @@ static const int DIALOG_CANCEL	= 129;
    front window's book, because that is a different command.
 
    AppKit prefers this over -application:openFile: when both exist, so the
-   singular one is gone rather than left as an unreachable second path. */
+   singular one is gone rather than left as an unreachable second path.
+
+   KNOWN_ISSUES #32: during launch the request is *held* rather than acted on.
+   De-duplication asks which window is showing a book, and at this point in
+   the launch a window being restored has decoded its book but not opened it
+   yet — so acting now would find nothing to de-duplicate against and open a
+   second window on a book that is already coming back. -settleLaunch drains
+   the queue through this same -openBookInNewWindow: once every restored
+   window has its book. Once the launch has settled this method is unchanged:
+   immediate, no queue. */
 - (void)application:(NSApplication *)sender openFiles:(NSArray *)filenames
 {
+	if (!launchSettled) {
+		[pendingLaunchOpenPaths addObjectsFromArray:filenames];
+		/* Reply now: the files *will* be opened, and holding the reply until
+		   the drain would leave the Finder waiting on a run-loop pass that
+		   -openPage:last: can turn into a much longer one. */
+		[sender replyToOpenOrPrint:NSApplicationDelegateReplySuccess];
+		[self performSelector:@selector(settleLaunch) withObject:nil afterDelay:0.0];
+		return;
+	}
+
 	NSEnumerator *enu = [filenames objectEnumerator];
 	NSString *filename;
 	while (filename = [enu nextObject]) {
@@ -519,6 +548,98 @@ static const int DIALOG_CANCEL	= 129;
 	while (aController = [enu nextObject]) {
 		[aController endRestoration];
 	}
+	/* KNOWN_ISSUES #32. AppKit posts this even when there was nothing to
+	   restore (measured), so it is the earliest reliable "restoration is over"
+	   signal — but the restored books are opened a run-loop pass later still,
+	   which is what -settleLaunch waits for. */
+	[self performSelector:@selector(settleLaunch) withObject:nil afterDelay:0.0];
+}
+
+/* KNOWN_ISSUES #32. Ordering of the launch, measured on macOS 26 by
+   instrumenting every hook (three windows to restore plus a Finder open):
+
+     applicationWillFinishLaunching:
+     +restoreWindowWithIdentifier:  x3
+     -restoreStateWithCoder:        x3     <- the books are known here
+     NSApplicationDidFinishRestoringWindows
+     -application:openFiles:
+     applicationDidFinishLaunching:
+     -openRestoredBook              x3     <- ~0.3 s later; the books open here
+
+   Two things in that trace decide this method. Restoration state is decoded
+   *before* -applicationDidFinishLaunching:, not after it as the MW-8 comment
+   assumed; and the restored books are opened after it, from the
+   -performSelector:afterDelay:0.0 that -restoreStateWithCoder: schedules. So
+   the launch is settled only once no window is still working through a
+   restored book, and that is what is waited for here rather than any single
+   notification. The wait is a poll with a deadline because AppKit promises no
+   notification for "the restored books are open" — nothing in the trace above
+   is that signal — and because a restoration that fails or never completes
+   must not strand the user's file.
+
+   -isRestoredBookUnfinished covers all three stages: AppKit still deciding,
+   decoded but not yet opened, and mid-open. The last one matters because
+   -openPage:last: spins the run loop (MW-1's modal session), so this
+   -performSelector: can fire *inside* a restored book's open. */
+- (void)settleLaunch
+{
+	if (launchSettled) {
+		return;
+	}
+
+	if (CFAbsoluteTimeGetCurrent() < launchDrainDeadline) {
+		BOOL waiting = !launchDidFinish;
+		NSEnumerator *enu = [windowControllers objectEnumerator];
+		id aController;
+		while (!waiting && (aController = [enu nextObject])) {
+			waiting = [aController isRestoredBookUnfinished];
+		}
+		if (waiting) {
+			[self performSelector:@selector(settleLaunch)
+					   withObject:nil
+					   afterDelay:kLaunchDrainPollInterval];
+			return;
+		}
+	} else if ([pendingLaunchOpenPaths count] > 0) {
+		NSLog(@"cooViewer: window restoration did not finish in time; "
+			  @"opening the requested book(s) anyway");
+	}
+
+	launchSettled = YES;
+
+	/* Drained through -openBookInNewWindow:, so an explicit request for a book
+	   that a restored window is already showing brings that window forward at
+	   its restored page instead of opening a second one — Step-0 decision 2,
+	   which is the whole point of the queue. */
+	if ([pendingLaunchOpenPaths count] > 0) {
+		launchOpenRequestServiced = YES;
+		NSArray *paths = [[pendingLaunchOpenPaths copy] autorelease];
+		[pendingLaunchOpenPaths removeAllObjects];
+		NSEnumerator *enu = [paths objectEnumerator];
+		NSString *path;
+		while (path = [enu nextObject]) {
+			[self openBookInNewWindow:path];
+		}
+	}
+
+	/* MW-8 / Step-0 decision 5, unchanged in intent: OpenLastFolder is the
+	   fallback for "nothing else opened a book this launch". It now has two
+	   things to stand down for rather than one. A restored window whose book
+	   has since been deleted still suppresses it — the system did restore a
+	   window, it just has nothing to show — and an explicit Finder request
+	   takes precedence, because opening the last folder *and* the requested
+	   book is the same duplicate-window outcome from the other direction. */
+	if (restoredWindowCount > 0 || launchOpenRequestServiced) {
+		[launchNotification release];
+		launchNotification = nil;
+		return;
+	}
+
+	/* The body is the OpenLastFolder gate, and window-level — see the MW-3
+	   pre-implementation inventory in docs/multiwindow-plan.md. */
+	[[self frontController] applicationDidFinishLaunchingSetup:launchNotification];
+	[launchNotification release];
+	launchNotification = nil;
 }
 
 - (void)noteWindowRestorationRequested

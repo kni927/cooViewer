@@ -214,11 +214,14 @@
 	   -isAwaitingRestoredBook answers with: `restorationInFlight` covers the
 	   window between AppKit asking for it and -restoreStateWithCoder:
 	   answering, `restoredBookPending` from there until the book has
-	   actually been opened. */
+	   actually been opened. `restoredBookOpening` covers the open itself,
+	   which -isRestoredBookUnfinished needs and the other two do not — see
+	   the comment on that method (KNOWN_ISSUES #32). */
 	NSURL *restoredBookURL;
 	BOOL restoredAccessStarted;
 	BOOL restorationInFlight;
 	BOOL restoredBookPending;
+	BOOL restoredBookOpening;
 	int restoredPage;
 	int restoredFitScreenMode;
 }
@@ -402,6 +405,16 @@
 - (void)beginRestoration;
 - (void)endRestoration;
 - (BOOL)isAwaitingRestoredBook;
+
+/* KNOWN_ISSUES #32. Whether this window still has restoration work in
+   progress, in any of its three stages — AppKit deciding, a decoded book not
+   yet opened, or that book's open still running. -[AppController settleLaunch]
+   waits on this before it lets a held Finder request through, so it must stay
+   YES for the open too: -isAwaitingRestoredBook deliberately goes NO at the
+   *start* of -openRestoredBook (the window has to be reusable if the open
+   fails), and -openPage:last: spins the run loop, so a drain scheduled with
+   -performSelector:afterDelay: can otherwise land in the middle of it. */
+- (BOOL)isRestoredBookUnfinished;
 
 /* The page -encodeRestorableStateWithCoder: stores and -openPage:last:
    would be given to come back to it: the first of the pages on screen,
