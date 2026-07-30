@@ -93,10 +93,6 @@ NSRect COIntRect(NSRect aRect);
 
 -(BOOL)isMouseInPageBar;
 
-/* Clear the unretained IBOutlet references before this view is accessed
-   after its backing objects have been deallocated (e.g., during window close). */
-- (void)clearOutletReferences;
-
 
 
 @end
