@@ -189,6 +189,16 @@
 	   -frameAutosaveName:. Always 0 while there is exactly one window. */
 	int windowIndex;
 
+	/* v1.6.2: the frame size this window last had while not in native full
+	   screen. -frame reports the screen's frame while full screen, so a new
+	   window inheriting "the front window's size" needs this instead when
+	   the front window is currently full screen. Snapshotted in
+	   -windowWillEnterFullScreen:, before AppKit touches the frame for the
+	   transition, and seeded to the initial frame in -windowDidLoad so it is
+	   always valid even for a window that has never gone full screen. Read
+	   through -currentWindowedSize. */
+	NSSize lastWindowedSize;
+
 	/* MW-6 item 4: explicit "this window has a book open" state. It replaces
 	   the two proxies the code used to test — [[self window] isVisible] and
 	   [imageView image] — neither of which is the question being asked:
@@ -266,6 +276,13 @@
    all write over the same saved frame. Panels living in BookWindow.xib are
    per-window and must ask for their name through here. */
 - (NSString *)frameAutosaveName:(NSString *)baseName;
+
+/* v1.6.2: this window's current size, in its own terms — the live frame
+   size normally, or the last size it had before entering native full
+   screen if it is full screen right now. Used by
+   -[AppController openBookInNewWindow:] to size a newly created window
+   after this one, without ever handing out the full-screen screen size. */
+- (NSSize)currentWindowedSize;
 
 /* The book a path opens. A single image file is a *page*, so its book is the
    parent folder (PDFs are books in their own right) — the resolution

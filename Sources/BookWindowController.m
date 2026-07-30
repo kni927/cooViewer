@@ -239,6 +239,12 @@ static NSPoint gNextWindowCascadePoint;
 	}
 	gNextWindowCascadePoint = [[self window] cascadeTopLeftFromPoint:gNextWindowCascadePoint];
 
+	/* v1.6.2: seeded here so a window that never enters full screen still
+	   has a valid answer to -currentWindowedSize. Restoration (if any) and
+	   the autosave/cascade placement above have already run by this point,
+	   so this is the window's real starting size, not the raw nib default. */
+	lastWindowedSize = [[self window] frame].size;
+
 	/* MW-8 (Step-0 decision 5). The identifier is what makes AppKit save
 	   this window's state at all, and the restoration class is what it calls
 	   to get the window back; both have to be set before the window is ever
@@ -3363,6 +3369,26 @@ static const NSInteger kBookmarkMenuFixedItemCount = 3;
 - (void)windowDidExitFullScreen:(NSNotification *)aNotification
 {
 	[self recomposeForCurrentSize];
+}
+
+/* v1.6.2: keeps -lastWindowedSize current. Captured here rather than from
+   -windowDidResize: guarded by -isInFullScreen: measured on-device, the
+   style mask that -isInFullScreen reads is not yet set at the point the
+   resize-to-screen-size itself fires, so that guard let the full-screen
+   size through. -windowWillEnterFullScreen: fires before AppKit touches the
+   frame at all, so the frame read here is always the true last windowed
+   size, however many times the window was resized before this. */
+- (void)windowWillEnterFullScreen:(NSNotification *)aNotification
+{
+	lastWindowedSize = [[self window] frame].size;
+}
+
+- (NSSize)currentWindowedSize
+{
+	if ([(CustomWindow *)[self window] isInFullScreen]) {
+		return lastWindowedSize;
+	}
+	return [[self window] frame].size;
 }
 
 

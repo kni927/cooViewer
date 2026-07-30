@@ -547,7 +547,29 @@ static const NSTimeInterval kLaunchDrainPollInterval = 0.05;
 	   avoid. */
 	id aController = [self emptyWindowController];
 	if (!aController) {
+		/* v1.6.2: a genuinely new window inherits the front book window's
+		   size. Read before -newWindowController, which registers the new
+		   controller immediately and would otherwise make -frontController
+		   resolve to it instead of the window this one should inherit from
+		   (see -newWindowController's own comment on registration order).
+		   No inheritance if the front window has no book open — e.g. the
+		   bookless window at launch — which leaves this case exactly as it
+		   was: the nib default, placed by cascade. */
+		id front = [self frontController];
+		BOOL inheritSize = (front != nil && [front hasBookOpen]);
+		NSSize inheritedSize = inheritSize ? [front currentWindowedSize] : NSZeroSize;
+
 		aController = [self newWindowController];
+
+		if (inheritSize) {
+			NSWindow *newWindow = [aController window];
+			NSRect frame = [newWindow frame];
+			frame.size = inheritedSize;
+			/* display:NO — this only changes the frame the window will
+			   first draw into; the window is not shown until
+			   -openBookAtPath: below opens a book into it. */
+			[newWindow setFrame:frame display:NO];
+		}
 	}
 	[aController openBookAtPath:path];
 }

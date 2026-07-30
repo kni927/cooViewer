@@ -25,5 +25,6 @@
 	CustomImageView *view;		/* wired in MainMenu.xib */
 }
 - (void)keyDown:(NSEvent *)theEvent;
+- (BOOL)isInFullScreen;
 
 @end
