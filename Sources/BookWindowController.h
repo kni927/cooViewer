@@ -199,6 +199,22 @@
 	   in -windowWillClose:. Read through -hasBookOpen. */
 	BOOL bookOpen;
 
+	/* KNOWN_ISSUES #33: YES from the moment this window puts up a password
+	   sheet until the open it belongs to has finished one way or the other.
+	   Deliberately not "is a sheet on screen": it has to stay YES across the
+	   run-loop pass between a rejected password and the re-presented sheet,
+	   and across the open that follows an accepted one, because
+	   -isRestoredBookUnfinished is what stops -[AppController settleLaunch]
+	   draining a queued Finder open into the middle of either. Read through
+	   -isWaitingForUserInput. */
+	BOOL passwordOpenInFlight;
+
+	/* Set by -windowWillClose:. A password sheet's completion handler can run
+	   after its window has gone — AppKit dismisses sheets with their parent —
+	   and the re-ask a rejected password schedules can fire then too; both
+	   check this rather than acting on a torn-down window. */
+	BOOL windowClosed;
+
 	/* MW-8 (Step-0 decision 5). A security-scoped NSURL bookmark for the
 	   book open in this window, made once when the book is opened rather
 	   than at encode time — -encodeRestorableStateWithCoder: runs after
@@ -277,6 +293,19 @@
 - (void)openFromSameDir:(id)sender last:(BOOL)isLast;
 - (void)openFromOpenRecent:(id)sender;
 - (void)openPage:(int)page last:(BOOL)last;
+/* The second half of -openPage:last:, and the failure tail it shares with a
+   cancelled password prompt. Split out for KNOWN_ISSUES #33: an encrypted
+   archive's prompt is a sheet now, so the open has to be resumable from that
+   sheet's completion handler instead of running to the end in one call.
+   `fromFileName` carries the retain -openPage:last: took from currentBookPath;
+   whichever of these two finishes the open releases it. */
+- (void)openPageWithLoader:(COImageLoader *)newImageLoader
+					  page:(int)page
+					  last:(BOOL)last
+			  fromFileName:(NSString *)fromFileName;
+- (void)abandonOpenWithLoader:(COImageLoader *)newImageLoader
+				 fromFileName:(NSString *)fromFileName
+				  closeWindow:(BOOL)closeWindow;
 
 /* Archive open progress. Called from COArchive's read, which since MW-1
  * runs on a background thread for a top-level load — this must stay
@@ -298,8 +327,29 @@
 /* Modal password prompt for an encrypted archive, called from
  * COImageLoader while opening. Returns the entered password, or nil if
  * the user cancelled (the archive then stays closed). Pass wrong = YES to
- * indicate the previous attempt was rejected. */
+ * indicate the previous attempt was rejected.
+ *
+ * KNOWN_ISSUES #33: this synchronous form is now only for a *nested* archive —
+ * one COImageLoader opens from inside another archive's entries, built without
+ * `deferPasswordPrompt`, inside a load that already runs inline. The book this
+ * window is opening uses the sheet below instead. */
 - (NSString *)askArchivePassword:(COImageLoader *)loader wrongPassword:(BOOL)wrong;
+
+/* Window-modal password prompt for the book this window is opening: no modal
+ * loop, so the application's other windows stay live (KNOWN_ISSUES #33). The
+ * open continues from the sheet's completion handler — OK retries through
+ * -[COImageLoader tryPassword:], Cancel abandons the open without closing the
+ * window (KNOWN_ISSUES #30, decision 1). */
+- (void)askPasswordForLoader:(COImageLoader *)loader
+						page:(int)page
+						last:(BOOL)last
+				fromFileName:(NSString *)fromFileName
+			   wrongPassword:(BOOL)wrong;
+
+/* YES while this window is showing a prompt only a person can dismiss. Read by
+ * -[AppController settleLaunch], whose deadline is there to bound machine work
+ * and must not be spent on someone typing a password. */
+- (BOOL)isWaitingForUserInput;
 
 
 - (NSImage*)loadThumbnailImage:(int)index;

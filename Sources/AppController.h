@@ -159,8 +159,10 @@ extern NSString * const CooViewerBookWindowRestorationIdentifier;
 /* A registered window with no book open, preferring the front one, or nil.
    What a new book is opened into before a window is created for it. MW-8:
    a window the system is in the middle of restoring a book into is not
-   empty — its book simply has not been read yet — so it is skipped here. */
+   empty — its book simply has not been read yet — so it is skipped here, and
+   KNOWN_ISSUES #33 adds the window whose open is waiting on a password. */
 - (id)emptyWindowController;
+- (BOOL)isWindowControllerEmpty:(id)aController;
 
 #pragma mark window restoration (MW-8)
 

@@ -1133,9 +1133,25 @@ distinguish "this book has no readable pages" from "this page failed",
 and then decide whether `-openPage:last:` should surface an alert rather
 than silently closing the window.
 
-Note for anyone testing the failure path: use a cancelled password prompt
-on an encrypted archive (`tests/engine/out/enc_aes.zip` works), not a
-corrupt file.
+Note for anyone testing the failure path: use a cancelled **archive read** —
+open a large archive and press Esc while the progress sheet is up (a ~100 MB
+`.7z` reliably shows one; a ZIP will not, since `COZipArchive` only reads the
+central directory). A corrupt file does not reach it.
+
+*Updated 2026-07-30 (window-modal password prompt).* This entry used to name
+a cancelled password prompt as the other way in. It no longer is: cancelling
+the prompt now leaves the window bookless and ordered out instead of taking
+the `-performClose:` branch (`docs/DECISIONS.md`, decision 4 of "The archive
+password prompt is window-modal…"). The cancelled read above is what remains,
+which is also why the quit-on-last-close guard this entry discusses had to
+stay — verified, not assumed.
+
+The UX question this entry is really about — what an unreadable book *should*
+do — is still open and still a decision rather than a defect: the placeholder
+serves the legitimate case of a book whose pages fail to decode individually.
+Whoever changes it should distinguish "this book has no readable pages" from
+"this page failed", and then decide whether `-openPage:last:` should surface
+an alert.
 
 ---
 
@@ -1256,3 +1272,20 @@ loop around a window-modal sheet. The same shape applies to the load itself.
 Nothing is dropped or corrupted; this is a responsiveness limitation. The
 fix is the asynchronous open MW-1 named as "the better end state once MW-7
 lands", not a change to the sheet.
+
+### The password half is FIXED (2026-07-30)
+
+The prompt is window-modal now: the open is continuation-passing, so the
+sheet needs no modal loop, and with one up the other windows can be raised,
+driven from the menus and paged. See
+`docs/tasks/2026-07-30-05-window-modal-password-prompt.md` and
+`docs/DECISIONS.md`, "The archive password prompt is window-modal…".
+
+**What remains open is the loading half only:** a *load* still blocks the
+other windows, because `-runArchiveLoadNamed:usingBlock:` drives the progress
+sheet from an `NSApp` modal session. Deliberately pending rather than
+forgotten — a local archive opens in well under a second, so the deferral
+costs nothing in practice, and the same continuation-passing seam the password
+half now uses is where an asynchronous open would go. The prompt for an
+archive nested *inside* another archive also still uses the synchronous,
+app-modal path, by design (see decision 3 in that DECISIONS entry).

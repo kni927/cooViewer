@@ -986,3 +986,25 @@ Warning baseline unchanged (312 = 310 + 2, empty diff against a same-session
 build of the previous commit); render captures byte-identical; no leaked
 window controller, `NSURL` or queue; defaults domain zero-diff. See
 `docs/tasks/2026-07-30-04-fix-duplicate-window-on-restored-book.md`.
+
+### The password prompt no longer freezes the other windows (2026-07-30)
+
+`KNOWN_ISSUES` #33's password half and #30, both closed. An encrypted archive's
+prompt is a real window-modal sheet now: with one up, the other windows can be
+raised, driven from the menus and paged, where before the whole menu bar was
+disabled. That needed the open to become continuation-passing — `COImageLoader`
+reports `-needsPassword` instead of blocking, each attempt goes back through
+`-tryPassword:`, and `-openPage:last:` was split so the sheet's completion
+handler resumes the rest of it.
+
+Cancelling now leaves the window bookless and ordered out (reused by the next
+open) instead of closing it, which is what #30 was really asking; a window that
+already had a book keeps it. A wrong password re-presents the sheet in place,
+uncapped. #30's quit-on-last-close guard stays — the cancelled *read* path still
+closes a fresh window, reproduced with Esc on a 104 MB 7z.
+
+Two collisions with the multi-window work were found by testing rather than
+reading: a window waiting on a password is not an "empty" window (a second open
+was landing on it), and the launch drain deadline from #32 must not be spent on
+someone typing a password. Both fixed and measured in both directions. See
+`docs/tasks/2026-07-30-05-window-modal-password-prompt.md`.

@@ -484,17 +484,30 @@ static const NSTimeInterval kLaunchDrainPollInterval = 0.05;
 - (id)emptyWindowController
 {
 	id front = [self frontController];
-	if (front && ![front hasBookOpen] && ![front isAwaitingRestoredBook]) {
+	if (front && [self isWindowControllerEmpty:front]) {
 		return front;
 	}
 	NSEnumerator *enu = [windowControllers objectEnumerator];
 	id aController;
 	while (aController = [enu nextObject]) {
-		if (![aController hasBookOpen] && ![aController isAwaitingRestoredBook]) {
+		if ([self isWindowControllerEmpty:aController]) {
 			return aController;
 		}
 	}
 	return nil;
+}
+
+/* "Empty" means no book *and* nothing on its way in. Two states are not empty
+   even though -hasBookOpen says NO: a window the system is restoring a book
+   into (MW-8), and a window whose open is sitting on a password sheet
+   (KNOWN_ISSUES #33) — handing either of them to the next open would drop a
+   second book on top of one already in flight, and in the password case would
+   queue a second sheet behind the first on the same window. */
+- (BOOL)isWindowControllerEmpty:(id)aController
+{
+	return (![aController hasBookOpen]
+			&& ![aController isAwaitingRestoredBook]
+			&& ![aController isWaitingForUserInput]);
 }
 
 #pragma mark window restoration (MW-8)
@@ -585,6 +598,25 @@ static const NSTimeInterval kLaunchDrainPollInterval = 0.05;
 {
 	if (launchSettled) {
 		return;
+	}
+
+	/* KNOWN_ISSUES #33: a restored encrypted book waits on a password sheet,
+	   and a person takes as long as they take. The deadline is there to bound
+	   *machine* work that may never finish, so it is pushed forward for as long
+	   as any window is waiting on input — otherwise it would expire while the
+	   sheet is up and drain the queue early, which is exactly the duplicate
+	   window #32 removed. */
+	BOOL waitingForUser = NO;
+	NSEnumerator *userEnu = [windowControllers objectEnumerator];
+	id aWindowController;
+	while (aWindowController = [userEnu nextObject]) {
+		if ([aWindowController isWaitingForUserInput]) {
+			waitingForUser = YES;
+			break;
+		}
+	}
+	if (waitingForUser) {
+		launchDrainDeadline = CFAbsoluteTimeGetCurrent() + kLaunchDrainTimeout;
 	}
 
 	if (CFAbsoluteTimeGetCurrent() < launchDrainDeadline) {

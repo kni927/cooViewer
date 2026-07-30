@@ -1088,3 +1088,86 @@ window (as before) **and** for a serviced Finder request, since opening the
 last folder *and* the requested book is the same duplicate-window outcome
 from the other direction. With no restoration and no request it behaves
 exactly as it did.
+
+## The archive password prompt is window-modal, and cancelling it empties the window rather than closing it (2026-07-30)
+
+`KNOWN_ISSUES` #33's password half and #30, settled together because they are
+the same code path.
+
+**1. The prompt is a sheet with no modal loop.** MW-1 had already attached it to
+the right window, but ran `[NSApp runModalForWindow:]` around it so the caller
+could have the password as a return value — application-modal in everything but
+appearance. `-[BookWindowController askPasswordForLoader:page:last:fromFileName:wrongPassword:]`
+now uses `beginSheetModalForWindow:completionHandler:` alone. Measured: with a
+sheet up on one window, the other window can be raised, becomes main, has an
+enabled View/Setting menu and turns pages. Before, the whole menu bar was
+disabled.
+
+**2. The open is continuation-passing, split at one seam.** `COImageLoader`
+gained an opt-in `deferPasswordPrompt`: instead of blocking to ask, it reports
+`-needsPassword`, and each attempt goes back in through `-tryPassword:`, which
+on success finishes exactly the work `-content` would have done. `-openPage:last:`
+was split after the loader is constructed — `-openPageWithLoader:page:last:fromFileName:`
+is the rest of it — so the sheet's completion handler can resume the open. Only
+the loader, the page request and `fromFileName` cross the seam; everything else
+was already ivars, which is why the split is three parameters rather than a
+rewrite.
+
+**3. The prompt for a *nested* archive stays synchronous.** `deferPasswordPrompt`
+is per loader and only the book this window is opening asks for it. An encrypted
+archive inside another archive is opened by `COImageLoader` from inside the outer
+archive's entry list, where the enclosing load already runs inline, and it keeps
+the old app-modal prompt. Verified with an encrypted ZIP nested in a plain one:
+still prompts, still opens, menu bar disabled as before. Making that path
+asynchronous too would mean suspending an open in the middle of enumerating
+another archive's entries, for a case the retry loop already handles.
+
+**4. Cancel: decision 1 of the task.** A window that already had a book keeps
+showing it — nothing has been torn down at the point the prompt appears, which
+is what the old code's "restore the old identity strings" branch already did. A
+window with no book is left **bookless and ordered out, not closed**. That is
+the state MW-8 established for a restore whose book has gone: not shown,
+registered, reused by the next open — and, unlike a close, it cannot trip
+quit-on-last-close, which is exactly the surprise #30 was about. Verified: after
+cancelling, the next Finder open reuses the slot instead of creating a window.
+
+**5. Wrong password: decision 2.** The sheet is re-presented in place with
+"Incorrect password", with no attempt limit. Cancel is the exit that already
+exists; a limit would only add a second way to fail, and it buys nothing for a
+local file. Re-presented from the next run-loop pass, not from inside the
+completion handler, because AppKit is still dismissing the old sheet.
+
+**6. #30's session guard stays: decision 3, and it is still load-bearing.**
+`-applicationShouldTerminateAfterLastWindowClosed:` answering `didShowBook`
+looked like it might become dead weight once cancelling stopped closing
+windows. It does not: the *other* live route into that failure branch is a
+**cancelled archive read**, which still closes a fresh window. Reproduced on a
+104 MB 7z — progress sheet, Esc, the window closed, and the app stayed alive
+because of the guard. Removing it would quit the app when someone cancels the
+first read of a session.
+
+**7. A window waiting on a password is not an empty window.** `-[AppController
+emptyWindowController]` skipped a window mid-restoration (MW-8); it now also
+skips one whose open is waiting on a password. Without this, a second Finder
+open landed on the window that already had a sheet up — a second book dropped
+on top of an open in flight, with AppKit queueing the second sheet behind the
+first on the same window. Found by testing "two encrypted archives at once",
+which now gives two windows with two independent sheets.
+
+**8. The launch drain deadline is not spent on human input** — scope item 4, the
+one place this collides with #32. That work drains a queued Finder open once no
+window has restoration work outstanding, bounded by a 3 s deadline. A restored
+*encrypted* book waits on a person, so `-isRestoredBookUnfinished` now includes
+"waiting on a password sheet" **and** `-settleLaunch` pushes the deadline
+forward for as long as any window is in that state; the deadline still bounds
+machine work that may never finish. Measured in both directions with the sheet
+held for 12 s: with the pause, one window; with the pause removed in a probe
+build, two — the duplicate #32 removed. Also measured on the pre-change build:
+the collision did **not** exist there, because the app-modal loop stopped the
+poll from running at all. It is created by making the sheet non-blocking, which
+is why it is fixed here rather than reported.
+
+**Not changed, and not a regression:** the application cannot be quit while the
+password prompt is up — Cmd+Q, the Quit menu item and an AppleEvent quit are all
+dropped rather than deferred. Measured identically on the pre-change build, so
+the modality change neither caused nor cured it. Cancel is the way out.

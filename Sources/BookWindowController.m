@@ -829,6 +829,53 @@ static NSPoint gNextWindowCascadePoint;
 }
 
 
+/* The book could not be opened — a bad archive, or a password prompt the user
+   cancelled. Was the tail of -openPage:last:'s failure branch; extracted
+   because cancelling a password sheet takes the same path with one difference
+   (KNOWN_ISSUES #30, decision 1): it does not close the window.
+
+   `closeWindow` NO leaves a bookless window ordered out but registered, which
+   is the state MW-8 already established for a restore whose book has gone: not
+   shown, reused by the next open, and — unlike a close — it cannot trip
+   quit-on-last-close. A window that already had a book keeps showing it either
+   way; nothing has been torn down at this point. */
+- (void)abandonOpenWithLoader:(COImageLoader *)newImageLoader
+				 fromFileName:(NSString *)fromFileName
+				  closeWindow:(BOOL)closeWindow
+{
+	[newImageLoader release];
+	if ([self hasBookOpen]) {
+		/*ウィンドウを開いているとき*/
+		[currentBookPath release];
+		[currentBookName release];
+		[currentBookAlias release];
+		currentBookPath = oldBookPath;
+		currentBookName = oldBookName;
+		currentBookAlias = oldBookAlias;
+		/* "Open from same folder" submenu is now refreshed lazily via
+		   menuNeedsUpdate: (see setSameFolderMenu:) — not eagerly here —
+		   to avoid hitting the parent folder (and triggering macOS folder
+		   access prompts) on every book open. */
+	} else {
+		[currentBookPath release];
+		[currentBookName release];
+		[currentBookAlias release];
+		currentBookPath = nil;
+		currentBookName = nil;
+		currentBookAlias = nil;
+		if (closeWindow) {
+			[[self window] performClose:self];
+		} else {
+			[[self window] orderOut:self];
+		}
+	}
+	/* Carries the retain -openPage:last: took from currentBookPath, which only
+	   the success path used to release. */
+	[fromFileName release];
+	[progressIndicator stopAnimation:self];
+	//[imageView displayRect:rect];
+}
+
 /* MW-7: what -open: does once the path is known, without the panel. Used by
    -[AppController openBookInNewWindow:], which runs the panel itself because
    the choice of *which* window opens the book is an app-level one. */
@@ -883,7 +930,12 @@ static NSString * const kBookViewModeKey = @"cooViewerBookViewMode";
 
 - (BOOL)isRestoredBookUnfinished
 {
-	return (restorationInFlight || restoredBookPending || restoredBookOpening);
+	/* KNOWN_ISSUES #33 added the fourth case: a restored book that turned out
+	   to be encrypted is not finished while its password sheet is up. It
+	   outlives -openRestoredBook now, because that method returns as soon as
+	   the sheet is on screen instead of blocking until the book is open. */
+	return (restorationInFlight || restoredBookPending || restoredBookOpening
+			|| [self isWaitingForUserInput]);
 }
 
 - (int)restorablePageIndex
@@ -1143,35 +1195,46 @@ static NSString * const kBookViewModeKey = @"cooViewerBookViewMode";
 		[self setCurrentBookPath:resolvedBookPath];
 	}
 	
-	COImageLoader *newImageLoader = [[COImageLoader alloc] initWithPath:currentBookPath readSubFolder:readSubFolder controller:self];
+	/* KNOWN_ISSUES #33: `deferPasswordPrompt` — an encrypted archive makes the
+	   loader report -needsPassword instead of blocking to ask, so the prompt
+	   can be a sheet this window owns rather than a modal loop the whole
+	   application sits in. The rest of the open then happens in
+	   -openPageWithLoader:page:last:fromFileName:, either directly below or
+	   from the sheet's completion handler. */
+	COImageLoader *newImageLoader = [[COImageLoader alloc] initWithPath:currentBookPath
+															displayPath:currentBookPath
+														  readSubFolder:readSubFolder
+															 controller:self
+													deferPasswordPrompt:YES];
 
+	if (newImageLoader && [newImageLoader needsPassword]) {
+		[self askPasswordForLoader:newImageLoader
+							  page:page
+							  last:last
+					  fromFileName:fromFileName
+					 wrongPassword:NO];
+		return;
+	}
+
+	[self openPageWithLoader:newImageLoader page:page last:last fromFileName:fromFileName];
+}
+
+/* The rest of -openPage:last:, split off so that an encrypted archive can
+   resume here once its password sheet has been answered (KNOWN_ISSUES #33).
+   Only three things cross the split: the loader (a +1 this method takes over),
+   the page/last request, and `fromFileName` (which carries the retain
+   -openPage:last: took from currentBookPath). Everything else is ivars. */
+- (void)openPageWithLoader:(COImageLoader *)newImageLoader
+					  page:(int)page
+					  last:(BOOL)last
+			  fromFileName:(NSString *)fromFileName
+{
 	//NSLog(@"controller mode=%i count=%i",[newImageLoader mode],[newImageLoader itemCount]);
 	if (!newImageLoader || [newImageLoader mode] < 0 || [newImageLoader itemCount] < 1) {
 		/*表示出来ない時は元に戻す*/
-		[newImageLoader release];
-		if ([self hasBookOpen]) {
-			/*ウィンドウを開いているとき*/
-			[currentBookPath release];
-			[currentBookName release];
-			[currentBookAlias release];
-			currentBookPath = oldBookPath;
-			currentBookName = oldBookName;
-			currentBookAlias = oldBookAlias;
-			/* "Open from same folder" submenu is now refreshed lazily via
-			   menuNeedsUpdate: (see setSameFolderMenu:) — not eagerly here —
-			   to avoid hitting the parent folder (and triggering macOS folder
-			   access prompts) on every book open. */
-		} else {
-			[currentBookPath release];
-			[currentBookName release];
-			[currentBookAlias release];
-			currentBookPath = nil;
-			currentBookName = nil;
-			currentBookAlias = nil;
-			[[self window] performClose:self];
-		}
-		[progressIndicator stopAnimation:self];
-		//[imageView displayRect:rect];
+		[self abandonOpenWithLoader:newImageLoader
+					   fromFileName:fromFileName
+						closeWindow:YES];
 		return;
 	} else if ([self hasBookOpen]) {
 		/*ウィンドウを開いてたら準備する*/
@@ -1688,6 +1751,148 @@ static NSString * const kBookViewModeKey = @"cooViewerBookViewMode";
 		return nil;					// Cancel
 	NSString *entered = [[[field stringValue] copy] autorelease];
 	return ([entered length] > 0) ? entered : nil;
+}
+
+/* The same prompt, window-modal, for the open this window is driving itself
+ * (KNOWN_ISSUES #33). The synchronous version above stays for the one caller
+ * that still needs an answer inline: a *nested* archive, opened by
+ * COImageLoader from inside another archive's entry list, where the loader is
+ * built without `deferPasswordPrompt` and the enclosing load is already
+ * running inline.
+ *
+ * There is no modal loop here — only `beginSheetModalForWindow:`, so AppKit
+ * blocks this window and leaves every other one live, which is the whole point
+ * of the change. The open therefore has to continue from the completion
+ * handler:
+ *
+ *   OK    → -tryPassword: → open (or ask again if it was wrong)
+ *   Cancel → -abandonOpenWithLoader:...closeWindow:NO (decision 1)
+ *
+ * An empty entry counts as Cancel, as it did before: hitting OK with a blank
+ * field cannot loop.
+ *
+ * The block retains the loader, `fromFileName` and self for as long as the
+ * sheet is up (MRC copies retain captured objects), which is exactly the
+ * lifetime needed — the controller cannot be deallocated while its own sheet
+ * is waiting. Wrong-password re-prompts are not capped: the sheet's Cancel
+ * button is the exit, an attempt limit would only add a second way to fail,
+ * and it would buy nothing for a local file (decision 2). */
+- (void)askPasswordForLoader:(COImageLoader *)loader
+						page:(int)page
+						last:(BOOL)last
+				fromFileName:(NSString *)fromFileName
+			   wrongPassword:(BOOL)wrong
+{
+	if (![self canPresentSheet]) {
+		/* No window to hang a sheet on — the same fallback the rest of this
+		   class uses. Ask inline and finish the open right here. */
+		NSString *entered = [self askArchivePassword:loader wrongPassword:wrong];
+		if (entered == nil ||
+			[loader tryPassword:entered] != COArchiveCryptoOK) {
+			[self abandonOpenWithLoader:loader
+						   fromFileName:fromFileName
+							closeWindow:(entered != nil)];
+			return;
+		}
+		[self openPageWithLoader:loader page:page last:last fromFileName:fromFileName];
+		return;
+	}
+
+	NSAlert *alert = [[[NSAlert alloc] init] autorelease];
+	[alert setMessageText:(wrong ? NSLocalizedString(@"Incorrect password",@"")
+								 : NSLocalizedString(@"Password required",@""))];
+	NSString *name = [[loader displayPath] lastPathComponent];
+	[alert setInformativeText:[NSString stringWithFormat:
+		NSLocalizedString(@"Enter the password for \"%@\".",@""), name ? name : @""]];
+	[alert addButtonWithTitle:NSLocalizedString(@"OK",@"")];
+	[alert addButtonWithTitle:NSLocalizedString(@"Cancel",@"")];
+
+	NSSecureTextField *field = [[[NSSecureTextField alloc]
+		initWithFrame:NSMakeRect(0,0,260,24)] autorelease];
+	[[field cell] setWraps:NO];
+	[[field cell] setScrollable:YES];
+	[alert setAccessoryView:field];
+	[[alert window] setInitialFirstResponder:field];
+
+	/* Read by -isWaitingForUserInput, so -[AppController settleLaunch] can tell
+	   "restoration is still working" from "restoration is waiting for a
+	   person" and not spend its deadline on the latter. Set here rather than
+	   counted, and cleared only where this open ends, so the gap between a
+	   rejected password and the next sheet is covered too. */
+	passwordOpenInFlight = YES;
+
+	[alert beginSheetModalForWindow:[self sheetParentWindow]
+				 completionHandler:^(NSModalResponse r) {
+		if (windowClosed) {
+			/* AppKit dismisses a sheet when its parent window closes, so this
+			   handler can run for a window that no longer exists. */
+			[self discardPendingOpen:loader fromFileName:fromFileName];
+			return;
+		}
+
+		NSString *entered = nil;
+		if (r == NSAlertFirstButtonReturn) {
+			entered = [field stringValue];
+			if ([entered length] == 0) entered = nil;
+		}
+		if (entered == nil) {						/* Cancel, or a blank entry */
+			[self abandonOpenWithLoader:loader
+						   fromFileName:fromFileName
+							closeWindow:NO];
+			passwordOpenInFlight = NO;
+			return;
+		}
+
+		COArchiveCryptoStatus status = [loader tryPassword:entered];
+		if (status == COArchiveCryptoOK) {
+			[self openPageWithLoader:loader page:page last:last fromFileName:fromFileName];
+			passwordOpenInFlight = NO;
+			return;
+		}
+		if (status == COArchiveCryptoWrongPassword) {
+			/* Ask again on the next pass rather than from inside this handler:
+			   AppKit is still dismissing the old sheet, and a new one cannot be
+			   attached to the window until it has gone. passwordOpenInFlight
+			   stays YES across the gap, so a queued Finder open cannot be
+			   drained into it. */
+			dispatch_async(dispatch_get_main_queue(), ^{
+				if (windowClosed) {
+					[self discardPendingOpen:loader fromFileName:fromFileName];
+					return;
+				}
+				[self askPasswordForLoader:loader
+									  page:page
+									  last:last
+							  fromFileName:fromFileName
+							 wrongPassword:YES];
+			});
+			return;
+		}
+		/* Not a password problem any more (an unreadable archive): give up the
+		   same way a bad book does, but without closing the window — the user
+		   did supply a password, so this is not the cancel case. */
+		[self abandonOpenWithLoader:loader
+					   fromFileName:fromFileName
+						closeWindow:NO];
+		passwordOpenInFlight = NO;
+	}];
+}
+
+/* The window went away while its password prompt was in flight: drop what the
+   pending open owns and stop reporting it as waiting on the user. Deliberately
+   touches nothing else — -windowWillClose: has already torn the window down. */
+- (void)discardPendingOpen:(COImageLoader *)loader fromFileName:(NSString *)fromFileName
+{
+	[loader release];
+	[fromFileName release];
+	passwordOpenInFlight = NO;
+}
+
+/* Whether this window has an open that is waiting on a person (its password
+   sheet, or the moment between a rejected password and the next sheet). */
+- (BOOL)isWaitingForUserInput
+{
+	return passwordOpenInFlight;
 }
 
 /* MW-5: -sheetOk:/-sheetCancel: moved to AppController. Their only users are
@@ -3155,6 +3360,16 @@ static NSString * const kBookViewModeKey = @"cooViewerBookViewMode";
 											 selector:@selector(openRestoredBook)
 											   object:nil];
 	[self releaseRestoredBookAccess];
+
+	/* KNOWN_ISSUES #33: same for a password prompt in flight. `windowClosed`
+	   stops both the sheet's own completion handler — which AppKit still calls
+	   when it dismisses a sheet along with its parent — and a queued re-ask
+	   from opening a book into a window that has gone. The flag has to be
+	   cleared as well: -[AppController settleLaunch] holds its deadline open
+	   for as long as any window is waiting on input, so leaving it set on a
+	   closed window would stall a queued Finder open indefinitely. */
+	windowClosed = YES;
+	passwordOpenInFlight = NO;
 
 	/* Was a bare [lock lock]/[lock unlock] pair, which waits only for a
 	   lookahead that is already *inside* the body. A thread detached a

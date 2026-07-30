@@ -54,10 +54,18 @@ static NSArray *_COImageLoader_archiveTypes=nil;
 
 - (id)initWithPath:(NSString *)path displayPath:(NSString *)dispPath readSubFolder:(BOOL)boo controller:(id)ctr;
 {
-	
+	return [self initWithPath:path displayPath:dispPath readSubFolder:boo controller:ctr
+		  deferPasswordPrompt:NO];
+}
+
+- (id)initWithPath:(NSString *)path displayPath:(NSString *)dispPath readSubFolder:(BOOL)boo controller:(id)ctr deferPasswordPrompt:(BOOL)defer;
+{
+
 	self = [super init];
     if (self) {
 		controller = ctr;
+		deferPasswordPrompt = defer;
+		needsPassword = NO;
 		tempDir = nil;
 		inTempDir = NO;
 		inArchiveArray = [[NSMutableArray alloc] init];
@@ -313,6 +321,53 @@ static NSArray *_COImageLoader_archiveTypes=nil;
 	return password;
 }
 
+- (BOOL)needsPassword
+{
+	return needsPassword;
+}
+
+/* One attempt from the host's sheet (KNOWN_ISSUES #33). On success this
+ * finishes the work -content would have done had the password been known at
+ * init time: the container re-scans itself, the entries are enumerated by
+ * -checkArchiveContainer:, and the placeholder page that every failed open
+ * gets is dropped. On a wrong password nothing changes, so the host can
+ * simply ask again. */
+- (COArchiveCryptoStatus)tryPassword:(NSString *)entered
+{
+	if (!needsPassword || entered == nil) {
+		return COArchiveCryptoWrongPassword;
+	}
+
+	[archiveContainer setPassword:entered];
+	COArchiveCryptoStatus status = [archiveContainer cryptoStatus];
+	if (status != COArchiveCryptoOK) {
+		/* Anything other than "try again" leaves the archive unopenable; the
+		 * host stops asking and the loader stays in its failed state. */
+		if (status != COArchiveCryptoWrongPassword) {
+			needsPassword = NO;
+		}
+		return status;
+	}
+
+	NSString *old = password;
+	password = [entered copy];
+	[old release];
+	needsPassword = NO;
+
+	/* -checkArchiveContainer: empties the three content collections itself, so
+	 * the placeholder inserted by the initializer goes with them. mode is put
+	 * back to the archive mode -content had set before the open failed. */
+	mode = 2;
+	if (![self checkArchiveContainer:0]) {
+		mode = -1;
+	}
+	if ([self itemCount] == 0) {
+		[contentPathArray addObject:[[NSBundle mainBundle] pathForResource:@"empty" ofType:@"png"]];
+		mode = -1;
+	}
+	return COArchiveCryptoOK;
+}
+
 - (void)setInTempDir:(BOOL)b
 {
 	inTempDir = b;
@@ -465,7 +520,8 @@ static NSArray *_COImageLoader_archiveTypes=nil;
  * itself and its entries are now readable), NO when the archive stays
  * closed: an unsupported format (encrypted RAR — fails closed exactly as
  * before), a host that cannot ask (the QuickLook extensions never reach
- * here; they use COCoverExtractor, which has no controller), or the user
+ * here; they use COCoverExtractor, which has no controller), the host having
+ * asked to drive the prompt itself (`deferPasswordPrompt`), or the user
  * cancelling.
  *
  * The retry loop always has an exit: Cancel makes the prompt return nil,
@@ -482,6 +538,14 @@ static NSArray *_COImageLoader_archiveTypes=nil;
 		[archiveContainer setPassword:password];
 		if ([archiveContainer cryptoStatus] == COArchiveCryptoOK)
 			return YES;
+	}
+
+	/* KNOWN_ISSUES #33: the host wants to ask for the password itself, with a
+	 * sheet that does not block its other windows. Report the need and stop —
+	 * -tryPassword: is how the answers come back. */
+	if (deferPasswordPrompt) {
+		needsPassword = YES;
+		return NO;
 	}
 
 	if (!controller ||
