@@ -1427,7 +1427,7 @@ Nil guards were also added in `-drawRect:`, `-mouseMoved:`,
 fix**: they only help once the pointers have actually been nil'd.
 
 Reproduced and verified with real output — see
-`docs/tasks/2026-07-30-07-fix-multiwindow-close-crash.md`.
+`docs/tasks/2026-07-30-08-fix-multiwindow-close-crash.md`.
 
 **Not covered by this fix:** `CustomImageView`'s `target` ivar is the same
 unretained-back-reference shape and was left alone as out of scope. It has

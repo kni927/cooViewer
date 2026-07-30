@@ -1053,4 +1053,4 @@ against the released v1.6.0. Fixed by dropping the outlet in
 interval, since the window/view group is released one close behind (#26).
 Reproduced under `NSZombieEnabled` on a v1.6.0 build and confirmed clean on
 the fixed one. Not yet released. See
-`docs/tasks/2026-07-30-07-fix-multiwindow-close-crash.md`, KNOWN_ISSUES #36.
+`docs/tasks/2026-07-30-08-fix-multiwindow-close-crash.md`, KNOWN_ISSUES #36.
