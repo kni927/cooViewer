@@ -75,6 +75,17 @@ NSRect COIntRect(NSRect aRect)
 	[super dealloc];
 }
 
+/* Clear unretained IBOutlet references when this view outlives its backing
+   objects (e.g., when AccessoryWindow survives to process pending draw events
+   after the BookWindowController is deallocated). This is called from
+   AccessoryWindow's -dealloc to prevent use-after-free when a draw fires
+   during the window close sequence. */
+- (void)clearOutletReferences
+{
+	[self setValue:nil forKey:@"controller"];
+	[self setValue:nil forKey:@"imageView"];
+}
+
 - (void)setPreferences
 {
 	if (!didFirst) {
