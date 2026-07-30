@@ -127,7 +127,9 @@ Perform steps 1-6 in a single session, without repeating installs.
 5. Complete all checks needed before cleanup — do not do a partial check,
    clean up, then come back for more in the same session.
 6. Clean up: `pluginkit -r` to unregister the extensions, then delete
-   `~/Applications/cooViewer.app`.
+   `~/Applications/cooViewer.app`. Do **not** delete any `defaults` keys or
+   `NSUserDefaults` entries — only remove the app bundle and QuickLook
+   registrations.
 
 ### If something goes wrong
 

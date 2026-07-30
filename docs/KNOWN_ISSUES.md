@@ -602,6 +602,56 @@ Do not fix individual keys opportunistically while working on something
 else. Treat it as one scoped task with its own verification, including a
 clean-domain launch test.
 
+---
+
+## 20. Cannot Quit While Modal Sheets Are Displayed (Multi-Window Arc, Phase 9)
+
+Three known cases where quit (Cmd+Q, application menu, or AppleEvent) is
+blocked or deferred while a modal is active. These are **decided not to
+fix** as of v1.6.0.
+
+### Case 1: All Bookmark Browser (`runModalForWindow:`)
+
+The All Bookmarks browser window opened via `File > All Bookmarks…` is
+modal (`[NSApplication runModalForWindow:]`). Quit is blocked entirely
+while the window is open.
+
+**Workaround:** Close the All Bookmarks window (close button or `Esc`) before
+quitting.
+
+### Case 2: Nested-Archive Password Prompt
+
+When opening a password-protected book inside an archive (a `.cbz` inside a
+`.zip`, etc.), the password prompt is synchronous and modal. Cmd+Q
+**defers** the quit (does not discard it) — answering the password prompt or
+cancelling it will then fire the deferred quit; the app does not stay open.
+
+**Why unfixable without a redesign:** The prompt is synchronous (not async)
+by design, and converting it would require substantial refactoring of the
+archive-load path. See task
+`docs/tasks/2026-07-30-01-password-prompt-quit-deferral.md` for the decision.
+
+### Case 3: Archive-Load Progress Sheet
+
+When loading a large archive, a progress sheet may appear. Cmd+Q is
+swallowed (the `NSModalSession` consumes it). **However**, an AppleEvent
+quit (e.g. `osascript -e 'tell app "cooViewer" to quit'`) works
+immediately.
+
+**Workaround:** Wait for the progress sheet to complete, or use an AppleEvent
+quit from the shell.
+
+---
+
+## 21. All Bookmark Browser: No Page-Jump-on-Click Gesture
+
+The All Bookmarks browser lists bookmarks for the currently open book, but
+there is **no gesture to click a bookmark to jump to that page** — the Open
+button in the browser opens a *different* book from a different folder.
+
+This is a feature gap, not a defect. Whether to add it is an owner decision,
+left to a future task.
+
 ## 20. `en.lproj/Localizable.strings` Is UTF-16LE, `ja.lproj` Is UTF-8
 
 `Resources/en.lproj/Localizable.strings` is UTF-16 little-endian;
