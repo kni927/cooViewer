@@ -277,7 +277,7 @@ NSRect COIntRect(NSRect aRect)
 {
     NSDisableScreenUpdates();
     NSPoint lensOldPoint;
-    if ([controller indicator] && ![imageView loupeIsVisible]) {
+    if (controller && [controller indicator] && imageView && ![imageView loupeIsVisible]) {
         lensOldPoint = [[self window] mouseLocationOutsideOfEventStream];
         
         if (autoHidedPageBar) {
@@ -317,7 +317,7 @@ NSRect COIntRect(NSRect aRect)
 	if (!NSIsEmptyRect(pageBarStringRect)) {
 		pageBarStringRect = NSZeroRect;
 	}
-	if ([controller indicator] && ![imageView loupeIsVisible]) {
+	if (controller && [controller indicator] && imageView && ![imageView loupeIsVisible]) {
 		lensOldPoint = [[self window] mouseLocationOutsideOfEventStream];
 		
 		NSRect tempPageBarRect = NSInsetRect([self pageBarRect],2,2);
@@ -609,7 +609,7 @@ NSRect COIntRect(NSRect aRect)
 
 -(void)drawRect:(NSRect)frameRect
 {
-	if ([controller indicator] && [imageView image]) {
+	if (controller && [controller indicator] && imageView && [imageView image]) {
 		if (!autoHidedPageBar) {
 			pageBarRect = [self pageBarRect];
 			
@@ -904,7 +904,7 @@ NSRect COIntRect(NSRect aRect)
 }
 -(NSRect)pageBarRect
 {
-	if ([controller indicator]) {		
+	if (controller && [controller indicator]) {		
 		float width = pageBarWidth+1;
 		float height = pageBarHeight+1;
 		NSRect rect;
