@@ -12,6 +12,7 @@ permissions:
 
 env:
   APP_PATH: build/Deployment/cooViewer.app
+  DSYM_PATH: build/Deployment/cooViewer.app.dSYM
   ZIP_PATH: build/Deployment/cooViewer.app.zip
   SIGNING_IDENTITY: "Developer ID Application: Kuniharu Nishimura (87B58V226A)"
 
@@ -153,12 +154,21 @@ jobs:
           # workflow_dispatch runs have no tag, fall back to -dev.
           if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
             FINAL_ZIP_PATH="build/Deployment/cooViewer-${GITHUB_REF_NAME}.zip"
+            FINAL_DSYM_ZIP_PATH="build/Deployment/cooViewer-${GITHUB_REF_NAME}.dSYM.zip"
           else
             FINAL_ZIP_PATH="build/Deployment/cooViewer-dev.zip"
+            FINAL_DSYM_ZIP_PATH="build/Deployment/cooViewer-dev.dSYM.zip"
           fi
 
           ditto -c -k --keepParent "$APP_PATH" "$FINAL_ZIP_PATH"
           echo "FINAL_ZIP_PATH=$FINAL_ZIP_PATH" >> "$GITHUB_ENV"
+
+          # The Deployment configuration now generates a dSYM (see
+          # docs/DECISIONS.md, "Deployment configuration now generates a
+          # dSYM"); zip it separately, unstapled -- notarization/stapling
+          # applies only to the executable bundle, never to debug symbols.
+          ditto -c -k --keepParent "$DSYM_PATH" "$FINAL_DSYM_ZIP_PATH"
+          echo "FINAL_DSYM_ZIP_PATH=$FINAL_DSYM_ZIP_PATH" >> "$GITHUB_ENV"
 
       - name: Build test book
         run: |
@@ -171,5 +181,6 @@ jobs:
         with:
           files: |
             build/Deployment/cooViewer-${{ github.ref_name }}.zip
+            build/Deployment/cooViewer-${{ github.ref_name }}.dSYM.zip
             tests/fixtures/cooViewer-test-book.cbz
           generate_release_notes: true

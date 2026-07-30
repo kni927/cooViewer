@@ -1313,3 +1313,52 @@ An unretained outlet whose target has been deallocated is a dangling
 pointer, not nil, so `if (controller && ...)` is still true and still
 crashes. Guards are worth keeping as insurance once the pointer is actually
 nil'd, but the fix is always the assignment.
+
+## Deployment configuration now generates a dSYM; `build/`'s "app only" rule is unaffected (2026-07-31)
+
+The v1.6.0 field crash (`docs/KNOWN_ISSUES.md` #36) could not be
+symbolicated: `atos` against the shipped, stripped binary failed, and CI
+did not archive a `.dSYM`. Root cause of the *project setting*, found by
+inspection then confirmed empirically: the `cooViewer` target's
+`Deployment` configuration had `GCC_GENERATE_DEBUGGING_SYMBOLS = NO` — no
+`DEBUG_INFORMATION_FORMAT` was set anywhere in the project (this is a
+legacy-style `.pbxproj` that predates that setting), so the only knob
+actually in effect was the old one, and it was off. Setting
+`DEBUG_INFORMATION_FORMAT = dwarf-with-dsym` alone would **not** have been
+sufficient; both had to change together. Verified with a real build: with
+only `GCC_GENERATE_DEBUGGING_SYMBOLS = NO` (the pre-existing state), no
+`.dSYM` bundle was produced at all. With both settings changed, a build
+produced `cooViewer.app.dSYM`, whose UUID matched the app binary's, and
+`atos` resolved a real symbol to a correct file:line
+(`-[AccessoryView drawRect:]` → `AccessoryView.m:636`).
+
+Scope: only the `cooViewer` target's `Deployment` configuration was
+changed. `Deployment2` (unused — see the `BufferingMode` history) and the
+two QuickLook/Thumbnail extension targets keep
+`GCC_GENERATE_DEBUGGING_SYMBOLS = NO`; they were not part of the crash and
+changing them is out of scope for this hotfix.
+
+**Where the dSYM lands, and why `build/`'s "only the final app" rule is not
+broken by this:**
+
+- **CI** does not use the local dev SYMROOT-redirect convention at all — it
+  runs a plain `xcodebuild -configuration Deployment` with no path
+  overrides, so *all* of Xcode's output, including intermediates, already
+  lands directly under the repo's `build/` on the runner (pre-existing,
+  not introduced by this change; that `build/` is the CI runner's own
+  ephemeral workspace and is never committed). `cooViewer.app.dSYM` now
+  appears there too, next to `cooViewer.app`. The release workflow zips it
+  from that path (`build/Deployment/cooViewer.app.dSYM`) into
+  `cooViewer-<tag>.dSYM.zip`, uploaded as a second release asset alongside
+  the app zip. It is never stapled — notarization and stapling apply to
+  the executable bundle, not to debug symbols.
+- **Local dev builds** use the `CLAUDE.md`-documented command, which
+  redirects `SYMROOT`/`OBJROOT` outside the repo and copies only
+  `cooViewer.app` into the local `build/`. That copy step is unchanged, so
+  the dSYM this setting now produces lands in the redirected `SYMROOT`
+  (outside the repo) and is never copied into local `build/`. Confirmed by
+  a real build: local `build/` still contains exactly one entry,
+  `cooViewer.app`.
+
+So both build paths keep their existing behaviour with respect to `build/`
+contents; only CI gained a new artifact to pick up and ship.
