@@ -929,3 +929,36 @@ diff against the 310 baseline; no extra resampling step on a restored
 window; no zombies; no new leaks; zero-delta defaults round-trip. See
 `docs/tasks/2026-07-30-02-mw8-window-restoration.md`. **MW-9 (regression
 pass and release readiness) is unblocked.**
+
+### Multi-window refactor: MW-9, the arc's acceptance gate (2026-07-30)
+
+The multi-window arc (MW-1 … MW-8) is verified and closed. All sixteen items
+of the regression matrix in `docs/multiwindow-plan.md` were run on device
+against a Deployment build of `main`: two archive formats side by side,
+per-window page/reading-direction/zoom/rotation, independent closes, the
+password sheet on the right window, per-window thumbnail and bookmark
+panels, a Preferences change reaching every window, a slideshow surviving
+another window's close, native full screen alongside a windowed sibling,
+four books from one Finder open, encrypted and plain concurrently,
+same-book de-duplication (including a single image resolving to its folder
+book), and folder/`.cvbdl` books. Fifteen pass.
+
+**Image quality is unchanged, measured rather than eyeballed.** A pre-MW-1
+build (`20c4919`, built in a throwaway `git worktree` so `main` was never
+touched) and the final build were captured in the same session at the same
+window frame, over three page states × two fit modes. All six pairs are
+**byte-identical** — mean absolute difference 0, sharpness delta 0.0000 —
+with two controls proving the comparison is sensitive to a real render
+change. The arc cost nothing in the render path.
+
+Warnings match the 310 baseline (312 lines = 310 + 2 "not stripping
+binary"), `build/` holds only `cooViewer.app`, and the owner's defaults
+domain was exported before testing and restored to a byte-identical state
+afterwards.
+
+Two findings are recorded rather than fixed, per the task's own rule that a
+fix belongs in its own cycle: `docs/KNOWN_ISSUES.md` #32 (quitting with a
+window open, then opening that same book from Finder, yields two windows on
+it — restoration and decision 2's de-duplication do not meet) and #33 (a
+book load, including the password sheet, is still application-modal, the
+deferral MW-1 named). See `docs/tasks/2026-07-30-03-mw9-regression-pass.md`.

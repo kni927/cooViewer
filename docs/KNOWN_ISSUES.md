@@ -1177,3 +1177,69 @@ rounding difference, not a second scaling step.
 Whoever picks this up should establish which of the two is drawn at the
 right size before changing anything, and must count resampling steps before
 and after per the inviolable rule at the top of `CLAUDE.md`.
+
+---
+
+## 32. A Finder open of a book that window restoration is bringing back gives two windows on the same book
+
+Found by the MW-9 regression pass (2026-07-30). It is the one interaction
+between MW-8's window restoration and Step-0 decision 2 ("the same book
+opened twice brings the existing window forward") that the de-duplication
+does not cover.
+
+Reproduction (default settings, nothing disabled):
+
+1. Open a book, quit with its window still open — the ordinary Cmd+Q. macOS
+   saves restorable state for that window.
+2. Open the *same* book from Finder (or `open -a cooViewer.app <book>`).
+3. Two windows appear on that book: the restored one, at its saved page, and
+   a second one the open request created, at page 1.
+
+Control: close every window before quitting (File ▸ Close All, which also
+quits per decision 4), so there is nothing to restore, and the same Finder
+open produces exactly one window.
+
+Cause, from the MW-8 design: `application:openFile:` runs before AppKit
+decodes window state, so when the open request is de-duplicated no window
+has a book yet — `-[AppController]`'s resolved-book-path lookup has nothing
+to match against. The restored window then opens its book independently.
+`-emptyWindowController` already declines a window that is mid-restoration
+(`-isAwaitingRestoredBook`), which is why the open creates a new window
+rather than racing the restoration into the same one; what is missing is a
+*deferred* dedup — a book that is about to be restored is not yet a book
+that is open.
+
+Not fixed here: MW-9 is a verification pass, and per its task text a fix
+belongs in its own task with its own commit and verification cycle. Whoever
+takes it should decide, before coding, which window wins — the restored one
+(at its saved page) or the freshly requested one (at page 1) — because
+decision 2 says "bring the existing window forward" and at that instant
+neither window is yet the existing one.
+
+---
+
+## 33. Loading a book still blocks the other windows
+
+MW-1 replaced the app-modal password `NSAlert` with a sheet on the window
+whose book needs the password, and moved the archive read off the main
+thread. What it deliberately did **not** do — recorded as deferred by design
+in `docs/tasks/2026-07-28-03-mw1-archive-load-concurrency.md` — is make the
+whole open asynchronous. Now that MW-7 and MW-8 have shipped real multiple
+windows, that deferral is user-visible, so it is recorded here rather than
+only in a task archive.
+
+Observed in the MW-9 pass (2026-07-30) with two windows open: while the
+password sheet for an encrypted archive is up on its own window, the menu
+bar is disabled application-wide (`enabled = false` on File and View items),
+so the other window cannot be operated until the prompt is answered. The
+sheet itself is attached to the correct window, which is what the arc's
+acceptance matrix asked for; the modality is the leftover.
+
+Cause: `-[BookWindowController askArchivePassword:wrongPassword:]` needs a
+synchronous answer for `COImageLoader`'s retry loop, so it presents the
+sheet and then runs `[NSApp runModalForWindow:]` — an application-modal
+loop around a window-modal sheet. The same shape applies to the load itself.
+
+Nothing is dropped or corrupted; this is a responsiveness limitation. The
+fix is the asynchronous open MW-1 named as "the better end state once MW-7
+lands", not a change to the sheet.

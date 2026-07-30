@@ -994,3 +994,19 @@ two restoration requests, since a restored window has no book until its
 deferred open runs. `-beginRestoration` / `-endRestoration` bracket it,
 with `NSApplicationDidFinishRestoringWindowsNotification` as the backstop
 for a window AppKit never decodes state into.
+
+## Apple Remote (IR) support is suspended, not removed (2026-07-30)
+
+Apple Remote (IR) support is suspended, not removed: no current Mac has a
+built-in IR receiver (the last was the 2014 Mac mini), so the feature is
+inert on any modern hardware regardless of what the code does.
+`RemoteControlWrapper` is kept only for Preferences ▸ Input
+settings compatibility — the "AppleRemote …" entries are persisted in user
+key bindings, so dropping the library would invalidate them (the earlier,
+narrower "keep the library" reasoning is in `docs/KNOWN_ISSUES.md` §16 and
+is not repeated here). On-hardware verification remains impossible, which
+is the long-standing verification gap every MW task reported as "not
+performed". Removal is deliberately not being done now: the only benefit —
+minor license cleanup — does not justify the Preferences-UI change it would
+require. Revisit only if a concrete cost appears, such as an actual
+licensing conflict.
