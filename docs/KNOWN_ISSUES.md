@@ -1349,3 +1349,30 @@ costs nothing in practice, and the same continuation-passing seam the password
 half now uses is where an asynchronous open would go. The prompt for an
 archive nested *inside* another archive also still uses the synchronous,
 app-modal path, by design (see decision 3 in that DECISIONS entry).
+
+---
+
+## 23. v1.6.0 Release — Known Limitations
+
+### #34: Cannot quit while modals are displayed (three cases)
+
+Three scenarios remain where quit (Cmd+Q, application menu, or AppleEvent) is
+blocked or deferred while a modal is active. These are **decided not to fix**
+as of v1.6.0.
+
+- **All Bookmarks browser** (`runModalForWindow:`): The browser is modal.
+  Close it before quitting.
+- **Nested-archive password prompt**: Quit is **deferred** — answering the
+  prompt or cancelling it will then fire the deferred quit; the app does not
+  stay open.
+- **Archive-load progress sheet**: Cmd+Q is swallowed by the `NSModalSession`.
+  An AppleEvent quit (e.g. `osascript -e 'tell app "cooViewer" to quit'`)
+  works immediately.
+
+See DECISIONS.md "Three modal-quit edge cases" for details.
+
+### #35: All Bookmarks browser has no bookmark-to-page navigation
+
+The browser displays bookmarks from the current book but does not support
+clicking a bookmark to jump to that page. The Open button switches to a
+different book. This is a feature gap left to future consideration.

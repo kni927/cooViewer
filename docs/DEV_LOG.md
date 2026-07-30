@@ -1034,3 +1034,13 @@ or the restorable state.
 Reported rather than implemented: activating a bookmark does not navigate to its
 page, because no bookmark panel has ever had such a gesture — adding one is new
 UI. See `docs/tasks/2026-07-30-06-all-bookmark-entry-and-quit-with-sheet.md`.
+
+---
+
+### v1.6.0 (2026-07-30)
+
+Multi-window support (MW-1…MW-9), cvbdl QuickLook/Thumbnail extensions,
+password-protected ZIP with window-modal prompts, All Bookmarks menu entry
+(#24), Finder reopen dedup (#32), quit-while-password-prompt capability.
+Three modal-quit limitations recorded (KNOWN_ISSUES). Shipped via CI
+notarization and Homebrew tap.
