@@ -1376,3 +1376,60 @@ See DECISIONS.md "Three modal-quit edge cases" for details.
 The browser displays bookmarks from the current book but does not support
 clicking a bookmark to jump to that page. The Open button switches to a
 different book. This is a feature gap left to future consideration.
+
+---
+
+## 36. ~~Closing one of several windows crashes in `-[AccessoryView drawRect:]`~~ — FIXED (2026-07-30)
+
+Shipped in v1.6.0 and reported from the field: with more than one window
+open, closing one crashed the app with `EXC_BAD_ACCESS` in
+`-[AccessoryView drawRect:] + 60`, on `objc_msgSend` with `x1` = selector
+`indicator`. Single-window builds never showed it because closing the only
+window also ended the process.
+
+**Cause — use-after-free on an unretained outlet.** `AccessoryView`'s
+`controller` and `imageView` are `IBOutlet`s and are deliberately not
+retained (see the `-dealloc` comment in that class). When
+`-[BookWindowController dealloc]` runs, `controller` becomes a **dangling
+pointer, not nil** — which is why the reported fault address
+(`0x00657fec4301bf38`) is garbage rather than zero, and why a nil check
+alone cannot prevent the crash.
+
+The view outlives the controller because of #26: the window/view group
+(`CustomWindow`, `CustomImageView`, `AccessoryWindow`, `AccessoryView`) is
+released **one close behind**, since AppKit holds the most recently closed
+window. During that interval the `AccessoryWindow` child window is still in
+the display cycle, so a draw request queued before the close still reaches
+`-drawRect:`.
+
+The reliable trigger is the auto-hide timer. With `PageBarAutoHide` or
+`PageNumAutoHide` on (both are on in the owner's profile),
+`-mouseMoved:` schedules `accessoryTimer` for 2 s; `-hideAccessory` then
+calls `-displayRect:`. Hovering over a window and closing it within those
+2 s fires the timer into the retired view.
+
+**Fix.** `-[AccessoryView detachFromWindowController]` sets both outlets to
+nil by **direct ivar assignment**, called from
+`-[BookWindowController windowWillClose:]`.
+
+Two things that look like alternatives and are not:
+
+- **`AccessoryWindow -dealloc` is the wrong call site.** By #26 it runs one
+  close *late* — after the controller has already been freed and after the
+  crash interval. `-windowWillClose:` is the only point still inside it.
+- **KVC is the wrong mechanism.** This project is MRC, and
+  `-setValue:nil forKey:` releases the previous value — that would send
+  `-release` to the already-deallocated controller, converting a
+  read-after-free into an over-release.
+
+Nil guards were also added in `-drawRect:`, `-mouseMoved:`,
+`-drawPageBarBubble` and `-pageBarRect`. They are **insurance, not the
+fix**: they only help once the pointers have actually been nil'd.
+
+Reproduced and verified with real output — see
+`docs/tasks/2026-07-30-07-fix-multiwindow-close-crash.md`.
+
+**Not covered by this fix:** `CustomImageView`'s `target` ivar is the same
+unretained-back-reference shape and was left alone as out of scope. It has
+not been observed crashing; recorded here so it is not mistaken for
+verified-safe.

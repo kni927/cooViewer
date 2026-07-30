@@ -1044,3 +1044,13 @@ password-protected ZIP with window-modal prompts, All Bookmarks menu entry
 (#24), Finder reopen dedup (#32), quit-while-password-prompt capability.
 Three modal-quit limitations recorded (KNOWN_ISSUES). Shipped via CI
 notarization and Homebrew tap.
+
+### v1.6.0 field crash fixed: closing one of several windows (2026-07-30)
+
+Use-after-free on `AccessoryView`'s unretained `controller` outlet, reported
+against the released v1.6.0. Fixed by dropping the outlet in
+`-[BookWindowController windowWillClose:]` — the only hook inside the crash
+interval, since the window/view group is released one close behind (#26).
+Reproduced under `NSZombieEnabled` on a v1.6.0 build and confirmed clean on
+the fixed one. Not yet released. See
+`docs/tasks/2026-07-30-07-fix-multiwindow-close-crash.md`, KNOWN_ISSUES #36.

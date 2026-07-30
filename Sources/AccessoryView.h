@@ -93,6 +93,11 @@ NSRect COIntRect(NSRect aRect);
 
 -(BOOL)isMouseInPageBar;
 
+/* Drop the unretained `controller` / `imageView` outlets before the objects
+   behind them are released. See the implementation comment and
+   docs/KNOWN_ISSUES.md #36. */
+- (void)detachFromWindowController;
+
 
 
 @end

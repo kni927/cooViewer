@@ -75,6 +75,32 @@ NSRect COIntRect(NSRect aRect)
 	[super dealloc];
 }
 
+/* KNOWN_ISSUES #36. `controller` and `imageView` are unretained IBOutlets, so
+   when -[BookWindowController dealloc] runs they become dangling pointers
+   rather than nil. The view outlives the controller: per #26 the
+   window/view group (CustomWindow, CustomImageView, AccessoryWindow,
+   AccessoryView) is released one close *behind*, because AppKit holds the
+   most recently closed window — and AccessoryWindow is a child window that
+   is still layer-backed and still in the display cycle for that interval. A
+   draw request already queued when the window closed then reaches
+   -drawRect:, which sends -indicator to the freed controller.
+
+   Called from -[BookWindowController windowWillClose:], which is the only
+   point that is inside the crash interval: it runs before the controller is
+   released, whereas every -dealloc in the view group runs one close too
+   late.
+
+   Direct ivar assignment, not -setValue:forKey:. Under MRC, KVC's ivar
+   setter releases the previous value, which would send -release to the
+   already-deallocated controller and turn a read-after-free into an
+   over-release. These are our own ivars, so plain assignment compiles and
+   is the correct MRC operation for an unretained reference. */
+- (void)detachFromWindowController
+{
+	controller = nil;
+	imageView = nil;
+}
+
 - (void)setPreferences
 {
 	if (!didFirst) {

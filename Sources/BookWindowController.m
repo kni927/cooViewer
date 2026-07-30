@@ -4,6 +4,7 @@
 #import "BookmarkController.h"
 #import "AllBookmarkController.h"	/* MW-5 item 5: app-wide half, reached via appController */
 #import "CustomImageView.h"
+#import "AccessoryView.h"	/* -detachFromWindowController (KNOWN_ISSUES #36) */
 #import "FullImagePanel.h"
 #import "RemoteControl.h"	/* kRemoteButton* constants used by the 1.2b14 migration block below */
 
@@ -3392,6 +3393,13 @@ static const NSInteger kBookmarkMenuFixedItemCount = 3;
 	   closed window would stall a queued Finder open indefinitely. */
 	windowClosed = YES;
 	passwordOpenInFlight = NO;
+
+	/* KNOWN_ISSUES #36: the accessory overlay outlives this controller by one
+	   window close (#26), and holds unretained outlets to it. Drop them here,
+	   while this object is still alive — a draw request queued before the
+	   close otherwise reaches -[AccessoryView drawRect:] after -dealloc and
+	   sends -indicator to freed memory. */
+	[[imageView accessoryView] detachFromWindowController];
 
 	/* Was a bare [lock lock]/[lock unlock] pair, which waits only for a
 	   lookahead that is already *inside* the body. A thread detached a

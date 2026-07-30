@@ -1281,3 +1281,35 @@ because the task asked what they do):
   loading half, still pending). Cmd+Q is swallowed by that session; the
   AppleEvent quit works immediately, because the handler above runs inside the
   modal run loop. The rest belongs with the deferred background-loading work.
+
+## Unretained back-references are dropped in `-windowWillClose:`, and never with KVC (2026-07-30)
+
+From the v1.6.0 field crash (`docs/KNOWN_ISSUES.md` #36): closing one of
+several windows crashed in `-[AccessoryView drawRect:]`, because the view's
+unretained `controller` outlet was left pointing at a freed
+`BookWindowController`.
+
+Two rules come out of it, and they apply to every per-window class in
+`BookWindow.xib`, not just `AccessoryView`.
+
+**1. The teardown point for an unretained back-reference is
+`-windowWillClose:`, not a `-dealloc`.** By #26 the window/view group
+(`CustomWindow`, `CustomImageView`, `AccessoryWindow`, `AccessoryView`) is
+released *one close behind*, because AppKit holds the most recently closed
+window. So every `-dealloc` in that group runs after the controller it
+points at is already gone — one close too late to be useful. The window
+controller is still alive in `-windowWillClose:`, which makes it the only
+hook inside the interval where the dangling pointer can still be reached.
+
+**2. Never nil an ivar with `-setValue:nil forKey:` in this project.**
+cooViewer is MRC. KVC's ivar setter releases the previous value, so using it
+to clear a reference to an already-deallocated object sends `-release` to
+freed memory — it converts a read-after-free into an over-release, which is
+strictly worse than the bug being fixed. Assign the ivar directly from a
+method on the owning class.
+
+Corollary for reviewers: **a nil check is not a fix for a use-after-free.**
+An unretained outlet whose target has been deallocated is a dangling
+pointer, not nil, so `if (controller && ...)` is still true and still
+crashes. Guards are worth keeping as insurance once the pointer is actually
+nil'd, but the fix is always the assignment.
