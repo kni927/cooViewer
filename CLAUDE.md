@@ -50,6 +50,74 @@ fit/zoom modes, rotation, the loupe, caching of rendered pages,
 the resampling steps before and after your change. If the count goes
 up, it is a defect even when the code looks cleaner.
 
+## Releasing
+
+Releases are built, signed, notarized, and published by CI — never locally.
+
+- `.github/workflows/xcode-build-and-release.yml` is triggered by pushing a
+  `v*` tag. It builds Deployment, signs bottom-up, notarizes with
+  `xcrun notarytool`, staples, and creates the GitHub Release with
+  `build/Deployment/cooViewer-<tag>.zip` in the CI workspace attached.
+- This is the tested path that shipped v1.4.0 through v1.5.2. Do not
+  substitute local notarization.
+
+### Verifying the release artifact
+
+This is a third case, distinct from the two in the On-Device Verification
+Procedure. The artifact under test is the notarized build from the tagged
+CI run, installed at `/Applications` via the tap — not a local build in
+`~/Applications`.
+
+1. `brew uninstall cooviewer`, then install the released version from the
+   tap.
+2. Confirm it launches and is Gatekeeper-clean without `xattr -cr`.
+3. For QuickLook/Thumbnail checks, follow steps 3a-5 of the On-Device
+   Verification Procedure, reading `/Applications` as the bundle under
+   test. Step 3a matters more here, not less: this install is the one
+   that should now win LaunchServices precedence.
+4. Cleanup: none. This install is the intended end state.
+
+### Credentials — never ask for these
+
+Notarization uses three App Store Connect API secrets, already registered
+in the repository (Settings ▸ Secrets and variables ▸ Actions):
+
+- `APP_STORE_CONNECT_ISSUER_ID`
+- `APP_STORE_CONNECT_KEY_ID`
+- `APP_STORE_CONNECT_PRIVATE_KEY`
+
+Never ask the owner for these values. Never ask for `.p8` file contents.
+Never create, rotate, or register a credential yourself, and never print a
+secret value. If a secret appears to be missing or expired, stop and
+report — secret *names* are visible in Settings even though values are not.
+
+### Rules
+
+- A locally built and signed app is a **dry run for verification only**,
+  never the release artifact. The artifact comes from the tagged CI run.
+- **Pushing the tag is the irreversible publication step.** Get explicit
+  owner authorization for both the version number and the release notes
+  before tagging.
+- If notarization fails, stop and report. Never work around Gatekeeper
+  (ad-hoc signing, clearing quarantine, disabling checks) — none of these
+  substitute for a passing notarization.
+- After the release exists, update the Homebrew tap formula (`kni927/tap`,
+  `cooviewer`): version, URL, sha256 — then confirm a fresh install
+  resolves to the new version and launches.
+- `brew uninstall cooviewer` is the only sanctioned reason to touch the
+  Homebrew-managed `/Applications` install, and only to make room for
+  verifying the real release artifact. This does not relax the rule
+  against installing local/debug builds there (see Project-specific and
+  the On-Device Verification Procedure). The tap update restores Homebrew
+  management.
+
+Before tagging, pushing, or creating a release — including when resuming
+interrupted work — apply the non-idempotent operation rule in
+`docs/task-workflow.md`: confirm the intended result does not already
+exist (`git tag -l`, `gh release view`, uploaded assets).
+
+Full procedural precedent: `docs/tasks/2026-07-26-02-release-v1.5.2.md`.
+
 ## Project-specific (cooViewer)
 - Vendored libs (one-time): `vendor/build-libs.sh` (needs cmake).
   libarchive/uchardet/libzip are built as universal dylibs, bundled in
@@ -112,21 +180,21 @@ Perform steps 1-6 in a single session, without repeating installs.
 2. `lsregister -f ~/Applications/cooViewer.app`
 3. `pluginkit -a` to register the Preview and Thumbnail extensions
    explicitly.
-3a. Confirm which bundle's extension Finder actually resolved — LaunchServices
+4. Confirm which bundle's extension Finder actually resolved — LaunchServices
     deduplicates by bundle ID, so if `/Applications` (the Homebrew build)
     is also registered, it may take priority over the `~/Applications` test
     build even after `lsregister -f`. Check with `pluginkit -m | grep
     coo.cooViewer` (or equivalent) before relying on the result. If the
     Homebrew build is being resolved instead, this step is not exercising
     the new binary — report it rather than treating the check as passed.
-4. Verify via Finder directly — Icon/List view for thumbnails, Space bar for
+5. Verify via Finder directly — Icon/List view for thumbnails, Space bar for
    Quick Look preview. Prefer this over `qlmanage`; on this machine
    `qlmanage -t`/`-p` have hung even on non-encrypted files in past
    sessions. If `qlmanage` is used, one attempt only; on a hang, force-quit
    and switch to Finder rather than retrying.
-5. Complete all checks needed before cleanup — do not do a partial check,
+6. Complete all checks needed before cleanup — do not do a partial check,
    clean up, then come back for more in the same session.
-6. Clean up: `pluginkit -r` to unregister the extensions, then delete
+7. Clean up: `pluginkit -r` to unregister the extensions, then delete
    `~/Applications/cooViewer.app`. Do **not** delete any `defaults` keys or
    `NSUserDefaults` entries — only remove the app bundle and QuickLook
    registrations.
