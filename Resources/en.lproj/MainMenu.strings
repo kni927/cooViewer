@@ -112,6 +112,9 @@
 /* Class = "NSMenuItem"; title = "Edit Bookmark..."; ObjectID = "609"; */
 "609.title" = "Edit Bookmark...";
 
+/* Class = "NSMenuItem"; title = "All Bookmarks..."; ObjectID = "I24-all-bookmarks"; */
+"I24-all-bookmarks.title" = "All Bookmarks...";
+
 /* Class = "NSWindow"; title = "Password"; ObjectID = "742"; */
 "742.title" = "Password";
 

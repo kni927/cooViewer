@@ -122,6 +122,9 @@ extern NSString * const CooViewerBookWindowRestorationIdentifier;
  * still replaces the front window's book (Step-0 decision 3). */
 - (IBAction)openInNewWindow:(id)sender;
 - (IBAction)openTheLastPage:(id)sender;
+/* KNOWN_ISSUES #24: opens the app-wide All Bookmark browser. Targeted here
+ * rather than at First Responder — see the .m. */
+- (IBAction)allBookmarks:(id)sender;
 - (IBAction)preferences:(id)sender;
 - (IBAction)clearRecent:(id)sender;
 
@@ -155,6 +158,11 @@ extern NSString * const CooViewerBookWindowRestorationIdentifier;
    book in a new window. `path` is what the user chose; the "already open"
    test is on the *resolved* book path (Step-0 decision 2). */
 - (void)openBookInNewWindow:(NSString *)path;
+/* The window showing that book, or nil. `bookPath` must already be resolved
+   (+[BookWindowController resolvedBookPath:]) — this is the "already open"
+   test itself, not the whole open. Declared for the All Bookmark browser,
+   which does the two halves separately (KNOWN_ISSUES #24). */
+- (id)windowControllerShowingBook:(NSString *)bookPath;
 
 /* A registered window with no book open, preferring the front one, or nil.
    What a new book is opened into before a window is created for it. MW-8:

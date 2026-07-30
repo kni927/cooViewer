@@ -1171,3 +1171,58 @@ is why it is fixed here rather than reported.
 password prompt is up — Cmd+Q, the Quit menu item and an AppleEvent quit are all
 dropped rather than deferred. Measured identically on the pre-change build, so
 the modality change neither caused nor cured it. Cancel is the way out.
+
+## The All Bookmark browser gets its own app-targeted menu item (2026-07-30)
+
+Fixing `KNOWN_ISSUES` #24. Which of the two possible causes was true had to be
+established first, and it is the second one: the menu item was **never removed
+from the nib**. `Bookmark ▸ Edit Bookmark…` exists, targets First Responder
+since MW-4, and dispatches on whether the front window has a book — the sheet
+if it does, the app-wide browser if it does not. With no book window there is
+no responder implementing the action, so AppKit disables the item before
+`-validateMenuItem:` is consulted, and the browser's branch became unreachable.
+Confirmed on device before touching anything: with zero book windows the item
+reports `enabled = false`.
+
+**The browser gets its own item, `Bookmark ▸ All Bookmarks…`, targeted at
+`AppController` — a deliberate exception to MW-4's First-Responder sweep.**
+There is one browser for the whole application (MW-5 item 5, which is also why
+MW-6 left its frame autosave name unsuffixed while every per-window panel got a
+per-window one), it holds no per-window state, and it has to be reachable in
+exactly the state that has no responder — no window with a book. Targeting it at
+First Responder would reproduce #24. A future responder-chain sweep should leave
+this item alone; `Edit Bookmark…` next to it stays on the responder chain and is
+unchanged.
+
+**The Bookmark menu's fixed head is now three items, and named.** `-setBookmarkMenu`
+and `-windowWillClose:` both rebuilt the menu from index 2, silently encoding
+"Edit Bookmark… + separator". Adding a second fixed item would have made both
+loops delete it. They go through `kBookmarkMenuFixedItemCount` now.
+
+**The browser's "Open" button did not work at all.** It sent
+`-application:openFile:` to the book window controller — a method MW-7 deleted
+when Finder opens moved to `AppController` — so it would have raised an
+unrecognized selector for anyone who reached the browser. It now does what the
+task settled: a book already open in some window brings that window forward
+(the window is *not* re-opened — verified byte-identically, so the page is
+kept), and a book that is not open replaces the front window's book, which is
+what this button did when there was only ever one window. Both halves go
+through `+resolvedBookPath:` and the existing registry lookup rather than a
+second implementation.
+
+**Reported, not implemented: there is no "go to this bookmark" gesture.** The
+task assumed activating a bookmark navigates to its page. The panel has no such
+affordance and never did: the left table lists books, the right table lists that
+book's bookmarks as editable name/page rows, and the only open affordance —
+the "Open" button — acts on the *book* selection and carries no page. The
+per-book Bookmark panel is the same; bookmark *navigation* lives in the Bookmark
+menu, which lists the front window's bookmarks and jumps to them. Adding a
+page-navigating gesture to the browser would be new UI, so it is left for the
+project owner to sanction rather than invented here.
+
+**Two properties of the browser worth knowing, both pre-existing.** It runs
+application-modal (`-runModalForWindow:`), so book windows cannot be operated
+while it is up, and a quit request during it is dropped exactly as it is during
+the password prompt. And it lists what has been *persisted* to `BookSettings`,
+so a book whose window is still open — its bookmarks not yet written back —
+does not appear until that window closes.

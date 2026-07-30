@@ -178,6 +178,16 @@
                                     <action selector="editBookmark:" target="-1" id="829"/>
                                 </connections>
                             </menuItem>
+                            <!-- KNOWN_ISSUES #24: the app-wide All Bookmark browser's
+                                 own entry. Targeted at AppController, not First
+                                 Responder — one shared browser, no per-window state.
+                                 It is part of the menu's fixed head; -setBookmarkMenu
+                                 rebuilds only what follows the separator. -->
+                            <menuItem title="All Bookmarks..." id="I24-all-bookmarks">
+                                <connections>
+                                    <action selector="allBookmarks:" target="6001" id="I24-all-bookmarks-a"/>
+                                </connections>
+                            </menuItem>
                             <menuItem isSeparatorItem="YES" id="698">
                                 <modifierMask key="keyEquivalentModifierMask" command="YES"/>
                             </menuItem>

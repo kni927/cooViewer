@@ -2859,6 +2859,12 @@ static NSString * const kBookViewModeKey = @"cooViewerBookViewMode";
 	[self setBookmarkMenu];
 }
 
+/* The Bookmark menu's fixed head: Edit Bookmark…, All Bookmarks… and the
+   separator. Everything after it is the front window's own bookmarks, rebuilt
+   below and torn down in -windowWillClose:. Named because KNOWN_ISSUES #24
+   added the second item and both loops silently depended on the count. */
+static const NSInteger kBookmarkMenuFixedItemCount = 3;
+
 - (void)setBookmarkMenu
 {
 	if (![[self window] isVisible]) {
@@ -2866,10 +2872,8 @@ static NSString * const kBookViewModeKey = @"cooViewerBookViewMode";
 	}
 	
 	id bookmarkMenuItem = [appController bookmarkMenuItem];
-	if ([bookmarkMenuItem numberOfItems] > 2) {
-		while ([bookmarkMenuItem numberOfItems] > 2) {
-			[bookmarkMenuItem removeItemAtIndex:2];
-		}
+	while ([bookmarkMenuItem numberOfItems] > kBookmarkMenuFixedItemCount) {
+		[bookmarkMenuItem removeItemAtIndex:kBookmarkMenuFixedItemCount];
 	}
 
 	int i;
@@ -3388,10 +3392,8 @@ static NSString * const kBookViewModeKey = @"cooViewerBookViewMode";
 			timerSwitch=NO;
 		}
 		id bookmarkMenuItem = [appController bookmarkMenuItem];
-		if ([bookmarkMenuItem numberOfItems] > 2) {
-			while ([bookmarkMenuItem numberOfItems] > 2) {
-				[bookmarkMenuItem removeItemAtIndex:2];
-			}
+		while ([bookmarkMenuItem numberOfItems] > kBookmarkMenuFixedItemCount) {
+			[bookmarkMenuItem removeItemAtIndex:kBookmarkMenuFixedItemCount];
 		}
 		int iA;
 		for (iA=0; iA<[[[appController openSameFolderMenuItem] submenu] numberOfItems]; iA++) {

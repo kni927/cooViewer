@@ -2,6 +2,7 @@
 #import "BookWindowController.h"
 #import "PreferenceController.h"
 #import "COImageLoader.h"	/* +fileTypes, for the Open in New Window panel */
+#import "AllBookmarkController.h"	/* -editAllBookmark:, for the All Bookmarks menu item */
 
 NSString * const CooViewerBookWindowRestorationIdentifier = @"cooViewerBookWindow";
 
@@ -337,6 +338,17 @@ static const NSTimeInterval kLaunchDrainPollInterval = 0.05;
 - (IBAction)openTheLastPage:(id)sender
 {
 	[[self frontController] openTheLastPage:sender];
+}
+
+/* KNOWN_ISSUES #24: the All Bookmark browser's entry. Deliberately targeted at
+   AppController rather than First Responder, unlike the book/view actions MW-4
+   swept onto the responder chain: there is one browser for the whole
+   application (MW-5 item 5, which is also why MW-6 left its autosave name
+   unsuffixed), and it must be reachable when no window has a book — the state
+   the old route needed and could not survive. */
+- (IBAction)allBookmarks:(id)sender
+{
+	[(AllBookmarkController *)allBookmarkController editAllBookmark:nil];
 }
 
 #pragma mark preferences

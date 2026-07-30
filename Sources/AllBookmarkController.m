@@ -242,12 +242,34 @@ static const int DIALOG_CANCEL	= 129;
 
 }
 
+/* KNOWN_ISSUES #24. This used to send -application:openFile: to the book
+   window controller — a method MW-7 deleted when Finder opens moved to
+   AppController, so the button raised an unrecognized selector as soon as
+   anyone reached it. It now does what the task settled: a book already open in
+   some window brings that window forward; a book that is not open replaces the
+   front window's book, which is what this button did when there was only ever
+   one window. Resolution and the "already open" test go through the same
+   +resolvedBookPath: / registry path every other open uses, not a second
+   lookup.
+
+   A book whose file has moved or been deleted degrades the way any other open
+   does: -openPage:last: fails, logs, and leaves the window as it was. */
 - (IBAction)openInSelf:(id)sender
 {
 	if ([allBookNameTableView selectedRow] > -1) {
 		NSData *alias = [[allBookmark objectForKey:[bookNameArray objectAtIndex:[allBookNameTableView selectedRow]]] objectForKey:@"alias"];
-		id controller = [self controller];
-		[controller application:NSApp openFile:[controller pathFromAliasData:alias]];
+		NSString *path = [[self controller] pathFromAliasData:alias];
+		if (path == nil) {
+			NSBeep();
+			return;
+		}
+		id existing = [(AppController *)appController windowControllerShowingBook:
+			[BookWindowController resolvedBookPath:path]];
+		if (existing) {
+			[[existing window] makeKeyAndOrderFront:self];
+		} else {
+			[[appController frontController] openBookAtPath:path];
+		}
 		[allBookmarkPanel makeKeyAndOrderFront:self];
 	} else {
 		NSBeep();

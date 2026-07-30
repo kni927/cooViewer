@@ -793,7 +793,17 @@ Discovered 2026-07-29 during MW-4 on-device verification
 
 ---
 
-## 24. Bookmark ▸ Edit Bookmark… Is Disabled With No Book Open, So the All Bookmark Browser Is Unreachable
+## 24. ~~Bookmark ▸ Edit Bookmark… Is Disabled With No Book Open, So the All Bookmark Browser Is Unreachable~~ — FIXED (2026-07-30)
+
+Fixed by the second of the two candidate fixes below: the browser has its
+own **Bookmark ▸ All Bookmarks…** item, targeted at `AppController` so it is
+enabled whether or not a window has a book. `Edit Bookmark…` is unchanged and
+still First-Responder-targeted. See
+`docs/tasks/2026-07-30-06-all-bookmark-entry-and-quit-with-sheet.md` and the
+DECISIONS entry it points at. The original report follows; the diagnosis in it
+was confirmed on device before the fix — the item was never removed from the
+nib, it is disabled for want of a target.
+
 
 Discovered 2026-07-29 while verifying MW-5's `BookmarkController` split
 (`docs/tasks/2026-07-29-08-mw5-bookmark-controller-split.md`).
