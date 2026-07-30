@@ -1427,7 +1427,11 @@ Nil guards were also added in `-drawRect:`, `-mouseMoved:`,
 fix**: they only help once the pointers have actually been nil'd.
 
 Reproduced and verified with real output — see
-`docs/tasks/2026-07-30-08-fix-multiwindow-close-crash.md`.
+`docs/tasks/2026-07-30-08-fix-multiwindow-close-crash.md`. **Released in
+v1.6.1** (2026-07-31); re-verified against the actual notarized artifact —
+3 open-two/close-two cycles on the real Gatekeeper-accepted build produced
+no new entry in `~/Library/Logs/DiagnosticReports`. See
+`docs/tasks/2026-07-31-01-release-v1.6.1.md`.
 
 **Not covered by this fix:** `CustomImageView`'s `target` ivar is the same
 unretained-back-reference shape and was left alone as out of scope. It has

@@ -1054,3 +1054,14 @@ interval, since the window/view group is released one close behind (#26).
 Reproduced under `NSZombieEnabled` on a v1.6.0 build and confirmed clean on
 the fixed one. Not yet released. See
 `docs/tasks/2026-07-30-08-fix-multiwindow-close-crash.md`, KNOWN_ISSUES #36.
+
+### v1.6.1 released (2026-07-31)
+
+Hotfix: the multi-window close crash above, plus `.dSYM` upload added to CI
+release assets (the v1.6.0 crash could not be symbolicated; root cause was
+`GCC_GENERATE_DEBUGGING_SYMBOLS = NO` on the `Deployment` configuration,
+not just a missing `DEBUG_INFORMATION_FORMAT`). Notarized via CI, GitHub
+Release published with both the app zip and a `.dSYM.zip`, re-verified
+against the actual notarized artifact (UUID match, `atos` symbol
+resolution, 3-cycle crash-scenario repro producing no new crash report),
+Homebrew tap updated. See `docs/tasks/2026-07-31-01-release-v1.6.1.md`.
