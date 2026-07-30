@@ -1008,3 +1008,29 @@ reading: a window waiting on a password is not an "empty" window (a second open
 was landing on it), and the launch drain deadline from #32 must not be spent on
 someone typing a password. Both fixed and measured in both directions. See
 `docs/tasks/2026-07-30-05-window-modal-password-prompt.md`.
+
+### The All Bookmark browser is reachable again, and quit works during a password prompt (2026-07-30)
+
+Two small independent items. `KNOWN_ISSUES` #24: the All Bookmark browser had no
+way in — not because its menu item had been removed, as suspected, but because
+the item it shared with the per-book sheet targets First Responder and the
+browser's branch only runs when no window has a book, which is exactly when
+there is no responder. It has its own **Bookmark ▸ All Bookmarks…** now,
+targeted at `AppController`. Two things had to be fixed to make it usable: the
+Bookmark menu's fixed head was hard-coded as two items in the two places that
+rebuild it, and the browser's "Open" button still called a method MW-7 deleted,
+so it would have raised an unrecognized selector for anyone who got that far.
+
+The second item makes the application quittable while an archive password prompt
+is showing. The obvious fix — dismissing the sheets from
+`-applicationShouldTerminate:` — turned out not to work: instrumentation showed
+that method is never reached while a sheet is attached, because AppKit's
+`-terminate:` refuses first. The prompts are taken down inside `-terminate:`
+instead, by a two-method `NSApplication` subclass, with a `kAEQuitApplication`
+handler for the AppleEvent route that does not reach `-terminate:` at all.
+A dismissed prompt is a cancel and leaves nothing in `RecentItems`, `LastPages`
+or the restorable state.
+
+Reported rather than implemented: activating a bookmark does not navigate to its
+page, because no bookmark panel has ever had such a gesture — adding one is new
+UI. See `docs/tasks/2026-07-30-06-all-bookmark-entry-and-quit-with-sheet.md`.

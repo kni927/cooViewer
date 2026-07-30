@@ -351,6 +351,11 @@
  * and must not be spent on someone typing a password. */
 - (BOOL)isWaitingForUserInput;
 
+/* Takes this window's password prompt down as a cancel, so that a quit can
+ * proceed, answering whether there was one to take down. Called for every
+ * window from -[AppController cancelPasswordPrompts]. */
+- (BOOL)cancelPasswordPromptForTermination;
+
 
 - (NSImage*)loadThumbnailImage:(int)index;
 - (NSImage*)loadImage:(int)index;

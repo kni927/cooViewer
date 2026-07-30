@@ -1878,6 +1878,24 @@ static NSString * const kBookViewModeKey = @"cooViewerBookViewMode";
 	}];
 }
 
+/* Take a password prompt down so the application can quit (the #24 task's item
+   B). Ending the sheet runs its completion handler with a response that is not
+   OK, which is the ordinary cancel path — so this needs no separate teardown of
+   its own, and the "a window that had a book keeps it" rule holds here too.
+   Silent when this window has no prompt up. */
+- (BOOL)cancelPasswordPromptForTermination
+{
+	if (!passwordOpenInFlight) {
+		return NO;
+	}
+	NSWindow *sheet = [[self window] attachedSheet];
+	if (sheet == nil) {
+		return NO;
+	}
+	[[self window] endSheet:sheet returnCode:NSModalResponseCancel];
+	return YES;
+}
+
 /* The window went away while its password prompt was in flight: drop what the
    pending open owns and stop reporting it as waiting on the user. Deliberately
    touches nothing else — -windowWillClose: has already torn the window down. */

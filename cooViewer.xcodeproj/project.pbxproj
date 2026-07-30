@@ -109,6 +109,7 @@
 		76F0929A07DBF79E00643E4F /* BookmarkController.h in Headers */ = {isa = PBXBuildFile; fileRef = 76F0929807DBF79E00643E4F /* BookmarkController.h */; };
 		MW5AB00000000000000000H1 /* AllBookmarkController.h in Headers */ = {isa = PBXBuildFile; fileRef = MW5AB00000000000000000H2 /* AllBookmarkController.h */; };
 		MW5AB00000000000000000M1 /* AllBookmarkController.m in Sources */ = {isa = PBXBuildFile; fileRef = MW5AB00000000000000000M2 /* AllBookmarkController.m */; };
+		COAPP000000000000000000M1 /* COApplication.m in Sources */ = {isa = PBXBuildFile; fileRef = COAPP000000000000000000M2 /* COApplication.m */; };
 		76F0929B07DBF79E00643E4F /* BookmarkController.m in Sources */ = {isa = PBXBuildFile; fileRef = 76F0929907DBF79E00643E4F /* BookmarkController.m */; };
 		76F2B6440D67329C003269BB /* COTextView.h in Headers */ = {isa = PBXBuildFile; fileRef = 76F2B6420D67329C003269BB /* COTextView.h */; };
 		76F2B6450D67329C003269BB /* COTextView.m in Sources */ = {isa = PBXBuildFile; fileRef = 76F2B6430D67329C003269BB /* COTextView.m */; };
@@ -330,6 +331,8 @@
 		76F0929807DBF79E00643E4F /* BookmarkController.h */ = {isa = PBXFileReference; fileEncoding = 0; lastKnownFileType = sourcecode.c.h; path = Sources/BookmarkController.h; sourceTree = "<group>"; };
 		MW5AB00000000000000000H2 /* AllBookmarkController.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = Sources/AllBookmarkController.h; sourceTree = "<group>"; };
 		MW5AB00000000000000000M2 /* AllBookmarkController.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = Sources/AllBookmarkController.m; sourceTree = "<group>"; };
+		COAPP000000000000000000M2 /* COApplication.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = Sources/COApplication.m; sourceTree = "<group>"; };
+		COAPP000000000000000000H2 /* COApplication.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = Sources/COApplication.h; sourceTree = "<group>"; };
 		76F0929907DBF79E00643E4F /* BookmarkController.m */ = {isa = PBXFileReference; fileEncoding = 0; lastKnownFileType = sourcecode.c.objc; path = Sources/BookmarkController.m; sourceTree = "<group>"; };
 		76F2B6420D67329C003269BB /* COTextView.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = Sources/COTextView.h; sourceTree = "<group>"; };
 		76F2B6430D67329C003269BB /* COTextView.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = Sources/COTextView.m; sourceTree = "<group>"; };
@@ -620,6 +623,8 @@
 				76F0929907DBF79E00643E4F /* BookmarkController.m */,
 				MW5AB00000000000000000H2 /* AllBookmarkController.h */,
 				MW5AB00000000000000000M2 /* AllBookmarkController.m */,
+				COAPP000000000000000000H2 /* COApplication.h */,
+				COAPP000000000000000000M2 /* COApplication.m */,
 			);
 			name = bookmark;
 			sourceTree = "<group>";
@@ -953,6 +958,7 @@
 				7601F5F907D5508700457A5B /* CustomImageView.m in Sources */,
 				76F0929B07DBF79E00643E4F /* BookmarkController.m in Sources */,
 				MW5AB00000000000000000M1 /* AllBookmarkController.m in Sources */,
+				COAPP000000000000000000M1 /* COApplication.m in Sources */,
 				76EA136707E3FC39008EB0E1 /* BookmarkPanel.m in Sources */,
 				76EF3E3607FC11CB008D6B37 /* FullImageView.m in Sources */,
 				76EF3EFA07FC33DB008D6B37 /* FullImagePanel.m in Sources */,

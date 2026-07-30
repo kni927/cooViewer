@@ -78,6 +78,15 @@ static const NSTimeInterval kLaunchDrainPollInterval = 0.05;
    may kick it first (on macOS 26 it does). */
 - (void)applicationDidFinishLaunching:(NSNotification *)notification
 {
+	/* Installed here rather than in -awakeFromNib: NSApplication registers its
+	   own handler for this event during launch and the last registration wins.
+	   See -handleQuitAppleEvent:withReplyEvent:. */
+	[[NSAppleEventManager sharedAppleEventManager]
+		setEventHandler:self
+			andSelector:@selector(handleQuitAppleEvent:withReplyEvent:)
+		  forEventClass:kCoreEventClass
+			 andEventID:kAEQuitApplication];
+
 	launchNotification = [notification retain];
 	launchDidFinish = YES;
 	[self performSelector:@selector(settleLaunch) withObject:nil afterDelay:0.0];
@@ -90,6 +99,61 @@ static const NSTimeInterval kLaunchDrainPollInterval = 0.05;
 - (BOOL)applicationSupportsSecureRestorableState:(NSApplication *)app
 {
 	return YES;
+}
+
+/* The application could not be quit while an archive password prompt was up —
+   Cmd+Q, the Quit menu item and an AppleEvent quit were all discarded rather
+   than deferred. Not a regression from making the prompt window-modal
+   (measured identically on the app-modal build), but an unresponsive Cmd+Q is
+   breakage all the same.
+
+   **The obvious fix does not work, and this was measured rather than assumed:**
+   this delegate method is never reached while a sheet is attached.
+   Instrumenting it showed it firing for an ordinary quit and not firing at all
+   for a quit attempted with a password prompt up — AppKit's -terminate: refuses
+   before it consults the delegate. The prompts therefore have to come down
+   inside -terminate: itself, which is what COApplication does; this method
+   stays as the backstop for any route that does reach the delegate. */
+- (NSApplicationTerminateReply)applicationShouldTerminate:(NSApplication *)sender
+{
+	[self cancelPasswordPrompts];
+	return NSTerminateNow;
+}
+
+/* Takes down every window's password prompt, and answers whether there was one
+   to take down — COApplication uses that to decide whether the quit has to wait
+   a run-loop pass for AppKit to finish dismissing the sheets. Each prompt ends
+   as a cancel, by the rule the prompt already follows: a window that had a book
+   keeps it, a bookless window stays bookless. Nothing about the abandoned book
+   is persisted — RecentItems, LastPages and the restorable state are written by
+   the second half of the open, which a cancelled prompt never reaches — so an
+   archive whose password was never entered leaves no trace to come back on at
+   the next launch. */
+- (BOOL)cancelPasswordPrompts
+{
+	BOOL dismissedAny = NO;
+	NSEnumerator *enu = [windowControllers objectEnumerator];
+	id aController;
+	while (aController = [enu nextObject]) {
+		if ([aController cancelPasswordPromptForTermination]) {
+			dismissedAny = YES;
+		}
+	}
+	return dismissedAny;
+}
+
+/* The AppleEvent quit — `osascript -e 'quit app "cooViewer"'`, the Dock menu's
+   Quit, and the quit every application is sent at logout — needs its own hook
+   even with -[COApplication terminate:] in place. Measured: with a password
+   prompt up, Cmd+Q and the Quit menu item reach -terminate: (and so are fixed
+   by the override), while the AppleEvent route does not — AppKit's own handler
+   for it declines earlier. Taking the prompts down here and then calling
+   -terminate: puts that route back on the same footing. */
+- (void)handleQuitAppleEvent:(NSAppleEventDescriptor *)event
+              withReplyEvent:(NSAppleEventDescriptor *)replyEvent
+{
+	[self cancelPasswordPrompts];
+	[NSApp performSelector:@selector(terminate:) withObject:self afterDelay:0.0];
 }
 
 - (void)applicationWillTerminate:(NSNotification *)notification

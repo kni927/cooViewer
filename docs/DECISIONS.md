@@ -1172,6 +1172,9 @@ password prompt is up — Cmd+Q, the Quit menu item and an AppleEvent quit are a
 dropped rather than deferred. Measured identically on the pre-change build, so
 the modality change neither caused nor cured it. Cancel is the way out.
 
+*Fixed the same day, in its own task — see "Quitting with a password prompt up
+needs an NSApplication subclass" below.*
+
 ## The All Bookmark browser gets its own app-targeted menu item (2026-07-30)
 
 Fixing `KNOWN_ISSUES` #24. Which of the two possible causes was true had to be
@@ -1226,3 +1229,55 @@ while it is up, and a quit request during it is dropped exactly as it is during
 the password prompt. And it lists what has been *persisted* to `BookSettings`,
 so a book whose window is still open — its bookmarks not yet written back —
 does not appear until that window closes.
+
+## Quitting with a password prompt up needs an NSApplication subclass (2026-07-30)
+
+The application discarded every quit request while an archive password prompt
+was showing. The fix proposed when that was first observed — dismiss the sheets
+from `-applicationShouldTerminate:` — **does not work, and this was measured
+rather than reasoned about.** Instrumenting the delegate method showed it firing
+for an ordinary quit and not firing at all for a quit attempted with a prompt
+up: AppKit's `-terminate:` refuses while a sheet is attached, before it consults
+the delegate.
+
+**So the prompts have to come down inside `-terminate:`, which means
+`COApplication`, a two-method `NSApplication` subclass** (`NSPrincipalClass`,
+plus the nib's File's Owner). It asks the delegate to cancel any prompt and,
+when there was one, re-enters `-terminate:` one run-loop pass later — `-endSheet:`
+only *starts* AppKit's dismissal, and terminating in the same pass meets the
+refusal again. With no prompt up nothing is deferred and an ordinary quit
+behaves exactly as before.
+
+**Retargeting the Quit menu item at the delegate was tried first and rejected.**
+It works for Cmd+Q and the menu, but a menu item bound to anything other than
+`-terminate:` loses the **"Quit and Close All Windows"** alternate item AppKit
+generates — a real affordance in an application with window restoration.
+Verified both ways: with the custom action the app menu offers one Quit item,
+with `-terminate:` restored it offers both again.
+
+**The AppleEvent quit needs its own hook even so.** Measured: with a prompt up,
+Cmd+Q and the menu item reach `-terminate:` (and so are fixed by the override),
+while `osascript -e 'quit app "cooViewer"'` does not — AppKit's own handler for
+`kAEQuitApplication` declines earlier. `AppController` therefore installs its own
+handler for that event, from `-applicationDidFinishLaunching:` because
+`NSApplication` registers its own during launch and the last registration wins.
+All three routes verified with a prompt up, and with two prompts on two windows.
+
+**A dismissed prompt is a cancel, and leaves nothing behind.** `RecentItems`,
+`LastPages` and the restorable state are all written by the *second* half of the
+open, which a cancelled prompt never reaches, so an archive whose password was
+never entered cannot come back as a half-open window or a Recent Books entry.
+Verified by quitting with two prompts up and relaunching: one restored window
+for the real book, no sheets, and neither archive anywhere in the defaults.
+
+**The two adjacent modal paths, reported rather than forced** (both were checked
+because the task asked what they do):
+
+- The **nested-archive prompt** is synchronous and app-modal by decision 3 of
+  the window-modal-prompt task. Quit requests during it are blocked but
+  *deferred* — answering the prompt lets the quit fire. Fixing it would mean
+  undoing that decision, so it is left alone.
+- The **archive-load progress sheet** runs an `NSApp` modal session (#33's
+  loading half, still pending). Cmd+Q is swallowed by that session; the
+  AppleEvent quit works immediately, because the handler above runs inside the
+  modal run loop. The rest belongs with the deferred background-loading work.

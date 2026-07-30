@@ -126,6 +126,11 @@ extern NSString * const CooViewerBookWindowRestorationIdentifier;
  * rather than at First Responder — see the .m. */
 - (IBAction)allBookmarks:(id)sender;
 - (IBAction)preferences:(id)sender;
+/* Takes down every window's archive password prompt, answering whether there
+ * was one. Called from -[COApplication terminate:], which has to clear them
+ * before AppKit's -terminate: runs: AppKit refuses to terminate while a sheet
+ * is attached, and never reaches -applicationShouldTerminate:. */
+- (BOOL)cancelPasswordPrompts;
 - (IBAction)clearRecent:(id)sender;
 
 /* MW-5: the Preferences window's OK/Cancel. Moved off BookWindowController
