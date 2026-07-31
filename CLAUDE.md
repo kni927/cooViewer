@@ -155,6 +155,17 @@ Full procedural precedent: `docs/tasks/2026-07-26-02-release-v1.5.2.md`.
   `build/Deployment/`) during a single dev session has previously left
   LaunchServices/QuickLook in an inconsistent state that only a full
   OS restart resolved — see `docs/KNOWN_ISSUES.md` #15.
+- When running an isolated test copy of cooViewer alongside your own
+  real, already-running copy (e.g. for `System Events`/UI-scripting-
+  driven tests), a plain process-name match (e.g. targeting
+  "cooViewer") can resolve to your real running app instead of the
+  test copy — they share the same executable name. Rename the test
+  copy's executable/bundle to something distinct (e.g.
+  `cooViewer-test`) before scripting against it by name, and verify
+  which process you're actually driving before the first action that
+  touches app state. See
+  `docs/tasks/2026-07-31-06-finder-open-reuses-window.md` for a case
+  where this was caught before any real window/book was affected.
 
 ## On-Device Verification Procedure
 
