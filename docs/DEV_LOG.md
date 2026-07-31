@@ -1065,3 +1065,15 @@ Release published with both the app zip and a `.dSYM.zip`, re-verified
 against the actual notarized artifact (UUID match, `atos` symbol
 resolution, 3-cycle crash-scenario repro producing no new crash report),
 Homebrew tap updated. See `docs/tasks/2026-07-31-01-release-v1.6.1.md`.
+
+### v1.6.2 released (2026-08-01)
+
+New book windows inherit the front window's size (⌥⌘O and Finder-open),
+including a fullscreen-source fix; Finder-open now loads into the front
+window instead of always opening a new one. Also added a tolerance-based
+spread-diff tool (`tools/spread_diff.py`) after finding the project's
+byte-identity gate isn't reproducible for anti-aliased content even with
+zero code change (a system-level rendering characteristic, not a cooViewer
+defect). Notarized via CI, Homebrew tap updated, both behaviors verified
+on the real released build. See
+`docs/tasks/2026-08-01-01-release-v1.6.2.md`.
