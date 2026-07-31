@@ -1362,3 +1362,22 @@ broken by this:**
 
 So both build paths keep their existing behaviour with respect to `build/`
 contents; only CI gained a new artifact to pick up and ship.
+
+---
+
+## Spread comparison: tolerance-based diff replaces exact hash for text/vector regions
+
+Exact SHA-256 comparison of a spread capture is only valid for solid-
+fill regions. Anti-aliased edges from text/vector content are not
+bit-reproducible across independent redraws, even with zero code
+change — this is a system-level rendering characteristic (reproduced
+in unmodified Preview.app), not a cooViewer defect.
+
+For any region containing text/vector content, use the tolerance-based
+diff tool (bounded max per-channel pixel difference + edge-adjacency
+check — see CLAUDE.md, "Spread Capture & Comparison Methodology"), so
+a spurious AA diff passes but a real content or render-path change
+still fails.
+
+Investigation: `docs/tasks/2026-07-31-04-investigate-byte-identity-gate.md`.
+Implementation: `docs/tasks/2026-07-31-05-add-spread-diff-tool.md`.

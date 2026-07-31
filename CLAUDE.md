@@ -206,6 +206,50 @@ during or after this procedure, stop — do not attempt further
 install/register cycles to fix it. Report it. A recurrence of #15 requires
 a reboot, not more registration attempts.
 
+## Spread Capture & Comparison Methodology
+
+Use this whenever a change needs to be verified as visually identical
+(or intentionally different) to a baseline, e.g. confirming the render
+path wasn't affected by an unrelated change.
+
+### Known pitfalls (apply every time)
+
+- Capture both sides of a comparison in the **same session**. A spread
+  region's exact bytes are not stable cross-session (window-corner
+  anti-aliasing, compositor state).
+- Region capture grabs whichever window is **frontmost** at the moment
+  of capture. Position windows non-overlapping, and if a test forces a
+  redraw (e.g. via a page-nav round trip) between captures, re-assert
+  frontmost immediately before each capture — a forced-redraw test can
+  let a different window (e.g. an unrelated Preview/PDF window) become
+  frontmost in between. See
+  `docs/tasks/2026-07-31-04-investigate-byte-identity-gate.md` for a
+  concrete case.
+- A screenshot taken immediately after launch can be black before first
+  render.
+- A keystroke expected to produce "no change" needs independent proof
+  it was delivered, not just an unchanged reading.
+- Screen Recording permission must be granted to the actual capturing
+  process (e.g. `tmux`), not the visible terminal app.
+- **Anti-aliased edges (text/vector content) are not bit-reproducible
+  across independent redraws**, even with zero code change — confirmed
+  as a system-level rendering behavior (reproduced in Apple's own
+  Preview.app under an equivalent test), not a cooViewer defect. Solid-
+  fill regions ARE exactly reproducible byte-for-byte.
+- Prefer a fresh single-draw capture over a page-navigation-forced
+  redraw when a choice exists — the latter introduces more opportunity
+  for the frontmost-window and edge-AA pitfalls above.
+
+### Comparison method
+
+- **Solid-fill region:** exact SHA-256 match is valid and expected.
+- **Region containing text/vector content:** use `tools/spread_diff.py`
+  (tolerance-based: bounded max per-channel difference + edge-adjacency
+  check) instead of exact hashing. Exact hashing on such a region WILL
+  show spurious diffs even with no code change — do not treat that as
+  a failure, and do not treat it as a pass just because "it usually
+  looks the same."
+
 ## Repository Layout
 - Repository root contains only dotfiles, top-level directories, `*.md`,
   `*.txt`, and the Xcode project bundle. Source, resources, and scripts
