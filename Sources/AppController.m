@@ -182,12 +182,18 @@ static const NSTimeInterval kLaunchDrainPollInterval = 0.05;
 /* Finder "Open With", a drag onto the Dock icon, and the launch document
    event all arrive here. MW-7 forwarded the singular -application:openFile:
    straight to the front window, so a book opened from the Finder replaced
-   whatever that window was showing. It now goes through exactly the path
-   ⌥⌘O uses: de-duplicate on the resolved book path, reuse an empty window
-   if there is one, otherwise open a new window — one per file, since this
-   is the plural callback and a multiple selection is a request for all of
-   them. Step-0 decision 3 is unaffected: File ▸ Open still replaces the
-   front window's book, because that is a different command.
+   whatever that window was showing; MW-7's multi-window pass then routed it
+   through -openBookInNewWindow: like ⌥⌘O instead, so it always opened a new
+   window. v1.6.2 (this task) restores the original "replace the front
+   window's book" behavior — but per-file, and only for the first file that
+   doesn't already have a window: de-duplicate first (unchanged, still wins),
+   then if a book window exists, load the first not-already-open file into
+   *its own front controller* via the same -openBookAtPath: File ▸ Open uses
+   (Step-0 decision 3), rather than opening a new one. Only the first
+   otherwise-unhandled file gets this treatment per call, since the front
+   window can only hold one book — every file after it, and everything when
+   no book window exists yet, still goes through -openBookInNewWindow:
+   unchanged (dedup, empty-window reuse, or a new cascaded window).
 
    AppKit prefers this over -application:openFile: when both exist, so the
    singular one is gone rather than left as an unreachable second path.
@@ -198,8 +204,11 @@ static const NSTimeInterval kLaunchDrainPollInterval = 0.05;
    yet — so acting now would find nothing to de-duplicate against and open a
    second window on a book that is already coming back. -settleLaunch drains
    the queue through this same -openBookInNewWindow: once every restored
-   window has its book. Once the launch has settled this method is unchanged:
-   immediate, no queue. */
+   window has its book — the front-window-replace behavior below does not
+   apply to the drain, matching Step-0 decision 2's existing comment on
+   -openBookInNewWindow: (an explicit request for a book a restored window
+   is already showing brings that window forward, never doubles it). Once
+   the launch has settled this method is unchanged: immediate, no queue. */
 - (void)application:(NSApplication *)sender openFiles:(NSArray *)filenames
 {
 	if (!launchSettled) {
@@ -212,9 +221,25 @@ static const NSTimeInterval kLaunchDrainPollInterval = 0.05;
 		return;
 	}
 
+	/* Only the first file in this call gets to replace the front window —
+	   every file after it finds that slot already taken and falls through to
+	   -openBookInNewWindow: like today. The dedup lookup below is a read-only
+	   query (already shared with -openBookInNewWindow: and the bookmark
+	   browsers), not a second copy of that method's own logic: it decides
+	   whether *this* file is a front-window-replace candidate, and
+	   -openBookInNewWindow: still runs its own copy of the same check for
+	   every file this loop does route to it, unchanged. */
+	BOOL frontWindowReplaced = NO;
 	NSEnumerator *enu = [filenames objectEnumerator];
 	NSString *filename;
 	while (filename = [enu nextObject]) {
+		id front = [self frontController];
+		if (!frontWindowReplaced && front && [front hasBookOpen]
+			&& ![self windowControllerShowingBook:[BookWindowController resolvedBookPath:filename]]) {
+			[front openBookAtPath:filename];
+			frontWindowReplaced = YES;
+			continue;
+		}
 		[self openBookInNewWindow:filename];
 	}
 	[sender replyToOpenOrPrint:NSApplicationDelegateReplySuccess];
