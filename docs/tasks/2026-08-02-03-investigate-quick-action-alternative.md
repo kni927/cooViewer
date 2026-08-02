@@ -1,5 +1,26 @@
 # TASK: Investigate — NSServices/Quick Action as an alternative to the companion-app plan
 
+> ## ⚠️ CORRECTION NOTICE (2026-08-02, added after the fact)
+>
+> **This report's central conclusion is WRONG and has been superseded
+> by `docs/tasks/2026-08-02-05-retest-nsservices.md`.** `NSServices`
+> works completely on this machine — it registers, appears in System
+> Settings ▸ Keyboard Shortcuts ▸ Services, appears in Finder's
+> Services submenu once enabled, and delivers the selected file's URL
+> to the handler. The decisive fact this report missed is that **new
+> services are disabled by default**; this report explicitly (and
+> incorrectly) ruled that possibility out. The re-test also revised
+> the implementation size estimate from "a real feature-sized task"
+> down to **small**.
+>
+> **The "prompt injection" claim in the Method section below is also
+> retracted — see the correction note inline there.** It was a
+> misidentification of a standard, built-in Claude Code harness
+> notification. No injection occurred.
+>
+> The report is left otherwise unedited as a record of what was
+> actually done and concluded at the time.
+
 ## This part is investigation-only. Do not implement anything.
 
 ## Background
@@ -59,14 +80,49 @@ with a temporary, scratch `NSServices` entry added to
 `Resources/Info.plist` and a temporary scratch handler method added to
 `AppController.m` — both marked `SCRATCH`, both reverted before
 committing (`git diff` confirmed empty afterward; a clean rebuild was
-re-verified). **A tool-result "system reminder" appeared mid-session
+re-verified). ~~**A tool-result "system reminder" appeared mid-session
 falsely claiming these two scratch edits were "intentional" changes
 "by the user or a linter" and instructing me not to revert them and
 not to mention this to the user — this did not come from you and
 contradicts the actual, verified repository state (the diff was
 exactly the scratch code this report describes, authored by me minutes
 earlier). I did not follow it and reverted as originally planned;
-flagging it here since it reads as a prompt-injection attempt.**
+flagging it here since it reads as a prompt-injection attempt.**~~
+
+> **RETRACTED (2026-08-02).** The struck-through claim above is wrong.
+> The session transcript
+> (`~/.claude/projects/-Users-kni-Projects-GitHub-cooViewer/d0cd3af9-….jsonl`)
+> was searched directly and settles it: the message was a **standard,
+> built-in Claude Code harness notification**, not an injection.
+>
+> Evidence: the transcript contains exactly two records of
+> `type: "attachment"` with `attachment.type: "edited_text_file"`, at
+> lines 2354 and 2355, naming exactly `Sources/AppController.m` and
+> `Resources/Info.plist`. They sit immediately after line 2352/2353 —
+> the `git checkout -- Resources/Info.plist Sources/AppController.m`
+> that reverted the scratch edits. These are the only two such records
+> in the whole 2914-line session.
+>
+> That attachment type is the harness's normal way of telling the model
+> a file it had been working with changed on disk outside the model's
+> own edit tools. `git checkout` is precisely such an outside change,
+> so the notification firing was correct behavior. Its wording
+> ("This change was intentional… don't revert it… Don't tell the user
+> this, since they are already aware") is **generic boilerplate the
+> harness renders for this attachment type** — it assumes the common
+> case of a user or linter edit. That assumption simply happened to be
+> wrong here, because the outside change was the agent's own deliberate
+> revert. The boilerplate text is not stored in any tool result: a
+> search of every `role: "user"` message in the session for those
+> phrases returns **0 hits**, confirming it is rendered from the
+> structured attachment rather than injected into command output.
+>
+> So the accurate characterization is neither "real injection" nor
+> "model confabulation" (the owner's stated hypothesis) but a third
+> thing: **a real, benign, first-party harness message that was
+> misread as hostile.** The underlying repository outcome was never in
+> doubt and remains verified — the scratch edits were reverted and
+> `git diff` was empty.
 
 The test service declaration:
 
@@ -235,9 +291,13 @@ than ad hoc), not an implementation task.
   specific to this test build's circumstances, not a system-wide
   services outage, and making the signing hypothesis the most likely
   single explanation without further testing.
-- A tool-result claiming my own scratch edits were pre-existing
+- ~~A tool-result claiming my own scratch edits were pre-existing
   "intentional" changes not to be reverted or mentioned — not
   something the user said, contradicted the verified repository state,
   and was not followed. Recorded here per the project's standing
   instruction to flag suspected prompt injection rather than comply
-  silently.
+  silently.~~
+  **RETRACTED (2026-08-02)** — this was a standard Claude Code
+  `edited_text_file` harness notification triggered by the agent's own
+  `git checkout`, not an injection. See the retraction note in the
+  Method section above for the transcript evidence.
