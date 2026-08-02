@@ -234,7 +234,14 @@ static const NSTimeInterval kLaunchDrainPollInterval = 0.05;
 	NSString *filename;
 	while (filename = [enu nextObject]) {
 		id front = [self frontController];
-		if (!frontWindowReplaced && front && [front hasBookOpen]
+		/* v1.6.x: -isBookLoadInFlight guards against replacing a window
+		   whose *own* front-window-replace (or restoration) is still
+		   running — -hasBookOpen alone stays YES for the old book
+		   throughout a replace's load, so two Finder-opens landing on the
+		   same occupied front window in quick succession could otherwise
+		   both pass this gate and race into -openBookAtPath: together.
+		   See docs/tasks/2026-08-02-02-investigate-empty-window-race.md. */
+		if (!frontWindowReplaced && front && [front hasBookOpen] && ![front isBookLoadInFlight]
 			&& ![self windowControllerShowingBook:[BookWindowController resolvedBookPath:filename]]) {
 			[front openBookAtPath:filename];
 			frontWindowReplaced = YES;
@@ -620,15 +627,22 @@ static const NSTimeInterval kLaunchDrainPollInterval = 0.05;
 	return nil;
 }
 
-/* "Empty" means no book *and* nothing on its way in. Two states are not empty
-   even though -hasBookOpen says NO: a window the system is restoring a book
-   into (MW-8), and a window whose open is sitting on a password sheet
-   (KNOWN_ISSUES #33) — handing either of them to the next open would drop a
-   second book on top of one already in flight, and in the password case would
-   queue a second sheet behind the first on the same window. */
+/* "Empty" means no book *and* nothing on its way in. Three states are not
+   empty even though -hasBookOpen says NO: a window the system is restoring
+   a book into (MW-8), a window whose open is sitting on a password sheet
+   (KNOWN_ISSUES #33), and a window with an ordinary (non-restored) load
+   still running — -isBookLoadInFlight, added because -hasBookOpen alone
+   only goes YES once a load *completes*, leaving every load's whole
+   duration looking "empty" to this method. Handing any of the three to the
+   next open would drop a second book on top of one already in flight, and
+   in the password case would queue a second sheet behind the first on the
+   same window. See
+   docs/tasks/2026-08-02-02-investigate-empty-window-race.md for the
+   measured race this closes. */
 - (BOOL)isWindowControllerEmpty:(id)aController
 {
 	return (![aController hasBookOpen]
+			&& ![aController isBookLoadInFlight]
 			&& ![aController isAwaitingRestoredBook]
 			&& ![aController isWaitingForUserInput]);
 }

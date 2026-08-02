@@ -850,6 +850,10 @@ static NSPoint gNextWindowCascadePoint;
 				 fromFileName:(NSString *)fromFileName
 				  closeWindow:(BOOL)closeWindow
 {
+	/* v1.6.x: the shared give-up funnel for a bad archive or a cancelled
+	   password — whichever -openPage:last: this open started with, it
+	   ends here rather than at the success tail. */
+	bookLoadInFlight = NO;
 	[newImageLoader release];
 	if ([self hasBookOpen]) {
 		/*ウィンドウを開いているとき*/
@@ -1162,6 +1166,11 @@ static NSString * const kBookViewModeKey = @"cooViewerBookViewMode";
 #pragma mark openning
 - (void)openPage:(int)page last:(BOOL)last;
 {
+	/* v1.6.x: set here, at the very top, so a window is never mistaken for
+	   "empty" while this open (restoration or ordinary) is running — see
+	   the `bookLoadInFlight` ivar comment in the header. */
+	bookLoadInFlight = YES;
+
 	[[self window] makeKeyAndOrderFront:self];
 
 	[progressIndicator startAnimation:self];
@@ -1448,6 +1457,8 @@ static NSString * const kBookViewModeKey = @"cooViewerBookViewMode";
 	   before the display pass, since -imageDisplay is what used to make the
 	   old [imageView image] test start answering YES. */
 	bookOpen = YES;
+	/* v1.6.x: the load this -openPage:last: started has finished. */
+	bookLoadInFlight = NO;
 	/* MW-8: and this is the book window restoration will bring back. Made
 	   here, once per open, rather than in -encodeRestorableStateWithCoder:,
 	   which runs again after every page turn. */
@@ -1911,6 +1922,7 @@ static NSString * const kBookViewModeKey = @"cooViewerBookViewMode";
 	[loader release];
 	[fromFileName release];
 	passwordOpenInFlight = NO;
+	bookLoadInFlight = NO;
 }
 
 /* Whether this window has an open that is waiting on a person (its password
@@ -1933,6 +1945,11 @@ static NSString * const kBookViewModeKey = @"cooViewerBookViewMode";
 - (BOOL)hasBookOpen
 {
 	return bookOpen;
+}
+
+- (BOOL)isBookLoadInFlight
+{
+	return bookLoadInFlight;
 }
 
 - (id)thumController
@@ -3419,6 +3436,11 @@ static const NSInteger kBookmarkMenuFixedItemCount = 3;
 	   closed window would stall a queued Finder open indefinitely. */
 	windowClosed = YES;
 	passwordOpenInFlight = NO;
+	/* v1.6.x: defensive, matching passwordOpenInFlight above — a closed
+	   window must never keep reading as mid-load. -abandonOpenWithLoader:/
+	   -discardPendingOpen: already clear this on their own exits; this
+	   covers a close that lands while neither has run yet. */
+	bookLoadInFlight = NO;
 
 	/* KNOWN_ISSUES #36: the accessory overlay outlives this controller by one
 	   window close (#26), and holds unretained outlets to it. Drop them here,

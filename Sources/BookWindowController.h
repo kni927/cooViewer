@@ -209,6 +209,24 @@
 	   in -windowWillClose:. Read through -hasBookOpen. */
 	BOOL bookOpen;
 
+	/* v1.6.x: YES from the moment -openPage:last: starts a load until that
+	   load ends, one way or another — success, a bad archive, or a
+	   cancelled password. -hasBookOpen alone leaves a gap here: it only
+	   answers YES once a load *completes*, so a window mid-load still
+	   reads "empty" to anything that only checks -hasBookOpen. That gap
+	   let a second open (Finder or front-window-replace) land in a window
+	   whose restore or ordinary open was still running, silently losing
+	   the first one — see
+	   docs/tasks/2026-08-02-02-investigate-empty-window-race.md. Set once,
+	   at the top of -openPage:last: (covers restoration too, since
+	   -openRestoredBook calls it the same way any other open does), and
+	   cleared at every exit -openPage:last: can reach: the success tail of
+	   -openPageWithLoader:page:last:fromFileName:, -abandonOpenWithLoader:
+	   fromFileName:closeWindow: (the shared failure/cancel funnel), and
+	   -discardPendingOpen:fromFileName: (window closed mid-password-wait).
+	   Read through -isBookLoadInFlight. */
+	BOOL bookLoadInFlight;
+
 	/* KNOWN_ISSUES #33: YES from the moment this window puts up a password
 	   sheet until the open it belongs to has finished one way or the other.
 	   Deliberately not "is a sheet on screen": it has to stay YES across the
@@ -499,6 +517,10 @@
    single "a book is open" predicate for this class — see the `bookOpen`
    ivar. */
 - (BOOL)hasBookOpen;
+/* Whether a load is currently running on this window — see the
+   `bookLoadInFlight` ivar. -hasBookOpen alone does not cover this: it
+   only goes YES once a load finishes. */
+- (BOOL)isBookLoadInFlight;
 /* Exposes the window-side ThumbnailController to -[AppController
    remoteButton:pressedDown:clickCount:] (MW-3). */
 - (id)thumController;
