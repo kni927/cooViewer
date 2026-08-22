@@ -157,6 +157,11 @@
 		86F06586FD9347F3BACF6D8F /* libuchardet.0.dylib in CopyFiles */ = {isa = PBXBuildFile; fileRef = AC0DE0041CA7A106A55E7500 /* libuchardet.0.dylib */; settings = {ATTRIBUTES = (CodeSignOnCopy, ); }; };
 		1DE9E57F88B540C3A703AAB5 /* libzip.5.dylib in CopyFiles */ = {isa = PBXBuildFile; fileRef = AC0DE00D1CA7A106A55E7500 /* libzip.5.dylib */; settings = {ATTRIBUTES = (CodeSignOnCopy, ); }; };
 		76400562AA4545BBBD8A56B0 /* cooViewerPreview.appex in Embed App Extensions */ = {isa = PBXBuildFile; fileRef = 3D2CBF9AC0D94D0481FAE2AA /* cooViewerPreview.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		A10000000000000000000001 /* cooViewer (New Window).app in Embed Helpers */ = {isa = PBXBuildFile; fileRef = A20000000000000000000001 /* cooViewer (New Window).app */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+		A10000000000000000000002 /* main.m in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000002 /* main.m */; };
+		A10000000000000000000003 /* CONewWindowURL.m in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000004 /* CONewWindowURL.m */; };
+		A10000000000000000000004 /* CONewWindowURL.m in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000004 /* CONewWindowURL.m */; };
+		A10000000000000000000005 /* Cocoa.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 1058C7A1FEA54F0111CA2CBB /* Cocoa.framework */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -173,6 +178,13 @@
 			proxyType = 1;
 			remoteGlobalIDString = 72C0BFF2F95F490AA291EC21;
 			remoteInfo = cooViewerPreview;
+		};
+		A60000000000000000000001 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 29B97313FDCFA39411CA2CEA /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = A50000000000000000000001;
+			remoteInfo = "cooViewer (New Window)";
 		};
 /* End PBXContainerItemProxy section */
 
@@ -199,6 +211,17 @@
 				76400562AA4545BBBD8A56B0 /* cooViewerPreview.appex in Embed App Extensions */,
 			);
 			name = "Embed App Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		A40000000000000000000001 /* Embed Helpers */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = Contents/Helpers;
+			dstSubfolderSpec = 1;
+			files = (
+				A10000000000000000000001 /* cooViewer (New Window).app in Embed Helpers */,
+			);
+			name = "Embed Helpers";
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 		4C8E1FEEBF6A45CAA4E6D47E /* CopyFiles */ = {
@@ -361,6 +384,10 @@
 		CB1309101EEB4372A6979E66 /* Info.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		81BF2C48E0484B618F1DE8D6 /* PreviewExtension.entitlements */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.entitlements; path = PreviewExtension.entitlements; sourceTree = "<group>"; };
 		3D2CBF9AC0D94D0481FAE2AA /* cooViewerPreview.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = cooViewerPreview.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		A20000000000000000000001 /* cooViewer (New Window).app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "cooViewer (New Window).app"; sourceTree = BUILT_PRODUCTS_DIR; };
+		A20000000000000000000002 /* main.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = main.m; sourceTree = "<group>"; };
+		A20000000000000000000003 /* CONewWindowURL.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = Sources/CONewWindowURL.h; sourceTree = "<group>"; };
+		A20000000000000000000004 /* CONewWindowURL.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = Sources/CONewWindowURL.m; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -406,6 +433,14 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		A40000000000000000000003 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				A10000000000000000000005 /* Cocoa.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
@@ -447,8 +482,17 @@
 				8D1107320486CEB800E47090 /* cooViewer.app */,
 				53A19F2E2E1548FD959D957B /* cooViewerThumbnail.appex */,
 				3D2CBF9AC0D94D0481FAE2AA /* cooViewerPreview.appex */,
+				A20000000000000000000001 /* cooViewer (New Window).app */,
 			);
 			name = Products;
+			sourceTree = "<group>";
+		};
+		A30000000000000000000001 /* NewWindowHelper */ = {
+			isa = PBXGroup;
+			children = (
+				A20000000000000000000002 /* main.m */,
+			);
+			path = NewWindowHelper;
 			sourceTree = "<group>";
 		};
 		D5920FEEB6BF4C0D960C52DF /* ThumbnailExtension */ = {
@@ -483,6 +527,7 @@
 				29B97317FDCFA39411CA2CEA /* Resources */,
 				D5920FEEB6BF4C0D960C52DF /* ThumbnailExtension */,
 				E2BB60CE035A488DAEA60FB6 /* PreviewExtension */,
+				A30000000000000000000001 /* NewWindowHelper */,
 				29B97323FDCFA39411CA2CEA /* Frameworks */,
 				19C28FACFE9D520D11CA2CBB /* Products */,
 			);
@@ -494,6 +539,8 @@
 			children = (
 				32CA4F630368D1EE00C91783 /* cooViewer_Prefix.pch */,
 				29B97316FDCFA39411CA2CEA /* main.m */,
+				A20000000000000000000003 /* CONewWindowURL.h */,
+				A20000000000000000000004 /* CONewWindowURL.m */,
 			);
 			name = "Other Sources";
 			sourceTree = "<group>";
@@ -820,17 +867,37 @@
 				8D1107290486CEB800E47090 /* Resources */,
 				76494FA507F72BC400B932D2 /* CopyFiles */,
 				FCDBD0A8479D48DCB8ADBB31 /* Embed App Extensions */,
+				A40000000000000000000001 /* Embed Helpers */,
 			);
 			buildRules = (
 			);
 			dependencies = (
 				F7DACB55DA96412DA8822341 /* PBXTargetDependency */,
 				95DCA29CA6F14CFEAA8BF234 /* PBXTargetDependency */,
+				A60000000000000000000002 /* PBXTargetDependency */,
 			);
 			name = cooViewer;
 			productInstallPath = "$(HOME)/Applications";
 			productName = cooViewer;
 			productReference = 8D1107320486CEB800E47090 /* cooViewer.app */;
+			productType = "com.apple.product-type.application";
+		};
+		A50000000000000000000001 /* cooViewer (New Window) */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = A80000000000000000000001 /* Build configuration list for PBXNativeTarget "cooViewer (New Window)" */;
+			buildPhases = (
+				A40000000000000000000002 /* Sources */,
+				A40000000000000000000003 /* Frameworks */,
+				A40000000000000000000004 /* Resources */,
+				A40000000000000000000005 /* Configure helper Info.plist */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = "cooViewer (New Window)";
+			productName = "cooViewer (New Window)";
+			productReference = A20000000000000000000001 /* cooViewer (New Window).app */;
 			productType = "com.apple.product-type.application";
 		};
 		8CAA1E1B5AE44BAD8DE94782 /* cooViewerThumbnail */ = {
@@ -893,6 +960,7 @@
 				8D1107260486CEB800E47090 /* cooViewer */,
 				8CAA1E1B5AE44BAD8DE94782 /* cooViewerThumbnail */,
 				72C0BFF2F95F490AA291EC21 /* cooViewerPreview */,
+				A50000000000000000000001 /* cooViewer (New Window) */,
 			);
 		};
 /* End PBXProject section */
@@ -938,6 +1006,13 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		A40000000000000000000004 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXResourcesBuildPhase section */
 
 
@@ -954,6 +1029,7 @@
 				AC0DE01F1CA7A106A55E7500 /* COCoverExtractor.m in Sources */,
 				76B19AC407C9C15A00A6FB97 /* BookWindowController.m in Sources */,
 				C44CE0C9ACB5A78C3BFB7747 /* AppController.m in Sources */,
+				A10000000000000000000003 /* CONewWindowURL.m in Sources */,
 				768E1DED07CC6B740023AF61 /* CustomWindow.m in Sources */,
 				7601F5F907D5508700457A5B /* CustomImageView.m in Sources */,
 				76F0929B07DBF79E00643E4F /* BookmarkController.m in Sources */,
@@ -1021,7 +1097,34 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		A40000000000000000000002 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				A10000000000000000000002 /* main.m in Sources */,
+				A10000000000000000000004 /* CONewWindowURL.m in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
+
+/* Begin PBXShellScriptBuildPhase section */
+		A40000000000000000000005 /* Configure helper Info.plist */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputPaths = (
+			);
+			name = "Configure helper Info.plist";
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "set -e\nPLIST=\"$TARGET_BUILD_DIR/$INFOPLIST_PATH\"\n/usr/libexec/PlistBuddy -c 'Delete :CFBundleURLTypes' \"$PLIST\"\n/usr/libexec/PlistBuddy -c 'Delete :NSMainNibFile' \"$PLIST\"\n/usr/libexec/PlistBuddy -c 'Set :NSPrincipalClass NSApplication' \"$PLIST\"\n/usr/libexec/PlistBuddy -c 'Add :CFBundleDisplayName string cooViewer\\ \(New\\ Window\)' \"$PLIST\"\n/usr/libexec/PlistBuddy -c 'Add :LSUIElement bool true' \"$PLIST\"\n";
+		};
+/* End PBXShellScriptBuildPhase section */
 
 /* Begin PBXTargetDependency section */
 		F7DACB55DA96412DA8822341 /* PBXTargetDependency */ = {
@@ -1033,6 +1136,11 @@
 			isa = PBXTargetDependency;
 			target = 72C0BFF2F95F490AA291EC21 /* cooViewerPreview */;
 			targetProxy = AF2E6AA064B24DEFBDF617BC /* PBXContainerItemProxy */;
+		};
+		A60000000000000000000002 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = A50000000000000000000001 /* cooViewer (New Window) */;
+			targetProxy = A60000000000000000000001 /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
 
@@ -1706,6 +1814,106 @@
 			};
 			name = Default;
 		};
+		A70000000000000000000001 /* Development */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CODE_SIGN_IDENTITY = "-";
+				COPY_PHASE_STRIP = NO;
+				CURRENT_PROJECT_VERSION = 1.6.2;
+				ENABLE_USER_SCRIPT_SANDBOXING = NO;
+				GCC_ENABLE_OBJC_EXCEPTIONS = YES;
+				GENERATE_INFOPLIST_FILE = NO;
+				HEADER_SEARCH_PATHS = "$(SRCROOT)/Sources";
+				INFOPLIST_FILE = Resources/Info.plist;
+				MACOSX_DEPLOYMENT_TARGET = 12.0;
+				MARKETING_VERSION = 1.6.2;
+				PRODUCT_BUNDLE_IDENTIFIER = jp.coo.cooViewer.NewWindowHelper;
+				PRODUCT_NAME = "cooViewer (New Window)";
+				SKIP_INSTALL = YES;
+			};
+			name = Development;
+		};
+		A70000000000000000000002 /* Deployment */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CODE_SIGN_IDENTITY = "-";
+				COPY_PHASE_STRIP = YES;
+				CURRENT_PROJECT_VERSION = 1.6.2;
+				ENABLE_USER_SCRIPT_SANDBOXING = NO;
+				GCC_ENABLE_OBJC_EXCEPTIONS = YES;
+				GENERATE_INFOPLIST_FILE = NO;
+				HEADER_SEARCH_PATHS = "$(SRCROOT)/Sources";
+				INFOPLIST_FILE = Resources/Info.plist;
+				MACOSX_DEPLOYMENT_TARGET = 12.0;
+				MARKETING_VERSION = 1.6.2;
+				PRODUCT_BUNDLE_IDENTIFIER = jp.coo.cooViewer.NewWindowHelper;
+				PRODUCT_NAME = "cooViewer (New Window)";
+				SKIP_INSTALL = YES;
+			};
+			name = Deployment;
+		};
+		A70000000000000000000003 /* Development2 */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CODE_SIGN_IDENTITY = "-";
+				COPY_PHASE_STRIP = NO;
+				CURRENT_PROJECT_VERSION = 1.6.2;
+				ENABLE_USER_SCRIPT_SANDBOXING = NO;
+				GCC_ENABLE_OBJC_EXCEPTIONS = YES;
+				GENERATE_INFOPLIST_FILE = NO;
+				HEADER_SEARCH_PATHS = "$(SRCROOT)/Sources";
+				INFOPLIST_FILE = Resources/Info.plist;
+				MACOSX_DEPLOYMENT_TARGET = 12.0;
+				MARKETING_VERSION = 1.6.2;
+				PRODUCT_BUNDLE_IDENTIFIER = jp.coo.cooViewer.NewWindowHelper;
+				PRODUCT_NAME = "cooViewer (New Window)";
+				SKIP_INSTALL = YES;
+			};
+			name = Development2;
+		};
+		A70000000000000000000004 /* Deployment2 */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CODE_SIGN_IDENTITY = "-";
+				COPY_PHASE_STRIP = YES;
+				CURRENT_PROJECT_VERSION = 1.6.2;
+				ENABLE_USER_SCRIPT_SANDBOXING = NO;
+				GCC_ENABLE_OBJC_EXCEPTIONS = YES;
+				GENERATE_INFOPLIST_FILE = NO;
+				HEADER_SEARCH_PATHS = "$(SRCROOT)/Sources";
+				INFOPLIST_FILE = Resources/Info.plist;
+				MACOSX_DEPLOYMENT_TARGET = 12.0;
+				MARKETING_VERSION = 1.6.2;
+				PRODUCT_BUNDLE_IDENTIFIER = jp.coo.cooViewer.NewWindowHelper;
+				PRODUCT_NAME = "cooViewer (New Window)";
+				SKIP_INSTALL = YES;
+			};
+			name = Deployment2;
+		};
+		A70000000000000000000005 /* Default */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CODE_SIGN_IDENTITY = "-";
+				COPY_PHASE_STRIP = YES;
+				CURRENT_PROJECT_VERSION = 1.6.2;
+				ENABLE_USER_SCRIPT_SANDBOXING = NO;
+				GCC_ENABLE_OBJC_EXCEPTIONS = YES;
+				GENERATE_INFOPLIST_FILE = NO;
+				HEADER_SEARCH_PATHS = "$(SRCROOT)/Sources";
+				INFOPLIST_FILE = Resources/Info.plist;
+				MACOSX_DEPLOYMENT_TARGET = 12.0;
+				MARKETING_VERSION = 1.6.2;
+				PRODUCT_BUNDLE_IDENTIFIER = jp.coo.cooViewer.NewWindowHelper;
+				PRODUCT_NAME = "cooViewer (New Window)";
+				SKIP_INSTALL = YES;
+			};
+			name = Default;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -1753,6 +1961,18 @@
 				BCAA3E89CECF4C61BFFCB5CF /* Development2 */,
 				C114DE679D1446029F5FE62C /* Deployment2 */,
 				23E7B23AEA1E47A8AE6123E0 /* Default */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Default;
+		};
+		A80000000000000000000001 /* Build configuration list for PBXNativeTarget "cooViewer (New Window)" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				A70000000000000000000001 /* Development */,
+				A70000000000000000000002 /* Deployment */,
+				A70000000000000000000003 /* Development2 */,
+				A70000000000000000000004 /* Deployment2 */,
+				A70000000000000000000005 /* Default */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Default;

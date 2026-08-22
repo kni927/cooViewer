@@ -3,6 +3,7 @@
 #import "PreferenceController.h"
 #import "COImageLoader.h"	/* +fileTypes, for the Open in New Window panel */
 #import "AllBookmarkController.h"	/* -editAllBookmark:, for the All Bookmarks menu item */
+#import "CONewWindowURL.h"
 
 NSString * const CooViewerBookWindowRestorationIdentifier = @"cooViewerBookWindow";
 
@@ -67,6 +68,19 @@ static const NSTimeInterval kLaunchDrainPollInterval = 0.05;
 }
 
 #pragma mark NSApplicationDelegate
+
+/* Register the private URL handler here so AppKit's ordinary file-open
+   delivery remains exclusively in -application:openFiles:. Implementing the
+   broader -application:openURLs: delegate callback would also capture Finder
+   file URLs and bypass the v1.6.2 front-window replacement policy. */
+- (void)applicationWillFinishLaunching:(NSNotification *)notification
+{
+	[[NSAppleEventManager sharedAppleEventManager]
+		setEventHandler:self
+			andSelector:@selector(handleGetURLEvent:withReplyEvent:)
+		  forEventClass:kInternetEventClass
+			 andEventID:kAEGetURL];
+}
 
 /* MW-8 / Step-0 decision 5 put the OpenLastFolder fallback here, gated on
    "did the system restore any windows". KNOWN_ISSUES #32 moved the fallback
@@ -250,6 +264,34 @@ static const NSTimeInterval kLaunchDrainPollInterval = 0.05;
 		[self openBookInNewWindow:filename];
 	}
 	[sender replyToOpenOrPrint:NSApplicationDelegateReplySuccess];
+}
+
+/* The bundled Finder helper forwards only this private Apple Event URL. Keep
+   it separate from -application:openFiles: so it can never enter the ordinary
+   Finder-open front-window replacement gate. During launch it shares the
+   existing restoration-aware queue; once settled it takes exactly the same
+   semantic path as File ▸ Open in New Window. */
+- (void)handleGetURLEvent:(NSAppleEventDescriptor *)event
+           withReplyEvent:(NSAppleEventDescriptor *)replyEvent
+{
+	NSString *scheme = [[NSBundle mainBundle]
+		objectForInfoDictionaryKey:CooViewerNewWindowSchemeInfoKey];
+	NSString *requestString = [[event paramDescriptorForKeyword:keyDirectObject]
+		stringValue];
+	NSURL *requestURL = [NSURL URLWithString:requestString];
+	NSURL *fileURL = CooViewerFileURLFromNewWindowURL(requestURL, scheme);
+	if (!fileURL) {
+		NSLog(@"cooViewer: rejected malformed new-window URL");
+		return;
+	}
+
+	NSString *path = [fileURL path];
+	if (!launchSettled) {
+		[pendingLaunchOpenPaths addObject:path];
+		[self performSelector:@selector(settleLaunch) withObject:nil afterDelay:0.0];
+	} else {
+		[self openBookInNewWindow:path];
+	}
 }
 
 /* Step-0 decision 4. Deferred by MW-7 because -[BookWindowController
@@ -553,7 +595,11 @@ static const NSTimeInterval kLaunchDrainPollInterval = 0.05;
 	NSEnumerator *enu = [windowControllers objectEnumerator];
 	id aController;
 	while (aController = [enu nextObject]) {
-		if ([aController hasBookOpen]
+		/* A helper can forward several paths faster than the first archive
+		   finishes loading. currentBookPath already identifies that pending
+		   book, so treat an in-flight load as occupied too; otherwise a repeated
+		   path creates a second window during this narrow interval. */
+		if (([aController hasBookOpen] || [aController isBookLoadInFlight])
 			&& [[aController currentBookPath] isEqualToString:bookPath]) {
 			return aController;
 		}

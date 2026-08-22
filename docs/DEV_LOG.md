@@ -1090,3 +1090,15 @@ RAR5 fixture reproduces the decoder error; the archive engine suite passed all
 tracked in `libarchive/libarchive#3352` and `libarchive/libarchive#3361` and
 must be reassessed when updating the vendored dependency. See
 `docs/tasks/2026-08-04-01-recover-complete-rar-payload.md`.
+
+### Finder Open With can open a separate window (2026-08-22)
+
+Added an embedded `cooViewer (New Window)` LSUIElement helper so Finder offers
+an explicit new-window action while ordinary `cooViewer` opens keep replacing
+the front window. The helper forwards percent-safe local file URLs through a
+private Apple Event URL to the existing multi-window path, supports multi-file
+selection, and exits without a Dock icon or window. CI verifies the embedded
+bundle/document declarations and signs the helper bottom-up. Disposable-bundle
+Finder testing covered `.cbz`, `.cbr`, Unicode/reserved-character paths,
+stopped-main launch, deduplication, the existing ⌥⌘O action, Quick Look,
+and thumbnails.

@@ -89,6 +89,9 @@ jobs:
       - name: Build
         run: xcodebuild -configuration Deployment
 
+      - name: Verify new-window helper
+        run: tests/helper/run_tests.sh "$APP_PATH"
+
       - name: Sign app
         run: |
           set -euo pipefail
@@ -111,6 +114,9 @@ jobs:
           codesign --force --timestamp --options runtime \
             --entitlements PreviewExtension/PreviewExtension.entitlements \
             --sign "$SIGNING_IDENTITY" "$APP_PATH/Contents/PlugIns/cooViewerPreview.appex"
+
+          codesign --force --timestamp --options runtime \
+            --sign "$SIGNING_IDENTITY" "$APP_PATH/Contents/Helpers/cooViewer (New Window).app"
 
           codesign --force --timestamp --options runtime --sign "$SIGNING_IDENTITY" "$APP_PATH"
 

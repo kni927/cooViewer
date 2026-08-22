@@ -468,3 +468,17 @@ Remove `TASK.md` from the repository root when reporting completion, update
 documentation commit, and provide the standard self-contained chat Completion
 Report with exact commit hashes, test counts, tag/release status, and remaining
 issues.
+
+## Work Progress
+
+- Feature implementation and the pre-version-bump gate are complete. A
+  Deployment build succeeded; the helper URL tests passed 13/13 and the bundle
+  verifier confirmed one helper with all 20 document declarations.
+- Recursive disposable-bundle registration (`lsregister -f -R`) exposed both
+  `.cbz` and `.cbr` Finder entries. Manual testing passed ordinary replacement,
+  new-window forwarding, stopped-main launch, multi-file delivery,
+  special-character paths, in-flight deduplication, helper exit/no UI, ⌥⌘O,
+  Quick Look, and Finder thumbnails. All disposable registrations and the
+  `~/Applications` scratch copy were removed afterward.
+- Next step: commit the feature, then bump every shipped target to 1.6.3 and run
+  the final build/release verification sequence.

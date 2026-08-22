@@ -1420,3 +1420,32 @@ of the app-level fallback in a separate task.
 
 Implementation and verification:
 `docs/tasks/2026-08-04-01-recover-complete-rar-payload.md`.
+
+---
+
+## Finder new-window entry is an embedded LSUIElement helper (2026-08-22)
+
+**Decision:** Ship `cooViewer (New Window).app`
+(`jp.coo.cooViewer.NewWindowHelper`) inside the main app's
+`Contents/Helpers` directory. The helper claims exactly the main app's document
+types, has no private URL-scheme claim of its own, and forwards each Finder
+document to the main app through an encoded `cooviewer-new-window://` request.
+The main app handles that request as a `kAEGetURL` Apple event and routes it to
+the existing `openBookInNewWindow:` method.
+
+**Why:** Launch Services must see a distinct application bundle to offer a
+second Open With action. An embedded, background-only helper preserves one
+distributed app while giving Finder a separately named entry. A dedicated
+Apple Event handler keeps private requests separate from
+`application:openFiles:`; the broader AppKit URL callback also receives normal
+Finder file URLs and would break the established front-window replacement
+behavior. The shared source plist plus a helper post-processing phase keeps the
+20 document declarations identical without maintaining a second copy.
+
+**Operational constraints:** Register the containing app recursively when
+testing (`lsregister -f -R`) so Launch Services discovers the embedded helper.
+Use disposable main/helper bundle IDs for scratch builds, and explicitly
+unregister the helper as well as its container during cleanup. Sign the helper
+after nested app extensions and before signing the main app. Treat an in-flight
+window whose `currentBookPath` matches as already occupied so rapid or
+multi-file helper delivery cannot create duplicate windows.
