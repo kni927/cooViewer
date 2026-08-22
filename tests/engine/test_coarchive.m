@@ -21,6 +21,7 @@
  *   - graceful handling of truncated and bit-flipped zip/rar archives
  *
  * usage: test_coarchive <fixtures-generated-dir> <fixtures-src-dir>
+ *                       <rar5-final-block-fixture>
  * exit code: number of failed checks (0 = all pass)
  */
 #import <Foundation/Foundation.h>
@@ -32,13 +33,25 @@
 #import "CORarArchive.h"
 
 static int failures = 0;
+static int checks = 0;
 
 static void check(BOOL ok, NSString *what)
 {
+    checks++;
     if (!ok) {
         failures++;
         printf("  FAIL: %s\n", [what UTF8String]);
     }
+}
+
+static CORarEntry *rarEntryNamed(COArchive *archive, NSString *name)
+{
+    for (COArchiveEntry *entry in [archive contents]) {
+        if ([[entry path] isEqualToString:name] &&
+            [entry isKindOfClass:[CORarEntry class]])
+            return (CORarEntry *)entry;
+    }
+    return nil;
 }
 
 static NSString *sha256(NSData *data)
@@ -94,13 +107,15 @@ static void testArchive(NSString *path, NSArray *names, NSArray *srcHashes)
 
 int main(int argc, char **argv)
 {
-    if (argc < 3) {
-        fprintf(stderr, "usage: %s <generated-dir> <src-dir>\n", argv[0]);
+    if (argc != 4) {
+        fprintf(stderr, "usage: %s <generated-dir> <src-dir> "
+                        "<rar5-final-block-fixture>\n", argv[0]);
         return 64;
     }
     @autoreleasepool {
         NSString *gen = [NSString stringWithUTF8String:argv[1]];
         NSString *src = [NSString stringWithUTF8String:argv[2]];
+        NSString *rar5Final = [NSString stringWithUTF8String:argv[3]];
 
         NSArray *srcFiles = @[ @"001.png", @"002.jpg", @"003.png", @"004.jpg" ];
         NSMutableArray *srcHashes = [NSMutableArray array];
@@ -117,6 +132,26 @@ int main(int argc, char **argv)
         NSArray *asciiNames = srcFiles;
         NSArray *jpNames = @[ @"001_表紙.png", @"002_縦長表示.jpg",
                               @"003_網点とカケアミ.png", @"004_拡大縮小.jpg" ];
+
+        // --- trailing-error recovery predicate. "123456789" is the
+        // standard CRC32 check vector (IEEE CRC32 = CBF43926). The
+        // normal-success archive matrix below does not call this gate;
+        // it remains confined to CORarArchive's read-error branch. ---
+        {
+            printf("RAR trailing-error recovery predicate\n");
+            NSData *complete = [@"123456789" dataUsingEncoding:NSASCIIStringEncoding];
+            NSData *shortPayload = [@"12345678" dataUsingEncoding:NSASCIIStringEncoding];
+            check(CORarPayloadMatchesExpectedMetadata(complete, YES, 9, YES, 0xcbf43926U),
+                  @"exact size and CRC should recover");
+            check(!CORarPayloadMatchesExpectedMetadata(complete, YES, 9, YES, 0xcbf43927U),
+                  @"wrong CRC must not recover");
+            check(!CORarPayloadMatchesExpectedMetadata(shortPayload, YES, 9, YES, 0x9ae0daafU),
+                  @"short payload must not recover");
+            check(!CORarPayloadMatchesExpectedMetadata(complete, YES, 9, NO, 0),
+                  @"missing CRC must not recover");
+            check(!CORarPayloadMatchesExpectedMetadata(complete, NO, 0, YES, 0xcbf43926U),
+                  @"missing size must not recover");
+        }
 
         // --- positive matrix ---
         for (NSString *f in @[ @"test.zip", @"test.cbz", @"test.tar",
@@ -143,6 +178,15 @@ int main(int argc, char **argv)
             check(calls == 0, @"RAR4 header-parser fast path should not invoke progress");
             check([ar isKindOfClass:[CORarArchive class]], @"test_rar4.cbr not on CORarArchive path");
             check([ar itemCount] == 4, @"RAR4 fast-path entry count");
+            if ([ar itemCount] > 0) {
+                CORarEntry *entry = [[ar contents] objectAtIndex:0];
+                check(entry->hasExpectedSize, @"RAR4 declared size metadata missing");
+                check(entry->hasExpectedCRC, @"RAR4 file CRC metadata missing");
+                check(CORarPayloadMatchesExpectedMetadata([entry data],
+                          entry->hasExpectedSize, entry->expectedSize,
+                          entry->hasExpectedCRC, entry->expectedCRC),
+                      @"RAR4 propagated metadata does not match payload");
+            }
         }
 
         for (NSString *f in @[ @"test_utf8.zip", @"test_utf8.7z",
@@ -162,6 +206,39 @@ int main(int argc, char **argv)
             }
             testArchive([gen stringByAppendingPathComponent:@"test_solid.cbr"],
                         solidNames, solidHashes);
+        }
+
+        // --- committed synthetic RAR5 regression. Bundled libarchive
+        // returns the complete payload and then reports a trailing block
+        // header error. The recovery path must accept only the payload whose
+        // declared size and CRC both match. The same test remains valid after
+        // a future libarchive update makes the read end normally. ---
+        {
+            printf("RAR5 output-empty final-block regression\n");
+            COArchive *ar = [[[COArchive alloc] initWithPath:rar5Final] autorelease];
+            check([ar isKindOfClass:[CORarArchive class]],
+                  @"RAR5 final-block fixture not on CORarArchive path");
+            check([ar itemCount] == 1,
+                  [NSString stringWithFormat:@"RAR5 final-block fixture expected 1 entry, got %d",
+                   [ar itemCount]]);
+
+            CORarEntry *entry = rarEntryNamed(ar, @"synthetic_payload.bin");
+            check(entry != nil, @"RAR5 final-block fixture entry missing");
+            if (entry) {
+                check(entry->hasExpectedSize && entry->expectedSize == 16635,
+                      @"RAR5 final-block fixture size metadata mismatch");
+                check(entry->hasExpectedCRC && entry->expectedCRC == 0x7a5e9eafU,
+                      @"RAR5 final-block fixture CRC metadata mismatch");
+
+                NSData *payload = [entry data];
+                check(payload != nil, @"RAR5 final-block fixture recovery failed");
+                check([payload length] == 16635,
+                      @"RAR5 final-block fixture payload length mismatch");
+                check(CORarPayloadMatchesExpectedMetadata(payload,
+                          entry->hasExpectedSize, entry->expectedSize,
+                          entry->hasExpectedCRC, entry->expectedCRC),
+                      @"RAR5 final-block fixture payload failed size/CRC validation");
+            }
         }
 
         // --- RAR backward page navigation: the cursor can only skip
@@ -390,7 +467,10 @@ int main(int argc, char **argv)
             }
         }
 
-        printf(failures ? "\n%d FAILURE(S)\n" : "\nALL PASS\n", failures);
+        if (failures)
+            printf("\n%d FAILURE(S) IN %d CHECKS\n", failures, checks);
+        else
+            printf("\nALL PASS (%d checks)\n", checks);
     }
     return failures;
 }

@@ -7,6 +7,7 @@ ENGINE_DIR="$(cd "$(dirname "$0")" && pwd)"
 REPO_ROOT="$(cd "$ENGINE_DIR/../.." && pwd)"
 GEN="$REPO_ROOT/tests/fixtures/generated"
 SRC="$REPO_ROOT/tests/fixtures/src"
+RAR5_FINAL="$REPO_ROOT/tests/fixtures/sample/header_error_sample.rar"
 OUT="$ENGINE_DIR/out"
 mkdir -p "$OUT"
 
@@ -14,6 +15,8 @@ mkdir -p "$OUT"
     { echo "run vendor/build-libs.sh first" >&2; exit 1; }
 [ -f "$GEN/test.zip" ] ||
     { echo "run tests/fixtures/make_fixtures.sh first" >&2; exit 1; }
+[ -f "$RAR5_FINAL" ] ||
+    { echo "missing tests/fixtures/sample/header_error_sample.rar" >&2; exit 1; }
 
 # corrupt variants, derived from test.zip
 head -c 100000 "$GEN/test.zip" > "$GEN/corrupt_truncated.zip"
@@ -49,4 +52,4 @@ clang -O2 \
     -Wl,-rpath,"$REPO_ROOT/vendor/lib" \
     -o "$OUT/test_coarchive"
 
-"$OUT/test_coarchive" "$GEN" "$SRC"
+"$OUT/test_coarchive" "$GEN" "$SRC" "$RAR5_FINAL"

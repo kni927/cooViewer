@@ -89,6 +89,9 @@
 				// through the shared raw+uchardet decode
 	unsigned long long compressedSize;
 	unsigned long long uncompressedSize;
+	BOOL hasUncompressedSize;
+	BOOL hasFileCRC;
+	uint32_t fileCRC;
 }
 @end
 

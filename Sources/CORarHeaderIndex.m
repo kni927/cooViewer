@@ -82,13 +82,18 @@ static BOOL IsAppleDoubleName(const uint8_t *bytes, NSUInteger length)
 
 static CORarHeaderEntry *MakeEntry(NSData *rawName, NSString *utf8Name,
                                     unsigned long long compressedSize,
-                                    unsigned long long uncompressedSize)
+                                    unsigned long long uncompressedSize,
+                                    BOOL hasUncompressedSize,
+                                    BOOL hasFileCRC, uint32_t fileCRC)
 {
 	CORarHeaderEntry *e = [[[CORarHeaderEntry alloc] init] autorelease];
 	e->rawName = [rawName retain];
 	e->utf8Name = [utf8Name retain];
 	e->compressedSize = compressedSize;
 	e->uncompressedSize = uncompressedSize;
+	e->hasUncompressedSize = hasUncompressedSize;
+	e->hasFileCRC = hasFileCRC;
+	e->fileCRC = fileCRC;
 	return e;
 }
 
@@ -164,9 +169,11 @@ static NSMutableArray *ParseRAR5(FILE *f, off_t fileSize, BOOL *outCrypted, BOOL
 
 			BOOL isDirectory = (fileflags & 0x0001) != 0;
 			BOOL unknownSize = (fileflags & 0x0008) != 0;
+			BOOL hasFileCRC = (fileflags & 0x0004) != 0;
+			uint32_t fileCRC = 0;
 
 			if (fileflags & 0x0002) { uint32_t mtime; if (!ReadU32LE(f, &mtime)) return nil; }
-			if (fileflags & 0x0004) { uint32_t filecrc; if (!ReadU32LE(f, &filecrc)) return nil; }
+			if (hasFileCRC && !ReadU32LE(f, &fileCRC)) return nil;
 			if (!isDirectory) { if (!ReadVInt(f, &compinfo)) return nil; }
 			(void)compinfo;
 			if (!ReadVInt(f, &osval)) return nil;
@@ -209,7 +216,8 @@ static NSMutableArray *ParseRAR5(FILE *f, off_t fileSize, BOOL *outCrypted, BOOL
 				NSString *u8 = [[NSString alloc] initWithData:nameBuf encoding:NSUTF8StringEncoding];
 				// RAR5 names are UTF-8 by spec; if that somehow fails,
 				// fall through with rawName only (shared uchardet path)
-				[entries addObject:MakeEntry(nameBuf, [u8 autorelease], datasize, uncompsize)];
+				[entries addObject:MakeEntry(nameBuf, [u8 autorelease], datasize, uncompsize,
+				                                  !unknownSize, hasFileCRC, fileCRC)];
 			}
 		}
 		// type 3 (Service) and anything unrecognized: nothing extra
@@ -288,7 +296,6 @@ static NSMutableArray *ParseRAR4(FILE *f, off_t fileSize, BOOL *outCrypted, BOOL
 			if (!ReadU32LE(f, &size32)) return nil;
 			if (!ReadU8(f, &os)) return nil;
 			if (!ReadU32LE(f, &filecrc)) return nil;
-			(void)filecrc;
 			if (!ReadU32LE(f, &dostime)) return nil;
 			(void)dostime;
 			if (!ReadU8(f, &version)) return nil;
@@ -331,7 +338,8 @@ static NSMutableArray *ParseRAR4(FILE *f, off_t fileSize, BOOL *outCrypted, BOOL
 			} else if (size == 0) {
 				// zero-byte entry, skip
 			} else if (!IsAppleDoubleName([nameBuf bytes], [nameBuf length])) {
-				[entries addObject:MakeEntry(nameBuf, nil, datasize, size)];
+				[entries addObject:MakeEntry(nameBuf, nil, datasize, size,
+				                                  YES, YES, filecrc)];
 			}
 		}
 

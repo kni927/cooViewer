@@ -1077,3 +1077,16 @@ zero code change (a system-level rendering characteristic, not a cooViewer
 defect). Notarized via CI, Homebrew tap updated, both behaviors verified
 on the real released build. See
 `docs/tasks/2026-08-01-01-release-v1.6.2.md`.
+
+### Complete CRC-valid RAR payloads survive trailing decoder errors (2026-08-04)
+
+Fixed an entry-specific false corruption result where bundled libarchive
+returned the complete decoded bytes and only then reported a RAR block-header
+error. cooViewer now accepts such an errored payload only when both the
+declared uncompressed size and RAR file CRC32 match, and still invalidates the
+decoder cursor before the next read. Partial, mismatched, or metadata-less
+payloads remain failures. Verified with a committed synthetic RAR5 fixture
+and the archive engine regression suite. This compatibility fallback should
+be reassessed after the corresponding upstream libarchive correction is
+available in the vendored dependency. See
+`docs/tasks/2026-08-04-01-recover-complete-rar-payload.md`.

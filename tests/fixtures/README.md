@@ -45,6 +45,21 @@ this fixture's archive order does not match `test.cbr`'s — see
 `docs/tasks/2026-07-14-02-rar-partial-lazy.md` for why that matters
 to the RAR reader.
 
+## Committed RAR5 final-block fixture
+
+`sample/header_error_sample.rar` is a valid RAR5 archive containing one
+synthetic binary payload. It has a non-final compressed block that produces
+the complete payload followed by a final compressed block that produces no
+output. With the currently vendored libarchive, a partially filled final
+`archive_read_data()` request returns the complete payload and the following
+request reports a block-header error.
+
+The fixture contains no user data or third-party media. It is committed so the
+archive engine suite can verify the strict size-and-CRC recovery path now and
+the normal EOF path after a future libarchive update fixes the decoder state.
+See [libarchive issue #3352](https://github.com/libarchive/libarchive/issues/3352)
+and [pull request #3361](https://github.com/libarchive/libarchive/pull/3361).
+
 ## Expected page order
 
 1. `001.png`

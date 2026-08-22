@@ -105,7 +105,13 @@
 //    (e.g. a truncated file), are NOT retried through the fallback:
 //    -rarOpened is already YES by then, so whatever entries the
 //    index pass collected before hitting the error are kept, same
-//    partial-results philosophy as the base COArchive path.
+//    partial-results philosophy as the base COArchive path. The one
+//    narrow recovery case is a decoder error after the complete
+//    payload was returned: trusted header size and file CRC must both
+//    match, and the cursor is still invalidated before returning data.
+//    This is a compatibility fallback for libarchive/libarchive#3352
+//    and libarchive/libarchive#3361. Reassess it after the vendored
+//    libarchive contains the upstream RAR5 end-of-entry correction.
 //  - The open-progress callback is only invoked when the libarchive
 //    fallback index pass runs (open can be cancelled in that case,
 //    same as phase 4); the phase 6 header-only fast path never calls
@@ -133,10 +139,25 @@
 				// differ from ordinal if a qualifying entry
 				// somewhere earlier in the stream had no
 				// decodable name and was skipped)
+	BOOL hasExpectedSize;
+	unsigned long long expectedSize;
+	BOOL hasExpectedCRC;
+	uint32_t expectedCRC;
 }
 - (id)initWithPath:(NSString *)inPath owner:(CORarArchive *)inOwner
-           ordinal:(NSUInteger)inOrdinal;
+           ordinal:(NSUInteger)inOrdinal
+   hasExpectedSize:(BOOL)inHasExpectedSize
+       expectedSize:(unsigned long long)inExpectedSize
+    hasExpectedCRC:(BOOL)inHasExpectedCRC
+        expectedCRC:(uint32_t)inExpectedCRC;
 @end
+
+/* Integrity gate used only after libarchive returns an entry read error. */
+BOOL CORarPayloadMatchesExpectedMetadata(NSData *payload,
+                                         BOOL hasExpectedSize,
+                                         unsigned long long expectedSize,
+                                         BOOL hasExpectedCRC,
+                                         uint32_t expectedCRC);
 
 @interface CORarArchive : COArchive
 {

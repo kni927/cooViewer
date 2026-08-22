@@ -15,6 +15,30 @@
 /* decoded-entry cache budget; same policy as COZipArchive */
 #define CO_RAR_CACHE_LIMIT (256 * 1024 * 1024)
 
+static uint32_t CORarCRC32(NSData *data)
+{
+	uint32_t crc = UINT32_MAX;
+	const uint8_t *bytes = [data bytes];
+	NSUInteger length = [data length];
+	for (NSUInteger i = 0; i < length; i++) {
+		crc ^= bytes[i];
+		for (int bit = 0; bit < 8; bit++)
+			crc = (crc >> 1) ^ (0xedb88320U & (uint32_t)-(int32_t)(crc & 1));
+	}
+	return crc ^ UINT32_MAX;
+}
+
+BOOL CORarPayloadMatchesExpectedMetadata(NSData *payload,
+                                         BOOL hasExpectedSize,
+                                         unsigned long long expectedSize,
+                                         BOOL hasExpectedCRC,
+                                         uint32_t expectedCRC)
+{
+	if (!payload || !hasExpectedSize || !hasExpectedCRC) return NO;
+	if ((unsigned long long)[payload length] != expectedSize) return NO;
+	return CORarCRC32(payload) == expectedCRC;
+}
+
 /* implemented in COArchive.m (shared archive-level name decoding) */
 @interface COArchive (COArchiveNameDecoding)
 - (NSString *)decodeName:(NSData *)raw fallback:(NSString *)u8 charset:(NSString *)charset;
@@ -44,12 +68,20 @@
 
 - (id)initWithPath:(NSString *)inPath owner:(CORarArchive *)inOwner
            ordinal:(NSUInteger)inOrdinal
+   hasExpectedSize:(BOOL)inHasExpectedSize
+      expectedSize:(unsigned long long)inExpectedSize
+    hasExpectedCRC:(BOOL)inHasExpectedCRC
+       expectedCRC:(uint32_t)inExpectedCRC
 {
 	self = [super initWithPath:inPath data:nil];
 	if (self) {
 		owner = inOwner;
 		ordinal = inOrdinal;
 		arrayIndex = 0;
+		hasExpectedSize = inHasExpectedSize;
+		expectedSize = inExpectedSize;
+		hasExpectedCRC = inHasExpectedCRC;
+		expectedCRC = inExpectedCRC;
 	}
 	return self;
 }
@@ -64,7 +96,7 @@
 @interface CORarArchive (private)
 - (BOOL)indexArchiveViaHeaderParser;
 - (void)indexArchiveViaLibarchiveWithProgress:(COArchiveProgress)progress;
-- (NSData *)readEntryOnQueue:(NSUInteger)ordinal;
+- (NSData *)readEntryOnQueue:(CORarEntry *)entry;
 - (void)prefetchAfterArrayIndex:(NSUInteger)arrayIndex;
 - (void)invalidateCursor;
 @end
@@ -172,7 +204,11 @@
 		if (!name) continue;	// ordinal still consumed; matches the libarchive path's policy
 		CORarEntry *e = [[[CORarEntry alloc] initWithPath:name
 		                                             owner:self
-		                                           ordinal:thisOrdinal] autorelease];
+		                                           ordinal:thisOrdinal
+		                                   hasExpectedSize:he->hasUncompressedSize
+		                                      expectedSize:he->uncompressedSize
+		                                    hasExpectedCRC:he->hasFileCRC
+		                                       expectedCRC:he->fileCRC] autorelease];
 		e->arrayIndex = [contentArray count];
 		[contentArray addObject:e];
 	}
@@ -326,7 +362,11 @@ static BOOL CORarEntryIsAppleDouble(struct archive_entry *entry)
 		if (!name) continue;	// stream ordinal still consumed; array index just skips it
 		CORarEntry *e = [[[CORarEntry alloc] initWithPath:name
 		                                             owner:self
-		                                           ordinal:re->streamOrdinal] autorelease];
+		                                           ordinal:re->streamOrdinal
+		                                   hasExpectedSize:NO
+		                                      expectedSize:0
+		                                    hasExpectedCRC:NO
+		                                       expectedCRC:0] autorelease];
 		e->arrayIndex = [contentArray count];
 		[contentArray addObject:e];
 	}
@@ -351,7 +391,7 @@ static BOOL CORarEntryIsAppleDouble(struct archive_entry *entry)
 		dispatch_sync(readQueue, ^{
 			NSData *d = [dataCache objectForKey:key];
 			if (!d) {
-				d = [self readEntryOnQueue:ordinal];
+				d = [self readEntryOnQueue:entry];
 				if (d)
 					[dataCache setObject:d forKey:key cost:[d length]];
 			}
@@ -368,10 +408,12 @@ static BOOL CORarEntryIsAppleDouble(struct archive_entry *entry)
  * concurrent use). Fast-forwards -cursor to the requested stream
  * ordinal, reopening from the start of the file when the cursor
  * doesn't exist yet or has already passed the target (i.e. the
- * viewer paged backwards). Returns nil (and invalidates the cursor)
- * on any read error, so the next call starts clean. */
-- (NSData *)readEntryOnQueue:(NSUInteger)ordinal
+ * viewer paged backwards). A read error can return the accumulated
+ * payload only when trusted header size and CRC metadata both match;
+ * the cursor is invalidated either way. */
+- (NSData *)readEntryOnQueue:(CORarEntry *)requestedEntry
 {
+	NSUInteger ordinal = requestedEntry->ordinal;
 	if (!cursor || ordinal < cursorNext) {
 		[self invalidateCursor];
 		cursor = CORarOpenStream(filePath);
@@ -417,13 +459,15 @@ static BOOL CORarEntryIsAppleDouble(struct archive_entry *entry)
 
 	NSMutableData *payload = [NSMutableData data];
 	BOOL entryOK = YES;
+	NSString *entryError = nil;
 	for (;;) {
 		char buf[256 * 1024];
 		la_ssize_t got = archive_read_data(cursor, buf, sizeof(buf));
 		if (got == 0) break;
 		if (got < 0) {
-			NSLog(@"CORarArchive: corrupt entry #%lu in %@: %s",
-			      (unsigned long)ordinal, filePath, archive_error_string(cursor));
+			const char *errorString = archive_error_string(cursor);
+			entryError = [[NSString alloc] initWithUTF8String:
+			              errorString ? errorString : "read error"];
 			entryOK = NO;
 			break;
 		}
@@ -432,10 +476,20 @@ static BOOL CORarEntryIsAppleDouble(struct archive_entry *entry)
 	cursorNext++;
 
 	if (!entryOK) {
-		// the stream position after a corrupt read is unreliable;
-		// force a clean reopen on the next request
+		BOOL recovered = CORarPayloadMatchesExpectedMetadata(
+			payload, requestedEntry->hasExpectedSize, requestedEntry->expectedSize,
+			requestedEntry->hasExpectedCRC, requestedEntry->expectedCRC);
+		// Even a recovered payload leaves the decoder position unreliable.
 		[self invalidateCursor];
-		return nil;
+		if (recovered) {
+			NSLog(@"CORarArchive: recovered complete CRC-valid entry #%lu (%@) after libarchive error: %@",
+			      (unsigned long)ordinal, [requestedEntry path], entryError);
+		} else {
+			NSLog(@"CORarArchive: corrupt entry #%lu (%@) in %@: %@",
+			      (unsigned long)ordinal, [requestedEntry path], filePath, entryError);
+		}
+		[entryError release];
+		return recovered ? payload : nil;
 	}
 	return payload;
 }
@@ -455,10 +509,9 @@ static BOOL CORarEntryIsAppleDouble(struct archive_entry *entry)
 	CORarEntry *next = [contentArray objectAtIndex:arrayIndex + 1];
 	NSNumber *key = [NSNumber numberWithUnsignedInteger:next->ordinal];
 	if ([dataCache objectForKey:key]) return;
-	NSUInteger ord = next->ordinal;
 	dispatch_async(readQueue, ^{	// block retains self until it runs
 		if ([dataCache objectForKey:key]) return;
-		NSData *d = [self readEntryOnQueue:ord];
+		NSData *d = [self readEntryOnQueue:next];
 		if (d)
 			[dataCache setObject:d forKey:key cost:[d length]];
 	});

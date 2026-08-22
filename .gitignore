@@ -82,4 +82,7 @@ iOSInjectionProject/
 /tests/fixtures/generated/*
 !/tests/fixtures/generated/.gitkeep
 
+# Local test inputs
+/tests/tmp/
+
 .DS_Store
