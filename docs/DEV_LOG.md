@@ -1102,3 +1102,10 @@ bundle/document declarations and signs the helper bottom-up. Disposable-bundle
 Finder testing covered `.cbz`, `.cbr`, Unicode/reserved-character paths,
 stopped-main launch, deduplication, the existing ⌥⌘O action, Quick Look,
 and thumbnails.
+
+Released as v1.6.3 from commit `59171e7`: CI run `32578341352` built,
+verified, Developer-ID signed, notarized, stapled, and published the app, dSYM,
+and test-book assets. Homebrew tap commit `9e7da4c` installed the published
+artifact; Gatekeeper, code-signature, extension resolution, Finder Open With,
+ordinary replacement, new-window behavior, Quick Look, and thumbnails all
+passed against `/Applications/cooViewer.app`.

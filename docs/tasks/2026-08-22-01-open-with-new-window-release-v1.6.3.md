@@ -482,3 +482,85 @@ issues.
   `~/Applications` scratch copy were removed afterward.
 - Next step: commit the feature, then bump every shipped target to 1.6.3 and run
   the final build/release verification sequence.
+
+## Implementation Result
+
+**Status:** Completed
+
+### Changes
+
+- Added the embedded `cooViewer (New Window).app` helper target with bundle
+  identifier `jp.coo.cooViewer.NewWindowHelper`, `LSUIElement = YES`, and
+  location `cooViewer.app/Contents/Helpers/`. The helper shares the main app's
+  source document declarations; the helper build strips unrelated URL-scheme
+  and nib declarations, and a bundle test enforces the exact 20-type match.
+- Added the private `cooviewer-new-window:` handoff. Shared strict codec code
+  percent-encodes local file URLs; the main app registers an Apple Event URL
+  handler during launch, validates each request, and calls the existing
+  `openBookInNewWindow:` path directly. The helper forwards every Finder file
+  request through `NSWorkspace` and exits after replying to Finder.
+- Extended in-flight deduplication so repeated new-window requests for a book
+  already loading focus the existing window instead of creating a duplicate.
+- Added helper codec/bundle tests and CI bottom-up signing of the helper before
+  signing the outer application. Updated `docs/DECISIONS.md` and
+  `docs/DEV_LOG.md` with the lasting architecture and released milestone.
+- Feature commit: `0949251` (`Add Finder new-window Open With helper`). Version
+  and release commit: `59171e7` (`Prepare v1.6.3`). All main app, helper,
+  Thumbnail, and Preview build settings now report version 1.6.3.
+
+### Verification
+
+- Build: `xcodebuild -project cooViewer.xcodeproj -scheme cooViewer_deploy
+  -configuration Deployment SYMROOT=/private/tmp/cooViewer-v1.6.3-build/sym
+  OBJROOT=/private/tmp/cooViewer-v1.6.3-build/obj
+  -derivedDataPath /private/tmp/cooViewer-v1.6.3-build/dd build` succeeded.
+  Repository `build/` contains only the final `cooViewer.app`.
+- Automated verification: `tests/engine/run_tests.sh` passed all 204 local
+  checks. `tests/helper/run_tests.sh build/cooViewer.app` passed all 13 codec
+  checks and confirmed exactly one helper with all 20 document declarations.
+  All four shipped bundles reported 1.6.3; plist lint and `git diff --check`
+  passed.
+- Manual verification: a single disposable scratch installation registered
+  with recursive `lsregister -f -R` reliably exposed ordinary `cooViewer` and
+  `cooViewer (New Window)` for both CBZ and CBR. Ordinary open replaced the
+  front book; helper open preserved it and created a separate window. Stopped
+  launch, two-file delivery, in-flight deduplication, helper exit/no UI,
+  Option-Command-O, Quick Look, thumbnails, and a path containing Japanese,
+  spaces, `#`, `?`, and `%` all passed. Scratch files and registrations were
+  removed afterward.
+- Release verification: annotated tag `v1.6.3` points to `59171e7`. GitHub
+  Actions run `32578341352` succeeded, including 116 archive-engine checks,
+  helper tests, Developer ID signing of the helper and other nested code,
+  strict deep-signature verification, notarization submission
+  `bdc0c7ba-75f8-4ad8-bd1c-f1cbc3b7ac38` (Accepted), stapling, and Gatekeeper
+  acceptance. The release is
+  <https://github.com/kni927/cooViewer/releases/tag/v1.6.3> with:
+  - `cooViewer-v1.6.3.zip` (SHA-256
+    `be7d792823a4fb79ed01bc245366e937b3824cdb599522316755185a33db3f0f`)
+  - `cooViewer-v1.6.3.dSYM.zip` (SHA-256
+    `cec9f97a8dfe35f946da6b4e27eac0ddc8ee7a409bee7ba6d83be63a9e82bf24`)
+  - `cooViewer-test-book.cbz` (SHA-256
+    `c1e2e43546e564bf6c7053858fb67acb65253f5452d9c34d17481dea9bf10aa9`)
+- Released-artifact verification: Homebrew tap commit `9e7da4c` updated the
+  cask to 1.6.3 using the published zip checksum. A fresh tap installation to
+  `/Applications/cooViewer.app` retained quarantine and passed version,
+  helper-count, Developer ID, `codesign --verify --deep --strict`, stapler,
+  Gatekeeper, Quick Look/Thumbnail extension resolution, Finder two-entry,
+  ordinary-replacement, separate-new-window, Quick Look, and thumbnail checks.
+- Not performed: the synthetic RAR regression payload was not opened as a
+  visual book in the released UI because it is decoder-focused rather than an
+  image book. Both the local 204-check suite and release CI 116-check suite
+  exercised the committed regression fixture successfully.
+
+### Remaining Issues
+
+None. The embedded-helper distribution and recursive LaunchServices
+registration worked on both the isolated build and the fresh Homebrew install;
+temporary and stale test registrations encountered during verification were
+removed.
+
+### Follow-up Suggestions
+
+- Update the GitHub Actions dependencies in a separate task to remove the
+  non-blocking Node.js 20 deprecation annotations emitted for
+  `actions/checkout@v4` and `actions/cache@v4`.
