@@ -1381,3 +1381,42 @@ still fails.
 
 Investigation: `docs/tasks/2026-07-31-04-investigate-byte-identity-gate.md`.
 Implementation: `docs/tasks/2026-07-31-05-add-spread-diff-tool.md`.
+
+---
+
+## RAR trailing-error recovery is a temporary size-and-CRC-gated compatibility fallback (2026-08-22)
+
+**Decision:** When libarchive returns a negative result after producing a RAR
+entry payload, cooViewer may return that payload only if trusted RAR header
+metadata contains both the declared uncompressed size and file CRC32, the
+payload length equals the declared size, and its calculated IEEE CRC32 equals
+the declared CRC. The libarchive cursor is invalidated before either returning
+the recovered payload or reporting failure.
+
+**Why:** Bundled libarchive 3.8.4 has a confirmed RAR5 EOF-state defect for an
+output-empty final compressed block. The complete valid payload can be returned
+before the following buffered read is misdirected into the next outer RAR5
+block. Unconditionally ignoring an error would accept partial or corrupt data,
+while carrying an unmerged downstream decoder patch would broaden cooViewer's
+maintenance and regression surface. Exact size plus the format's own file CRC
+provides a narrow integrity gate without changing the decoded bytes or render
+path. Invalidating the cursor preserves the existing rule that decoder state
+after an error is unusable.
+
+**How to apply:** Keep recovery confined to the RAR on-demand read-error path.
+Do not use successful image construction, filename extensions, byte length
+alone, or visual appearance as substitutes for the two-part integrity gate.
+Do not add recovery to archives indexed through a fallback path that lacks
+trusted size or CRC metadata. Recovered data must continue through the normal
+cache and image-loading path; no alternate renderer or re-encoding is allowed.
+
+**Removal condition:** This is a compatibility fallback, not the preferred
+permanent decoder implementation. Track
+[libarchive issue #3352](https://github.com/libarchive/libarchive/issues/3352)
+and [pull request #3361](https://github.com/libarchive/libarchive/pull/3361).
+After cooViewer vendors a libarchive release with the equivalent EOF-state fix,
+verify the committed synthetic fixture reaches normal EOF and reassess removal
+of the app-level fallback in a separate task.
+
+Implementation and verification:
+`docs/tasks/2026-08-04-01-recover-complete-rar-payload.md`.

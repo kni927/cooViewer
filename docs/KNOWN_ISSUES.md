@@ -1437,3 +1437,37 @@ no new entry in `~/Library/Logs/DiagnosticReports`. See
 unretained-back-reference shape and was left alone as out of scope. It has
 not been observed crashing; recorded here so it is not mistaken for
 verified-safe.
+
+---
+
+## 37. Vendored libarchive still has the RAR5 output-empty final-block EOF defect — MITIGATED IN THE APP
+
+The libarchive 3.8.4 bundled by cooViewer can return the complete payload of a
+valid RAR5 entry and then report a block-header error. The confirmed trigger is
+an output-empty final compressed block after a preceding non-final block has
+already produced the complete payload, combined with a partially filled final
+`archive_read_data()` request. `archive_read_data_block()` does not reproduce
+the failure.
+
+cooViewer mitigates this in commit `5335880`: after a negative entry read, it
+returns the accumulated payload only when trusted RAR header metadata supplies
+both a declared uncompressed size and file CRC32, and both match exactly. The
+decoder cursor is invalidated even after recovery because its stream position
+cannot be trusted. Partial payloads, mismatches, and entries without either
+metadata item remain failures.
+
+This is not the root decoder fix. The upstream work remains open as
+[libarchive issue #3352](https://github.com/libarchive/libarchive/issues/3352)
+and [pull request #3361](https://github.com/libarchive/libarchive/pull/3361).
+Until cooViewer vendors a libarchive release containing an equivalent fix, the
+compatibility fallback must remain.
+
+When the vendored library is updated, run
+`tests/fixtures/sample/header_error_sample.rar` through the engine suite and
+confirm it reaches normal EOF without using error recovery. Then reassess and,
+if no supported old-library path still needs it, remove the app-level fallback
+in a separate task. Do not weaken libarchive's block-header validation, ignore
+read errors unconditionally, or continue using a cursor after any read error.
+
+Task record:
+`docs/tasks/2026-08-04-01-recover-complete-rar-payload.md`.

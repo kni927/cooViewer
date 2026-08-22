@@ -229,7 +229,7 @@ No release, tag, push, or GitHub Release is part of this task.
 
 ## Implementation Result
 
-**Status:** Completed
+**Status:** Completed with follow-up issues
 
 ### Changes
 
@@ -254,12 +254,17 @@ No release, tag, push, or GitHub Release is part of this task.
 - Removed the engine suite's dependency on the ignored local archive and its
   AppKit-only image check. `/tests/tmp/` remains ignored for optional local
   manual verification and is not referenced by committed test code.
-- Documented libarchive/libarchive#3352 and #3361 and the condition for
-  reassessing this fallback after a future vendored libarchive update.
-- This implementation remains a local app-level mitigation. It has not been
-  committed or pushed. The preferred long-term correction is the upstream
-  libarchive RAR5 end-of-entry fix, followed by updating cooViewer's vendored
-  dependency after that fix is accepted and released.
+- Documented `libarchive/libarchive#3352` and `libarchive/libarchive#3361` and
+  the condition for reassessing this fallback after a future vendored
+  libarchive update.
+- Recorded the remaining upstream dependency defect in `docs/KNOWN_ISSUES.md`,
+  the temporary compatibility policy in `docs/DECISIONS.md`, and the completed
+  implementation milestone in `docs/DEV_LOG.md`.
+- This app-level mitigation was committed as `5335880` and pushed to
+  `origin/main` on 2026-08-22. No release, tag, notarization, or GitHub Release
+  was created. The preferred long-term correction is the upstream libarchive
+  RAR5 end-of-entry fix, followed by updating cooViewer's vendored dependency
+  after that fix is accepted and released.
 
 ### Verification
 
@@ -279,11 +284,12 @@ No release, tag, push, or GitHub Release is part of this task.
 
 ### Remaining Issues
 
-- The app-level recovery implementation is local and uncommitted. Upstream
-  libarchive integration remains pending.
+- The bundled libarchive still contains the underlying decoder defect.
+  `libarchive/libarchive#3352` and `libarchive/libarchive#3361` remain pending.
 
 ### Follow-up Suggestions
 
-- Prefer the upstream libarchive fix over permanently shipping the app-level
-  recovery path. Reassess the local mitigation after the upstream change is
-  accepted and available for vendoring.
+- Monitor `libarchive/libarchive#3352` and `libarchive/libarchive#3361`. After
+  an equivalent fix is released and vendored, verify that the committed
+  synthetic fixture reaches normal EOF and reassess removal of the app-level
+  fallback in a separate task.

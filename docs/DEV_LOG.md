@@ -1078,15 +1078,15 @@ defect). Notarized via CI, Homebrew tap updated, both behaviors verified
 on the real released build. See
 `docs/tasks/2026-08-01-01-release-v1.6.2.md`.
 
-### Complete CRC-valid RAR payloads survive trailing decoder errors (2026-08-04)
+### Complete CRC-valid RAR payloads survive trailing decoder errors (2026-08-22)
 
-Fixed an entry-specific false corruption result where bundled libarchive
-returned the complete decoded bytes and only then reported a RAR block-header
-error. cooViewer now accepts such an errored payload only when both the
-declared uncompressed size and RAR file CRC32 match, and still invalidates the
-decoder cursor before the next read. Partial, mismatched, or metadata-less
-payloads remain failures. Verified with a committed synthetic RAR5 fixture
-and the archive engine regression suite. This compatibility fallback should
-be reassessed after the corresponding upstream libarchive correction is
-available in the vendored dependency. See
+Commit `5335880` added a temporary compatibility fallback for bundled
+libarchive's RAR5 final-block EOF defect. cooViewer accepts an errored payload
+only when both the declared uncompressed size and RAR file CRC32 match, and
+still invalidates the decoder cursor before the next read. Partial,
+mismatched, or metadata-less payloads remain failures. A committed synthetic
+RAR5 fixture reproduces the decoder error; the archive engine suite passed all
+204 checks and the Deployment build succeeded. The upstream decoder fix is
+tracked in `libarchive/libarchive#3352` and `libarchive/libarchive#3361` and
+must be reassessed when updating the vendored dependency. See
 `docs/tasks/2026-08-04-01-recover-complete-rar-payload.md`.
