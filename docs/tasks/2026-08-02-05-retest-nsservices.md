@@ -103,7 +103,7 @@ suspect #3 confirmed as a red herring).
 
 ```
 bundle id:                  NSServicesProbe (0x60c8)
-path:                       /Users/kni/Applications/NSServicesProbe.app (0xb3e0)
+path:                       ~/Applications/NSServicesProbe.app (0xb3e0)
 directory:                  ~/Applications
 identifier:                 jp.coo.nsservices-probe
 executable:                 Contents/MacOS/NSServicesProbe
@@ -148,7 +148,7 @@ is ruled out by direct evidence**, not assumption.
 $ /System/Library/CoreServices/pbs -dump_pboard | grep -B12 -A6 NSPROBE
     {
     NSBundleIdentifier = "jp.coo.nsservices-probe";
-    NSBundlePath = "/Users/kni/Applications/NSServicesProbe.app";
+    NSBundlePath = "~/Applications/NSServicesProbe.app";
     NSMenuItem = { default = "NSPROBE Text Control"; };
     NSMessage = probeTextService;
     NSPortName = NSServicesProbe;
@@ -156,7 +156,7 @@ $ /System/Library/CoreServices/pbs -dump_pboard | grep -B12 -A6 NSPROBE
     },
     {
     NSBundleIdentifier = "jp.coo.nsservices-probe";
-    NSBundlePath = "/Users/kni/Applications/NSServicesProbe.app";
+    NSBundlePath = "~/Applications/NSServicesProbe.app";
     NSMenuItem = { default = "NSPROBE Open in New Window"; };
     NSMessage = probeFileService;
     NSPortName = NSServicesProbe;

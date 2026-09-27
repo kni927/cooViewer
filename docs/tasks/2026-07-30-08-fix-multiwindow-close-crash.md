@@ -71,7 +71,7 @@ Both were implemented first and reverted (`7be806a`) after owner review.
 
 ## Verification
 
-All measured in one session on this machine (Mac mini M1, macOS 26.5.2).
+All measured in one session on this machine (Apple Silicon Mac, macOS 26.5.2).
 Two clean builds were compared: `928eab1` (v1.6.0) in a throwaway
 `git worktree`, and the fixed tree. The worktree was removed afterwards.
 

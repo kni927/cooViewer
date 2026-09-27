@@ -91,7 +91,7 @@ writing code.
 - No render-path change (CLAUDE.md's inviolable image-quality rule).
   Re-confirm with a spread window capture SHA-256 against the current
   baseline, as the last three tasks did.
-- On-device via the screen-shared Mac mini session. Exercise: bookmark
+- On-device via the screen-shared session. Exercise: bookmark
   menu, Open from same folder, read/sort mode check-marks across two
   books, panel positions persisting per panel, Preferences ▸ OK returning
   focus correctly (item 5), window frame restore on relaunch.

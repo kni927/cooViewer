@@ -16,7 +16,8 @@ File: docs/handovers/YYYY-MM-DD-NN-<desc>-hNN.md (match the task's date/NN).
 - Out of scope:
 
 `TASK.md` remains the source of truth for scope if present. Record here only
-refinements agreed in chat but not yet in `TASK.md`.
+refinements agreed in chat but not yet in `TASK.md`. Progress already recorded in
+the `Progress` section of `TASK.md` need not be repeated here.
 
 ## 2. Status and Next Step
 

@@ -35,7 +35,7 @@ standard Claude Code harness notification that the prior session
 misread as hostile.**
 
 Evidence, from
-`~/.claude/projects/-Users-kni-Projects-GitHub-cooViewer/d0cd3af9-1964-460c-8cc4-c231b14f7352.jsonl`
+`~/.claude/projects/<project>/<session-id>.jsonl`
 (2914 lines, the session in which commit `896fd16` was produced):
 
 1. **The trigger.** Line 2352 is the agent's own
@@ -45,8 +45,8 @@ Evidence, from
 
 2. **The message.** Lines 2354 and 2355 are records of
    `type: "attachment"` with `attachment.type: "edited_text_file"`,
-   naming exactly `/Users/kni/Projects/GitHub/cooViewer/Sources/AppController.m`
-   and `/Users/kni/Projects/GitHub/cooViewer/Resources/Info.plist` —
+   naming exactly `<repo>/Sources/AppController.m`
+   and `<repo>/Resources/Info.plist` —
    precisely the two files that `git checkout` had just changed, in
    that order, immediately after the command.
 

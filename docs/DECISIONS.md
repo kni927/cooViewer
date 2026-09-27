@@ -1449,3 +1449,53 @@ unregister the helper as well as its container during cleanup. Sign the helper
 after nested app extensions and before signing the main app. Treat an in-flight
 window whose `currentBookPath` matches as already occupied so rapid or
 multi-file helper delivery cannot create duplicate windows.
+
+## cooViewer is developed independently of its upstream (2026-09-27)
+
+**Decision:** Treat cooViewer as an independent continuation. It began as a
+fork (coo-ona's original, continued by tak758), but there is no upstream to
+track: no upstream remote, no syncing, merging, or cherry-picking from other
+cooViewer repositories, and no issues or pull requests upstream unless the
+owner asks. Staying structurally close to the original is not a goal. The
+original author's notices and documentation are preserved as attribution.
+
+**Why:** The code has diverged far beyond a patch set (multi-window
+architecture, the archive layer, the single-step render path, QuickLook
+extensions), and the GitHub repository is not linked as a fork. Without this
+stated, an agent could reasonably treat "fork" as a reason to minimize
+divergence or to look for upstream changes.
+
+## LICENSE.txt re-encoded as UTF-8, text unchanged (2026-09-27)
+
+**Decision:** Convert `LICENSE.txt` from UTF-16 LE (with BOM) to UTF-8. The
+text, line breaks, and trailing spaces are kept byte-for-byte as the original
+author wrote them; no copyright line was added.
+
+**Why:** UTF-16 is opaque to most tooling, and GitHub reported the license as
+"Other". Whether GitHub now recognizes it as MIT is not guaranteed: the text
+opens with "Created by coo under a MIT-style license." before the MIT body.
+Rewording the original author's license text to improve detection was not
+considered acceptable.
+
+## Public-repository hygiene for committed documents (2026-09-27)
+
+**Decision:** Committed documents must not contain absolute home-directory
+paths, personal file or folder names, machine models, hostnames, or local
+session-transcript paths. Existing task records and audits were edited to
+replace them with repository-relative paths, `~/…`, or generic descriptions.
+Git history was not rewritten.
+
+**Why:** The repository is public. The removed details were not secrets but
+served no purpose for readers; the evidence they supported (what was run and
+what it showed) is unchanged. Rewriting published history would break existing
+clones and tags for no security gain.
+
+## An authorized release includes the Homebrew tap update (2026-09-27)
+
+**Decision:** Once the owner authorizes a release (version number and release
+notes), updating and pushing the `cooviewer` formula in `kni927/homebrew-tap`
+is part of that release and needs no separate approval.
+
+**Why:** The tap update is mechanical (version, URL, sha256) and a release is
+not complete until `brew install` resolves to it; a second approval step only
+delays the published release reaching users.

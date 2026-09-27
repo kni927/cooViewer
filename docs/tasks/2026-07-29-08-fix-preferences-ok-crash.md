@@ -69,7 +69,7 @@ regression or issue #25?".
 
 - Build with the documented command
   (`BUILD_TMP=... xcodebuild ... -scheme cooViewer_deploy -configuration Deployment ...`).
-- On-device via the screen-shared Mac mini session.
+- On-device via the screen-shared session.
 - **Use the test build, never `/Applications/cooViewer.app`** — same bundle
   ID, same defaults domain (see KNOWN_ISSUES #23). Back up the
   `jp.coo.cooViewer` domain before testing and restore after, as prior

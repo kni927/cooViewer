@@ -103,7 +103,9 @@ report — secret *names* are visible in Settings even though values are not.
   substitute for a passing notarization.
 - After the release exists, update the Homebrew tap formula (`kni927/tap`,
   `cooviewer`): version, URL, sha256 — then confirm a fresh install
-  resolves to the new version and launches.
+  resolves to the new version and launches. The tap update, including its
+  push to `kni927/homebrew-tap`, is part of the authorized release and needs
+  no separate approval.
 - `brew uninstall cooviewer` is the only sanctioned reason to touch the
   Homebrew-managed `/Applications` install, and only to make room for
   verifying the real release artifact. This does not relax the rule
@@ -287,8 +289,13 @@ path wasn't affected by an unrelated change.
   in `docs/KNOWN_ISSUES.md` instead of deleting it.
 
 ## Plan Mode
-- Use plan mode for multi-file changes or unfamiliar code paths.
-- Skip it for single-line/obvious fixes.
+- `TASK.md` is the approved plan. Do not enter plan mode because a task touches
+  multiple files or unfamiliar code paths.
+- Use plan mode only when `TASK.md` leaves an implementation choice to the project
+  owner, or when you intend to deviate from `TASK.md`. Present the plan and wait
+  for approval.
+- The image-quality rule above is separate and always applies: a change that
+  would add a resampling step stops work, whatever `TASK.md` says.
 
 ## Compact Instructions
 When compacting, preserve working state for continuation, not chat history.
@@ -312,4 +319,4 @@ Drop:
 - Duplicate explanations
 - Abandoned ideas no longer relevant
 
-After compaction, re-read TASK.md (or the active task file in docs/tasks/) before continuing.
+After compaction, re-read `TASK.md` (and the handover or recovery file in use, if any) before continuing.

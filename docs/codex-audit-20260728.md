@@ -31,24 +31,24 @@ Multi-window 対応は可能ですが、現在の `Controller` を単純に複�
   - Apple Remote
   - アーカイブ進捗とパスワードUI
 
-これは[過去の監査](/Users/kni/Projects/GitHub/cooViewer/docs/audit-20260711.md:10)でも指摘されています。現在も [`Controller` は `NSObject` のまま](/Users/kni/Projects/GitHub/cooViewer/Sources/Controller.h:19)で、約6,800行の `Controller.m`＋`Controller_input.m`に処理が集中しています。
+これは[過去の監査](../docs/audit-20260711.md:10)でも指摘されています。現在も [`Controller` は `NSObject` のまま](../Sources/Controller.h:19)で、約6,800行の `Controller.m`＋`Controller_input.m`に処理が集中しています。
 
 さらに、`MainMenu.xib`には `Controller` オブジェクト484を直接参照するaction/outletが42件あります。例:
 
-- [唯一のViewerウィンドウ](/Users/kni/Projects/GitHub/cooViewer/Resources/Base.lproj/MainMenu.xib:15)
-- [唯一のController](/Users/kni/Projects/GitHub/cooViewer/Resources/Base.lproj/MainMenu.xib:1895)
-- [BookmarkController → Controller](/Users/kni/Projects/GitHub/cooViewer/Resources/Base.lproj/MainMenu.xib:2161)
-- [ThumbnailController → Controller](/Users/kni/Projects/GitHub/cooViewer/Resources/Base.lproj/MainMenu.xib:2674)
-- [PreferenceController → Controller](/Users/kni/Projects/GitHub/cooViewer/Resources/Base.lproj/MainMenu.xib:2863)
-- [AccessoryView → Controller](/Users/kni/Projects/GitHub/cooViewer/Resources/Base.lproj/MainMenu.xib:3322)
+- [唯一のViewerウィンドウ](../Resources/Base.lproj/MainMenu.xib:15)
+- [唯一のController](../Resources/Base.lproj/MainMenu.xib:1895)
+- [BookmarkController → Controller](../Resources/Base.lproj/MainMenu.xib:2161)
+- [ThumbnailController → Controller](../Resources/Base.lproj/MainMenu.xib:2674)
+- [PreferenceController → Controller](../Resources/Base.lproj/MainMenu.xib:2863)
+- [AccessoryView → Controller](../Resources/Base.lproj/MainMenu.xib:3322)
 
-過去のFinderダブルクリック対応でも、multi-windowは明示的に対象外として扱われています。[該当記録](/Users/kni/Projects/GitHub/cooViewer/docs/tasks/2026-07-15-02-doubleclick-open-investigation.md:9)
+過去のFinderダブルクリック対応でも、multi-windowは明示的に対象外として扱われています。[該当記録](../docs/tasks/2026-07-15-02-doubleclick-open-investigation.md:9)
 
 ## 単純な複製で問題になる部分
 
 ### 終了と永続化
 
-[`windowWillClose:`](/Users/kni/Projects/GitHub/cooViewer/Sources/Controller.m:2902)が、ウィンドウ固有の後始末だけでなく以下も実行しています。
+[`windowWillClose:`](../Sources/Controller.m:2902)が、ウィンドウ固有の後始末だけでなく以下も実行しています。
 
 - Book Settings更新
 - Recent Items更新
@@ -66,7 +66,7 @@ Multi-window 対応は可能ですが、現在の `Controller` を単純に複�
 
 ### アーカイブ読み込み
 
-アーカイブ読み込みはメインスレッド上で同期的に行われ、進捗表示中に[`nextEventMatchingMask:`でアプリ全体のイベントを取り出しています](/Users/kni/Projects/GitHub/cooViewer/Sources/Controller.m:1134)。
+アーカイブ読み込みはメインスレッド上で同期的に行われ、進捗表示中に[`nextEventMatchingMask:`でアプリ全体のイベントを取り出しています](../Sources/Controller.m:1134)。
 
 multi-windowでは、一方のウィンドウの読み込みが以下を引き起こします。
 
@@ -74,11 +74,11 @@ multi-windowでは、一方のウィンドウの読み込みが以下を引き�
 - 他ウィンドウ宛てイベントを読み込み側が消費する
 - Escがどの読み込みをキャンセルしたのか曖昧になる
 
-また、パスワード入力は[`NSAlert runModal`](/Users/kni/Projects/GitHub/cooViewer/Sources/Controller.m:1161)なので、対象ウィンドウのsheetではなくアプリ全体をブロックします。
+また、パスワード入力は[`NSAlert runModal`](../Sources/Controller.m:1161)なので、対象ウィンドウのsheetではなくアプリ全体をブロックします。
 
 ### Fullscreenとウィンドウ位置
 
-[`CustomWindow`](/Users/kni/Projects/GitHub/cooViewer/Sources/CustomWindow.m:6)は全ウィンドウ共通の`"NormalWindow"`キーを使い、メニューバー表示をプロセス全体で変更しています。
+[`CustomWindow`](../Sources/CustomWindow.m:6)は全ウィンドウ共通の`"NormalWindow"`キーを使い、メニューバー表示をプロセス全体で変更しています。
 
 複数ウィンドウでは次が競合します。
 
@@ -200,7 +200,7 @@ multi-window実現だけを目的とするなら過剰です。まず独自の`A
 
 ### Step 4: 複数ファイルのルーティング
 
-現在の[`application:openFile:`](/Users/kni/Projects/GitHub/cooViewer/Sources/Controller.m:646)をAppController側へ移します。
+現在の[`application:openFile:`](../Sources/Controller.m:646)をAppController側へ移します。
 
 複数ファイルを一度に受け取れる`application:openFiles:`相当で、各URLを別の`BookWindowController`へ振り分けます。AppKitには複数ファイル用のdelegate APIがあります。[Apple NSApplicationDelegate](https://developer.apple.com/documentation/appkit/nsapplicationdelegate?changes=latest_major)
 

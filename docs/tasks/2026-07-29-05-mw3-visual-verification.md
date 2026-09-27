@@ -132,7 +132,7 @@ added, both reverted; see Verification.
      through the same moved read helper than items 1/2 exercised. Restored
      `OpenLastFolder` to its original value (`0`) afterward.
   4. **PDF pixel rendering — PASS.** Opened a real PDF
-     (`/Users/kni/Dropbox/statistics/51_318.pdf`, the user's own file — no
+     (a PDF from the user's own files — no
      PDF fixture exists under `tests/fixtures/`) via `open -a` and took a
      real screenshot once Screen Recording was working. First screenshot
      showed the page content area solid black — investigated rather than

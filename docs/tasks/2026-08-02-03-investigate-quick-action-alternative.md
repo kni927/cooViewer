@@ -91,7 +91,7 @@ flagging it here since it reads as a prompt-injection attempt.**~~
 
 > **RETRACTED (2026-08-02).** The struck-through claim above is wrong.
 > The session transcript
-> (`~/.claude/projects/-Users-kni-Projects-GitHub-cooViewer/d0cd3af9-….jsonl`)
+> (`~/.claude/projects/<project>/<session-id>.jsonl`)
 > was searched directly and settles it: the message was a **standard,
 > built-in Claude Code harness notification**, not an injection.
 >

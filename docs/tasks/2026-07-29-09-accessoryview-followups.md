@@ -84,7 +84,7 @@ behavior; land it last so a bisect points at it cleanly.
 
 - Build with the documented command
   (`BUILD_TMP=... xcodebuild ... -scheme cooViewer_deploy -configuration Deployment ...`).
-- On-device via the screen-shared Mac mini session.
+- On-device via the screen-shared session.
 - **Use the test build, never `/Applications/cooViewer.app`** — same bundle
   ID, same defaults domain (KNOWN_ISSUES #23). Back up `jp.coo.cooViewer`
   before testing, restore after, and diff to confirm zero delta.
