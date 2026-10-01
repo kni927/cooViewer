@@ -1471,3 +1471,27 @@ read errors unconditionally, or continue using a cursor after any read error.
 
 Task record:
 `docs/tasks/2026-08-04-01-recover-complete-rar-payload.md`.
+
+---
+
+## 38. Xcode 27 rejects the main targets' 10.13 deployment target
+
+With Xcode 27.0 the documented build command in `CLAUDE.md` fails before
+compiling anything:
+
+```
+error: The macOS deployment target 'MACOSX_DEPLOYMENT_TARGET' is set to 10.13,
+but the range of supported deployment target versions is 12.0 to 27.0.x.
+(in target 'cooViewer' from project 'cooViewer')
+```
+
+The main app's configurations in `cooViewer.xcodeproj` still set
+`MACOSX_DEPLOYMENT_TARGET = 10.13`; the helper and QuickLook targets already
+use 12.0. Found on 2026-10-02 while building for
+`docs/tasks/2026-10-02-01-window-routing-diagnostics.md`, which built locally
+with `MACOSX_DEPLOYMENT_TARGET=12.0` added on the command line and did not
+edit the project.
+
+Raising the main app's minimum to macOS 12 drops 10.13–11 support, so it is a
+product decision for the owner, not a build fix. CI builds on `macos-latest`
+and will fail the same way once that image's default Xcode is 27.

@@ -267,8 +267,13 @@ static const int DIALOG_CANCEL	= 129;
 			[BookWindowController resolvedBookPath:path]];
 		if (existing) {
 			[[existing window] makeKeyAndOrderFront:self];
+			[(AppController *)appController logRoutingEntry:@"all-bookmarks" decision:@"dedup-focus"
+													 target:existing reason:nil path:path];
 		} else {
-			[[appController frontController] openBookAtPath:path];
+			id front = [appController frontController];
+			[(AppController *)appController logRoutingEntry:@"all-bookmarks" decision:@"replace-front"
+													 target:front reason:nil path:path];
+			[front openBookAtPath:path];
 		}
 		[allBookmarkPanel makeKeyAndOrderFront:self];
 	} else {

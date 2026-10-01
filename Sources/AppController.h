@@ -161,8 +161,9 @@ extern NSString * const CooViewerBookWindowRestorationIdentifier;
 - (id)newWindowController;
 /* Brings the window already showing `bookPath` to the front, or opens the
    book in a new window. `path` is what the user chose; the "already open"
-   test is on the *resolved* book path (Step-0 decision 2). */
-- (void)openBookInNewWindow:(NSString *)path;
+   test is on the *resolved* book path (Step-0 decision 2). `entry` and
+   `reason` only label the WindowRouting log line for this request. */
+- (void)openBookInNewWindow:(NSString *)path entry:(NSString *)entry reason:(NSString *)reason;
 /* The window showing that book, or nil. `bookPath` must already be resolved
    (+[BookWindowController resolvedBookPath:]) — this is the "already open"
    test itself, not the whole open. Declared for the All Bookmark browser,
@@ -205,6 +206,18 @@ extern NSString * const CooViewerBookWindowRestorationIdentifier;
    always has), and that window controller is what File ▸ Open, the dock menu
    and Open the last page reuse. */
 - (BOOL)retireWindowController:(id)aController;
+
+#pragma mark window-routing diagnostics
+
+/* One WindowRouting os_log line for an open request: where it came from
+   (`entry`), what was done with it (`decision`), the window it went to, why,
+   and a snapshot of every registered window. `path` is logged private.
+   Declared for the All Bookmark browser, which routes its own opens. */
+- (void)logRoutingEntry:(NSString *)entry
+			   decision:(NSString *)decision
+				 target:(id)target
+				 reason:(NSString *)reason
+				   path:(NSString *)path;
 
 /* MW-4: validates AppController's own items only (Open, Open the last page,
  * Preferences, Clear Recent) — see the .m for why. The book/view actions'

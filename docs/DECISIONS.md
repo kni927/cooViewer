@@ -1499,3 +1499,20 @@ is part of that release and needs no separate approval.
 **Why:** The tap update is mechanical (version, URL, sha256) and a release is
 not complete until `brew install` resolves to it; a second approval step only
 delays the published release reaching users.
+
+## Window-routing decisions are logged permanently with `os_log` (2026-10-02)
+
+**Decision:** The shipped app logs every open-request routing decision and
+every book-window creation, retirement and change of front window under
+subsystem `jp.coo.cooViewer`, category `WindowRouting`, at the default level.
+Book paths are always `%{private}@`. Nothing is logged per page turn, per
+draw, or in the archive layer. Retrieve with
+`/usr/bin/log show --last 1d --style compact --predicate 'subsystem == "jp.coo.cooViewer" AND category == "WindowRouting"'`
+(the full path matters in zsh, whose builtin `log` shadows the tool).
+
+**Why:** Unexplained extra book windows were reported but could not be
+reproduced on demand; default-level lines are persisted without any
+configuration, so the next real occurrence can be diagnosed after the fact.
+The volume is a few lines per user-initiated open, and private redaction keeps
+file names out of logs and bug reports. See
+`docs/tasks/2026-10-02-01-window-routing-diagnostics.md`.

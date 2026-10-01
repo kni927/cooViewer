@@ -4,8 +4,36 @@
 #import "COImageLoader.h"	/* +fileTypes, for the Open in New Window panel */
 #import "AllBookmarkController.h"	/* -editAllBookmark:, for the All Bookmarks menu item */
 #import "CONewWindowURL.h"
+#import <os/log.h>
 
 NSString * const CooViewerBookWindowRestorationIdentifier = @"cooViewerBookWindow";
+
+/* Window-routing diagnostics (docs/tasks/2026-10-02-01-window-routing-diagnostics.md).
+   One line per open-request routing decision, window creation, retirement
+   and change of front window — never per page turn or draw. Logged at the
+   default level, which the unified log persists without any configuration:
+
+     log show --last 1d --predicate 'subsystem == "jp.coo.cooViewer" AND category == "WindowRouting"'
+
+   Book paths are only ever passed as %{private}@ arguments. */
+static os_log_t WindowRoutingLog(void)
+{
+	static os_log_t log = NULL;
+	static dispatch_once_t once;
+	dispatch_once(&once, ^{
+		NSString *subsystem = [[NSBundle mainBundle] bundleIdentifier];
+		log = os_log_create(subsystem ? [subsystem UTF8String] : "jp.coo.cooViewer",
+							"WindowRouting");
+	});
+	return log;
+}
+
+/* The looser form -routingNearMatchForBookPath: compares paths in. */
+static NSString *RoutingComparablePath(NSString *path)
+{
+	return [[[path stringByStandardizingPath] precomposedStringWithCanonicalMapping]
+			lowercaseString];
+}
 
 @implementation AppController
 
@@ -226,6 +254,12 @@ static const NSTimeInterval kLaunchDrainPollInterval = 0.05;
 - (void)application:(NSApplication *)sender openFiles:(NSArray *)filenames
 {
 	if (!launchSettled) {
+		NSEnumerator *queuedEnu = [filenames objectEnumerator];
+		NSString *queued;
+		while (queued = [queuedEnu nextObject]) {
+			[self logRoutingEntry:@"finder-openFiles" decision:@"queued" target:nil
+						   reason:@"launch-not-settled" path:queued];
+		}
 		[pendingLaunchOpenPaths addObjectsFromArray:filenames];
 		/* Reply now: the files *will* be opened, and holding the reply until
 		   the drain would leave the Finder waiting on a run-loop pass that
@@ -255,13 +289,32 @@ static const NSTimeInterval kLaunchDrainPollInterval = 0.05;
 		   same occupied front window in quick succession could otherwise
 		   both pass this gate and race into -openBookAtPath: together.
 		   See docs/tasks/2026-08-02-02-investigate-empty-window-race.md. */
+		NSString *resolved = [BookWindowController resolvedBookPath:filename];
 		if (!frontWindowReplaced && front && [front hasBookOpen] && ![front isBookLoadInFlight]
-			&& ![self windowControllerShowingBook:[BookWindowController resolvedBookPath:filename]]) {
+			&& ![self windowControllerShowingBook:resolved]) {
+			/* Logged before the load: the window count does not change here,
+			   and a line written first survives a load that never returns. */
+			[self logRoutingEntry:@"finder-openFiles" decision:@"replace-front" target:front
+						   reason:[self routingNearMatchReason:@"front-ok" bookPath:resolved]
+							 path:filename];
 			[front openBookAtPath:filename];
 			frontWindowReplaced = YES;
 			continue;
 		}
-		[self openBookInNewWindow:filename];
+		/* Diagnostics only: the first gate condition above that failed. */
+		NSString *gateReason;
+		if (frontWindowReplaced) {
+			gateReason = @"gate:front-slot-used";
+		} else if (!front) {
+			gateReason = @"gate:front=nil";
+		} else if (![front hasBookOpen]) {
+			gateReason = @"gate:front.hasBookOpen=NO";
+		} else if ([front isBookLoadInFlight]) {
+			gateReason = @"gate:front.loadInFlight=YES";
+		} else {
+			gateReason = @"gate:already-open";
+		}
+		[self openBookInNewWindow:filename entry:@"finder-openFiles" reason:gateReason];
 	}
 	[sender replyToOpenOrPrint:NSApplicationDelegateReplySuccess];
 }
@@ -282,15 +335,19 @@ static const NSTimeInterval kLaunchDrainPollInterval = 0.05;
 	NSURL *fileURL = CooViewerFileURLFromNewWindowURL(requestURL, scheme);
 	if (!fileURL) {
 		NSLog(@"cooViewer: rejected malformed new-window URL");
+		[self logRoutingEntry:@"helper-url" decision:@"rejected" target:nil
+					   reason:@"malformed-url" path:nil];
 		return;
 	}
 
 	NSString *path = [fileURL path];
 	if (!launchSettled) {
+		[self logRoutingEntry:@"helper-url" decision:@"queued" target:nil
+					   reason:@"launch-not-settled" path:path];
 		[pendingLaunchOpenPaths addObject:path];
 		[self performSelector:@selector(settleLaunch) withObject:nil afterDelay:0.0];
 	} else {
-		[self openBookInNewWindow:path];
+		[self openBookInNewWindow:path entry:@"helper-url" reason:@"explicit-new-window"];
 	}
 }
 
@@ -470,7 +527,9 @@ static const NSTimeInterval kLaunchDrainPollInterval = 0.05;
 	if ([openPanel runModal] != NSModalResponseOK) {
 		return;
 	}
-	[self openBookInNewWindow:[[openPanel URL] path]];
+	[self openBookInNewWindow:[[openPanel URL] path]
+						entry:@"menu-open-in-new-window"
+					   reason:@"explicit-new-window"];
 }
 
 - (IBAction)openTheLastPage:(id)sender
@@ -587,6 +646,7 @@ static const NSTimeInterval kLaunchDrainPollInterval = 0.05;
 	/* Forces BookWindow.xib to load now. The window is not shown until a
 	   book is opened in it. */
 	[aController window];
+	[self logWindowEvent:@"created" controller:aController reason:nil];
 	return aController;
 }
 
@@ -607,16 +667,22 @@ static const NSTimeInterval kLaunchDrainPollInterval = 0.05;
 	return nil;
 }
 
-- (void)openBookInNewWindow:(NSString *)path
+/* `entry` and `reason` only feed the WindowRouting log line: which caller
+   this request came from, and why it is here rather than somewhere else. */
+- (void)openBookInNewWindow:(NSString *)path entry:(NSString *)entry reason:(NSString *)reason
 {
 	/* Step-0 decision 2: keyed on the resolved book path, not the path the
 	   user picked — a single image file opens its parent folder as the book,
 	   which is exactly the case where de-duplication matters. */
-	id existing = [self windowControllerShowingBook:[BookWindowController resolvedBookPath:path]];
+	NSString *resolved = [BookWindowController resolvedBookPath:path];
+	id existing = [self windowControllerShowingBook:resolved];
 	if (existing) {
 		[[existing window] makeKeyAndOrderFront:self];
+		[self logRoutingEntry:entry decision:@"dedup-focus" target:existing
+					   reason:reason path:path];
 		return;
 	}
+	reason = [self routingNearMatchReason:reason bookPath:resolved];
 
 	/* An empty window — the one at launch, or the last one left after its
 	   book was closed — is used rather than adding a second window beside
@@ -624,7 +690,13 @@ static const NSTimeInterval kLaunchDrainPollInterval = 0.05;
 	   bookless would be the empty-window state Step-0 decision 4 exists to
 	   avoid. */
 	id aController = [self emptyWindowController];
-	if (!aController) {
+	if (aController) {
+		/* Logged before the load, like the replace in -application:openFiles:.
+		   The target's flags show whether a hidden window is being brought
+		   back. */
+		[self logRoutingEntry:entry decision:@"reuse-empty" target:aController
+					   reason:reason path:path];
+	} else {
 		/* v1.6.2: a genuinely new window inherits the front book window's
 		   size. Read before -newWindowController, which registers the new
 		   controller immediately and would otherwise make -frontController
@@ -648,6 +720,8 @@ static const NSTimeInterval kLaunchDrainPollInterval = 0.05;
 			   -openBookAtPath: below opens a book into it. */
 			[newWindow setFrame:frame display:NO];
 		}
+		[self logRoutingEntry:entry decision:@"new-window" target:aController
+					   reason:reason path:path];
 	}
 	[aController openBookAtPath:path];
 }
@@ -725,10 +799,16 @@ static const NSTimeInterval kLaunchDrainPollInterval = 0.05;
 	[appController noteWindowRestorationRequested];
 
 	id aController = [appController emptyWindowController];
+	NSString *decision = @"reuse-empty";
 	if (!aController) {
 		aController = [appController newWindowController];
+		decision = @"new-window";
 	}
 	[aController beginRestoration];
+	/* The book is not known yet — -restoreStateWithCoder: decodes it later —
+	   so this line has no path. */
+	[appController logRoutingEntry:@"restoration" decision:decision target:aController
+							reason:@"saved-window-state" path:nil];
 	completionHandler([aController window], nil);
 }
 
@@ -833,7 +913,7 @@ static const NSTimeInterval kLaunchDrainPollInterval = 0.05;
 		NSEnumerator *enu = [paths objectEnumerator];
 		NSString *path;
 		while (path = [enu nextObject]) {
-			[self openBookInNewWindow:path];
+			[self openBookInNewWindow:path entry:@"launch-drain" reason:@"queued-at-launch"];
 		}
 	}
 
@@ -852,6 +932,11 @@ static const NSTimeInterval kLaunchDrainPollInterval = 0.05;
 
 	/* The body is the OpenLastFolder gate, and window-level — see the MW-3
 	   pre-implementation inventory in docs/multiwindow-plan.md. */
+	if ([[NSUserDefaults standardUserDefaults] boolForKey:@"OpenLastFolder"]) {
+		[self logRoutingEntry:@"launch-open-last-folder" decision:@"front-window"
+					   target:[self frontController]
+					   reason:@"no-restored-window-no-request" path:nil];
+	}
 	[[self frontController] applicationDidFinishLaunchingSetup:launchNotification];
 	[launchNotification release];
 	launchNotification = nil;
@@ -869,7 +954,14 @@ static const NSTimeInterval kLaunchDrainPollInterval = 0.05;
 
 - (void)windowControllerDidBecomeFront:(id)aController
 {
-	frontWindowController = aController;
+	/* -windowDidBecomeMain: fires on every reactivation of the app as well;
+	   only an actual change of front window is logged. */
+	if (frontWindowController != aController) {
+		NSString *previous = [self routingNameOfController:frontWindowController];
+		frontWindowController = aController;
+		[self logWindowEvent:@"became-front" controller:aController
+					  reason:[@"previous=" stringByAppendingString:previous]];
+	}
 }
 
 - (BOOL)retireWindowController:(id)aController
@@ -880,16 +972,124 @@ static const NSTimeInterval kLaunchDrainPollInterval = 0.05;
 		   Open, Open the last page and the dock menu reuse. Step-0 decision
 		   4 (quit after the last window closes) is a separate change — see
 		   docs/DECISIONS.md. */
+		[self logWindowEvent:@"closed-kept" controller:aController reason:@"last-window"];
 		return NO;
 	}
-	if (frontWindowController == aController) {
+	BOOL wasFront = (frontWindowController == aController);
+	if (wasFront) {
 		frontWindowController = nil;
 	}
 	/* -windowWillClose: is running inside this object; the release has to
 	   outlive the rest of that call and AppKit's own close sequence. */
 	[[aController retain] autorelease];
 	[windowControllers removeObject:aController];
+	[self logWindowEvent:@"retired" controller:aController
+				  reason:(wasFront ? @"was-front" : @"was-not-front")];
 	return YES;
+}
+
+#pragma mark window-routing diagnostics
+
+- (NSString *)routingNameOfController:(id)aController
+{
+	if (!aController) {
+		return @"none";
+	}
+	return [NSString stringWithFormat:@"#%d", [aController windowIndex]];
+}
+
+/* One token per registered window: its slot, then B (book open), L (load in
+   flight), R (awaiting a restored book), P (password sheet), then vis / hid /
+   min, fs (full screen), main, key. Followed by which window -frontController
+   resolves to and how, and which window AppKit itself calls main — the two
+   disagreeing is hypothesis H2 of the task this was added for. */
+- (NSString *)routingStateSummary
+{
+	NSMutableString *summary = [NSMutableString string];
+	int visible = 0;
+	NSEnumerator *enu = [windowControllers objectEnumerator];
+	id aController;
+	while (aController = [enu nextObject]) {
+		NSWindow *window = [aController window];
+		NSMutableArray *flags = [NSMutableArray array];
+		if ([aController hasBookOpen]) [flags addObject:@"B"];
+		if ([aController isBookLoadInFlight]) [flags addObject:@"L"];
+		if ([aController isAwaitingRestoredBook]) [flags addObject:@"R"];
+		if ([aController isWaitingForUserInput]) [flags addObject:@"P"];
+		if ([window isMiniaturized]) {
+			[flags addObject:@"min"];
+		} else if ([window isVisible]) {
+			[flags addObject:@"vis"];
+			visible++;
+		} else {
+			[flags addObject:@"hid"];
+		}
+		if ([window styleMask] & NSWindowStyleMaskFullScreen) [flags addObject:@"fs"];
+		if ([window isMainWindow]) [flags addObject:@"main"];
+		if ([window isKeyWindow]) [flags addObject:@"key"];
+		[summary appendFormat:@" %@(%@)", [self routingNameOfController:aController],
+		 [flags componentsJoinedByString:@","]];
+	}
+
+	id appMain = nil;
+	NSWindow *mainWindow = [NSApp mainWindow];
+	enu = [windowControllers objectEnumerator];
+	while (mainWindow && (aController = [enu nextObject])) {
+		if ([aController window] == mainWindow) {
+			appMain = aController;
+		}
+	}
+	NSString *appMainName = mainWindow ? (appMain ? [self routingNameOfController:appMain] : @"other")
+									   : @"none";
+
+	return [NSString stringWithFormat:@"windows=%lu visible=%d front=%@(%@) appMain=%@ active=%@ |%@",
+			(unsigned long)[windowControllers count], visible,
+			[self routingNameOfController:[self frontController]],
+			(frontWindowController ? @"tracked" : @"fallback-last"),
+			appMainName, ([NSApp isActive] ? @"YES" : @"NO"), summary];
+}
+
+/* Hypothesis H3: a window showing this book under a different spelling of
+   its path (standardization, Unicode normalization, case) that the exact
+   comparison in -windowControllerShowingBook: misses. Diagnostics only —
+   routing never consults it. */
+- (NSString *)routingNearMatchReason:(NSString *)reason bookPath:(NSString *)bookPath
+{
+	if (bookPath == nil) {
+		return reason;
+	}
+	NSString *wanted = RoutingComparablePath(bookPath);
+	NSEnumerator *enu = [windowControllers objectEnumerator];
+	id aController;
+	while (aController = [enu nextObject]) {
+		NSString *shown = [aController currentBookPath];
+		if (shown && ![shown isEqualToString:bookPath]
+			&& [RoutingComparablePath(shown) isEqualToString:wanted]) {
+			return [NSString stringWithFormat:@"%@,nearMatch=%@", reason,
+					[self routingNameOfController:aController]];
+		}
+	}
+	return reason;
+}
+
+- (void)logRoutingEntry:(NSString *)entry
+			   decision:(NSString *)decision
+				 target:(id)target
+				 reason:(NSString *)reason
+				   path:(NSString *)path
+{
+	os_log(WindowRoutingLog(),
+		   "route entry=%{public}@ decision=%{public}@ target=%{public}@ reason=%{public}@ | %{public}@ | path=%{private}@",
+		   entry, decision, [self routingNameOfController:target], (reason ? reason : @"-"),
+		   [self routingStateSummary], (path ? path : @"-"));
+}
+
+- (void)logWindowEvent:(NSString *)event controller:(id)aController reason:(NSString *)reason
+{
+	os_log(WindowRoutingLog(),
+		   "window %{public}@ %{public}@ reason=%{public}@ | %{public}@",
+		   event, [self routingNameOfController:aController], (reason ? reason : @"-"),
+		   [self routingStateSummary]);
 }
 
 /* The All Bookmark browser (MW-5 item 5). App-wide, so it lives here rather
