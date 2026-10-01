@@ -118,10 +118,45 @@ in the chat response that can be copied directly into another conversation.
 - Manual verification:
 - Commit:
 - Push:
+- Permission / Sandbox:
+- Owner actions:
 - Remaining issues:
 - Suggested next step:
 
 Include exact file paths, commands, test counts, and the local commit hash when available.
+
+**Owner actions** lists, in Japanese, every step the project owner has to perform
+after this task (verification, installation, settings, commands to run on another
+machine), as a numbered list or a table. Each step states the exact action or
+command and the expected result. Write `None` if there are none. The owner reads
+the chat report rather than the repository, so a step mentioned only in a file or
+buried in another item is easily missed.
+
+**Permission / Sandbox** records how the task interacted with the agent's
+permission and sandbox controls, so recurring friction can be traced to a cause.
+Write `None` if nothing below happened. Record only what the agent observed;
+approval dialogs shown to the owner are not visible to the agent and are not counted.
+
+- Sandbox bypass or escalation requests (Claude Code `dangerouslyDisableSandbox`,
+  Codex escalated permissions), each with the command and the sandbox failure
+  that justified it.
+- Denials by Auto Mode or by rules, with the action and the reason given
+  (or `no reason given`). Count only actual denials.
+- Auto Mode check errors, where the classifier returned no verdict (for example
+  a server-side error), with the action affected. These are not denials; list
+  them separately.
+- Permission-mode changes the owner made during the task (for example from
+  auto to Accept edits), with the reason if known.
+- Other permission or sandbox errors, such as a command that failed inside the
+  sandbox because it was not run on its own.
+- Main causes and the countermeasure taken or proposed.
+
+This record is the evidence for relaxation decisions, including the global
+condition to reconsider Auto Mode allow rules; counting check errors as denials
+would argue for relaxing on false grounds. The purpose is an accurate record,
+not a smaller number. A request for a command
+that genuinely needs review is correct; a count is reduced only by fixing its
+cause, never by splitting, wrapping, or rephrasing a command to avoid review.
 
 Clearly distinguish:
 - Verified automatically
