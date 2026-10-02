@@ -1554,3 +1554,18 @@ way once that image moves to Xcode 27. The Quick Look extensions, which ship in
 the same bundle, already required macOS 12, so 10.13–11 users already lacked
 part of the app. Code kept only for 10.13–11 is left for a separate dead-code
 review rather than removed with this change.
+
+## The release tag is pushed by the owner (2026-10-02)
+
+**Decision:** Creating and pushing the `v*` release tag stays an owner
+action. A release task prepares everything up to the tag (version bump,
+release notes, `main` pushed once authorized), stops, and resumes from
+monitoring the CI run after the owner has pushed the tag. Editing the release
+body and updating the Homebrew tap remain part of the authorized release.
+
+**Why:** In the v1.6.4 release the auto mode classifier blocked the agent's
+`git tag -a v1.6.4` as "[Production Deploy]", and the owner pushed the tag.
+Making the agent's tag push depend on an authorization checkbox in `TASK.md`
+was considered as the basis for a `CLAUDE.md` exception and rejected: the
+agent can edit `TASK.md`, so a box there is not independent evidence of the
+owner's approval. See `docs/tasks/2026-10-02-04-release-v1.6.4.md`.

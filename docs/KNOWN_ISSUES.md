@@ -381,6 +381,40 @@ killall Dockでは解消せず、OS再起動でのみ解消した。
 4. それでも解消しない場合、Mac自体の再起動を試す(これまでの再現例では
    再起動が最も確実だった)。
 
+**ビルド成果物は自動的に登録される(v1.6.4リリース時の知見、2026-10-02)**:
+`CLAUDE.md`のビルドコマンドでビルドし、`build/cooViewer.app`を開くと、
+明示的な`lsregister`/`pluginkit -a`を一度も実行していなくても、
+ビルド成果物(`$TMPDIR/cooViewer-build/sym/Deployment/cooViewer.app`、
+その中のヘルパーと拡張、単体のヘルパー成果物、`build/cooViewer.app`)が
+リリース版と同じバンドルID・同じバージョンでLaunchServices/PlugInKitに
+登録される。v1.6.4のリリース検証開始時にはPreview拡張とThumbnail拡張が
+それぞれ2つずつ登録されていた。これが本項の不整合を引き起こす仕組みである。
+詳細は`docs/tasks/2026-10-02-04-release-v1.6.4.md`を参照。
+
+**確認方法**(`pluginkit`はClaude Codeのサンドボックス内ではXPC接続が
+拒否され`match: Connection invalid`で失敗するため、サンドボックス外で
+実行する):
+```bash
+pluginkit -m -v -i jp.coo.cooViewer.QuickLookPreview
+pluginkit -m -v -i jp.coo.cooViewer.QuickLookThumbnail
+LSREGISTER=/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister
+"$LSREGISTER" -dump | grep -E '^path: .*(cooViewer|New Window)'
+```
+`/Applications/cooViewer.app`配下以外のパスが表示されたら、それはビルド
+成果物などの余分な登録である。
+
+**後始末**(ビルド成果物のコピーだけを対象にする):
+1. 各ビルド成果物の`.appex`に`pluginkit -r <path-to>/cooViewerPreview.appex`
+   と`pluginkit -r <path-to>/cooViewerThumbnail.appex`を実行する。
+2. 各ビルド成果物のアプリとヘルパーに`"$LSREGISTER" -u <path>`を実行する
+   (`cooViewer.app`と`Contents/Helpers/cooViewer (New Window).app`、
+   単体のヘルパー成果物があればそれも)。
+3. 上の確認方法で、`/Applications`だけが残っていることを確かめる。
+
+**`/Applications`は決して登録解除しない。** Homebrewで管理される
+インストールであり、QuickLook/Thumbnail/Open Withの正規の提供元である
+(本項と#18を参照)。誤って解除した場合も、再登録を繰り返さずに報告する。
+
 ## 16. Static Analyzer Findings (Survey) — Dead Stores, Potential Leaks, Uninitialized Values (Do Not Fix Blindly)
 
 Recorded from an `xcodebuild analyze` survey (scheme `cooViewer`,
