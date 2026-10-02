@@ -1120,3 +1120,12 @@ stapled and published; Homebrew tap commit `867994b`. The installed release
 passed Gatekeeper/signature checks and a real Finder double-click after
 restoration (two windows, front shows the new book). See
 `docs/tasks/2026-10-02-04-release-v1.6.4.md`.
+
+### v1.6.5 features implemented (2026-10-03, unreleased)
+
+Resolution display: shown on single pages too, and a three-way setting (Off /
+In page number / Separate bar) migrated from `ShowResolution`. Window entry
+points: ⇧-open from the Finder opens a new window, files dropped on a book
+window open there, File ▸ New Window (⌘N), and an icon for the
+`cooViewer (New Window)` helper. CI actions moved to their Node 24 majors.
+See `docs/tasks/2026-10-03-01-v1.6.5-features.md`.

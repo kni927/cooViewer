@@ -1569,3 +1569,69 @@ Making the agent's tag push depend on an authorization checkbox in `TASK.md`
 was considered as the basis for a `CLAUDE.md` exception and rejected: the
 agent can edit `TASK.md`, so a box there is not independent evidence of the
 owner's approval. See `docs/tasks/2026-10-02-04-release-v1.6.4.md`.
+
+## Resolution display is a three-way setting, migrated once from `ShowResolution` (2026-10-03)
+
+**Decision:** The `ShowResolution` checkbox is replaced by `ResolutionDisplay`
+(0 Off, 1 In page number, 2 Separate bar; Preferences ▸ Appearance ▸ Page
+Number ▸ Resolution). `+[BookWindowController initialize]` migrates once,
+before `-registerDefaults:`: a profile without `ResolutionDisplay` but with a
+stored `ShowResolution` gets NO → Off, YES → In page number; with neither, the
+registered default In page number applies, as `ShowResolution`'s registered
+YES did. `ShowResolution` is read nowhere else and is no longer registered or
+written; the key is left in old profiles. One formatter in
+`BookWindowController` builds both the page-number string and the
+resolution-bar string, for every caller including the ShowNumber key and
+mouse actions. The separate bar is drawn by `AccessoryView` in the page
+number's row, beside it on the side away from its anchored corner
+(`[info][page number][resolution]`, mirrored on the right), with the page
+number's attributes and auto-hide flag; with no page number shown it takes
+the page number's place.
+
+**Why:** Owner decision (2026-10-02): on a spread the resolution made the
+page-number bar too long. The single-page "no resolution" report was not a
+display choice but an ordering bug — the single-page branches of
+`-imageDisplay` built the string before `firstImage` was assigned — and the
+ShowNumber actions had their own copies of the format. Keeping the bar in the
+page number's row keeps it clear of the page bar in every position setting
+without new layout rules. No resampling step is added: the bars are overlays
+in `AccessoryView`; decode → `drawInRect:` is untouched. See
+`docs/tasks/2026-10-03-01-v1.6.5-features.md`.
+
+## Finder ⇧-open, drag and drop and File ▸ New Window share one routing gate (2026-10-03)
+
+**Decision:** `-[AppController openFiles:preferringWindow:entry:]` replaces
+`-openFilesPreferringFrontWindow:entry:`. Per file: de-duplicate first; the
+first file not already open goes into the target — replacing its book, or
+filling it when empty — unless the target is loading, waiting for a password
+or awaiting a restored book; every other file goes to
+`-openBookInNewWindow:`. The caller resolves the target once, when the
+request arrives: the front window for a Finder open (after launch and in the
+launch drain), the window a drop landed on, nil for a Finder open with ⇧
+held. ⇧ is read with `+[NSEvent modifierFlags]` in
+`-application:openFiles:` and a launch-time request is tagged in the queue
+(`finder-openFiles+shift`), as helper requests already were. Drops are
+accepted on `CustomImageView` for what File ▸ Open accepts (folders and
+`+[COImageLoader fileTypes]`, which excludes plain image files); drags that
+start inside cooViewer are declined, and the open runs after the drag session
+ends. File ▸ New Window (⌘N) always creates a window, sized like a new
+window from `-openBookInNewWindow:`; a window shown empty this way is not
+restorable until a book opens in it, and a failed or cancelled open leaves it
+on screen rather than closing or hiding it. `WindowRouting` decisions are now
+`replace-target` / `fill-target` (reasons `target-ok` / `target-empty`, gates
+`gate:target…`), with entries `finder-openFiles+shift`, `drop`,
+`menu-new-window`.
+
+**Why:** Owner decisions (2026-10-02): ⇧ rather than ⌘ (the Finder's keyboard
+Open holds ⌘), drops follow the Finder double-click rule, and ⌘N gives an
+empty window. One gate keeps the three entry points from drifting apart.
+Resolving the target once is what lets a drop target differ from the front
+window; for a Finder open the only change is in a multi-file open whose
+earlier file brought another window forward, where the front window at
+request time now keeps the slot. Filling an empty target directly is needed
+because `-emptyWindowController` prefers the *front* empty window. The extra
+"password" and "restoring" gates stop a second book landing on a window that
+already has one in flight. A shown empty window is a state MW-7/MW-8 never
+had: restored, it would come back with nothing to open and stand down
+`OpenLastFolder`; closed by a failed open while it is the last window, it
+would quit the app. See `docs/tasks/2026-10-03-01-v1.6.5-features.md`.
