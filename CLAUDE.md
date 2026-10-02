@@ -128,7 +128,7 @@ Full procedural precedent: `docs/tasks/2026-07-26-02-release-v1.5.2.md`.
 - Build so intermediates stay outside the repository and only the final
   app lands in `build/`:
   ```bash
-  BUILD_TMP="${TMPDIR%/}/cooViewer-build"
+  BUILD_TMP="$(getconf DARWIN_USER_TEMP_DIR)cooViewer-build"
   xcodebuild -project cooViewer.xcodeproj -scheme cooViewer_deploy \
     -configuration Deployment \
     SYMROOT="$BUILD_TMP/sym" OBJROOT="$BUILD_TMP/obj" \
@@ -138,7 +138,18 @@ Full procedural precedent: `docs/tasks/2026-07-26-02-release-v1.5.2.md`.
   ```
   The overrides redirect all Xcode output (products, intermediates,
   index, DerivedData) under `$BUILD_TMP`, outside the repository; only
-  the final `cooViewer.app` is copied into `build/`. The QuickLook
+  the final `cooViewer.app` is copied into `build/`.
+  In a Claude Code session, do not derive `BUILD_TMP` from `$TMPDIR`:
+  `xcodebuild` is a sandbox-excluded command and sees the per-user temp
+  directory (`/var/folders/…/T/`), while sandboxed commands such as `cp`
+  see the sandbox's own `$TMPDIR`, so the two halves of the build point
+  at different directories. `getconf DARWIN_USER_TEMP_DIR` returns the
+  same path inside and outside the sandbox. Run it in a call of its own
+  and pass the literal path to `xcodebuild`, `cp` and `rm`; a command
+  substitution in the same call as `xcodebuild` takes that call out of
+  the sandbox exclusions. Copying into `build/` works inside the
+  sandbox; removing `$BUILD_TMP` does not (the sandbox cannot write
+  there), and neither do `pluginkit` or `lsregister`. The QuickLook
   extensions (`cooViewerThumbnail`, `cooViewerPreview`) are embedded in
   `cooViewer.app/Contents/PlugIns/` — do not copy the standalone `.appex`
   products into `build/`. The project no longer sets `SYMROOT`, so with a
