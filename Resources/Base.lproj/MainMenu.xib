@@ -70,6 +70,11 @@
                 <menuItem title="File" id="83">
                     <menu key="submenu" title="File" id="81">
                         <items>
+                            <menuItem title="New Window" keyEquivalent="n" id="NWm-Mi-001">
+                                <connections>
+                                    <action selector="newWindow:" target="6001" id="NWm-Ac-001"/>
+                                </connections>
+                            </menuItem>
                             <menuItem title="Open..." keyEquivalent="o" id="72">
                                 <connections>
                                     <action selector="open:" target="6001" id="487"/>

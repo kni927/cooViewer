@@ -227,6 +227,11 @@
 	   Read through -isBookLoadInFlight. */
 	BOOL bookLoadInFlight;
 
+	/* v1.6.5: YES while this window is on screen with no book because the
+	   user asked for it (File ▸ New Window), until a book opens in it or it
+	   is closed. See -showEmptyWindow. */
+	BOOL shownWithoutBook;
+
 	/* KNOWN_ISSUES #33: YES from the moment this window puts up a password
 	   sheet until the open it belongs to has finished one way or the other.
 	   Deliberately not "is a sheet on screen": it has to stay YES across the
@@ -324,6 +329,13 @@
    for a window it has just created, so the book-choosing UI can stay app
    level while the opening stays window level. */
 - (void)openBookAtPath:(NSString *)path;
+/* v1.6.5, File ▸ New Window: puts this bookless window on screen. */
+- (void)showEmptyWindow;
+/* v1.6.5, drag and drop: whether a dropped file is one File ▸ Open accepts,
+   and the drop itself, routed by AppController with this window as the
+   target. */
++ (BOOL)canOpenDroppedPath:(NSString *)path;
+- (void)openDroppedPaths:(NSArray *)paths;
 - (void)openFromSameDir:(id)sender;
 - (void)openFromSameDir:(id)sender last:(BOOL)isLast;
 - (void)openFromOpenRecent:(id)sender;

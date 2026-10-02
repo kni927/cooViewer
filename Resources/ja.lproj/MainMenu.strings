@@ -19,6 +19,9 @@
 /* Class = "NSMenuItem"; title = "About cooViewer"; ObjectID = "58"; */
 "58.title" = "cooViewer について";
 
+/* Class = "NSMenuItem"; title = "New Window"; ObjectID = "NWm-Mi-001"; */
+"NWm-Mi-001.title" = "新規ウインドウ";
+
 /* Class = "NSMenuItem"; title = "Open..."; ObjectID = "72"; */
 "72.title" = "開く...";
 

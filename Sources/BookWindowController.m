@@ -234,6 +234,12 @@ static NSPoint gNextWindowCascadePoint;
 	//composeLock = [[NSLock allocWithZone:NULL] init];
 	
 	[imageView setTarget:self];
+	/* v1.6.5: files dropped on the page open here, routed like a Finder open
+	   (see -openDroppedPaths:). Registering for drags adds the dragging
+	   destination callbacks only; mouse handling is unchanged. The overlay
+	   above the page (AccessoryWindow) ignores mouse events, so drags reach
+	   this view. */
+	[imageView registerForDraggedTypes:[NSArray arrayWithObject:NSPasteboardTypeFileURL]];
 
 	/* MW-6 item 1: window placement. The frame used to be autosaved under one
 	   shared name, set in -[CustomWindow awakeFromNib] — with more than one
@@ -889,7 +895,13 @@ static NSPoint gNextWindowCascadePoint;
 		currentBookPath = nil;
 		currentBookName = nil;
 		currentBookAlias = nil;
-		if (closeWindow) {
+		if (shownWithoutBook) {
+			/* v1.6.5: a window the user opened empty (File ▸ New Window)
+			   stays as it was, on screen and empty. Closing it would turn a
+			   failed open into quit-on-last-close whenever it is the only
+			   window and a book was read earlier in the session — a state
+			   that did not exist before File ▸ New Window. */
+		} else if (closeWindow) {
 			[[self window] performClose:self];
 		} else {
 			[[self window] orderOut:self];
@@ -914,6 +926,50 @@ static NSPoint gNextWindowCascadePoint;
 	[self setCurrentBookPathAndOldBookPath:path];
 
 	[self openPage:0 last:NO];
+}
+
+/* v1.6.5, File ▸ New Window. Until now a book window was only ever on screen
+   with a book in it (MW-7, MW-8): a bookless window is kept hidden. A window
+   shown empty on purpose is therefore kept out of the two places that assume
+   otherwise. Window restoration: AppKit would save it and bring it back next
+   launch as a window with nothing to open — and count it as a restored
+   window, which stands down OpenLastFolder — so it is not restorable until a
+   book opens in it. Quit-on-last-close: see -abandonOpenWithLoader:... */
+- (void)showEmptyWindow
+{
+	shownWithoutBook = YES;
+	[[self window] setRestorable:NO];
+	[[self window] makeKeyAndOrderFront:self];
+}
+
+/* What File ▸ Open accepts (-open:): a folder, or a file whose extension is
+   in +[COImageLoader fileTypes]. The panel matches extensions without regard
+   to case, so this does too. */
++ (BOOL)canOpenDroppedPath:(NSString *)path
+{
+	BOOL isDirectory = NO;
+	if (![[NSFileManager defaultManager] fileExistsAtPath:path isDirectory:&isDirectory]) {
+		return NO;
+	}
+	if (isDirectory) {
+		return YES;
+	}
+	NSString *extension = [[path pathExtension] lowercaseString];
+	NSEnumerator *enu = [[COImageLoader fileTypes] objectEnumerator];
+	NSString *type;
+	while (type = [enu nextObject]) {
+		if ([[type lowercaseString] isEqualToString:extension]) {
+			return YES;
+		}
+	}
+	return NO;
+}
+
+/* The same rule as a Finder double-click, with this window in place of the
+   front window: see -[AppController openFiles:preferringWindow:entry:]. */
+- (void)openDroppedPaths:(NSArray *)paths
+{
+	[appController openFiles:paths preferringWindow:self entry:@"drop"];
 }
 
 
@@ -1483,6 +1539,11 @@ static NSString * const kBookViewModeKey = @"cooViewerBookViewMode";
 	   is finished, rather than a first open having failed — see
 	   -[AppController applicationShouldTerminateAfterLastWindowClosed:]. */
 	[appController windowControllerDidOpenBook:self];
+	/* v1.6.5: a window shown empty by File ▸ New Window is an ordinary book
+	   window from here on — restorable again, and closed like any other if a
+	   later open into it fails. */
+	shownWithoutBook = NO;
+	[[self window] setRestorable:YES];
 	[self viewSet];
 	[self imageDisplay];
 	
@@ -3493,6 +3554,9 @@ static const NSInteger kBookmarkMenuFixedItemCount = 3;
 	   closed window would stall a queued Finder open indefinitely. */
 	windowClosed = YES;
 	passwordOpenInFlight = NO;
+	/* v1.6.5: a closed window is hidden, so it is not "shown empty" any
+	   more; if the registry keeps it, it is reused like any hidden one. */
+	shownWithoutBook = NO;
 	/* v1.6.x: defensive, matching passwordOpenInFlight above — a closed
 	   window must never keep reading as mid-load. -abandonOpenWithLoader:/
 	   -discardPendingOpen: already clear this on their own exits; this

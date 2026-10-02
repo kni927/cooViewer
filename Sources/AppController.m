@@ -55,6 +55,7 @@ static const NSTimeInterval kLaunchDrainPollInterval = 0.05;
 static NSString * const kLaunchRequestPathsKey = @"paths";
 static NSString * const kLaunchRequestKindKey = @"kind";
 static NSString * const kLaunchRequestKindFinder = @"finder-openFiles";
+static NSString * const kLaunchRequestKindFinderShift = @"finder-openFiles+shift";
 static NSString * const kLaunchRequestKindHelper = @"helper-url";
 
 /* Same timing as before MW-3: BookWindowController's own -awakeFromNib called
@@ -242,7 +243,13 @@ static NSString * const kLaunchRequestKindHelper = @"helper-url";
    window can only hold one book — every file after it, and everything when
    no book window exists yet, still goes through -openBookInNewWindow:
    unchanged (dedup, empty-window reuse, or a new cascaded window). The rule
-   itself lives in -openFilesPreferringFrontWindow:entry:, below.
+   itself lives in -openFiles:preferringWindow:entry:, below.
+
+   v1.6.5: with ⇧ held when the request arrives, every file goes to
+   -openBookInNewWindow: instead — the same result as File ▸ Open in New
+   Window (owner decision; ⌘ was rejected because the Finder's keyboard Open,
+   ⌘↓, holds it by definition). ⇧ is read here, at receipt, not when a
+   launch-time request is drained: by then the key has long been released.
 
    AppKit prefers this over -application:openFile: when both exist, so the
    singular one is gone rather than left as an unreachable second path.
@@ -253,7 +260,7 @@ static NSString * const kLaunchRequestKindHelper = @"helper-url";
    yet — so acting now would find nothing to de-duplicate against and open a
    second window on a book that is already coming back. -settleLaunch drains
    the queue once every restored window has its book, through the same
-   -openFilesPreferringFrontWindow:entry: this method uses afterwards: a book
+   -openFiles:preferringWindow:entry: this method uses afterwards: a book
    a restored window is already showing brings that window forward (Step-0
    decision 2), and the first book that is not replaces the front restored
    window's book, exactly as it would in a running app. Before 2026-10-02
@@ -263,16 +270,19 @@ static NSString * const kLaunchRequestKindHelper = @"helper-url";
    thing in the drain as it does here. */
 - (void)application:(NSApplication *)sender openFiles:(NSArray *)filenames
 {
+	BOOL newWindows = ([NSEvent modifierFlags] & NSEventModifierFlagShift) != 0;
+	NSString *kind = newWindows ? kLaunchRequestKindFinderShift : kLaunchRequestKindFinder;
+
 	if (!launchSettled) {
 		NSEnumerator *queuedEnu = [filenames objectEnumerator];
 		NSString *queued;
 		while (queued = [queuedEnu nextObject]) {
-			[self logRoutingEntry:@"finder-openFiles" decision:@"queued" target:nil
+			[self logRoutingEntry:kind decision:@"queued" target:nil
 						   reason:@"launch-not-settled" path:queued];
 		}
 		[pendingLaunchOpenRequests addObject:[NSDictionary dictionaryWithObjectsAndKeys:
 			[[filenames copy] autorelease], kLaunchRequestPathsKey,
-			kLaunchRequestKindFinder, kLaunchRequestKindKey, nil]];
+			kind, kLaunchRequestKindKey, nil]];
 		/* Reply now: the files *will* be opened, and holding the reply until
 		   the drain would leave the Finder waiting on a run-loop pass that
 		   -openPage:last: can turn into a much longer one. */
@@ -281,58 +291,73 @@ static NSString * const kLaunchRequestKindHelper = @"helper-url";
 		return;
 	}
 
-	[self openFilesPreferringFrontWindow:filenames entry:@"finder-openFiles"];
+	[self openFiles:filenames
+   preferringWindow:(newWindows ? nil : [self frontController])
+			  entry:kind];
 	[sender replyToOpenOrPrint:NSApplicationDelegateReplySuccess];
 }
 
-/* Only the first file in this call gets to replace the front window —
-   every file after it finds that slot already taken and falls through to
+/* Only the first file in this call gets to go into `target` — every file
+   after it finds that slot already taken and falls through to
    -openBookInNewWindow: like today. The dedup lookup below is a read-only
    query (already shared with -openBookInNewWindow: and the bookmark
    browsers), not a second copy of that method's own logic: it decides
-   whether *this* file is a front-window-replace candidate, and
-   -openBookInNewWindow: still runs its own copy of the same check for
-   every file this loop does route to it, unchanged. */
-- (void)openFilesPreferringFrontWindow:(NSArray *)filenames entry:(NSString *)entry
+   whether *this* file is a candidate for the target, and
+   -openBookInNewWindow: still runs its own copy of the same check for every
+   file this loop does route to it, unchanged.
+
+   v1.6.5: generalized from -openFilesPreferringFrontWindow:entry:, which
+   looked the front window up again for every file. The caller now resolves
+   the target once, when the request arrives: the front window for a Finder
+   open, the window a drop landed on, or nil for "new windows only". An empty
+   target is filled directly rather than through -openBookInNewWindow:'s
+   empty-window search, which prefers the *front* empty window and so could
+   pick a different one than the drop target; for a Finder open the front
+   window is that same window, so the result is unchanged. A target waiting on
+   a password or awaiting a restored book is passed over as well as one that
+   is mid-load: putting a second book into it would race the first. */
+- (void)openFiles:(NSArray *)filenames preferringWindow:(id)target entry:(NSString *)entry
 {
-	BOOL frontWindowReplaced = NO;
+	BOOL targetUsed = NO;
 	NSEnumerator *enu = [filenames objectEnumerator];
 	NSString *filename;
 	while (filename = [enu nextObject]) {
-		id front = [self frontController];
-		/* v1.6.x: -isBookLoadInFlight guards against replacing a window
-		   whose *own* front-window-replace (or restoration) is still
-		   running — -hasBookOpen alone stays YES for the old book
-		   throughout a replace's load, so two Finder-opens landing on the
-		   same occupied front window in quick succession could otherwise
-		   both pass this gate and race into -openBookAtPath: together.
-		   See docs/tasks/2026-08-02-02-investigate-empty-window-race.md. */
 		NSString *resolved = [BookWindowController resolvedBookPath:filename];
-		if (!frontWindowReplaced && front && [front hasBookOpen] && ![front isBookLoadInFlight]
-			&& ![self windowControllerShowingBook:resolved]) {
-			/* Logged before the load: the window count does not change here,
-			   and a line written first survives a load that never returns. */
-			[self logRoutingEntry:entry decision:@"replace-front" target:front
-						   reason:[self routingNearMatchReason:@"front-ok" bookPath:resolved]
-							 path:filename];
-			[front openBookAtPath:filename];
-			frontWindowReplaced = YES;
+		/* The first gate condition that fails, or nil if the file goes into
+		   the target. Also the reason on the WindowRouting line. */
+		NSString *gateReason = nil;
+		if (!target) {
+			gateReason = @"explicit-new-window";
+		} else if (targetUsed) {
+			gateReason = @"gate:target-slot-used";
+		} else if ([self windowControllerShowingBook:resolved]) {
+			gateReason = @"gate:already-open";
+		} else if ([target isBookLoadInFlight]) {
+			/* v1.6.x: -hasBookOpen alone stays YES for the old book
+			   throughout a replace's load, so two opens landing on the same
+			   window in quick succession could otherwise both pass this gate
+			   and race into -openBookAtPath: together. See
+			   docs/tasks/2026-08-02-02-investigate-empty-window-race.md. */
+			gateReason = @"gate:target.loadInFlight=YES";
+		} else if ([target isWaitingForUserInput]) {
+			gateReason = @"gate:target.waitingForUser=YES";
+		} else if ([target isAwaitingRestoredBook]) {
+			gateReason = @"gate:target.awaitingRestore=YES";
+		}
+		if (gateReason) {
+			[self openBookInNewWindow:filename entry:entry reason:gateReason];
 			continue;
 		}
-		/* Diagnostics only: the first gate condition above that failed. */
-		NSString *gateReason;
-		if (frontWindowReplaced) {
-			gateReason = @"gate:front-slot-used";
-		} else if (!front) {
-			gateReason = @"gate:front=nil";
-		} else if (![front hasBookOpen]) {
-			gateReason = @"gate:front.hasBookOpen=NO";
-		} else if ([front isBookLoadInFlight]) {
-			gateReason = @"gate:front.loadInFlight=YES";
-		} else {
-			gateReason = @"gate:already-open";
-		}
-		[self openBookInNewWindow:filename entry:entry reason:gateReason];
+		BOOL hasBook = [target hasBookOpen];
+		/* Logged before the load: the window count does not change here, and
+		   a line written first survives a load that never returns. */
+		[self logRoutingEntry:entry decision:(hasBook ? @"replace-target" : @"fill-target")
+					   target:target
+					   reason:[self routingNearMatchReason:(hasBook ? @"target-ok" : @"target-empty")
+												 bookPath:resolved]
+						 path:filename];
+		[target openBookAtPath:filename];
+		targetUsed = YES;
 	}
 }
 
@@ -557,6 +582,23 @@ static NSString * const kLaunchRequestKindHelper = @"helper-url";
 	[[self frontController] openTheLastPage:sender];
 }
 
+/* v1.6.5. Always a new window, even when a hidden empty one exists (the one
+   at launch, or the last one closed): that one stays in the pool
+   -openBookInNewWindow: reuses, and a window the user asked for appears
+   where a new window would. Targeted at AppController for the same reason
+   as -openInNewWindow:. Becoming main makes it the front window, so a
+   Finder open fills it (-emptyWindowController prefers the front window,
+   and -openFiles:preferringWindow:entry: fills an empty target). How a
+   shown bookless window keeps out of window restoration and away from
+   quit-on-last-close is -[BookWindowController showEmptyWindow]. */
+- (IBAction)newWindow:(id)sender
+{
+	id aController = [self newWindowControllerSizedLikeFront];
+	[self logRoutingEntry:@"menu-new-window" decision:@"new-window" target:aController
+				   reason:@"explicit-new-window" path:nil];
+	[aController showEmptyWindow];
+}
+
 /* KNOWN_ISSUES #24: the All Bookmark browser's entry. Deliberately targeted at
    AppController rather than First Responder, unlike the book/view actions MW-4
    swept onto the responder chain: there is one browser for the whole
@@ -717,33 +759,40 @@ static NSString * const kLaunchRequestKindHelper = @"helper-url";
 		[self logRoutingEntry:entry decision:@"reuse-empty" target:aController
 					   reason:reason path:path];
 	} else {
-		/* v1.6.2: a genuinely new window inherits the front book window's
-		   size. Read before -newWindowController, which registers the new
-		   controller immediately and would otherwise make -frontController
-		   resolve to it instead of the window this one should inherit from
-		   (see -newWindowController's own comment on registration order).
-		   No inheritance if the front window has no book open — e.g. the
-		   bookless window at launch — which leaves this case exactly as it
-		   was: the nib default, placed by cascade. */
-		id front = [self frontController];
-		BOOL inheritSize = (front != nil && [front hasBookOpen]);
-		NSSize inheritedSize = inheritSize ? [front currentWindowedSize] : NSZeroSize;
-
-		aController = [self newWindowController];
-
-		if (inheritSize) {
-			NSWindow *newWindow = [aController window];
-			NSRect frame = [newWindow frame];
-			frame.size = inheritedSize;
-			/* display:NO — this only changes the frame the window will
-			   first draw into; the window is not shown until
-			   -openBookAtPath: below opens a book into it. */
-			[newWindow setFrame:frame display:NO];
-		}
+		aController = [self newWindowControllerSizedLikeFront];
 		[self logRoutingEntry:entry decision:@"new-window" target:aController
 					   reason:reason path:path];
 	}
 	[aController openBookAtPath:path];
+}
+
+/* A genuinely new window, sized the way -openBookInNewWindow: and File ▸ New
+   Window both want it. v1.6.2: it inherits the front book window's size.
+   Read before -newWindowController, which registers the new controller
+   immediately and would otherwise make -frontController resolve to it
+   instead of the window this one should inherit from (see
+   -newWindowController's own comment on registration order). No inheritance
+   if the front window has no book open — e.g. the bookless window at
+   launch — which leaves this case exactly as it was: the nib default, placed
+   by cascade. */
+- (id)newWindowControllerSizedLikeFront
+{
+	id front = [self frontController];
+	BOOL inheritSize = (front != nil && [front hasBookOpen]);
+	NSSize inheritedSize = inheritSize ? [front currentWindowedSize] : NSZeroSize;
+
+	id aController = [self newWindowController];
+
+	if (inheritSize) {
+		NSWindow *newWindow = [aController window];
+		NSRect frame = [newWindow frame];
+		frame.size = inheritedSize;
+		/* display:NO — this only changes the frame the window will first
+		   draw into; it is not shown until the caller shows it or opens a
+		   book into it. */
+		[newWindow setFrame:frame display:NO];
+	}
+	return aController;
 }
 
 /* A registered window with no book in it, or nil. The front one wins, but
@@ -926,12 +975,14 @@ static NSString * const kLaunchRequestKindHelper = @"helper-url";
 
 	/* Each request is drained the way it would have been handled had the
 	   launch already settled. A Finder request goes through
-	   -openFilesPreferringFrontWindow:entry:, so a book that a restored
+	   -openFiles:preferringWindow:entry: with the front window, so a book
+	   that a restored
 	   window is already showing brings that window forward at its restored
 	   page instead of opening a second one — Step-0 decision 2, which is the
 	   whole point of the queue — and the first book that is not replaces the
-	   front restored window's book. A helper request is an explicit "new
-	   window" and still goes to -openBookInNewWindow:. After a timeout the
+	   front restored window's book. A request that arrived with ⇧ held, and
+	   a helper request, are an explicit "new window" and go to
+	   -openBookInNewWindow:. After a timeout the
 	   front window may still be loading its restored book; the gate then
 	   sends the file to a new window, and the entry name says why. */
 	if ([pendingLaunchOpenRequests count] > 0) {
@@ -943,14 +994,18 @@ static NSString * const kLaunchRequestKindHelper = @"helper-url";
 		NSDictionary *request;
 		while (request = [enu nextObject]) {
 			NSArray *paths = [request objectForKey:kLaunchRequestPathsKey];
-			if ([[request objectForKey:kLaunchRequestKindKey] isEqualToString:kLaunchRequestKindHelper]) {
+			NSString *kind = [request objectForKey:kLaunchRequestKindKey];
+			if ([kind isEqualToString:kLaunchRequestKindHelper]) {
 				NSEnumerator *pathEnu = [paths objectEnumerator];
 				NSString *path;
 				while (path = [pathEnu nextObject]) {
 					[self openBookInNewWindow:path entry:entry reason:@"helper:explicit-new-window"];
 				}
+			} else if ([kind isEqualToString:kLaunchRequestKindFinderShift]) {
+				[self openFiles:paths preferringWindow:nil
+						  entry:[entry stringByAppendingString:@"+shift"]];
 			} else {
-				[self openFilesPreferringFrontWindow:paths entry:entry];
+				[self openFiles:paths preferringWindow:[self frontController] entry:entry];
 			}
 		}
 	}

@@ -57,6 +57,70 @@
 	target = tar;
 }
 
+#pragma mark drag and drop (v1.6.5)
+/* Files dropped on the page open in this window — see -[BookWindowController
+   openDroppedPaths:]. -[BookWindowController windowDidLoad] registers the
+   file URL type. These replace NSImageView's own dragging-destination
+   methods, which would put a dropped image into the view; nothing here
+   touches the image or the render path. Only files File ▸ Open accepts get
+   the copy cursor, and drags that start inside cooViewer are declined. */
+- (NSArray *)openableDraggedPaths:(id <NSDraggingInfo>)sender
+{
+	if ([sender draggingSource] != nil) {
+		return [NSArray array];
+	}
+	NSArray *urls = [[sender draggingPasteboard]
+		readObjectsForClasses:[NSArray arrayWithObject:[NSURL class]]
+					  options:[NSDictionary dictionaryWithObject:[NSNumber numberWithBool:YES]
+														  forKey:NSPasteboardURLReadingFileURLsOnlyKey]];
+	NSMutableArray *paths = [NSMutableArray array];
+	NSEnumerator *enu = [urls objectEnumerator];
+	NSURL *url;
+	while (url = [enu nextObject]) {
+		NSString *path = [url path];
+		if (path && [BookWindowController canOpenDroppedPath:path]) {
+			[paths addObject:path];
+		}
+	}
+	return paths;
+}
+
+- (NSDragOperation)draggingEntered:(id <NSDraggingInfo>)sender
+{
+	return ([[self openableDraggedPaths:sender] count] > 0) ? NSDragOperationCopy : NSDragOperationNone;
+}
+
+- (NSDragOperation)draggingUpdated:(id <NSDraggingInfo>)sender
+{
+	return [self draggingEntered:sender];
+}
+
+- (void)draggingExited:(id <NSDraggingInfo>)sender
+{
+}
+
+- (BOOL)prepareForDragOperation:(id <NSDraggingInfo>)sender
+{
+	return ([[self openableDraggedPaths:sender] count] > 0);
+}
+
+- (BOOL)performDragOperation:(id <NSDraggingInfo>)sender
+{
+	NSArray *paths = [self openableDraggedPaths:sender];
+	if ([paths count] == 0) {
+		return NO;
+	}
+	/* After the drag session has finished: an open can run a modal session
+	   (progress sheet, password prompt, the "go to the last page?" alert),
+	   which must not happen inside the Finder's drag. */
+	[target performSelector:@selector(openDroppedPaths:) withObject:paths afterDelay:0.0];
+	return YES;
+}
+
+- (void)concludeDragOperation:(id <NSDraggingInfo>)sender
+{
+}
+
 - (void)viewDidEndLiveResize
 {
 	[super viewDidEndLiveResize];
