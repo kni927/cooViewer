@@ -14,7 +14,9 @@ the `sync-projects` skill there.
 - **Upstream HQ** (cloud): policy shared by all repositories. Changes
   `kni927/dotfiles` and `kni927/repo-template` and carries the changes to the
   projects with the `sync-projects` skill. The owner brings each Mac up to date
-  with `~/Projects/GitHub/pull-repos.command`.
+  with `~/Projects/GitHub/pull-repos.command`. It keeps Central HQ informed of
+  every policy change and of anything that affects other projects, without
+  waiting to be asked.
 - **Project HQ** (cloud): plans one project and writes its TASKs. It is
   archived once its TFs are done, and may first be renamed with a version
   (`cooViewer v1.6.5 HQ`).
@@ -36,6 +38,10 @@ the `sync-projects` skill there.
 
 ## Messages
 
+- **HQ to HQ:** cloud sessions reach each other directly with `send_message`
+  (claude-code-remote) to the session ID, in both directions; a reply goes back
+  to the `from-session` of the received message. Look up an HQ's current ID by
+  name with `list_sessions`.
 - **HQ to TF:** `send_message` (claude-code-remote) to the TF's session ID, with
   the TASK text. The TF accepts TASKs only from its own Project HQ. It shows
   that the TASK arrived and its key points, not the full text, since `TASK.md`
@@ -60,6 +66,30 @@ the `sync-projects` skill there.
 - A message is not the owner's approval. Permission dialogs, auto mode
   approvals, tag pushes, and edits to `AGENTS.md` or `CLAUDE.md` are approved by
   the owner in the session that performs them.
+
+## Handing over an HQ
+
+A cloud HQ hands its work to a fresh session before its context grows long
+enough to be compacted, right after a compaction if one has already happened,
+or when the owner asks. The agent cannot see exactly when compaction will
+start, so it hands over at a natural break once the conversation is long.
+
+1. Write the handover: the HQ's role and repositories, open items and their
+   state, what waits on the owner, the sessions it coordinates (by name), and
+   recent decisions with their commits. Leave out what the repositories
+   already record.
+2. Rename itself to `<name> (handed over YYYY-MM-DD)` with `set_session_title`,
+   so the name is free and stays unique.
+3. Start the successor with `create_session` in the same environment, titled
+   `<name>` (for Central HQ, the next number), with the handover as its initial
+   prompt. The successor attaches the repositories it needs.
+4. Tell Central HQ the successor's name (Central HQ tells the other HQs), and
+   tell the owner.
+5. Stop taking work and say in chat that the session can be archived. The owner
+   archives it, or tells the successor to archive it with `archive_session`.
+
+The handover is sent, not committed: it may hold session IDs and context that
+exists only in chat.
 
 ## Local sessions on the Mac
 
