@@ -148,6 +148,13 @@ Full procedural precedent: `docs/tasks/2026-07-26-02-release-v1.5.2.md`.
   `BuildLocationStyle = UseTargetSettings`) forces the old default of
   `SRCROOT/build`; switch Xcode ▸ Settings ▸ Locations to "Derived Data"
   if plain builds land in `build/`.
+- `cooViewer.xcodeproj/project.pbxproj` is this repository's own build
+  configuration. Editing it — build settings, version numbers, targets,
+  file references — when `TASK.md` calls for it is ordinary project work,
+  not a change to shared infrastructure. The same applies to running the
+  build command above, including build-setting overrides on the command
+  line. This does not relax the Releasing rules: pushing a tag still needs
+  the owner's explicit authorization.
 - Do not edit vendored library sources
 - Do not install local/debug builds directly into `/Applications` for
   manual testing. Use a separate test location (e.g. `~/Applications`)
