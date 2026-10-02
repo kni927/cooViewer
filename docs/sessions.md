@@ -71,8 +71,10 @@ the `sync-projects` skill there.
 
 A cloud HQ hands its work to a fresh session before its context grows long
 enough to be compacted, right after a compaction if one has already happened,
-or when the owner asks. The agent cannot see exactly when compaction will
-start, so it hands over at a natural break once the conversation is long.
+or when the owner asks. `get_session` without an ID reports the session's own
+`context_usage` (used and maximum tokens). The point at which compaction starts
+is not shown, so an HQ checks its usage at natural breaks and hands over once it
+passes half of the maximum.
 
 1. Write the handover: the HQ's role and repositories, open items and their
    state, what waits on the owner, the sessions it coordinates (by name), and
