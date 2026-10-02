@@ -1138,5 +1138,5 @@ Homebrew tap commit `eb12305`. The installed release passed Gatekeeper and
 signature checks, the restored-window Finder regression, ⇧-double-click and
 ⇧ Open With, drag and drop, File ▸ New Window, both resolution displays,
 Quick Look and thumbnails. ⇧⌘↓ in Finder opens nothing (Finder does not
-treat it as Open), although the release notes list it. See
+treat it as Open), so it was dropped from the published release notes. See
 `docs/tasks/2026-10-03-03-release-v1.6.5.md`.
