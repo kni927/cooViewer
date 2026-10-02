@@ -157,7 +157,8 @@ condition to reconsider Auto Mode allow rules; counting check errors as denials
 would argue for relaxing on false grounds. The purpose is an accurate record,
 not a smaller number. A request for a command
 that genuinely needs review is correct; a count is reduced only by fixing its
-cause, never by splitting, wrapping, or rephrasing a command to avoid review.
+cause (running an excluded command on its own, a script that belongs in the
+exclusions), never by splitting, wrapping, or rephrasing a command to avoid review.
 
 Clearly distinguish:
 - Verified automatically
