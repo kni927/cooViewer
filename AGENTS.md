@@ -1,4 +1,4 @@
-<!-- Template synced: repo-template@c19a910 on 2026-10-02. -->
+<!-- Template synced: repo-template@798c307 on 2026-10-02. -->
 # Project Instructions
 
 ## Project Origin
@@ -36,6 +36,13 @@
   active task: ask the project owner instead of inferring one.
 - Read `TASK.md` before making changes.
 - Implement only the scope requested in `TASK.md`.
+- A task may have several parts. Version number changes, tags, and releases are a
+  task of their own.
+- Before an operation that needs the owner's approval, name it in chat and get the
+  approval there, even when `TASK.md` already approves it.
+- Editing `AGENTS.md` or `CLAUDE.md` needs the owner's approval in chat naming the
+  file. If the edit is still refused, put the exact text in the report for the owner
+  to apply.
 - Do not add unrelated features or refactor unrelated code unless explicitly instructed.
 - Build the project after implementation.
 - Perform reasonable tests and verification appropriate to the task.
@@ -72,14 +79,17 @@
   (for example `.claude/worktrees/<name>` on `worktree-<name>`), commit there.
   Merge into `main` only when instructed.
 - You may create local commits without asking.
-- Complete the implementation, build, and verification before the task commit.
-  Create one commit per completed task; intermediate commits at safe checkpoints
-  are allowed for long tasks.
+- Complete the implementation, build, and verification of a part before committing it.
+  Create one commit per part; intermediate commits at safe checkpoints are allowed for
+  long parts.
 - Stage files explicitly. Do not use `git add -A` or `git add .` when unrelated changes exist.
 - Use concise English commit messages.
 - If a task cannot be fully completed, commit the completed work and clearly describe the
   remaining work in the task archive.
-- Never push, create tags or releases, or modify remote repositories unless explicitly instructed.
+- Never push or modify remote repositories unless explicitly instructed.
+- The owner creates and pushes release tags. Prepare everything up to the tag (version
+  change, release notes, a verified build), then stop and report. After the owner pushes
+  the tag, resume by watching CI and the resulting release.
 - Releases follow "Releasing" in `CLAUDE.md`, whichever agent performs them. Once the owner
   has authorized a release, updating the Homebrew tap (`kni927/homebrew-tap`) is part of it
   and needs no separate approval.
