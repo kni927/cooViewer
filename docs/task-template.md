@@ -14,6 +14,11 @@ Progress and Implementation Result are written by the agent. -->
 
 ### Out of scope
 
+### Parts
+
+<!-- Optional. List the parts in order; each part gets its own commit. -->
+
+
 ## Implementation notes
 
 ## Verification

@@ -67,7 +67,8 @@ from the repository or existing docs. Do not transcribe repository state
 Perform these steps in order:
 
 1. Finish the implementation.
-2. Build and verify.
+2. Build and verify. For a task with several parts, finish, verify, and commit
+   each part in order before moving to the next.
 3. Fill in the `Implementation Result` section of `TASK.md`.
 4. Update `docs/KNOWN_ISSUES.md`, `docs/DEV_LOG.md`, and `docs/DECISIONS.md`
    when relevant (see Documentation in `AGENTS.md`).
@@ -75,7 +76,8 @@ Perform these steps in order:
    (`git mv` if tracked; otherwise move it and `git add` the new path).
    - `YYYY-MM-DD` is the archive date in local time.
    - `NN` is a two-digit sequence number starting at `01` for each date.
-6. Create one commit containing the implementation, documentation, and archive.
+6. Commit the documentation and archive with the last part, or on their own
+   when every part is already committed.
 7. Send the Completion Report below in chat.
 
 Do not leave `TASK.md` in the repository after reporting.
@@ -135,8 +137,12 @@ buried in another item is easily missed.
 
 **Permission / Sandbox** records how the task interacted with the agent's
 permission and sandbox controls, so recurring friction can be traced to a cause.
-Write `None` if nothing below happened. Record only what the agent observed;
-approval dialogs shown to the owner are not visible to the agent and are not counted.
+Write `None` if nothing below happened. Record only what the agent observed.
+The agent cannot tell a dialog the owner approved from a call the classifier
+approved silently; when the Mac's hook log is readable, count approval dialogs
+from `~/Library/Logs/claude-permission-requests.log` (one line per dialog,
+managed by `kni927/dotfiles`) since the task started, and otherwise write
+`dialogs: unknown`.
 
 - Sandbox bypass or escalation requests (Claude Code `dangerouslyDisableSandbox`,
   Codex escalated permissions), each with the command and the sandbox failure

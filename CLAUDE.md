@@ -95,9 +95,10 @@ report — secret *names* are visible in Settings even though values are not.
 
 - A locally built and signed app is a **dry run for verification only**,
   never the release artifact. The artifact comes from the tagged CI run.
-- **Pushing the tag is the irreversible publication step.** Get explicit
-  owner authorization for both the version number and the release notes
-  before tagging.
+- **Pushing the tag is the irreversible publication step, and the owner
+  does it.** Get explicit owner authorization for both the version number
+  and the release notes, prepare everything up to the tag, then stop. Resume
+  by watching the CI run once the owner has pushed the tag.
 - If notarization fails, stop and report. Never work around Gatekeeper
   (ad-hoc signing, clearing quarantine, disabling checks) — none of these
   substitute for a passing notarization.
@@ -153,8 +154,7 @@ Full procedural precedent: `docs/tasks/2026-07-26-02-release-v1.5.2.md`.
   file references — when `TASK.md` calls for it is ordinary project work,
   not a change to shared infrastructure. The same applies to running the
   build command above, including build-setting overrides on the command
-  line. This does not relax the Releasing rules: pushing a tag still needs
-  the owner's explicit authorization.
+  line. This does not relax the Releasing rules: the owner pushes the tag.
 - Do not edit vendored library sources
 - Do not install local/debug builds directly into `/Applications` for
   manual testing. Use a separate test location (e.g. `~/Applications`)
@@ -303,6 +303,11 @@ path wasn't affected by an unrelated change.
 - Commands that must always be confirmed, even in auto mode (for example a release
   or upload script), go under `permissions.ask` in `.claude/settings.json`. Do not
   add `allow` rules there; they bypass the auto mode classifier.
+- The auto mode classifier reads the chat and `CLAUDE.md`, not `TASK.md`, so an
+  approval written only in `TASK.md` does not count. It has refused edits to
+  `CLAUDE.md` and `AGENTS.md` ("Self-Modification") that had no approval in chat,
+  and creating a release tag ("Production Deploy"); see Workflow and Git Workflow
+  in `AGENTS.md`.
 
 ## Plan Mode
 - `TASK.md` is the approved plan. Do not enter plan mode because a task touches
