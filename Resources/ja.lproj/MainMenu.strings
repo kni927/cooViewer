@@ -1365,3 +1365,18 @@
 
 /* Class = "NSButtonCell"; title = "Ignore image DPI:"; ObjectID = "uSp-vs-7XI"; */
 "uSp-vs-7XI.title" = "画像のDPIを無視する";
+
+/* Class = "NSTextFieldCell"; title = "Resolution:"; ObjectID = "RDp-Lc-001"; */
+"RDp-Lc-001.title" = "解像度:";
+
+/* Class = "NSPopUpButtonCell"; title = "In page number"; ObjectID = "RDp-PC-001"; */
+"RDp-PC-001.title" = "ページ番号内";
+
+/* Class = "NSMenuItem"; title = "Off"; ObjectID = "RDp-M0-001"; */
+"RDp-M0-001.title" = "表示しない";
+
+/* Class = "NSMenuItem"; title = "In page number"; ObjectID = "RDp-M1-001"; */
+"RDp-M1-001.title" = "ページ番号内";
+
+/* Class = "NSMenuItem"; title = "Separate bar"; ObjectID = "RDp-M2-001"; */
+"RDp-M2-001.title" = "別のバー";

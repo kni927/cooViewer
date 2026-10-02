@@ -1413,3 +1413,18 @@
 
 /* Class = "NSButtonCell"; title = "Radio"; ObjectID = "4424"; */
 "4424.title" = "Radio";
+
+/* Class = "NSTextFieldCell"; title = "Resolution:"; ObjectID = "RDp-Lc-001"; */
+"RDp-Lc-001.title" = "Resolution:";
+
+/* Class = "NSPopUpButtonCell"; title = "In page number"; ObjectID = "RDp-PC-001"; */
+"RDp-PC-001.title" = "In page number";
+
+/* Class = "NSMenuItem"; title = "Off"; ObjectID = "RDp-M0-001"; */
+"RDp-M0-001.title" = "Off";
+
+/* Class = "NSMenuItem"; title = "In page number"; ObjectID = "RDp-M1-001"; */
+"RDp-M1-001.title" = "In page number";
+
+/* Class = "NSMenuItem"; title = "Separate bar"; ObjectID = "RDp-M2-001"; */
+"RDp-M2-001.title" = "Separate bar";

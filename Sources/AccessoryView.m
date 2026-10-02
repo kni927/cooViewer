@@ -71,6 +71,7 @@ NSRect COIntRect(NSRect aRect)
 
 	[pageString release];
 	[infoString release];
+	[resolutionString release];
 
 	[super dealloc];
 }
@@ -122,10 +123,12 @@ NSRect COIntRect(NSRect aRect)
 		autoHidedPageString = NO;
 		pageString = nil;
 		infoString = nil;
-		
-		pageBarRect = NSZeroRect;	
+		resolutionString = nil;
+
+		pageBarRect = NSZeroRect;
 		pageStringRect = NSZeroRect;
 		infoStringRect = NSZeroRect;
+		resolutionStringRect = NSZeroRect;
 		pageMoverRect = NSZeroRect;
 		pageBarStringRect = NSZeroRect;
 		
@@ -284,6 +287,7 @@ NSRect COIntRect(NSRect aRect)
 		autoHidedPageString=NO;
 	}
 	[self setPageString:[pageString string]];
+	[self setResolutionString:[resolutionString string]];
 	[self display];
 }
 
@@ -313,7 +317,7 @@ NSRect COIntRect(NSRect aRect)
     
         if (autoHidedPageString) {
             autoHidedPageString = NO;
-            [self displayRect:[self pageStringRect]];
+            [self displayRect:[self pageStringsRect]];
             [self setInfoString:[infoString string]];
         }
         
@@ -624,7 +628,7 @@ NSRect COIntRect(NSRect aRect)
 		pageBarStringRect = NSZeroRect;
 	}
 	if (!autoHidedPageBar) [self setNeedsDisplayInRect:[self pageBarRect]];
-	if (!autoHidedPageString) [self setNeedsDisplayInRect:[self pageStringRect]];
+	if (!autoHidedPageString) [self setNeedsDisplayInRect:[self pageStringsRect]];
 	/*
 	if (!slideshow) {
 		[infoString release];
@@ -715,6 +719,14 @@ NSRect COIntRect(NSRect aRect)
 	} else {
 		//pageStringRect = NSZeroRect;
 	}
+	if (resolutionString && [imageView image]) {
+		if (!autoHidedPageString) {
+			resolutionStringRect = [self resolutionStringRect];
+			[resolutionString drawAtPoint:resolutionStringRect.origin bg:textBGColor border:textBorderColor];
+		} else {
+			resolutionStringRect = NSZeroRect;
+		}
+	}
 	if (infoString && [imageView image]) {
 		if (![[infoString string] isEqualToString:@""]) {
 			infoStringRect = [self infoStringRect];
@@ -741,10 +753,10 @@ NSRect COIntRect(NSRect aRect)
 -(void)setZeroInfoString
 {
 	infoStringTimer = nil;
-	NSRect oldRect=NSUnionRect(infoStringRect,pageStringRect);
+	NSRect oldRect=NSUnionRect(infoStringRect,NSUnionRect(pageStringRect,resolutionStringRect));
 	[infoString release];
 	infoString = nil;
-	[self displayRect:NSUnionRect(NSUnionRect([self infoStringRect],[self pageStringRect]),oldRect)];
+	[self displayRect:NSUnionRect(NSUnionRect([self infoStringRect],[self pageStringsRect]),oldRect)];
 }
 
 -(void)setSlideshow:(BOOL)b
@@ -752,7 +764,7 @@ NSRect COIntRect(NSRect aRect)
 	slideshow = b;
 	if (slideshow == NO) {
 		[self setInfoString:@"stop slideshow"];
-		[self displayRect:NSUnionRect([self infoStringRect],[self pageStringRect])];
+		[self displayRect:NSUnionRect([self infoStringRect],[self pageStringsRect])];
 		/*
 		NSRect temp = NSUnionRect(infoStringRect,[self pageStringRect]);
 		[infoString release];
@@ -762,7 +774,7 @@ NSRect COIntRect(NSRect aRect)
 		 */
 	} else {
 		[self setInfoString:@"start slideshow"];
-		[self displayRect:NSUnionRect([self infoStringRect],[self pageStringRect])];
+		[self displayRect:NSUnionRect([self infoStringRect],[self pageStringsRect])];
 	}
 }
 
@@ -771,7 +783,7 @@ NSRect COIntRect(NSRect aRect)
 	if (!string) {
 		return;
 	}
-	NSRect oldRect=NSUnionRect(infoStringRect,pageStringRect);
+	NSRect oldRect=NSUnionRect(infoStringRect,NSUnionRect(pageStringRect,resolutionStringRect));
 
 	/* Same create-then-release ordering as -setPageString:, for the same
 	   reason — see docs/DECISIONS.md, "MRC setters build the new value before
@@ -784,9 +796,9 @@ NSRect COIntRect(NSRect aRect)
 	[infoString release];
 	infoString = newInfoString;
 	if (NSIsEmptyRect(oldRect)) {
-		[self displayRect:NSUnionRect([self infoStringRect],[self pageStringRect])];
+		[self displayRect:NSUnionRect([self infoStringRect],[self pageStringsRect])];
 	} else {
-		[self displayRect:NSUnionRect(NSUnionRect([self infoStringRect],[self pageStringRect]),oldRect)];
+		[self displayRect:NSUnionRect(NSUnionRect([self infoStringRect],[self pageStringsRect]),oldRect)];
 	}
 }
 
@@ -839,9 +851,9 @@ NSRect COIntRect(NSRect aRect)
 		autoHidedPageString = YES;
 		[self setInfoString:[infoString string]];
 		if (NSEqualRects(updateRect,NSZeroRect)) {
-			updateRect = [self pageStringRect];
+			updateRect = [self pageStringsRect];
 		} else {
-			updateRect = NSUnionRect(updateRect,[self pageStringRect]);
+			updateRect = NSUnionRect(updateRect,[self pageStringsRect]);
 		}
 	}
 	
@@ -853,14 +865,21 @@ NSRect COIntRect(NSRect aRect)
 #pragma mark pageString
 -(void)setPageString:(NSString*)string
 {
+	/* The resolution bar is laid out after the page number, so it moves
+	   whenever the page number changes width or disappears: the old and the
+	   new resolution bar rect are invalidated with the page number's. */
+	NSRect oldResolutionRect = resolutionStringRect;
 	if (!string) {
 		[pageString release];
 		pageString = nil;
 		[self setNeedsDisplayInRect:pageStringRect];
 		pageStringRect = NSZeroRect;
+		if (!autoHidedPageString) {
+			[self setNeedsDisplayInRect:NSUnionRect([self resolutionStringRect],oldResolutionRect)];
+		}
 		return;
 	}
-	NSRect oldRect=pageStringRect;
+	NSRect oldRect=NSUnionRect(pageStringRect,oldResolutionRect);
 
 	/* Build the new value *before* releasing the old one. `string` is very
 	   often the old pageString's own -string: -[AccessoryView setPreferences]
@@ -879,9 +898,9 @@ NSRect COIntRect(NSRect aRect)
 	pageString = newPageString;
 	if (!autoHidedPageString) {
 		if (NSIsEmptyRect(oldRect)) {
-			[self setNeedsDisplayInRect:[self pageStringRect]];
+			[self setNeedsDisplayInRect:[self pageStringsRect]];
 		} else {
-			[self setNeedsDisplayInRect:NSUnionRect([self pageStringRect],oldRect)];
+			[self setNeedsDisplayInRect:NSUnionRect([self pageStringsRect],oldRect)];
 		}
 	}
 }
@@ -917,6 +936,72 @@ NSRect COIntRect(NSRect aRect)
 			break;
 	}
 	return COIntRect(rect);
+}
+
+#pragma mark resolutionString
+-(void)setResolutionString:(NSString*)string
+{
+	NSRect oldRect = resolutionStringRect;
+	/* Built before the old value is released, as in -setPageString:, because
+	   -setPreferences passes [resolutionString string]. */
+	NSAttributedString *newResolutionString = nil;
+	if (string) {
+		newResolutionString = [[NSAttributedString alloc] initWithString:string attributes:pageStringAttr];
+	}
+	[resolutionString release];
+	resolutionString = newResolutionString;
+	if (!resolutionString) {
+		resolutionStringRect = NSZeroRect;
+	}
+	if (!autoHidedPageString) {
+		[self setNeedsDisplayInRect:NSUnionRect([self resolutionStringRect],oldRect)];
+	}
+}
+
+/* The resolution bar sits in the page number's row, beside it on the side
+   away from the corner the page number is anchored to: left to right
+   [info][page number][resolution] in the left-hand positions, mirrored in
+   the right-hand ones. Being in that row, it stays clear of the page bar
+   exactly as the page number does. With no page number shown it takes the
+   page number's place. */
+-(NSRect)resolutionStringRect
+{
+	if (!resolutionString) return NSZeroRect;
+
+	NSRect contentFrame = [self frame];
+	NSRect rect = NSMakeRect(0,0,[resolutionString sizeWithBG].width,[resolutionString sizeWithBG].height);
+	rect.size.width = rect.size.width + 1;
+	rect.size.height = rect.size.height + 1;
+	float inset = [self infoStringRect].size.width;
+	if (pageString) inset += [self pageStringRect].size.width + 2;
+	switch (pageStringPosition) {
+		case 0:
+			rect.origin.x = pageMargin.x+2 +inset;
+			rect.origin.y = contentFrame.size.height-rect.size.height-pageMargin.y;
+			break;
+		case 1:
+			rect.origin.x = contentFrame.size.width-rect.size.width-pageMargin.x-2 -inset;
+			rect.origin.y = contentFrame.size.height-rect.size.height-pageMargin.y;
+			break;
+		case 2:
+			rect.origin.x = pageMargin.x+2 +inset;
+			rect.origin.y = 17+pageMargin.y+2;
+			break;
+		case 3:
+			rect.origin.x = contentFrame.size.width-rect.size.width-pageMargin.x-2 -inset;
+			rect.origin.y = 17+pageMargin.y+2;
+			break;
+		default:
+			break;
+	}
+	return COIntRect(rect);
+}
+
+/* The page number and the resolution bar together, for the redraws that
+   show, hide or move both. */
+-(NSRect)pageStringsRect
+{
+	return NSUnionRect([self pageStringRect],[self resolutionStringRect]);
 }
 
 #pragma mark pageBar

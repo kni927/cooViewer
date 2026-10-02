@@ -949,7 +949,7 @@ go to the last page always.</string>
                                                         </connections>
                                                     </popUpButton>
                                                     <button fixedFrame="YES" translatesAutoresizingMaskIntoConstraints="NO" id="2798">
-                                                        <rect key="frame" x="70" y="90" width="160" height="18"/>
+                                                        <rect key="frame" x="70" y="90" width="104" height="18"/>
                                                         <autoresizingMask key="autoresizingMask"/>
                                                         <buttonCell key="cell" type="check" title="Auto hide" bezelStyle="regularSquare" imagePosition="left" alignment="left" inset="2" id="4408">
                                                             <behavior key="behavior" changeContents="YES" doesNotDimImage="YES" lightByContents="YES"/>
@@ -986,14 +986,30 @@ go to the last page always.</string>
                                                             <font key="font" metaFont="system"/>
                                                         </buttonCell>
                                                     </button>
-                                                    <button fixedFrame="YES" translatesAutoresizingMaskIntoConstraints="NO" id="5001">
-                                                        <rect key="frame" x="240" y="90" width="120" height="18"/>
+                                                    <textField verticalHuggingPriority="750" horizontalCompressionResistancePriority="250" fixedFrame="YES" translatesAutoresizingMaskIntoConstraints="NO" id="RDp-Lb-001">
+                                                        <rect key="frame" x="176" y="91" width="76" height="17"/>
                                                         <autoresizingMask key="autoresizingMask"/>
-                                                        <buttonCell key="cell" type="check" title="Resolution" bezelStyle="regularSquare" imagePosition="left" alignment="left" inset="2" id="5002">
-                                                            <behavior key="behavior" changeContents="YES" doesNotDimImage="YES" lightByContents="YES"/>
+                                                        <textFieldCell key="cell" sendsActionOnEndEditing="YES" alignment="right" title="Resolution:" id="RDp-Lc-001">
                                                             <font key="font" metaFont="system"/>
-                                                        </buttonCell>
-                                                    </button>
+                                                            <color key="textColor" name="controlTextColor" catalog="System" colorSpace="catalog"/>
+                                                            <color key="backgroundColor" name="controlColor" catalog="System" colorSpace="catalog"/>
+                                                        </textFieldCell>
+                                                    </textField>
+                                                    <popUpButton verticalHuggingPriority="750" fixedFrame="YES" translatesAutoresizingMaskIntoConstraints="NO" id="RDp-PU-001">
+                                                        <rect key="frame" x="254" y="87" width="146" height="22"/>
+                                                        <autoresizingMask key="autoresizingMask"/>
+                                                        <popUpButtonCell key="cell" type="push" title="In page number" bezelStyle="rounded" alignment="left" controlSize="small" lineBreakMode="truncatingTail" state="on" borderStyle="borderAndBezel" tag="1" inset="2" arrowPosition="arrowAtCenter" preferredEdge="maxY" selectedItem="RDp-M1-001" id="RDp-PC-001">
+                                                            <behavior key="behavior" lightByBackground="YES" lightByGray="YES"/>
+                                                            <font key="font" metaFont="smallSystem"/>
+                                                            <menu key="menu" title="OtherViews" id="RDp-Mn-001">
+                                                                <items>
+                                                                    <menuItem title="Off" id="RDp-M0-001"/>
+                                                                    <menuItem title="In page number" state="on" tag="1" id="RDp-M1-001"/>
+                                                                    <menuItem title="Separate bar" tag="2" id="RDp-M2-001"/>
+                                                                </items>
+                                                            </menu>
+                                                        </popUpButtonCell>
+                                                    </popUpButton>
                                                     <button verticalHuggingPriority="750" fixedFrame="YES" translatesAutoresizingMaskIntoConstraints="NO" id="2861">
                                                         <rect key="frame" x="7" y="60" width="100" height="28"/>
                                                         <autoresizingMask key="autoresizingMask"/>
@@ -2396,7 +2412,7 @@ Gw
                 <outlet property="rememberBookSettingsCheck" destination="2850" id="2851"/>
                 <outlet property="showPageBarCheck" destination="2838" id="2841"/>
                 <outlet property="showPageNumCheck" destination="2839" id="2840"/>
-                <outlet property="showResolutionCheck" destination="5001" id="5003"/>
+                <outlet property="resolutionDisplayPopUp" destination="RDp-PU-001" id="RDp-Ou-001"/>
                 <outlet property="showThumbnailCheck" destination="2105" id="2107"/>
                 <outlet property="singleSettingTextField" destination="1064" id="1686"/>
                 <outlet property="slideshowSlider" destination="473" id="1713"/>

@@ -2,6 +2,16 @@
 
 #import <Cocoa/Cocoa.h>
 
+/* Values of the ResolutionDisplay preference: where the pixel dimensions of
+   the shown page(s) appear. It replaced the ShowResolution checkbox, which is
+   now read only by the one-time migration in +[BookWindowController
+   initialize]. The values are also the item tags of the Preferences pop-up. */
+enum {
+	COResolutionDisplayOff = 0,
+	COResolutionDisplayInPageNumber = 1,
+	COResolutionDisplaySeparateBar = 2
+};
+
 @interface PreferenceController : NSObject
 {	
 	int editedInputIndex;
@@ -94,7 +104,7 @@
 	
     IBOutlet id showPageNumCheck;
     IBOutlet id showPageBarCheck;
-    IBOutlet id showResolutionCheck;
+    IBOutlet id resolutionDisplayPopUp;
 	
     IBOutlet id accessorySettingPanel;
     IBOutlet id accessorySettingView;

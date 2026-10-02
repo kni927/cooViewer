@@ -991,10 +991,8 @@ static const int DIALOG_CANCEL	= 129;
 	} else {
 		[showPageBarCheck setState:NSOffState];
 	}
-	if ([defaults boolForKey:@"ShowResolution"]) {
-		[showResolutionCheck setState:NSOnState];
-	} else {
-		[showResolutionCheck setState:NSOffState];
+	if (![resolutionDisplayPopUp selectItemWithTag:[defaults integerForKey:@"ResolutionDisplay"]]) {
+		[resolutionDisplayPopUp selectItemWithTag:COResolutionDisplayInPageNumber];
 	}
 	
 	if ([defaults boolForKey:@"PageNumAutoHide"]) {
@@ -1469,7 +1467,7 @@ static const int DIALOG_CANCEL	= 129;
 		} else {
 			[defaults setBool:NO forKey:@"ShowNumber"];
 		}
-		[defaults setBool:([showResolutionCheck state]==NSOnState) forKey:@"ShowResolution"];	
+		[defaults setInteger:[resolutionDisplayPopUp selectedTag] forKey:@"ResolutionDisplay"];
 		/*pageBar*/
 		//NSDictionary *pageBarDic;
 		[defaults setInteger:[accessorySettingView pageBarPosition] forKey:@"PageBarPosition"];

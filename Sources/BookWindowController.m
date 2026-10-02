@@ -44,7 +44,22 @@
 
 	[appDefault setObject:[NSNumber numberWithBool:YES] forKey:@"ShowPageBar"];
 	[appDefault setObject:[NSNumber numberWithBool:YES] forKey:@"ShowNumber"];
-	[appDefault setObject:[NSNumber numberWithBool:YES] forKey:@"ShowResolution"];
+
+	/* ResolutionDisplay replaced the ShowResolution checkbox. A profile that
+	   has no ResolutionDisplay yet keeps what it showed: ShowResolution NO →
+	   Off, YES → In page number. ShowResolution is read here and nowhere
+	   else, and is no longer registered, so the check sees only a value the
+	   user's profile actually holds; without one, the registered default
+	   (In page number) applies, as ShowResolution's registered YES did. Done
+	   before -registerDefaults: so that default cannot mask an absent key. */
+	if (![defaults objectForKey:@"ResolutionDisplay"]) {
+		id showResolution = [defaults objectForKey:@"ShowResolution"];
+		if (showResolution) {
+			[defaults setInteger:([showResolution boolValue] ? COResolutionDisplayInPageNumber : COResolutionDisplayOff)
+						  forKey:@"ResolutionDisplay"];
+		}
+	}
+	[appDefault setObject:[NSNumber numberWithInt:COResolutionDisplayInPageNumber] forKey:@"ResolutionDisplay"];
 
 	[appDefault setObject:[NSNumber numberWithInt:10] forKey:@"OpenRecentLimit"];
 
@@ -415,7 +430,7 @@ static NSPoint gNextWindowCascadePoint;
 	}
 	
 	numberSwitch = [defaults boolForKey:@"ShowNumber"];
-	resolutionSwitch = [defaults boolForKey:@"ShowResolution"];
+	resolutionDisplay = (int)[defaults integerForKey:@"ResolutionDisplay"];
 	maxEnlargement = (int)[defaults integerForKey:@"MaxEnlargement"];
 	
 	
@@ -1437,6 +1452,7 @@ static NSString * const kBookViewModeKey = @"cooViewerBookViewMode";
 	
 
 	[imageView setPageString:nil];
+	[imageView setResolutionString:nil];
 	[[self window] setTitle:currentBookName];
 	
 	[bookmarkArray removeAllObjects];
@@ -2285,8 +2301,8 @@ static NSString * const kBookViewModeKey = @"cooViewerBookViewMode";
 			
 			
 			nowPage++;
-			[self setPageTextField];
 			firstImage = [[imageMutableArray objectAtIndex:0] retain];
+			[self setPageTextField];
 			[imageView setImage:firstImage];
 			//[imageView setImage:[imageMutableArray objectAtIndex:0]];
 			[imageMutableArray removeObjectAtIndex:0];
@@ -2317,16 +2333,16 @@ static NSString * const kBookViewModeKey = @"cooViewerBookViewMode";
 						[imageMutableArray removeObjectsInRange:NSMakeRange(0,2)];
 					} else {
 						nowPage++;
-						[self setPageTextField];
 						firstImage = [[imageMutableArray objectAtIndex:0] retain];
+						[self setPageTextField];
 						[imageView setImage:firstImage];
 						//[imageView setImage:[imageMutableArray objectAtIndex:0]];
 						[imageMutableArray removeObjectAtIndex:0];
 					}
 				} else {
 					nowPage++;
-					[self setPageTextField];
 					firstImage = [[imageMutableArray objectAtIndex:0] retain];
+					[self setPageTextField];
 					[imageView setImage:firstImage];
 					//[imageView setImage:[imageMutableArray objectAtIndex:0]];
 					[imageMutableArray removeObjectAtIndex:0];
@@ -2334,8 +2350,8 @@ static NSString * const kBookViewModeKey = @"cooViewerBookViewMode";
 				}
 			} else {
 				nowPage++;
-				[self setPageTextField];
 				firstImage = [[imageMutableArray objectAtIndex:0] retain];
+				[self setPageTextField];
 				[imageView setImage:firstImage];
 				//[imageView setImage:[imageMutableArray objectAtIndex:0]];
 				[imageMutableArray removeObjectAtIndex:0];
@@ -2539,15 +2555,11 @@ static NSString * const kBookViewModeKey = @"cooViewerBookViewMode";
 	
 	pageBar = [defaults boolForKey:@"ShowPageBar"];
 	BOOL newNumberSwitch = [defaults boolForKey:@"ShowNumber"];
-	BOOL newResolutionSwitch = [defaults boolForKey:@"ShowResolution"];
-	if (numberSwitch != newNumberSwitch || resolutionSwitch != newResolutionSwitch) {
+	int newResolutionDisplay = (int)[defaults integerForKey:@"ResolutionDisplay"];
+	if (numberSwitch != newNumberSwitch || resolutionDisplay != newResolutionDisplay) {
 		numberSwitch = newNumberSwitch;
-		resolutionSwitch = newResolutionSwitch;
-		if (!numberSwitch) {
-			[imageView setPageString:nil];
-		} else {
-			[self setPageTextField];
-		}
+		resolutionDisplay = newResolutionDisplay;
+		[self setPageTextField];
 	}
 	
 	[imageView setPreferences];
@@ -3097,42 +3109,87 @@ static const NSInteger kBookmarkMenuFixedItemCount = 3;
 		[imageView setSlideshow:NO];
 	}*/
 	[imageView setPageString:[self pageTextFieldString]];
+	[imageView setResolutionString:[self resolutionBarString]];
 }
 
+/* Pixel dimensions from the image's representations, not -[NSImage size],
+   which is in points and depends on the file's DPI (KNOWN_ISSUES #6). nil
+   when no representation reports them. */
 - (NSString*)pixelSizeStringForImage:(NSImage*)image
 {
-	if (!image || !resolutionSwitch) return @"";
+	if (!image) return nil;
 	NSArray *reps = [image representations];
 	for (NSImageRep *rep in reps) {
 		NSInteger w = [rep pixelsWide];
 		NSInteger h = [rep pixelsHigh];
 		if (w > 0 && h > 0) {
-			return [NSString stringWithFormat:@" %ldx%ld", (long)w, (long)h];
-		}
-	}
-	return @"";
-}
-
-- (NSString*)pageTextFieldString
-{
-	if (numberSwitch && nowPage > 0) {
-		if (!secondImage) {
-			int i = nowPage - 1;
-			NSString *res = [self pixelSizeStringForImage:firstImage];
-			return [NSString stringWithFormat:@"#%d/%d (%@)%@",nowPage,(int)[completeMutableArray count],[[completeMutableArray objectAtIndex:i] lastPathComponent],res];
-		} else if (secondImage) {
-			int i = nowPage - 1;
-			int iS = i - 1;
-			NSString *res1 = [self pixelSizeStringForImage:firstImage];
-			NSString *res2 = [self pixelSizeStringForImage:secondImage];
-			if (readMode == 1 || readMode == 3) {
-				return [NSString stringWithFormat:@"#%d-%d/%d (%@%@ | %@%@)",i,nowPage,(int)[completeMutableArray count],[[completeMutableArray objectAtIndex:iS] lastPathComponent],res1,[[completeMutableArray objectAtIndex:i] lastPathComponent],res2];
-			} else {
-				return [NSString stringWithFormat:@"#%d-%d/%d (%@%@ | %@%@)",i,nowPage,(int)[completeMutableArray count],[[completeMutableArray objectAtIndex:i] lastPathComponent],res2,[[completeMutableArray objectAtIndex:iS] lastPathComponent],res1];
-			}
+			return [NSString stringWithFormat:@"%ldx%ld", (long)w, (long)h];
 		}
 	}
 	return nil;
+}
+
+/* The one formatter behind both bars. Each shown page becomes one entry —
+   file name, dimensions, or both — and a spread joins its two entries with
+   " | " in screen order (left page first), which depends on readMode
+   (KNOWN_ISSUES #3). firstImage is always the earlier page (index nowPage-2
+   on a spread, nowPage-1 alone), so callers must have assigned it before
+   asking. With withNumber the result carries the "#page/count" prefix and
+   the entries in parentheses; without it, only the dimensions. nil when no
+   page is shown, or when there is nothing to show. */
+- (NSString*)pageStringWithNumber:(BOOL)withNumber resolution:(BOOL)withResolution
+{
+	int count = (int)[completeMutableArray count];
+	if (nowPage <= 0 || nowPage > count || !firstImage) return nil;
+	if (secondImage && nowPage < 2) return nil;
+
+	NSMutableArray *pages = [NSMutableArray array];	/* (index, image) pairs, left to right */
+	if (!secondImage) {
+		[pages addObject:[NSArray arrayWithObjects:[NSNumber numberWithInt:nowPage-1], firstImage, nil]];
+	} else {
+		NSArray *earlier = [NSArray arrayWithObjects:[NSNumber numberWithInt:nowPage-2], firstImage, nil];
+		NSArray *later = [NSArray arrayWithObjects:[NSNumber numberWithInt:nowPage-1], secondImage, nil];
+		if (readMode == 1 || readMode == 3) {
+			[pages addObject:earlier];
+			[pages addObject:later];
+		} else {
+			[pages addObject:later];
+			[pages addObject:earlier];
+		}
+	}
+
+	NSMutableArray *entries = [NSMutableArray array];
+	for (NSArray *page in pages) {
+		NSString *size = withResolution ? [self pixelSizeStringForImage:[page objectAtIndex:1]] : nil;
+		if (withNumber) {
+			NSString *name = [[completeMutableArray objectAtIndex:[[page objectAtIndex:0] intValue]] lastPathComponent];
+			[entries addObject:(size ? [NSString stringWithFormat:@"%@ %@", name, size] : name)];
+		} else if (size) {
+			[entries addObject:size];
+		}
+	}
+	if ([entries count] == 0) return nil;
+	NSString *joined = [entries componentsJoinedByString:@" | "];
+	if (!withNumber) return joined;
+
+	if (secondImage) {
+		return [NSString stringWithFormat:@"#%d-%d/%d (%@)", nowPage-1, nowPage, count, joined];
+	}
+	return [NSString stringWithFormat:@"#%d/%d (%@)", nowPage, count, joined];
+}
+
+/* The page-number bar. */
+- (NSString*)pageTextFieldString
+{
+	if (!numberSwitch) return nil;
+	return [self pageStringWithNumber:YES resolution:(resolutionDisplay == COResolutionDisplayInPageNumber)];
+}
+
+/* The separate resolution bar: dimensions only, independent of ShowNumber. */
+- (NSString*)resolutionBarString
+{
+	if (resolutionDisplay != COResolutionDisplaySeparateBar) return nil;
+	return [self pageStringWithNumber:NO resolution:YES];
 }
 
 
@@ -3496,6 +3553,7 @@ static const NSInteger kBookmarkMenuFixedItemCount = 3;
 
 
 		[imageView setPageString:nil];
+		[imageView setResolutionString:nil];
 		[NSCursor setHiddenUntilMouseMoves:NO];
 		[imageView setImage:nil];
 		[firstImage release];

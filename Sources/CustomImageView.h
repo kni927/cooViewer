@@ -111,6 +111,7 @@
 
 -(void)setPageString:(NSString*)string;
 -(NSString*)pageString;
+-(void)setResolutionString:(NSString*)string;
 
 -(void)drawPageBar;
 -(void)setSlideshow:(BOOL)b;

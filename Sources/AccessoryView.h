@@ -63,6 +63,10 @@
 	BOOL autoHidedPageString;
 	NSAttributedString *pageString;
 	NSAttributedString *infoString;
+	/* The separate resolution bar (ResolutionDisplay = Separate bar). Drawn
+	   with the page number's attributes and shown and auto-hidden with it. */
+	NSAttributedString *resolutionString;
+	NSRect resolutionStringRect;
 	
 	int tempPageNum;
 	int pageStringPosition;
@@ -82,6 +86,9 @@ NSRect COIntRect(NSRect aRect);
 -(void)setPageString:(NSString*)string;
 -(NSString*)pageString;
 -(NSRect)pageStringRect;
+
+-(void)setResolutionString:(NSString*)string;
+-(NSRect)resolutionStringRect;
 
 -(void)drawPageBarBubble;
 -(void)drawPageBar;

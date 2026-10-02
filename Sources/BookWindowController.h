@@ -132,7 +132,7 @@
 	BOOL timerSwitch;
 	//BOOL loopSwitch;
 	BOOL numberSwitch;
-	BOOL resolutionSwitch;
+	int resolutionDisplay;	/* ResolutionDisplay, a COResolutionDisplay* value */
 	BOOL fitMode;
 	
 	
@@ -431,6 +431,7 @@
 
 - (void)setPageTextField;
 - (NSString*)pageTextFieldString;
+- (NSString*)resolutionBarString;
 - (IBAction)changeReadModeMenu:(id)sender;
 - (IBAction)changeSortModeMenu:(id)sender;
 - (void)goBookmark:(id)sender;
