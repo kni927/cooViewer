@@ -51,6 +51,12 @@ static const CFAbsoluteTime kLaunchDrainTimeout = 3.0;
 /* How often -settleLaunch re-checks while it is still waiting. */
 static const NSTimeInterval kLaunchDrainPollInterval = 0.05;
 
+/* Keys and kinds of a pendingLaunchOpenRequests entry (see AppController.h). */
+static NSString * const kLaunchRequestPathsKey = @"paths";
+static NSString * const kLaunchRequestKindKey = @"kind";
+static NSString * const kLaunchRequestKindFinder = @"finder-openFiles";
+static NSString * const kLaunchRequestKindHelper = @"helper-url";
+
 /* Same timing as before MW-3: BookWindowController's own -awakeFromNib called
    -setupRemoteControl as its last step, during nib load rather than at
    applicationDidFinishLaunching: time. AppController is a nib object too
@@ -69,7 +75,7 @@ static const NSTimeInterval kLaunchDrainPollInterval = 0.05;
 	/* KNOWN_ISSUES #32: created here because this runs during the MainMenu.xib
 	   load, which is before both the restoration pass and the launch's
 	   -application:openFiles:. */
-	pendingLaunchOpenPaths = [[NSMutableArray alloc] init];
+	pendingLaunchOpenRequests = [[NSMutableArray alloc] init];
 	launchDrainDeadline = CFAbsoluteTimeGetCurrent() + kLaunchDrainTimeout;
 
 	/* MW-8: the backstop that ends any restoration a window never got a
@@ -89,7 +95,7 @@ static const NSTimeInterval kLaunchDrainPollInterval = 0.05;
 	[NSObject cancelPreviousPerformRequestsWithTarget:self
 											 selector:@selector(settleLaunch)
 											   object:nil];
-	[pendingLaunchOpenPaths release];
+	[pendingLaunchOpenRequests release];
 	[launchNotification release];
 	[windowControllers release];
 	[super dealloc];
@@ -235,7 +241,8 @@ static const NSTimeInterval kLaunchDrainPollInterval = 0.05;
    otherwise-unhandled file gets this treatment per call, since the front
    window can only hold one book — every file after it, and everything when
    no book window exists yet, still goes through -openBookInNewWindow:
-   unchanged (dedup, empty-window reuse, or a new cascaded window).
+   unchanged (dedup, empty-window reuse, or a new cascaded window). The rule
+   itself lives in -openFilesPreferringFrontWindow:entry:, below.
 
    AppKit prefers this over -application:openFile: when both exist, so the
    singular one is gone rather than left as an unreachable second path.
@@ -245,12 +252,15 @@ static const NSTimeInterval kLaunchDrainPollInterval = 0.05;
    the launch a window being restored has decoded its book but not opened it
    yet — so acting now would find nothing to de-duplicate against and open a
    second window on a book that is already coming back. -settleLaunch drains
-   the queue through this same -openBookInNewWindow: once every restored
-   window has its book — the front-window-replace behavior below does not
-   apply to the drain, matching Step-0 decision 2's existing comment on
-   -openBookInNewWindow: (an explicit request for a book a restored window
-   is already showing brings that window forward, never doubles it). Once
-   the launch has settled this method is unchanged: immediate, no queue. */
+   the queue once every restored window has its book, through the same
+   -openFilesPreferringFrontWindow:entry: this method uses afterwards: a book
+   a restored window is already showing brings that window forward (Step-0
+   decision 2), and the first book that is not replaces the front restored
+   window's book, exactly as it would in a running app. Before 2026-10-02
+   the drain went through -openBookInNewWindow: only, so every
+   Finder-launched session with restored windows gained a window. Each call
+   is queued as one request, so "first file of the call" means the same
+   thing in the drain as it does here. */
 - (void)application:(NSApplication *)sender openFiles:(NSArray *)filenames
 {
 	if (!launchSettled) {
@@ -260,7 +270,9 @@ static const NSTimeInterval kLaunchDrainPollInterval = 0.05;
 			[self logRoutingEntry:@"finder-openFiles" decision:@"queued" target:nil
 						   reason:@"launch-not-settled" path:queued];
 		}
-		[pendingLaunchOpenPaths addObjectsFromArray:filenames];
+		[pendingLaunchOpenRequests addObject:[NSDictionary dictionaryWithObjectsAndKeys:
+			[[filenames copy] autorelease], kLaunchRequestPathsKey,
+			kLaunchRequestKindFinder, kLaunchRequestKindKey, nil]];
 		/* Reply now: the files *will* be opened, and holding the reply until
 		   the drain would leave the Finder waiting on a run-loop pass that
 		   -openPage:last: can turn into a much longer one. */
@@ -269,14 +281,20 @@ static const NSTimeInterval kLaunchDrainPollInterval = 0.05;
 		return;
 	}
 
-	/* Only the first file in this call gets to replace the front window —
-	   every file after it finds that slot already taken and falls through to
-	   -openBookInNewWindow: like today. The dedup lookup below is a read-only
-	   query (already shared with -openBookInNewWindow: and the bookmark
-	   browsers), not a second copy of that method's own logic: it decides
-	   whether *this* file is a front-window-replace candidate, and
-	   -openBookInNewWindow: still runs its own copy of the same check for
-	   every file this loop does route to it, unchanged. */
+	[self openFilesPreferringFrontWindow:filenames entry:@"finder-openFiles"];
+	[sender replyToOpenOrPrint:NSApplicationDelegateReplySuccess];
+}
+
+/* Only the first file in this call gets to replace the front window —
+   every file after it finds that slot already taken and falls through to
+   -openBookInNewWindow: like today. The dedup lookup below is a read-only
+   query (already shared with -openBookInNewWindow: and the bookmark
+   browsers), not a second copy of that method's own logic: it decides
+   whether *this* file is a front-window-replace candidate, and
+   -openBookInNewWindow: still runs its own copy of the same check for
+   every file this loop does route to it, unchanged. */
+- (void)openFilesPreferringFrontWindow:(NSArray *)filenames entry:(NSString *)entry
+{
 	BOOL frontWindowReplaced = NO;
 	NSEnumerator *enu = [filenames objectEnumerator];
 	NSString *filename;
@@ -294,7 +312,7 @@ static const NSTimeInterval kLaunchDrainPollInterval = 0.05;
 			&& ![self windowControllerShowingBook:resolved]) {
 			/* Logged before the load: the window count does not change here,
 			   and a line written first survives a load that never returns. */
-			[self logRoutingEntry:@"finder-openFiles" decision:@"replace-front" target:front
+			[self logRoutingEntry:entry decision:@"replace-front" target:front
 						   reason:[self routingNearMatchReason:@"front-ok" bookPath:resolved]
 							 path:filename];
 			[front openBookAtPath:filename];
@@ -314,16 +332,16 @@ static const NSTimeInterval kLaunchDrainPollInterval = 0.05;
 		} else {
 			gateReason = @"gate:already-open";
 		}
-		[self openBookInNewWindow:filename entry:@"finder-openFiles" reason:gateReason];
+		[self openBookInNewWindow:filename entry:entry reason:gateReason];
 	}
-	[sender replyToOpenOrPrint:NSApplicationDelegateReplySuccess];
 }
 
 /* The bundled Finder helper forwards only this private Apple Event URL. Keep
    it separate from -application:openFiles: so it can never enter the ordinary
    Finder-open front-window replacement gate. During launch it shares the
-   existing restoration-aware queue; once settled it takes exactly the same
-   semantic path as File ▸ Open in New Window. */
+   existing restoration-aware queue, tagged as a helper request so the drain
+   still sends it to -openBookInNewWindow:; once settled it takes exactly the
+   same semantic path as File ▸ Open in New Window. */
 - (void)handleGetURLEvent:(NSAppleEventDescriptor *)event
            withReplyEvent:(NSAppleEventDescriptor *)replyEvent
 {
@@ -344,7 +362,9 @@ static const NSTimeInterval kLaunchDrainPollInterval = 0.05;
 	if (!launchSettled) {
 		[self logRoutingEntry:@"helper-url" decision:@"queued" target:nil
 					   reason:@"launch-not-settled" path:path];
-		[pendingLaunchOpenPaths addObject:path];
+		[pendingLaunchOpenRequests addObject:[NSDictionary dictionaryWithObjectsAndKeys:
+			[NSArray arrayWithObject:path], kLaunchRequestPathsKey,
+			kLaunchRequestKindHelper, kLaunchRequestKindKey, nil]];
 		[self performSelector:@selector(settleLaunch) withObject:nil afterDelay:0.0];
 	} else {
 		[self openBookInNewWindow:path entry:@"helper-url" reason:@"explicit-new-window"];
@@ -882,6 +902,7 @@ static const NSTimeInterval kLaunchDrainPollInterval = 0.05;
 		launchDrainDeadline = CFAbsoluteTimeGetCurrent() + kLaunchDrainTimeout;
 	}
 
+	BOOL timedOut = NO;
 	if (CFAbsoluteTimeGetCurrent() < launchDrainDeadline) {
 		BOOL waiting = !launchDidFinish;
 		NSEnumerator *enu = [windowControllers objectEnumerator];
@@ -895,25 +916,42 @@ static const NSTimeInterval kLaunchDrainPollInterval = 0.05;
 					   afterDelay:kLaunchDrainPollInterval];
 			return;
 		}
-	} else if ([pendingLaunchOpenPaths count] > 0) {
+	} else if ([pendingLaunchOpenRequests count] > 0) {
 		NSLog(@"cooViewer: window restoration did not finish in time; "
 			  @"opening the requested book(s) anyway");
+		timedOut = YES;
 	}
 
 	launchSettled = YES;
 
-	/* Drained through -openBookInNewWindow:, so an explicit request for a book
-	   that a restored window is already showing brings that window forward at
-	   its restored page instead of opening a second one — Step-0 decision 2,
-	   which is the whole point of the queue. */
-	if ([pendingLaunchOpenPaths count] > 0) {
+	/* Each request is drained the way it would have been handled had the
+	   launch already settled. A Finder request goes through
+	   -openFilesPreferringFrontWindow:entry:, so a book that a restored
+	   window is already showing brings that window forward at its restored
+	   page instead of opening a second one — Step-0 decision 2, which is the
+	   whole point of the queue — and the first book that is not replaces the
+	   front restored window's book. A helper request is an explicit "new
+	   window" and still goes to -openBookInNewWindow:. After a timeout the
+	   front window may still be loading its restored book; the gate then
+	   sends the file to a new window, and the entry name says why. */
+	if ([pendingLaunchOpenRequests count] > 0) {
 		launchOpenRequestServiced = YES;
-		NSArray *paths = [[pendingLaunchOpenPaths copy] autorelease];
-		[pendingLaunchOpenPaths removeAllObjects];
-		NSEnumerator *enu = [paths objectEnumerator];
-		NSString *path;
-		while (path = [enu nextObject]) {
-			[self openBookInNewWindow:path entry:@"launch-drain" reason:@"queued-at-launch"];
+		NSString *entry = timedOut ? @"launch-drain/restore-timeout" : @"launch-drain";
+		NSArray *requests = [[pendingLaunchOpenRequests copy] autorelease];
+		[pendingLaunchOpenRequests removeAllObjects];
+		NSEnumerator *enu = [requests objectEnumerator];
+		NSDictionary *request;
+		while (request = [enu nextObject]) {
+			NSArray *paths = [request objectForKey:kLaunchRequestPathsKey];
+			if ([[request objectForKey:kLaunchRequestKindKey] isEqualToString:kLaunchRequestKindHelper]) {
+				NSEnumerator *pathEnu = [paths objectEnumerator];
+				NSString *path;
+				while (path = [pathEnu nextObject]) {
+					[self openBookInNewWindow:path entry:entry reason:@"helper:explicit-new-window"];
+				}
+			} else {
+				[self openFilesPreferringFrontWindow:paths entry:entry];
+			}
 		}
 	}
 

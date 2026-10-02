@@ -58,13 +58,17 @@ extern NSString * const CooViewerBookWindowRestorationIdentifier;
 	   Counted in +restoreWindowWithIdentifier:state:completionHandler:. */
 	int restoredWindowCount;
 
-	/* KNOWN_ISSUES #32. Finder open requests that arrive while restoration is
-	   still in flight are held here instead of being acted on, then drained
-	   through -openBookInNewWindow: once every restored window has its book —
-	   at which point de-duplication can actually see those books. Empty and
-	   unused once the launch has settled: after that, -application:openFiles:
-	   takes the immediate path it always did. */
-	NSMutableArray *pendingLaunchOpenPaths;
+	/* KNOWN_ISSUES #32. Open requests that arrive while restoration is still
+	   in flight are held here instead of being acted on, then drained once
+	   every restored window has its book — at which point de-duplication can
+	   actually see those books. One entry per request, in arrival order: a
+	   dictionary whose kLaunchRequestPathsKey is the request's paths and whose
+	   kLaunchRequestKindKey says whether it came from -application:openFiles:
+	   (drained through -openFilesPreferringFrontWindow:entry:, the same rule a
+	   running app applies) or from the new-window helper (drained through
+	   -openBookInNewWindow:entry:reason:). Empty and unused once the launch has
+	   settled. */
+	NSMutableArray *pendingLaunchOpenRequests;
 
 	/* NO until the launch's restoration has finished (or the drain deadline
 	   has passed). While NO, -application:openFiles: queues; once YES it never
@@ -164,6 +168,13 @@ extern NSString * const CooViewerBookWindowRestorationIdentifier;
    test is on the *resolved* book path (Step-0 decision 2). `entry` and
    `reason` only label the WindowRouting log line for this request. */
 - (void)openBookInNewWindow:(NSString *)path entry:(NSString *)entry reason:(NSString *)reason;
+/* The Finder-open rule, in its one place: per file, de-duplicate first; the
+   first file that is not already open replaces the front window's book when
+   that window has one and is not mid-load; every other file goes to
+   -openBookInNewWindow:entry:reason:. Used by -application:openFiles: once
+   the launch has settled and by -settleLaunch's drain. `entry` labels the
+   WindowRouting log lines. */
+- (void)openFilesPreferringFrontWindow:(NSArray *)filenames entry:(NSString *)entry;
 /* The window showing that book, or nil. `bookPath` must already be resolved
    (+[BookWindowController resolvedBookPath:]) — this is the "already open"
    test itself, not the whole open. Declared for the All Bookmark browser,

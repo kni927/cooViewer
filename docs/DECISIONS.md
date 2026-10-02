@@ -1516,3 +1516,41 @@ configuration, so the next real occurrence can be diagnosed after the fact.
 The volume is a few lines per user-initiated open, and private redaction keeps
 file names out of logs and bug reports. See
 `docs/tasks/2026-10-02-01-window-routing-diagnostics.md`.
+
+## The launch drain applies the running-app Finder rule (2026-10-02)
+
+**Decision:** A Finder request held during launch (`KNOWN_ISSUES` #32) is
+drained through `-[AppController openFilesPreferringFrontWindow:entry:]`, the
+same method `-application:openFiles:` uses once the launch has settled:
+de-duplicate first (a restored window already showing the book is brought
+forward at its restored page), then the first not-already-open file of each
+request replaces the front window's book, and every other file goes to
+`-openBookInNewWindow:`. Requests from the new-window helper are tagged in the
+queue and still always go to `-openBookInNewWindow:`. This supersedes part 2 of
+"Launch-time Finder opens wait for restoration…" (2026-07-30), which drained
+everything through `-openBookInNewWindow:`; the hold itself, the restored
+window winning, the bounded poll and the `OpenLastFolder` precedence are
+unchanged.
+
+**Why:** Owner decision after reproducing the extra-window report on v1.6.3:
+with "Close windows when quitting an application" off, every Finder-launched
+session restored its windows and opened the requested book in one more, so the
+window count grew by one per launch. A double-click should behave the same
+whether or not cooViewer was already running. Measured on device: at drain
+time the front window is the one tracked through `-windowDidBecomeMain:`, and
+it matched AppKit's main window on every drain line. See
+`docs/tasks/2026-10-02-02-launch-drain-replaces-front-window.md`.
+
+## Minimum macOS is 12.0 (2026-10-02)
+
+**Decision:** The main app's deployment target is macOS 12.0 Monterey, the
+same as the helper and the Quick Look extensions already were. The five
+project-level configurations in `cooViewer.xcodeproj` were raised from 10.13,
+and `README.md` ▸ Requirements says `12 Monterey`.
+
+**Why:** Xcode 27 refuses deployment targets below 12.0, so the documented
+build failed (`KNOWN_ISSUES` #38), and CI on `macos-latest` would fail the same
+way once that image moves to Xcode 27. The Quick Look extensions, which ship in
+the same bundle, already required macOS 12, so 10.13–11 users already lacked
+part of the app. Code kept only for 10.13–11 is left for a separate dead-code
+review rather than removed with this change.

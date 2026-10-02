@@ -1263,7 +1263,11 @@ Found by the MW-9 regression pass (2026-07-30) and fixed the same day; see
 request that arrives during launch is now held until every restored window
 has its book, then routed through the same de-duplication, so the restored
 window is brought forward at its saved page instead of a second window being
-opened. The original report follows.
+opened. Since 2026-10-02 the drain applies the whole running-app Finder rule,
+not only the de-duplication: the first held book that no window is showing
+replaces the front restored window's book instead of opening a new window
+(`docs/tasks/2026-10-02-02-launch-drain-replaces-front-window.md`). The
+original report follows.
 
 It is the one interaction between MW-8's window restoration and Step-0
 decision 2 ("the same book opened twice brings the existing window forward")
@@ -1474,7 +1478,14 @@ Task record:
 
 ---
 
-## 38. Xcode 27 rejects the main targets' 10.13 deployment target
+## 38. ~~Xcode 27 rejects the main targets' 10.13 deployment target~~ — FIXED (2026-10-02)
+
+Fixed by raising the minimum to macOS 12.0 (owner decision; `docs/DECISIONS.md`,
+"Minimum macOS is 12.0"). The five project-level configurations now set
+`MACOSX_DEPLOYMENT_TARGET = 12.0`, and the `CLAUDE.md` build command succeeds
+with Xcode 27.0 without overrides; see
+`docs/tasks/2026-10-02-02-launch-drain-replaces-front-window.md`. The
+original report follows.
 
 With Xcode 27.0 the documented build command in `CLAUDE.md` fails before
 compiling anything:

@@ -61,7 +61,7 @@ thumbnail — no need to open cooViewer itself, and no third-party app
 
 | Item         | Minimum                                  |
 | ------------ | ---------------------------------------- |
-| macOS        | 10.13 High Sierra                        |
+| macOS        | 12 Monterey                              |
 | Architecture | Universal Binary (Intel & Apple Silicon) |
 
 ## Building
