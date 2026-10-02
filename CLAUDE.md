@@ -288,6 +288,15 @@ path wasn't affected by an unrelated change.
 - When a symbol looks dead but cannot be proven unreachable, record it
   in `docs/KNOWN_ISSUES.md` instead of deleting it.
 
+## Sandbox
+- The global Claude Code instructions define how to run commands so sandbox
+  exclusions apply. Project-specific exclusions live in `.claude/settings.json`
+  under `sandbox.excludedCommands`; list them under
+  "Project-specific (cooViewer)".
+- Commands that must always be confirmed, even in auto mode (for example a release
+  or upload script), go under `permissions.ask` in `.claude/settings.json`. Do not
+  add `allow` rules there; they bypass the auto mode classifier.
+
 ## Plan Mode
 - `TASK.md` is the approved plan. Do not enter plan mode because a task touches
   multiple files or unfamiliar code paths.
