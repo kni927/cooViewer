@@ -83,10 +83,9 @@
   has authorized a release, updating the Homebrew tap (`kni927/homebrew-tap`) is part of it
   and needs no separate approval.
 - Exception: in a Claude Code cloud session (`CLAUDE_CODE_REMOTE=true`) the container is
-  discarded when the session ends, so commit and push to the environment-assigned working
-  branch without asking. Never push to `main` from a cloud session unless instructed.
-  When instructed to push to `main` from a cloud session, commit on `main` directly instead of
-  the assigned branch, so no branch is left behind.
+  discarded when the session ends, so commit on `main` and push to `main` without asking.
+  Do not create or push the session-assigned `claude/` branch; it cannot be deleted from
+  the session.
 - Never rewrite published history (amend, rebase, reset, or force push of pushed commits).
 - Pull requests are not required unless explicitly requested.
 
