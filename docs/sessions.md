@@ -26,9 +26,10 @@ the `sync-projects` skill there.
 
 ## Names
 
-- `Central HQ #n`, `Upstream HQ`, `<repo> HQ`, `<repo> TF <what>`, for example
+- `Central HQ`, `Upstream HQ`, `<repo> HQ`, `<repo> TF <what>`, for example
   `cooViewer TF v1.6.5`. No middle dot: local session names are often typed by
-  hand.
+  hand. The current session of a role carries the plain name; a session that
+  has handed over becomes `<name> (handover YYYY-MM-DD)`.
 - Names are unique, because a local session addresses messages by name.
 - A name set from the cloud (`set_session_title`) may not appear in the Mac app.
   Name a local session on the Mac, or let it name itself as the `/tf` skill
@@ -54,8 +55,7 @@ the `sync-projects` skill there.
   in the received message's `from-session` instead, which does not depend on
   unique names.
 - **Fallback:** if the Project HQ cannot be reached, for example because it is
-  archived, send to the unarchived session whose name starts with
-  `Central HQ`. Central HQ summarizes for the owner and forwards to a successor
+  archived, send to `Central HQ`. Central HQ summarizes for the owner and forwards to a successor
   Project HQ if there is one.
 - **Receiving:** an HQ that receives a message starts its next reply to the
   owner with a heading between rules, `📨 受信：<sender> ／ <kind of report>`,
@@ -78,11 +78,11 @@ start, so it hands over at a natural break once the conversation is long.
    state, what waits on the owner, the sessions it coordinates (by name), and
    recent decisions with their commits. Leave out what the repositories
    already record.
-2. Rename itself to `<name> (handed over YYYY-MM-DD)` with `set_session_title`,
-   so the name is free and stays unique.
+2. Rename itself to `<name> (handover YYYY-MM-DD)` with `set_session_title`,
+   using the owner's local date, so the plain name is free and stays unique.
 3. Start the successor with `create_session` in the same environment, titled
-   `<name>` (for Central HQ, the next number), with the handover as its initial
-   prompt. The successor attaches the repositories it needs.
+   `<name>`, with the handover as its initial prompt. The successor attaches
+   the repositories it needs.
 4. Tell Central HQ the successor's name (Central HQ tells the other HQs), and
    tell the owner.
 5. Stop taking work and say in chat that the session can be archived. The owner
