@@ -1611,10 +1611,16 @@ launch drain), the window a drop landed on, nil for a Finder open with ⇧
 held. ⇧ is read with `+[NSEvent modifierFlags]` in
 `-application:openFiles:` and a launch-time request is tagged in the queue
 (`finder-openFiles+shift`), as helper requests already were. Drops are
-accepted on `CustomImageView` for what File ▸ Open accepts (folders and
-`+[COImageLoader fileTypes]`, which excludes plain image files); drags that
-start inside cooViewer are declined, and the open runs after the drag session
-ends. File ▸ New Window (⌘N) always creates a window, sized like a new
+accepted on `CustomImageView` for what a Finder double-click opens: folders,
+and files whose extension the app's `CFBundleDocumentTypes` declares, read
+from `Info.plist` at run time (every declared `LSItemContentTypes` entry
+except `public.directory` carries its extensions in the same document type).
+That includes single image files, which open their folder at that page.
+*Amended the same day (owner decision):* the first version accepted only what
+File ▸ Open accepts (`+[COImageLoader fileTypes]`, no image files); see
+`docs/tasks/2026-10-03-02-accept-dropped-images-verify-on-device.md`. Drags
+that start inside cooViewer are declined, and the open runs after the drag
+session ends. File ▸ New Window (⌘N) always creates a window, sized like a new
 window from `-openBookInNewWindow:`; a window shown empty this way is not
 restorable until a book opens in it, and a failed or cancelled open leaves it
 on screen rather than closing or hiding it. `WindowRouting` decisions are now
