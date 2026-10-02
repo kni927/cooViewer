@@ -102,7 +102,9 @@
 
 ## Language
 
-- Communication and explanations to the project owner are primarily in Japanese.
+- Write everything addressed to the project owner in polite Japanese, including the
+  Completion Report, even when task files, documents, and tool output are in English.
+  The rules below govern files, not the conversation.
 - Source code, identifiers, code comments, UI text, logs, and commit messages are in English.
 - Project documentation is written in English by default.
 - Use Japanese documentation only when explicitly required by the project.

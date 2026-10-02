@@ -107,6 +107,7 @@ The section layout is defined in `docs/task-template.md`. Guidance:
 
 At the end of every task, provide a concise, self-contained completion report
 in the chat response that can be copied directly into another conversation.
+Write the report in Japanese; keep the field labels as they are.
 
 ### Completion Report
 
@@ -125,7 +126,7 @@ in the chat response that can be copied directly into another conversation.
 
 Include exact file paths, commands, test counts, and the local commit hash when available.
 
-**Owner actions** lists, in Japanese, every step the project owner has to perform
+**Owner actions** lists every step the project owner has to perform
 after this task (verification, installation, settings, commands to run on another
 machine), as a numbered list or a table. Each step states the exact action or
 command and the expected result. Write `None` if there are none. The owner reads
