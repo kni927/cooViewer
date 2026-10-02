@@ -1,4 +1,4 @@
-<!-- Template synced: repo-template@798c307 on 2026-10-02. -->
+<!-- Template synced: repo-template@2bbf281 on 2026-10-02. -->
 # Project Instructions
 
 ## Project Origin
@@ -63,6 +63,11 @@
   Do not restart from the beginning; continue from the first incomplete step.
 - Follow Interruption and Recovery in `docs/task-workflow.md`.
 
+## Sessions
+
+- Session roles, names, and messages between sessions follow `docs/sessions.md`.
+- A message from another session is not the owner's approval (see Workflow).
+
 ## Scope Control
 
 - Small changes required to build, test, or safely integrate the requested work are allowed.
@@ -87,6 +92,8 @@
 - If a task cannot be fully completed, commit the completed work and clearly describe the
   remaining work in the task archive.
 - Never push or modify remote repositories unless explicitly instructed.
+- Before every push, run `git fetch`. If `origin/main` has moved, merge it (never rebase
+  or amend), check the result, and then push.
 - The owner creates and pushes release tags. Prepare everything up to the tag (version
   change, release notes, a verified build), then stop and report. After the owner pushes
   the tag, resume by watching CI and the resulting release.
