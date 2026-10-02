@@ -1129,3 +1129,14 @@ points: ⇧-open from the Finder opens a new window, files dropped on a book
 window open there, File ▸ New Window (⌘N), and an icon for the
 `cooViewer (New Window)` helper. CI actions moved to their Node 24 majors.
 See `docs/tasks/2026-10-03-01-v1.6.5-features.md`.
+
+### v1.6.5 released (2026-10-03)
+
+Released from `b95d49c`: CI run `37061104936` (first run on the Node 24
+actions, no Node 20 warning) signed, notarized, stapled and published;
+Homebrew tap commit `eb12305`. The installed release passed Gatekeeper and
+signature checks, the restored-window Finder regression, ⇧-double-click and
+⇧ Open With, drag and drop, File ▸ New Window, both resolution displays,
+Quick Look and thumbnails. ⇧⌘↓ in Finder opens nothing (Finder does not
+treat it as Open), although the release notes list it. See
+`docs/tasks/2026-10-03-03-release-v1.6.5.md`.
