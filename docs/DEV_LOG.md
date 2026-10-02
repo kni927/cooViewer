@@ -1109,3 +1109,14 @@ and test-book assets. Homebrew tap commit `9e7da4c` installed the published
 artifact; Gatekeeper, code-signature, extension resolution, Finder Open With,
 ordinary replacement, new-window behavior, Quick Look, and thumbnails all
 passed against `/Applications/cooViewer.app`.
+
+### v1.6.4 released (2026-10-02)
+
+A Finder open that arrives while cooViewer is launching now follows the
+running-app rule and replaces the front restored window instead of adding
+one; minimum macOS is 12.0; `WindowRouting` diagnostic logging (paths
+private). Released from `66894eb`: CI run `37012118377` signed, notarized,
+stapled and published; Homebrew tap commit `867994b`. The installed release
+passed Gatekeeper/signature checks and a real Finder double-click after
+restoration (two windows, front shows the new book). See
+`docs/tasks/2026-10-02-04-release-v1.6.4.md`.
