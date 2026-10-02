@@ -942,9 +942,15 @@ static NSPoint gNextWindowCascadePoint;
 	[[self window] makeKeyAndOrderFront:self];
 }
 
-/* What File ▸ Open accepts (-open:): a folder, or a file whose extension is
-   in +[COImageLoader fileTypes]. The panel matches extensions without regard
-   to case, so this does too. */
+/* What a Finder double-click opens (owner decision, 2026-10-03): a folder, or
+   a file whose extension one of the document types in this app's
+   CFBundleDocumentTypes declares — read from the bundle's Info.plist at run
+   time, so the declaration Launch Services uses is the only list. That
+   includes single image files, which open their folder at that page, unlike
+   File ▸ Open's +[COImageLoader fileTypes]. Extensions are enough: every
+   declared LSItemContentTypes entry comes with its extensions in the same
+   document type, except public.directory, which is the folder case.
+   Compared without regard to case, as Launch Services does. */
 + (BOOL)canOpenDroppedPath:(NSString *)path
 {
 	BOOL isDirectory = NO;
@@ -955,11 +961,19 @@ static NSPoint gNextWindowCascadePoint;
 		return YES;
 	}
 	NSString *extension = [[path pathExtension] lowercaseString];
-	NSEnumerator *enu = [[COImageLoader fileTypes] objectEnumerator];
-	NSString *type;
-	while (type = [enu nextObject]) {
-		if ([[type lowercaseString] isEqualToString:extension]) {
-			return YES;
+	if ([extension length] == 0) {
+		return NO;
+	}
+	NSArray *documentTypes = [[NSBundle mainBundle] objectForInfoDictionaryKey:@"CFBundleDocumentTypes"];
+	NSEnumerator *typeEnu = [documentTypes objectEnumerator];
+	NSDictionary *documentType;
+	while (documentType = [typeEnu nextObject]) {
+		NSEnumerator *extEnu = [[documentType objectForKey:@"CFBundleTypeExtensions"] objectEnumerator];
+		NSString *declared;
+		while (declared = [extEnu nextObject]) {
+			if ([[declared lowercaseString] isEqualToString:extension]) {
+				return YES;
+			}
 		}
 	}
 	return NO;

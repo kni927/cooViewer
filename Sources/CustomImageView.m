@@ -62,8 +62,9 @@
    openDroppedPaths:]. -[BookWindowController windowDidLoad] registers the
    file URL type. These replace NSImageView's own dragging-destination
    methods, which would put a dropped image into the view; nothing here
-   touches the image or the render path. Only files File ▸ Open accepts get
-   the copy cursor, and drags that start inside cooViewer are declined. */
+   touches the image or the render path. Only files a Finder double-click
+   would open (+[BookWindowController canOpenDroppedPath:]) get the copy
+   cursor, and drags that start inside cooViewer are declined. */
 - (NSArray *)openableDraggedPaths:(id <NSDraggingInfo>)sender
 {
 	if ([sender draggingSource] != nil) {

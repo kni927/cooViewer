@@ -331,9 +331,9 @@
 - (void)openBookAtPath:(NSString *)path;
 /* v1.6.5, File ▸ New Window: puts this bookless window on screen. */
 - (void)showEmptyWindow;
-/* v1.6.5, drag and drop: whether a dropped file is one File ▸ Open accepts,
-   and the drop itself, routed by AppController with this window as the
-   target. */
+/* v1.6.5, drag and drop: whether a dropped file is one a Finder double-click
+   would open (the app's declared document types, plus folders), and the drop
+   itself, routed by AppController with this window as the target. */
 + (BOOL)canOpenDroppedPath:(NSString *)path;
 - (void)openDroppedPaths:(NSArray *)paths;
 - (void)openFromSameDir:(id)sender;
