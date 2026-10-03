@@ -31,6 +31,10 @@ HEAD_ARCHIVE = 0x73
 HEAD_FILE = 0x74
 HEAD_END = 0x7B
 
+MHD_SOLID = 0x0008
+LHD_SOLID = 0x0010
+LHD_UNICODE = 0x0200
+
 
 @dataclass(frozen=True)
 class Fixture:
@@ -53,17 +57,18 @@ def head_crc(rest: bytes) -> int:
     return zlib.crc32(rest) & 0xFFFF
 
 
-def archive_header_block() -> bytes:
-    flags = 0x0000
+def archive_header_block(solid: bool = False) -> bytes:
+    flags = MHD_SOLID if solid else 0x0000
     reserved = b"\x00" * 6
     headsize = 7 + len(reserved)
     rest = struct.pack("<BHH", HEAD_ARCHIVE, flags, headsize) + reserved
     return struct.pack("<H", head_crc(rest)) + rest
 
 
-def file_header_block(name: str, data: bytes) -> bytes:
-    namebytes = name.encode("ascii")
-    flags = 0x0000
+def file_header_block(name: str, data: bytes, flags: int = 0x0000) -> bytes:
+    # With LHD_UNICODE and no NUL byte in it, the name field is UTF-8
+    # (RAR technote); otherwise it must be ASCII here.
+    namebytes = name.encode("utf-8" if flags & LHD_UNICODE else "ascii")
     typeflags = struct.pack("<BH", HEAD_FILE, flags)
     packsize = struct.pack("<I", len(data))  # PACK_SIZE; counted in HEAD_SIZE
     payload = struct.pack(
@@ -87,16 +92,27 @@ def end_header_block() -> bytes:
     return struct.pack("<H", head_crc(rest)) + rest
 
 
-def create_archive(source_dir: pathlib.Path, output_path: pathlib.Path) -> None:
+def create_archive(source_dir: pathlib.Path, output_path: pathlib.Path,
+                   solid: bool = False, unicode_names: bool = False) -> None:
+    """solid sets MHD_SOLID in the archive header and LHD_SOLID on every
+    file after the first, as rar -s does; the data stays STORE, so only the
+    flags make it a solid archive (cooViewer refuses solid RAR4 by the
+    archive-header flag, KNOWN_ISSUES #39). unicode_names sets LHD_UNICODE,
+    which makes CORarHeaderIndex decline and the libarchive fallback run."""
     output_path.parent.mkdir(parents=True, exist_ok=True)
 
-    blocks = [RAR4_SIGNATURE, archive_header_block()]
-    for fixture in FIXTURES:
+    blocks = [RAR4_SIGNATURE, archive_header_block(solid)]
+    for i, fixture in enumerate(FIXTURES):
         source_path = source_dir / fixture.source_name
         if not source_path.is_file():
             raise FileNotFoundError(f"Source file not found: {source_path}")
         data = source_path.read_bytes()
-        blocks.append(file_header_block(fixture.archive_name, data))
+        flags = 0x0000
+        if solid and i > 0:
+            flags |= LHD_SOLID
+        if unicode_names:
+            flags |= LHD_UNICODE
+        blocks.append(file_header_block(fixture.archive_name, data, flags))
     blocks.append(end_header_block())
 
     output_path.write_bytes(b"".join(blocks))
@@ -106,12 +122,16 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Create a minimal RAR4 (STORE) fixture.")
     parser.add_argument("source_dir", type=pathlib.Path, help="Directory containing 001.png through 004.jpg")
     parser.add_argument("output", type=pathlib.Path, help="Output .cbr path")
+    parser.add_argument("--solid", action="store_true", help="Flag the archive as solid")
+    parser.add_argument("--unicode-names", action="store_true",
+                        help="Store names as LHD_UNICODE (UTF-8 form)")
     return parser.parse_args()
 
 
 def main() -> None:
     args = parse_args()
-    create_archive(source_dir=args.source_dir.resolve(), output_path=args.output.resolve())
+    create_archive(source_dir=args.source_dir.resolve(), output_path=args.output.resolve(),
+                   solid=args.solid, unicode_names=args.unicode_names)
     print(f"Created: {args.output}")
 
 

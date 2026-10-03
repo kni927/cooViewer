@@ -1553,10 +1553,37 @@ and will fail the same way once that image's default Xcode is 27.
 
 ---
 
-## 39. Solid RAR4 archives are unreadable past page 1
+## 39. Solid RAR4 archives are unreadable past page 1 — REFUSED AT OPEN
 
 Found 2026-10-03 (`docs/cbr-performance-20261003.md`). v1.3.7 (XADMaster) read
 these archives fully.
+
+**Interim mitigation (A1, 2026-10-03, task
+`docs/tasks/2026-10-03-05-stability-fixes-and-rar-survey.md`).** Solid RAR4
+is still unreadable, but it is no longer opened as one page plus broken ones:
+
+- `-[COArchive initWithPath:]` reads the RAR4 main header
+  (`CORarIsSolidRAR4AtPath`, `MHD_SOLID` 0x0008) before choosing a reader, so
+  the refusal covers both the header-index path and the libarchive fallback
+  (`LHD_UNICODE` names). The archive has no entries and
+  `-refusedSolidRAR4` is YES.
+- The app fails the open and says why: "Cannot open "<name>"." / "This is a
+  solid RAR4 archive, which cooViewer cannot read. …" (en/ja), as a sheet on a
+  window that stays on screen, otherwise as an application-modal alert.
+- The QuickLook Thumbnail and Preview extensions get no cover for it
+  (`+[COArchive lazyArchiveWithPath:]` returns nil), rather than decoding
+  page 1.
+- Solid RAR5 and non-solid RAR4 are unaffected. Password-protected RAR stays
+  unsupported, as before.
+- Engine suite: `test_rar4_solid.cbr` and `test_rar4_solid_unicode.cbr`,
+  hand-written by `tests/fixtures/make_rar4_fixture.py --solid` (STORE data,
+  solid flags). A fixture from a real RAR4 compressor was not made: `rar`
+  7.23 cannot write RAR4, and `rar` 6.x (`rar a -ma4 -s`, from rarlab.com)
+  was not installed for this task.
+- `tools/rar_survey.py` counts solid RAR4 books in a folder, for the owner's
+  decision on real support below.
+
+The rest of this entry describes the underlying limitation.
 
 - The vendored libarchive 3.8.4 RAR4 reader rejects every file header that
   carries `FHD_SOLID` ("RAR solid archive support unavailable",

@@ -43,6 +43,12 @@ fi
 # hostile-metadata fixtures (long names, "../" nested archive, oversized RAR4)
 python3 "$REPO_ROOT/tests/fixtures/make_hostile_fixtures.py" "$GEN"
 
+# solid RAR4, refused at open (KNOWN_ISSUES #39); the Unicode-named one
+# takes the libarchive fallback path rather than the header index
+python3 "$REPO_ROOT/tests/fixtures/make_rar4_fixture.py" --solid "$SRC" "$GEN/test_rar4_solid.cbr" >/dev/null
+python3 "$REPO_ROOT/tests/fixtures/make_rar4_fixture.py" --solid --unicode-names \
+    "$SRC" "$GEN/test_rar4_solid_unicode.cbr" >/dev/null
+
 clang -O2 \
     -I "$REPO_ROOT/vendor/include" \
     -I "$REPO_ROOT/Sources" \

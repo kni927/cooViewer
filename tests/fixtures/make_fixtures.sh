@@ -140,6 +140,20 @@ python3 \
     "$SRC_DIR" \
     "$OUT_DIR/test_rar4.cbr"
 
+# The same, flagged solid: cooViewer refuses solid RAR4 at open with a
+# message (KNOWN_ISSUES #39). The Unicode-named variant takes the
+# libarchive fallback path instead of the header index.
+python3 \
+    "$SCRIPT_DIR/make_rar4_fixture.py" \
+    --solid \
+    "$SRC_DIR" \
+    "$OUT_DIR/test_rar4_solid.cbr"
+python3 \
+    "$SCRIPT_DIR/make_rar4_fixture.py" \
+    --solid --unicode-names \
+    "$SRC_DIR" \
+    "$OUT_DIR/test_rar4_solid_unicode.cbr"
+
 #
 # Checksums
 #

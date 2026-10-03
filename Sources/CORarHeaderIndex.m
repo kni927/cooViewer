@@ -237,6 +237,7 @@ static NSMutableArray *ParseRAR5(FILE *f, off_t fileSize, BOOL *outCrypted, BOOL
 static const uint8_t kRAR4Sig[7] = {'R','a','r','!',0x1a,0x07,0x00};
 
 #define MHD_VOLUME    0x0001
+#define MHD_SOLID     0x0008
 #define MHD_PASSWORD  0x0080
 
 #define LHD_SPLIT_BEFORE 0x0001
@@ -357,7 +358,23 @@ static NSMutableArray *ParseRAR4(FILE *f, off_t fileSize, BOOL *outCrypted, BOOL
 	return entries;
 }
 
-#pragma mark - public entry point
+#pragma mark - public entry points
+
+BOOL CORarIsSolidRAR4AtPath(NSString *path)
+{
+	FILE *f = fopen([path fileSystemRepresentation], "rb");
+	if (!f) return NO;
+
+	uint8_t sig[7];
+	uint16_t crc16, flags = 0;
+	uint8_t type = 0;
+	BOOL solid = ReadBytes(f, sig, 7) && memcmp(sig, kRAR4Sig, 7) == 0 &&
+	             ReadU16LE(f, &crc16) && ReadU8(f, &type) && ReadU16LE(f, &flags) &&
+	             type == RAR4_BLOCK_ARCHIVE && (flags & MHD_SOLID) != 0;
+
+	fclose(f);
+	return solid;
+}
 
 NSArray *CORarParseHeadersAtPath(NSString *path, BOOL *outCrypted)
 {

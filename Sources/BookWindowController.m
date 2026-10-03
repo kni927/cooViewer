@@ -1323,6 +1323,30 @@ static NSString * const kBookViewModeKey = @"cooViewerBookViewMode";
 	[self openPageWithLoader:newImageLoader page:page last:last fromFileName:fromFileName];
 }
 
+/* KNOWN_ISSUES #39: a solid RAR4 book is refused at open instead of showing
+   one page and then broken ones, and — unlike other unreadable books, which
+   just fail — the user is told why. Called before -abandonOpenWithLoader:...,
+   which may close this window. A window that stays on screen (it has a book,
+   or is an empty File ▸ New Window) gets a sheet; otherwise the alert is
+   application-modal and waits until this open has unwound, holding nothing
+   of this controller's. */
+- (void)reportUnsupportedSolidRAR4:(NSString *)name
+{
+	NSAlert *alert = [[[NSAlert alloc] init] autorelease];
+	[alert setMessageText:[NSString stringWithFormat:
+		NSLocalizedString(@"Cannot open \"%@\".",@""), name ? name : @""]];
+	[alert setInformativeText:NSLocalizedString(@"This is a solid RAR4 archive, which cooViewer cannot read. A non-solid RAR or a ZIP (CBZ) of the same pages can be read.",@"")];
+	[alert addButtonWithTitle:NSLocalizedString(@"OK",@"")];
+
+	if ([self canPresentSheet] && ([self hasBookOpen] || shownWithoutBook)) {
+		[alert beginSheetModalForWindow:[self sheetParentWindow] completionHandler:nil];
+	} else {
+		dispatch_async(dispatch_get_main_queue(), ^{
+			[alert runModal];
+		});
+	}
+}
+
 /* The rest of -openPage:last:, split off so that an encrypted archive can
    resume here once its password sheet has been answered (KNOWN_ISSUES #33).
    Only three things cross the split: the loader (a +1 this method takes over),
@@ -1336,6 +1360,9 @@ static NSString * const kBookViewModeKey = @"cooViewerBookViewMode";
 	//NSLog(@"controller mode=%i count=%i",[newImageLoader mode],[newImageLoader itemCount]);
 	if (!newImageLoader || [newImageLoader mode] < 0 || [newImageLoader itemCount] < 1) {
 		/*表示出来ない時は元に戻す*/
+		if ([newImageLoader isUnsupportedSolidRAR4]) {
+			[self reportUnsupportedSolidRAR4:[[newImageLoader displayPath] lastPathComponent]];
+		}
 		[self abandonOpenWithLoader:newImageLoader
 					   fromFileName:fromFileName
 						closeWindow:YES];

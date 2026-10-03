@@ -194,6 +194,43 @@ int main(int argc, char **argv)
             }
         }
 
+        // --- solid RAR4 is refused at open (KNOWN_ISSUES #39): neither
+        // the header index nor the libarchive fallback (taken for
+        // LHD_UNICODE names) gets to list it, so the book cannot open as
+        // one readable page followed by broken ones. Hand-written fixtures
+        // (STORE data, MHD_SOLID/LHD_SOLID flags); rar 7.x cannot write
+        // RAR4. Solid RAR5 is unaffected. ---
+        for (NSString *f in @[ @"test_rar4_solid.cbr", @"test_rar4_solid_unicode.cbr" ]) {
+            NSString *p = [gen stringByAppendingPathComponent:f];
+            printf("%s (solid RAR4)\n", [f UTF8String]);
+            check(CORarIsSolidRAR4AtPath(p), [NSString stringWithFormat:@"%@: not detected as solid RAR4", f]);
+            __block int calls = 0;
+            COArchive *ar = [[[COArchive alloc] initWithPath:p
+                progress:^BOOL(long long done, long long total) {
+                    calls++;
+                    return YES;
+                }] autorelease];
+            check([ar refusedSolidRAR4], [NSString stringWithFormat:@"%@: not refused", f]);
+            check([ar isMemberOfClass:[COArchive class]] && [ar itemCount] == 0,
+                  [NSString stringWithFormat:@"%@: opened as %s with %d entries", f,
+                   class_getName([ar class]), [ar itemCount]]);
+            check([ar lastError] != nil, [NSString stringWithFormat:@"%@: no lastError", f]);
+            check(calls == 0, [NSString stringWithFormat:@"%@: archive was read", f]);
+            check([COArchive lazyArchiveWithPath:p] == nil,
+                  [NSString stringWithFormat:@"%@: lazy-only open (QuickLook) not refused", f]);
+        }
+        {
+            printf("solid RAR4 detection negatives\n");
+            for (NSString *f in @[ @"test_rar4.cbr", @"test.zip", @"test.cbr", @"test_solid.cbr" ]) {
+                NSString *p = [gen stringByAppendingPathComponent:f];
+                if (![[NSFileManager defaultManager] fileExistsAtPath:p]) continue;
+                check(!CORarIsSolidRAR4AtPath(p), [NSString stringWithFormat:@"%@ detected as solid RAR4", f]);
+                COArchive *ar = [[[COArchive alloc] initWithPath:p] autorelease];
+                check(![ar refusedSolidRAR4] && [ar itemCount] == 4,
+                      [NSString stringWithFormat:@"%@ refused or short (%d entries)", f, [ar itemCount]]);
+            }
+        }
+
         for (NSString *f in @[ @"test_utf8.zip", @"test_utf8.7z",
                                @"test_utf8.cbr", @"test_sjis.zip" ])
             testArchive([gen stringByAppendingPathComponent:f], jpNames, srcHashes);

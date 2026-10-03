@@ -421,3 +421,9 @@
 
 /* No comment provided by engineer. */
 "Cancelling…" = "キャンセルしています…";
+
+/* Solid RAR4 refused at open (KNOWN_ISSUES #39). */
+"Cannot open \"%@\"." = "\"%@\" を開けません。";
+
+/* Solid RAR4 refused at open (KNOWN_ISSUES #39). */
+"This is a solid RAR4 archive, which cooViewer cannot read. A non-solid RAR or a ZIP (CBZ) of the same pages can be read." = "このファイルはソリッド形式の RAR4 アーカイブで、cooViewer では読み込めません。同じページをソリッドではない RAR か ZIP（CBZ）にまとめ直せば読み込めます。";

@@ -94,6 +94,10 @@
  * archive cannot be opened at all and the host should give up. Safe to call
  * only while -needsPassword is YES. */
 - (COArchiveCryptoStatus)tryPassword:(NSString *)entered;
+
+/* The book is a solid RAR4 archive, refused at open (KNOWN_ISSUES #39):
+ * `mode` is -1, as for any failed open, and the host can tell the user why. */
+- (BOOL)isUnsupportedSolidRAR4;
 /*
 - (NSStringEncoding)nameEncoding;
 - (void)setNameEncoding:(NSStringEncoding)enc;

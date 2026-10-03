@@ -80,6 +80,7 @@ typedef enum {
 	NSString *lastError;
 	BOOL crypted;
 	BOOL cancelled;
+	BOOL refusedSolidRAR4;
 }
 - (id)initWithPath:(NSString *)path;
 - (id)initWithPath:(NSString *)path progress:(COArchiveProgress)progress;
@@ -87,7 +88,8 @@ typedef enum {
 /* Only the lazy readers (COZipArchive, CORarArchive), chosen by the file's
  * signature and then its extension; nil instead of the full-extraction
  * fallback, which decodes every entry into memory. For callers with a
- * tight memory budget (the QuickLook extensions). */
+ * tight memory budget (the QuickLook extensions). nil for a solid RAR4
+ * too (see -refusedSolidRAR4). */
 + (COArchive *)lazyArchiveWithPath:(NSString *)path;
 
 - (NSString *)filePath;
@@ -96,6 +98,10 @@ typedef enum {
 - (NSString *)lastError;	// nil when fully OK
 - (BOOL)crypted;		// encrypted entries were encountered
 - (BOOL)cancelled;
+/* The file is a solid RAR4 archive, which no reader here can decode past
+ * its first entry (KNOWN_ISSUES #39). It is refused before either RAR
+ * path is tried: no entries, and -lastError says why. */
+- (BOOL)refusedSolidRAR4;
 
 /* Encrypted-archive support. The base implementation (libarchive path)
  * cannot decrypt: -setPassword: is a no-op and -cryptoStatus reports

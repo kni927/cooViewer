@@ -103,3 +103,10 @@
  * scan in that case. *outCrypted is set to YES if any per-entry
  * encrypted file was found (and skipped) along the way. */
 NSArray *CORarParseHeadersAtPath(NSString *path, BOOL *outCrypted);
+
+/* YES when path is a RAR4 archive whose main header sets MHD_SOLID.
+ * libarchive's RAR4 reader cannot decode past the first entry of one
+ * (KNOWN_ISSUES #39), whichever reader path the archive would take, so
+ * COArchive refuses it at open. Reads only the signature and the main
+ * header, which RAR4 never encrypts. */
+BOOL CORarIsSolidRAR4AtPath(NSString *path);

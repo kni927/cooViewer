@@ -8,6 +8,7 @@
 #import "COArchive.h"
 #import "COZipArchive.h"
 #import "CORarArchive.h"
+#import "CORarHeaderIndex.h"
 #import <CoreFoundation/CoreFoundation.h>
 #include <archive.h>
 #include <archive_entry.h>
@@ -163,17 +164,22 @@ static COArchive *COOpenLazyArchive(NSString *path, COArchiveProgress progress)
 
 + (COArchive *)lazyArchiveWithPath:(NSString *)path
 {
+	if (CORarIsSolidRAR4AtPath(path)) return nil;
 	return [COOpenLazyArchive(path, nil) autorelease];
 }
 
 - (id)initWithPath:(NSString *)path progress:(COArchiveProgress)progress
 {
-	// A lazy reader if one applies (see COOpenLazyArchive); otherwise,
-	// or if it fails to open, the libarchive full-extraction path below,
-	// which supports every format and will succeed if the file is
-	// readable at all.
+	// A solid RAR4 is refused outright: CORarArchive would list every
+	// entry and decode only the first, and the full-extraction path stops
+	// after the first. Otherwise a lazy reader if one applies (see
+	// COOpenLazyArchive); otherwise, or if it fails to open, the
+	// libarchive full-extraction path below, which supports every format
+	// and will succeed if the file is readable at all.
+	BOOL solidRAR4 = NO;
 	if ([self isMemberOfClass:[COArchive class]]) {
-		COArchive *lazy = COOpenLazyArchive(path, progress);
+		solidRAR4 = CORarIsSolidRAR4AtPath(path);
+		COArchive *lazy = solidRAR4 ? nil : COOpenLazyArchive(path, progress);
 		if (lazy) {
 			[self release];
 			return lazy;
@@ -187,7 +193,11 @@ static COArchive *COOpenLazyArchive(NSString *path, COArchiveProgress progress)
 		lastError = nil;
 		crypted = NO;
 		cancelled = NO;
-		[self readArchiveWithProgress:progress];
+		refusedSolidRAR4 = solidRAR4;
+		if (solidRAR4)
+			lastError = [@"solid RAR4 archives are not supported" retain];
+		else
+			[self readArchiveWithProgress:progress];
 	}
 	return self;
 }
@@ -230,6 +240,11 @@ static COArchive *COOpenLazyArchive(NSString *path, COArchiveProgress progress)
 - (BOOL)cancelled
 {
 	return cancelled;
+}
+
+- (BOOL)refusedSolidRAR4
+{
+	return refusedSolidRAR4;
 }
 
 /* Base (libarchive) path: no decryption. COZipArchive overrides both;

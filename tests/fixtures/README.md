@@ -45,6 +45,13 @@ this fixture's archive order does not match `test.cbr`'s — see
 `docs/tasks/2026-07-14-02-rar-partial-lazy.md` for why that matters
 to the RAR reader.
 
+`test_rar4_solid.cbr` and `test_rar4_solid_unicode.cbr` are the hand-written
+RAR4 of `test_rar4.cbr` with the solid flags set (`make_rar4_fixture.py
+--solid`, the second also with `--unicode-names`). The data stays STORE;
+cooViewer refuses solid RAR4 by its archive-header flag
+(`docs/KNOWN_ISSUES.md` #39). Both are also written by
+`tests/engine/run_tests.sh`.
+
 ## Committed RAR5 final-block fixture
 
 `sample/header_error_sample.rar` is a valid RAR5 archive containing one

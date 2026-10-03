@@ -326,6 +326,11 @@ static NSArray *_COImageLoader_archiveTypes=nil;
 	return needsPassword;
 }
 
+- (BOOL)isUnsupportedSolidRAR4
+{
+	return [archiveContainer refusedSolidRAR4];
+}
+
 /* One attempt from the host's sheet (KNOWN_ISSUES #33). On success this
  * finishes the work -content would have done had the password been known at
  * init time: the container re-scans itself, the entries are enumerated by
@@ -420,7 +425,8 @@ static NSArray *_COImageLoader_archiveTypes=nil;
 			readBlock();
 		}
 		archiveContainer = opened;
-		if (!archiveContainer || [archiveContainer cancelled]) {
+		if (!archiveContainer || [archiveContainer cancelled] ||
+		    [archiveContainer refusedSolidRAR4]) {
 			mode = -1;
 			return;
 		}
