@@ -1163,3 +1163,14 @@ broken pages (KNOWN_ISSUES #39); filter changes apply per window (L6, with
 GC-era guards (bodies kept). `tools/rar_survey.py` classifies RAR books by
 header for the owner's decision on real solid-RAR4 support. Engine suite 246
 checks. See `docs/tasks/2026-10-03-05-stability-fixes-and-rar-survey.md`.
+
+### v1.6.6 released (2026-10-03)
+
+Released from `ef33215`: CI run `37110930229` signed, notarized, stapled and
+published the stability fixes, the solid-RAR4 refusal and per-window filters;
+Homebrew tap commit `115f8ff`. The installed release passed Gatekeeper and
+signature checks, the restored-window Finder regression, ⇧-double-click and
+drop, the empty ⌘N window, closing during a slideshow, after a bookmark edit
+and while thumbnails were still filling, the solid-RAR4 message, per-window
+filters, Quick Look and thumbnails. See
+`docs/tasks/2026-10-03-07-release-v1.6.6.md`.
