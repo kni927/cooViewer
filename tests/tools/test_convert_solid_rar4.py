@@ -18,6 +18,7 @@ import contextlib
 import io
 import os
 import pathlib
+import re
 import shutil
 import struct
 import subprocess
@@ -134,6 +135,8 @@ SKIPS = {
     "volume.part1.rar": "multi-volume",
     "password.cbr": "password-protected",
 }
+# skip reasons of files that are not solid RAR4: summary only by default
+UNLISTED = ("not solid", "RAR5", "not RAR (ZIP)")
 
 
 def make_books(root):
@@ -252,10 +255,24 @@ class DryRunTest(ConvertTestBase):
         self.assertIn("UPPER.CBR -> UPPER.CBZ", out)
         self.assertIn("[legacy names, cp932, needs unar]", self.line_for(out, "solid_legacy.cbr"))
         for name, reason in SKIPS.items():
-            line = self.line_for(out, name)
-            self.assertTrue(line.startswith("skip (%s" % reason), line)
+            if reason in UNLISTED:
+                self.assertNotIn(os.sep + name, out)
+            else:
+                line = self.line_for(out, name)
+                self.assertTrue(line.startswith("skip (%s" % reason), line)
         self.assertIn("would convert: %d" % len(CONVERTIBLE), out)
         self.assertIn("dry run, nothing written", out)
+        for reason in UNLISTED:
+            self.assertRegex(out, r"skipped, %s.*: 1 \(not listed; --list-all lists them\)"
+                             % re.escape(reason))
+
+    def test_list_all(self):
+        proc = run_tool("--list-all", self.root)
+        self.assertEqual(proc.returncode, 0, proc.stdout + proc.stderr)
+        for name, reason in SKIPS.items():
+            line = self.line_for(proc.stdout, name)
+            self.assertTrue(line.startswith("skip (%s" % reason), line)
+        self.assertNotIn("not listed", proc.stdout)
 
     def test_delete_needs_convert(self):
         proc = run_tool("--delete-originals", self.root)

@@ -30,7 +30,9 @@ tools/convert_solid_rar4.py --convert --delete-originals FOLDER     # 3. trash o
 
 1. The dry run reads only the RAR headers and writes nothing. It lists
    `would convert: SOURCE -> TARGET` and `skip (REASON): SOURCE` lines and a
-   summary.
+   summary. Only solid RAR4 books are listed; RAR5, non-solid RAR4 and
+   non-RAR files are only counted in the summary unless `--list-all` is
+   given. All three steps list the same way.
 2. `--convert` writes the ZIPs and keeps the originals. Each book is
    extracted into a temporary folder (removed afterwards), written with
    ZIP_STORED and the UTF-8 name flag in archive order, verified (entry

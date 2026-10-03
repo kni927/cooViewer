@@ -64,6 +64,10 @@ LHD_WINDOWMASK = 0x00E0
 LHD_DIRECTORY = 0x00E0
 ZIP_FLAG_UTF8 = 0x0800
 
+# Skip reasons for files that are not solid RAR4 at all: counted in the
+# summary, listed one per line only with --list-all.
+NOT_SOLID_RAR4 = ("RAR5", "not RAR", "not solid")
+
 TRASH = "/usr/bin/trash"
 OSASCRIPT = "/usr/bin/osascript"
 CHUNK = 1 << 20
@@ -82,6 +86,10 @@ Notes:
   the existing ZIP checked against it entry by entry. An existing target
   is never modified; one that does not match is reported as failed and its
   original is kept.
+
+Output lists only solid RAR4 books (to convert, skipped, or failed);
+RAR5, non-solid RAR4 and non-RAR files are counted in the summary, and
+--list-all lists them too.
 
 Typical use:
   tools/convert_solid_rar4.py FOLDER                      # dry run
@@ -567,6 +575,10 @@ def main(argv=None):
     parser.add_argument("--skip-online-only", action="store_true",
                         help="skip cloud placeholder files without reading "
                              "(and so without downloading) them")
+    parser.add_argument("--list-all", action="store_true",
+                        help="also list files that are not solid RAR4 (RAR5, non-solid "
+                             "RAR4, not RAR); by default they are only counted in the "
+                             "summary")
     args = parser.parse_args(argv)
     if args.delete_originals and not args.convert:
         parser.error("--delete-originals needs --convert")
@@ -594,7 +606,8 @@ def main(argv=None):
         reason, entries = classify(path, st, args, planned)
         if reason:
             skipped[reason] += 1
-            print("skip (%s): %s" % (reason, path), file=out)
+            if args.list_all or not reason.startswith(NOT_SOLID_RAR4):
+                print("skip (%s): %s" % (reason, path), file=out)
             continue
         if not args.convert:
             note = ""
@@ -639,7 +652,10 @@ def main(argv=None):
     print("Summary%s" % ("" if args.convert else " (dry run, nothing written)"), file=out)
     print("  %s: %d" % ("converted" if args.convert else "would convert", converted), file=out)
     for reason in sorted(skipped):
-        print("  skipped, %s: %d" % (reason, skipped[reason]), file=out)
+        unlisted = not args.list_all and reason.startswith(NOT_SOLID_RAR4)
+        print("  skipped, %s: %d%s" % (reason, skipped[reason],
+                                       " (not listed; --list-all lists them)" if unlisted else ""),
+              file=out)
     for key in ("skipped symlink", "unreadable file", "unreadable folder", "missing argument"):
         if counters[key]:
             print("  %s: %d" % (key, counters[key]), file=out)
