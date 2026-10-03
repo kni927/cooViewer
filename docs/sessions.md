@@ -3,7 +3,7 @@
 How the owner's Claude Code sessions are organized and how they reach each
 other. The same file is kept in every repository the owner works in:
 `kni927/repo-template` and its projects, `kni927/dotfiles`, `kni927/home-server`,
-and `kni927/hq`. Change it in `kni927/repo-template` and carry it over with
+and `kni927/HQ`. Change it in `kni927/repo-template` and carry it over with
 the `sync-projects` skill there.
 
 ## Roles
@@ -153,7 +153,7 @@ compaction if one has already happened.
    handover as its initial prompt. `source_url` is the project's repository
    for a Project HQ, `https://github.com/kni927/dotfiles` for Upstream HQ
    (which then attaches `kni927/repo-template` with `add_repo`), and
-   `https://github.com/kni927/hq` for Central HQ; their `AGENTS.md` makes this
+   `https://github.com/kni927/HQ` for Central HQ; their `AGENTS.md` makes this
    file binding. `source_url` takes one repository, and attaching any other
    needs the owner's explicit approval, which auto mode requires. If auto mode
    stops `create_session` or the successor needs that approval, tell the owner
