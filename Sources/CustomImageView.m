@@ -16,11 +16,6 @@
     self = [super initWithFrame:frame];
     if (self) {
         [self setWantsLayer:YES];
-         
-        [[NSNotificationCenter defaultCenter] addObserver:self
-                                                 selector:@selector(filterValueDidChange:)
-                                                     name:@"FilterUIValueDidChange"
-                                                   object:nil];
     }
     return self;
 }
@@ -28,7 +23,7 @@
    `accessoryView` are borrowed (outlet or nib sibling); everything released
    below is retained by -setPreferences, -setImages:, -filterValueDidChange:,
    -setLoupe or -resetCursorRects. `timer` is declared but nothing in this
-   class ever schedules one. The notification registration in -initWithFrame:
+   class ever schedules one. The notification registration in -setTarget:
    is what makes this method mandatory rather than tidy: a dangling observer
    is a crash on the next FilterUIValueDidChange, not a leak. */
 - (void)dealloc
@@ -55,6 +50,15 @@
 - (void)setTarget:(id)tar
 {
 	target = tar;
+	/* Filters are per window (code review L6): the window's own Filter panel
+	   posts with its window controller as the object, and only that one is
+	   heard here. Until then every view took every window's changes. */
+	NSNotificationCenter *nc = [NSNotificationCenter defaultCenter];
+	[nc removeObserver:self name:@"FilterUIValueDidChange" object:nil];
+	[nc addObserver:self
+	       selector:@selector(filterValueDidChange:)
+	           name:@"FilterUIValueDidChange"
+	         object:tar];
 }
 
 #pragma mark drag and drop (v1.6.5)
@@ -877,7 +881,7 @@ NSTimeInterval elapsed=0;
 - (void)filterValueDidChange:(NSNotification *)aNotification
 {
     [filters release];
-    filters = [[[[aNotification object] objectForKey:@"filters"] allValues] retain];
+    filters = [[[[aNotification userInfo] objectForKey:@"filters"] allValues] retain];
     if ([self layer]) {
         [[self layer] setFilters:nil];
         [[self layer] setFilters:filters];

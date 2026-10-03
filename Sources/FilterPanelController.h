@@ -31,6 +31,14 @@
 - (IBAction)openFilterPanel:(id)sender;
 /* MW-7: ordered out when the owning window is closed and retired. */
 - (void)closePanel;
+/* L6: the owning window became the main one. If another window's Filter
+   panel is on screen, this window's panel takes its place, so the panel
+   on screen always shows and edits the front window's filters. */
+- (void)ownerWindowBecameMain;
+/* L6: tells the owning window's image view the current filters (they are
+   posted with the owning BookWindowController as the object); called once
+   the view listens, see -[BookWindowController windowDidLoad]. */
+- (void)applyFiltersToOwnerWindow;
 @end
 
 @interface FilterPanelController(private)

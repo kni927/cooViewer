@@ -1144,7 +1144,12 @@ was introduced. Verified with two windows: with the *slot 0* window front and
 the *slot 1* window the last to have rebuilt the menu, choosing a recent book
 replaced the front window's book and left the other window alone.
 
-## 28. `-[FilterPanelController deleteFilter:]` drops a `CIFilter` without unregistering its KVO observers
+## 28. ~~`-[FilterPanelController deleteFilter:]` drops a `CIFilter` without unregistering its KVO observers~~ — FIXED (2026-10-03)
+
+**Fixed** in the per-window filter change (code review L6, task
+`docs/tasks/2026-10-03-05-stability-fixes-and-rar-survey.md`):
+`-deleteFilter:` now unregisters the dropped filter's input keys
+(`-stopObservingFilter:`, shared with `-dealloc`) before removing it.
 
 Found while writing that class's `-dealloc` in MW-7 (KNOWN_ISSUES #26).
 

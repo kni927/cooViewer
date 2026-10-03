@@ -9,6 +9,11 @@
 #import "BookWindowController.h"	/* -frameAutosaveName: (MW-6 item 2) */
 
 @implementation FilterPanelController
+
+/* The controller whose panel was last opened or brought along by a window
+   switch (unretained; cleared when that window closes). */
+static FilterPanelController *frontPanelController = nil;
+
 -(void)awakeFromNib
 {
     /* MW-6 item 2: one Filter panel per window (it lives in BookWindow.xib),
@@ -66,7 +71,28 @@
 }
 - (IBAction)openFilterPanel:(id)sender
 {
+    if (frontPanelController != self && [frontPanelController->filterPanel isVisible]) {
+        [frontPanelController->filterPanel orderOut:self];
+    }
+    frontPanelController = self;
     [filterPanel orderFront:self];
+}
+
+- (void)ownerWindowBecameMain
+{
+    FilterPanelController *previous = frontPanelController;
+    if (previous == self || ![previous->filterPanel isVisible]) return;
+    /* Same place on screen, so to the user it is one panel whose contents
+       follow the front window. */
+    [filterPanel setFrame:[previous->filterPanel frame] display:NO];
+    [previous->filterPanel orderOut:self];
+    frontPanelController = self;
+    [filterPanel orderFront:self];
+}
+
+- (void)applyFiltersToOwnerWindow
+{
+    [self sendNotification];
 }
 
 /* MW-7: this panel belongs to one window, so it goes when that window is
@@ -74,6 +100,7 @@
    -[BookWindowController closeAuxiliaryPanels]. */
 - (void)closePanel
 {
+    if (frontPanelController == self) frontPanelController = nil;
     [filterPanel orderOut:self];
 }
 - (IBAction)filterSelected:(id)sender
@@ -173,18 +200,18 @@
    key of every selected CIFilter, and those filters are held in
    `selectedFilters` — releasing that dictionary without unregistering first
    would deallocate an observed object, which is a hard error rather than a
-   leak. (The same registration is not undone by -deleteFilter:, which is a
-   separate pre-existing defect and is left alone here.) */
+   leak. -deleteFilter: unregisters the one filter it drops the same way
+   (KNOWN_ISSUES #28). Only filters with a UI view were registered: a filter
+   restored from the defaults gets one in -awakeFromNib, one picked from the
+   pop-up in -filterSelected:. */
 - (void)dealloc
 {
+    if (frontPanelController == self) frontPanelController = nil;
+
     NSEnumerator *enu = [selectedFilters objectEnumerator];
     CIFilter *filter;
     while (filter = [enu nextObject]) {
-        NSEnumerator *keys = [[filter inputKeys] objectEnumerator];
-        NSString *attrkey;
-        while (attrkey = [keys nextObject]) {
-            [filter removeObserver:self forKeyPath:attrkey];
-        }
+        [self stopObservingFilter:filter];
     }
 
     [selectedFilters release];
@@ -204,8 +231,20 @@
     [self sendNotification];
     [self setUserDefaults];
 }
+- (void)stopObservingFilter:(CIFilter *)filter
+{
+    NSEnumerator *keys = [[filter inputKeys] objectEnumerator];
+    NSString *attrkey;
+    while (attrkey = [keys nextObject]) {
+        [filter removeObserver:self forKeyPath:attrkey];
+    }
+}
 - (void)deleteFilter:(id)sender
 {
+    /* KNOWN_ISSUES #28: unregister before the dictionary drops (and so
+       deallocates) the filter. */
+    CIFilter *filter = [selectedFilters objectForKey:[sender identifier]];
+    if (filter) [self stopObservingFilter:filter];
     [selectedFilters removeObjectForKey:[sender identifier]];
     [[selectedFilterUIViews objectForKey:[sender identifier]] removeFromSuperview];
     [selectedFilterUIViews removeObjectForKey:[sender identifier]];
@@ -224,9 +263,14 @@
     [defaults setObject:data forKey:@"CIFilters"];
     [defaults setObject:selectedFilterKeys forKey:@"CIFilterKeys"];
 }
+/* Posted with the owning window controller as the object, which is the only
+   one its image view listens to (-[CustomImageView setTarget:]): filters are
+   per window (code review L6). */
 - (void)sendNotification
 {
     NSDictionary *dic = [NSDictionary dictionaryWithObjectsAndKeys:selectedFilterKeys,@"keys",selectedFilters,@"filters",nil];
-    [[NSNotificationCenter defaultCenter] postNotificationName:@"FilterUIValueDidChange" object:dic];
+    [[NSNotificationCenter defaultCenter] postNotificationName:@"FilterUIValueDidChange"
+                                                        object:controller
+                                                      userInfo:dic];
 }
 @end

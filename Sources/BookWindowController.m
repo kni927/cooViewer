@@ -6,6 +6,7 @@
 #import "CustomImageView.h"
 #import "AccessoryView.h"	/* -detachFromWindowController (KNOWN_ISSUES #36) */
 #import "FullImagePanel.h"
+#import "FilterPanelController.h"	/* per-window filters (code review L6) */
 #import "RemoteControl.h"	/* kRemoteButton* constants used by the 1.2b14 migration block below */
 
 @implementation BookWindowController
@@ -234,6 +235,10 @@ static NSPoint gNextWindowCascadePoint;
 	//composeLock = [[NSLock allocWithZone:NULL] init];
 	
 	[imageView setTarget:self];
+	/* The view listens to this window's Filter panel only from -setTarget:
+	   on, after the panel restored the saved filters in -awakeFromNib, so
+	   they are handed over again now. */
+	[filterPanelController applyFiltersToOwnerWindow];
 	/* v1.6.5: files dropped on the page open here, routed like a Finder open
 	   (see -openDroppedPaths:). Registering for drags adds the dragging
 	   destination callbacks only; mouse handling is unchanged. The overlay
@@ -3760,6 +3765,9 @@ static const NSInteger kBookmarkMenuFixedItemCount = 3;
 	}
 	[self setBookmarkMenu];
 	[self updateReadAndSortModeMenuState];
+	/* Filters are per window (code review L6); an open Filter panel follows
+	   the front window. */
+	[filterPanelController ownerWindowBecameMain];
 }
 
 /* Read mode and sort mode are per-book overrides on a global default
