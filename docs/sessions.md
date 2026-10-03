@@ -43,6 +43,12 @@ the `sync-projects` skill there.
   (claude-code-remote) to the session ID, in both directions; a reply goes back
   to the `from-session` of the received message. Look up an HQ's current ID by
   name with `list_sessions`.
+- **TF ready:** right after naming itself, a TF sends its name and that it is
+  waiting for a TASK, with `SendMessage` to `<repo> HQ` as `ListAgents` lists
+  it, or to `Central HQ` if that HQ cannot be reached. The Project HQ tells the
+  owner under the receiving heading below, then sends the TASK to the
+  `from-session` of that message, so it does not depend on finding the TF by
+  name.
 - **HQ to TF:** `send_message` (claude-code-remote) to the TF's session ID, with
   the TASK text. The TF accepts TASKs only from its own Project HQ. It shows
   that the TASK arrived and its key points, not the full text, since `TASK.md`
@@ -53,7 +59,8 @@ the `sync-projects` skill there.
   "one-way" (cannot reply); that is the wording of anthropics/claude-code#98897,
   and the message does arrive. Once that bug is fixed, reply to the session ID
   in the received message's `from-session` instead, which does not depend on
-  unique names.
+  unique names. The TF tells the owner in one line where it sent the message,
+  without saying whether it was read; the HQ does not acknowledge receipt.
 - **Fallback:** if the Project HQ cannot be reached, for example because it is
   archived, send to `Central HQ`. Central HQ summarizes for the owner and forwards to a successor
   Project HQ if there is one.
@@ -83,8 +90,10 @@ passes half of the maximum.
 2. Rename itself to `<name> (handover YYYY-MM-DD)` with `set_session_title`,
    using the owner's local date, so the plain name is free and stays unique.
 3. Start the successor with `create_session` in the same environment, titled
-   `<name>`, with the handover as its initial prompt. The successor attaches
-   the repositories it needs.
+   `<name>`, with the handover as its initial prompt. Only one repository can
+   be attached at creation; the successor's first reply asks the owner to
+   approve attaching the rest with `add_repo`, which auto mode does not allow
+   without the owner's explicit approval.
 4. Tell Central HQ the successor's name (Central HQ tells the other HQs), and
    tell the owner.
 5. Stop taking work and say in chat that the session can be archived. The owner
