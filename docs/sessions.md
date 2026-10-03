@@ -129,6 +129,15 @@ exists only in chat.
 
 - **Starting a TF:** in a new local session in the repository, the owner types
   `/tf <what>` (`~/.claude/skills/tf/SKILL.md`, managed by `kni927/dotfiles`).
+- **One TF per working directory:** local sessions in the same directory share
+  `TASK.md`, uncommitted changes, the index, and build output, so only one TF
+  works in a directory at a time. A new TF that finds `TASK.md` or uncommitted
+  changes does not accept a TASK; it reports to its Project HQ and the owner
+  instead. Before sending a TASK, the Project HQ checks with `list_sessions`
+  that no other TF of the repository is working. TFs in separate directories
+  (another repository, a second clone, or a worktree) may run at the same time,
+  but still take turns with what the Mac has only once: the installed app and
+  its preferences, simulators and devices, signing, and releases.
 - **Lifetime:** quitting the Claude app archived the local sessions connected
   through Remote Control, and restarting the app did not bring them back. Open
   a new TF for each piece of work.
