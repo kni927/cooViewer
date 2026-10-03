@@ -66,7 +66,10 @@ static FilterPanelController *frontPanelController = nil;
 }
 - (IBAction)openFilterPanel:(id)sender
 {
-    if (frontPanelController != self && [frontPanelController->filterPanel isVisible]) {
+    /* frontPanelController may be nil: test it before reaching into it, an
+       ivar read through nil is not a no-op the way a message is. */
+    if (frontPanelController && frontPanelController != self &&
+        [frontPanelController->filterPanel isVisible]) {
         [frontPanelController->filterPanel orderOut:self];
     }
     frontPanelController = self;
@@ -76,7 +79,7 @@ static FilterPanelController *frontPanelController = nil;
 - (void)ownerWindowBecameMain
 {
     FilterPanelController *previous = frontPanelController;
-    if (previous == self || ![previous->filterPanel isVisible]) return;
+    if (!previous || previous == self || ![previous->filterPanel isVisible]) return;
     /* Same place on screen, so to the user it is one panel whose contents
        follow the front window. */
     [filterPanel setFrame:[previous->filterPanel frame] display:NO];
