@@ -15,6 +15,14 @@
 	//maxSize = NSZeroSize;
 }
 
+/* One of these sits in each window's thumbnail panel, so since MW-7 it is
+   freed with its window; `pb` is owned and was leaked per closed window. */
+- (void)dealloc
+{
+	[pb release];
+	[super dealloc];
+}
+
 - (void)setMenu:(NSMenu *)aMenu
 {
 	[pb setMenu:aMenu];

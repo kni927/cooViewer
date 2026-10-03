@@ -6,6 +6,21 @@
 #import "FullImagePanel.h"
 @implementation BookWindowController (Input)
 
+/* The bound key and mouse actions that act on the window rather than on a
+   page: close, open the last page, full screen and minimize. They are the
+   only ones a window without a book (File ▸ New Window, or one left empty by
+   a cancelled password prompt) runs; every other action would page through,
+   or index into, a book that is not there. */
+static BOOL IsWindowKeyAction(int action)
+{
+	return action == 46 || action == 48 || action == 49 || action == 50;
+}
+
+static BOOL IsWindowMouseAction(int action)
+{
+	return action == 57 || action == 60 || action == 61 || action == 62;
+}
+
 #pragma mark action
 /* -remoteButton:pressedDown:clickCount: and the appleRemoteHoldDown state it
    maintains moved to AppController (MW-3, together with setupRemoteControl).
@@ -18,6 +33,7 @@
 		BOOL slideshow = NO;
 		if (timerSwitch) {
 			[timer invalidate];
+			timer = nil;
 			timerSwitch = NO;
 			slideshow = YES;
 			[imageView setSlideshow:NO];
@@ -46,6 +62,7 @@
 	BOOL slideshow = NO;
 	if (timerSwitch) {
 		[timer invalidate];
+		timer = nil;
 		timerSwitch = NO;
 		slideshow = YES;
 		[imageView setSlideshow:NO];
@@ -158,6 +175,7 @@
 					break;
 				}
 			}
+			if (![self hasBookOpen] && !IsWindowKeyAction(action)) return YES;
 			switch (action) {
 				case 0:
 					//nextpage
@@ -733,6 +751,7 @@
 {
 	if (timerSwitch) {
 		[timer invalidate];
+		timer = nil;
 		timerSwitch=NO;
 		[imageView setSlideshow:NO];
 	}
@@ -1000,6 +1019,7 @@
 						break;
 				}
 			}
+			if (![self hasBookOpen] && !IsWindowMouseAction(action)) return YES;
 			switch (action) {
 				case 0:
 					//next/prevpage
@@ -1696,8 +1716,10 @@
 
 - (IBAction)contextAction:(id)sender
 {
+	if (![self hasBookOpen]) return;
 	if (timerSwitch) {
 		[timer invalidate];
+		timer = nil;
 		timerSwitch=NO;
 	}
 	[lock lock];
@@ -1756,8 +1778,10 @@
 
 - (void)wheelAction:(NSEvent*)event
 {
+	if (![self hasBookOpen]) return;
 	if (timerSwitch) {
 		[timer invalidate];
+		timer = nil;
 		timerSwitch=NO;
 	}
 
@@ -1877,6 +1901,7 @@
 {
 	if (timerSwitch) {
 		[timer invalidate];
+		timer = nil;
 		timerSwitch=NO;
 	}
 	id scrollView = [fullImageView enclosingScrollView];
@@ -1931,6 +1956,7 @@
 {
 	if (timerSwitch) {
 		[timer invalidate];
+		timer = nil;
 		timerSwitch=NO;
 	}
 	id scrollView = [fullImageView enclosingScrollView];
@@ -2692,6 +2718,7 @@
 
 - (void)goToPar:(float)par
 {
+	if (![self hasBookOpen]) return;
 	threadStop = YES;
 	[lock lock];
 	[lock unlock];
@@ -2711,6 +2738,7 @@
 
 - (IBAction)switchSingle:(id)sender
 {
+	if (![self hasBookOpen]) return;
 	NSString *string;
 	if (secondImage) {
 		[imageMutableArray insertObject:secondImage atIndex:0];
@@ -2823,6 +2851,7 @@
 		if (timerSwitch) {
 			[appController dontSleepTimerStop];
 			[timer invalidate];
+			timer = nil;
 			timerSwitch=NO;
 			[imageView setSlideshow:NO];
 		} else {

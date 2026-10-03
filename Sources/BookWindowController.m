@@ -832,6 +832,7 @@ static NSPoint gNextWindowCascadePoint;
 {
 	if (timerSwitch) {
 		[timer invalidate];
+		timer = nil;
 		timerSwitch=NO;
 	}
 	NSOpenPanel *openPanel = [NSOpenPanel openPanel];
@@ -848,6 +849,7 @@ static NSPoint gNextWindowCascadePoint;
 	if (openPanelResult == NSOKButton) {
 		if (timerSwitch) {
 			[timer invalidate];
+			timer = nil;
 			timerSwitch=NO;
 		}
 		[self setCurrentBookPathAndOldBookPath:[[openPanel URL] path]];
@@ -921,6 +923,7 @@ static NSPoint gNextWindowCascadePoint;
 {
 	if (timerSwitch) {
 		[timer invalidate];
+		timer = nil;
 		timerSwitch=NO;
 	}
 	[self setCurrentBookPathAndOldBookPath:path];
@@ -2349,6 +2352,11 @@ static NSString * const kBookViewModeKey = @"cooViewerBookViewMode";
 
 -(void)lockedImageDisplay
 {
+	/* No pages (a bookless ⌘N window, or one left empty by a cancelled
+	   password prompt): nowPage 0 equals the count 0, which the branches
+	   below read as "end of book". With LoopCheck 0 that rewinds and calls
+	   this method again, without bound. */
+	if ([completeMutableArray count] == 0) return;
 	if (readMode > 1) {
 		if (nowPage == [completeMutableArray count]) {
 			if (loopCheck == 0) {
@@ -2362,6 +2370,7 @@ static NSString * const kBookViewModeKey = @"cooViewerBookViewMode";
 			} else {
 				if (timerSwitch) {
 					[timer invalidate];
+					timer = nil;
 					timerSwitch=NO;
 				}
 			}
@@ -2447,6 +2456,7 @@ static NSString * const kBookViewModeKey = @"cooViewerBookViewMode";
 			} else {
 				if (timerSwitch) {
 					[timer invalidate];
+					timer = nil;
 					timerSwitch=NO;
 				}
 			}
@@ -3314,6 +3324,7 @@ static const NSInteger kBookmarkMenuFixedItemCount = 3;
 {
 	if (timerSwitch) {
 		[timer invalidate];
+		timer = nil;
 		timerSwitch=NO;
 	}
 	if ([imageView image]) {
@@ -3598,6 +3609,7 @@ static const NSInteger kBookmarkMenuFixedItemCount = 3;
 		[thumController setImageLoader:nil];
 		if (timerSwitch) {
 			[timer invalidate];
+			timer = nil;
 			timerSwitch=NO;
 		}
 		id bookmarkMenuItem = [appController bookmarkMenuItem];

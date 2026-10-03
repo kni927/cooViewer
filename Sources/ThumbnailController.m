@@ -996,9 +996,21 @@
 
 /* MW-7: this panel belongs to one window, so it goes when that window is
    closed and its controller retired — see
-   -[BookWindowController closeAuxiliaryPanels]. */
+   -[BookWindowController closeAuxiliaryPanels].
+   The cell fill (-setImageCellWithInfo: and its siblings) re-schedules
+   itself with -performSelector:afterDelay:, and the wheel timers fire
+   -next:/-prev:. Each pending request retains this object but not the
+   unretained `controller`, `panel` and `matrix`, which go with the window,
+   so all of them are cancelled here. */
 -(void)closePanel
 {
+	[NSObject cancelPreviousPerformRequestsWithTarget:self];
+	doCount = 0;
+	stop = NO;
+	[wheelUpTimer invalidate];
+	wheelUpTimer = nil;
+	[wheelDownTimer invalidate];
+	wheelDownTimer = nil;
 	[panel orderOut:self];
 }
 

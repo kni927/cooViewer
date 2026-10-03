@@ -81,10 +81,12 @@ static const int DIALOG_CANCEL	= 129;
 
     if(returnCode == DIALOG_CANCEL) {
 		[bookName release];
+		bookName = nil;
 		[bookmarkArray release];
 		bookmarkArray = nil;
     } else if(returnCode == DIALOG_OK) {
 		[bookName release];
+		bookName = nil;
 		[bookmarkArray release];
 		bookmarkArray = nil;
 		[controller setBookmarkMenu];

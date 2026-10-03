@@ -347,7 +347,10 @@ NSRect COIntRect(NSRect aRect)
 	if (!NSIsEmptyRect(pageBarStringRect)) {
 		pageBarStringRect = NSZeroRect;
 	}
-	if (controller && [controller indicator] && imageView && ![imageView loupeIsVisible]) {
+	/* [imageView image]: the bar itself is drawn only with a page shown (see
+	   -drawRect:); without one, the bubble showed a stray " 1 " over a bar
+	   that was not there. */
+	if (controller && [controller indicator] && imageView && [imageView image] && ![imageView loupeIsVisible]) {
 		lensOldPoint = [[self window] mouseLocationOutsideOfEventStream];
 		
 		NSRect tempPageBarRect = NSInsetRect([self pageBarRect],2,2);
