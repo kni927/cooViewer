@@ -1153,3 +1153,13 @@ five high-severity defects (KNOWN_ISSUES #41) and the dead code removable
 under the 12.0 minimum. See `docs/cbr-performance-20261003.md`,
 `docs/code-review-20261003.md` and
 `docs/tasks/2026-10-03-04-cbr-perf-and-code-review.md`.
+
+### Stability fixes, solid RAR4 refusal, RAR survey tool (2026-10-03, unreleased)
+
+Fixed the five high-severity review defects (H1–H5) and M2, M7, L1, L7, L9,
+L10; solid RAR4 is refused at open with a clear message instead of a book of
+broken pages (KNOWN_ISSUES #39); filter changes apply per window (L6, with
+#28); the proven dead code went, including `KeyspanFrontRowControl` and the
+GC-era guards (bodies kept). `tools/rar_survey.py` classifies RAR books by
+header for the owner's decision on real solid-RAR4 support. Engine suite 246
+checks. See `docs/tasks/2026-10-03-05-stability-fixes-and-rar-survey.md`.

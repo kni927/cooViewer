@@ -1655,21 +1655,16 @@ savedSearch books — kept, unconditionally. Still open:
 ## 41. Open defects from the 2026-10-03 code review
 
 `docs/code-review-20261003.md` lists every finding with location, trigger,
-severity and fix size. None is fixed yet. The high-severity ones:
+severity and fix size.
 
-- **H1:** page input in a bookless window (v1.6.5 File ▸ New Window)
-  recurses forever in `-lockedImageDisplay` when `LoopCheck` is 0. Expected
-  crash, not yet reproduced. The owner's device (`LoopCheck` 3) did not crash
-  but showed abnormal output, such as a "1" with a speech-bubble.
-- **H2:** `-[NSString finderCompareS:]` overflows its 1024-unit stack buffers
-  on long strings. Reproduced: SIGSEGV with 5000-character strings. It runs
-  in the app and in both QuickLook extensions.
-- **H3:** nested-archive extraction in `COImageLoader` writes outside its temp
-  directory for entry names containing `..`.
-- **H4:** `BookmarkController` releases `bookName` twice when a window closes
-  after Edit Bookmark….
-- **H5:** `-[BookWindowController dealloc]` invalidates an already freed
-  slideshow timer.
+**Fixed 2026-10-03** (task
+`docs/tasks/2026-10-03-05-stability-fixes-and-rar-survey.md`): all five
+high-severity findings — H1 (bookless-window input; also the stray "1"
+page-bar bubble), H2 (`-finderCompareS:` stack overflow), H3 with L10
+(nested-archive extraction outside the temp directory), H4 (`bookName`
+double release), H5 (freed slideshow timer) — and M2, M7, L1, L6 (filters
+per window), L7, L9.
 
-The medium-severity RAR link miscount (M6, reproduced) shifts pages after a
-symlink in RAR5 archives.
+**Still open:** M1, M3–M6, M8–M12, L2–L5, L8, L11. The most visible are the
+RAR link miscount (M6, reproduced: pages shift after a symlink in RAR5
+archives) and Save Image… onto its own source deleting the original (M1).

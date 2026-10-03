@@ -1641,3 +1641,50 @@ already has one in flight. A shown empty window is a state MW-7/MW-8 never
 had: restored, it would come back with nothing to open and stand down
 `OpenLastFolder`; closed by a failed open while it is the last window, it
 would quit the app. See `docs/tasks/2026-10-03-01-v1.6.5-features.md`.
+
+## Solid RAR4 is refused at open, for now (2026-10-03)
+
+**Decision:** A RAR4 archive whose main header sets `MHD_SOLID` is refused
+before any reader is chosen (`CORarIsSolidRAR4AtPath` in
+`-[COArchive initWithPath:]`): the app says so in an alert (en/ja) and the
+QuickLook extensions give no cover. Real support (a solid-capable RAR4
+decoder, A2/A3 in `docs/cbr-performance-20261003.md`) is decided later, after
+the owner has counted their solid RAR4 books with `tools/rar_survey.py`.
+Password-protected RAR stays unsupported.
+
+**Why:** Owner decision (2026-10-03). The vendored libarchive cannot decode a
+solid RAR4 past its first entry (KNOWN_ISSUES #39), so such a book opened as
+one page and then broken ones, with no hint why. Checking the main header
+covers both the header-index path and the libarchive fallback.
+
+## Filter settings are per window (2026-10-03)
+
+**Decision:** A Filter panel change applies only to its own window: the panel
+posts `FilterUIValueDidChange` with its window controller as the object, and
+each image view listens only to its own. An open Filter panel follows the main
+window (the new front window's panel replaces it in place). Persistence is
+unchanged: `CIFilters`/`CIFilterKeys` are written on every change, by whichever
+window made it, and a new window starts from them.
+
+**Why:** Owner decision (2026-10-03, code review L6). Each window already had
+its own panel since MW-6, but the notification went to every window, so a
+change in one window changed them all, and opening a new window re-applied the
+saved set to the others. The filters are still layer filters; the render path
+keeps one `drawInRect:fromRect:` per page.
+
+## RemoteControlWrapper: KeyspanFrontRowControl removed; GC-era guards simplified (2026-10-03)
+
+**Decision:** `KeyspanFrontRowControl` (never instantiated) and the proven dead
+parts of `AppleRemote.m` (10.4 cookie table, the AppKit-version half of the
+10.5 test, `-finalize`) were removed; `GlobalKeyboardDevice` and the rest of
+the library stay. The `MAC_OS_X_VERSION_MAX_ALLOWED >= 1040` /
+`respondsToSelector:@selector(finalize)` guards in `PreferenceController`,
+`COPDFImageRep` and `COImageLoader` were removed with their fallbacks, and the
+guarded bodies kept unconditionally.
+
+**Why:** Owner decisions (2026-10-03). The 2026-07-25 "keep" rested on not
+diverging from upstream, and `AGENTS.md` now says there is no upstream. The
+guards' bodies are live features (font-panel mode mask, PDF links,
+`.savedSearch`); `+[NSObject respondsToSelector:@selector(finalize)]` is YES on
+macOS 26 and the owner accepted that inference for macOS 12–15. See
+`docs/tasks/2026-10-03-05-stability-fixes-and-rar-survey.md`.
