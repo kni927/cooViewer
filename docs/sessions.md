@@ -18,8 +18,10 @@ the `sync-projects` skill there.
   with `~/Projects/GitHub/pull-repos.command`. It sends each policy change to
   the Project HQs itself, without waiting to be asked.
 - **Project HQ** (cloud): plans one project and writes its TASKs. It is
-  archived once its TFs are done, and may first be renamed with a version
-  (`cooViewer v1.6.5 HQ`).
+  created with `create_session` and the project's repository as `source_url`
+  (for example `https://github.com/kni927/cooViewer`), which also files it
+  under that repository in the claude.ai session list. It is archived once its
+  TFs are done, and may first be renamed with a version (`cooViewer v1.6.5 HQ`).
 - **TF**, task force (usually a local session on a Mac): receives a TASK from
   its Project HQ, carries it out, and reports back. A new TF is opened for each
   piece of work.
@@ -145,10 +147,12 @@ compaction if one has already happened.
 2. Rename itself to `<name> (handover YYYY-MM-DD)` with `set_session_title`,
    using the owner's local date, so the plain name is free and stays unique.
 3. Start the successor with `create_session` in the same environment, titled
-   `<name>`, with the handover as its initial prompt. Only one repository can
-   be attached at creation; the successor's first reply asks the owner to
-   approve attaching the rest with `add_repo`, which auto mode does not allow
-   without the owner's explicit approval.
+   `<name>`, with the handover as its initial prompt. A Project HQ's successor
+   gets the project's repository as `source_url`, like the first one; Upstream
+   HQ and Central HQ are created without one. `source_url` takes one
+   repository; the successor's first reply asks the owner to approve attaching
+   any others with `add_repo`, which auto mode does not allow without the
+   owner's explicit approval.
 4. Tell Central HQ the successor's name (Central HQ tells the other HQs), and
    tell the owner.
 5. Stop taking work and show the ready-to-archive block. The owner archives
