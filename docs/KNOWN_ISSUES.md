@@ -1614,8 +1614,9 @@ in the report.
 severity and fix size. None is fixed yet. The high-severity ones:
 
 - **H1:** page input in a bookless window (v1.6.5 File ▸ New Window)
-  recurses forever in `-lockedImageDisplay`. Expected crash; not yet
-  reproduced in the app.
+  recurses forever in `-lockedImageDisplay` when `LoopCheck` is 0. Expected
+  crash, not yet reproduced. The owner's device (`LoopCheck` 3) did not crash
+  but showed abnormal output, such as a "1" with a speech-bubble.
 - **H2:** `-[NSString finderCompareS:]` overflows its 1024-unit stack buffers
   on long strings. Reproduced: SIGSEGV with 5000-character strings. It runs
   in the app and in both QuickLook extensions.

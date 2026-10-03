@@ -94,6 +94,13 @@ lookahead (which adds nothing) and calls itself again, without bound.
   (accessibility) click did not crash the app, but its delivery to the image
   view could not be confirmed, so it proves nothing either way. Confirming
   the crash is the first step of the fix task.
+- **Owner check (2026-10-03):** on the real device, clicking the left half
+  of a ⌘N empty window did not crash; depending on where it was clicked the
+  window showed abnormal output, such as a "1" with a speech-bubble. On that
+  Mac `LoopCheck` is 3, and the unbounded recursion needs `LoopCheck` 0 (the
+  value a profile without the key gets), so the observation does not rule
+  out the crash. The fix task should reproduce H1 with `LoopCheck` 0 and also
+  cover the abnormal display.
 
 ### H2. `-finderCompareS:` stack buffer overflow
 
