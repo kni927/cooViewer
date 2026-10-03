@@ -199,9 +199,14 @@ install/register cycles are risky.
 1. `open build/cooViewer.app`
 2. Exercise the app.
 3. Quit it (`Cmd+Q` or `kill`).
+4. `lsregister -u build/cooViewer.app` (outside the sandbox), and the same
+   for the intermediate products under `$BUILD_TMP` if they still exist.
+   Launching registers `build/cooViewer.app` with LaunchServices under the
+   production bundle IDs, and `xcodebuild` registers the intermediate
+   products too (`docs/KNOWN_ISSUES.md` #15).
 
 Do not touch `/Applications` (the Homebrew-managed install) or `~/Applications`
-for this case. No LaunchServices registration occurs.
+for this case.
 
 ### QuickLook / Thumbnail extensions
 
