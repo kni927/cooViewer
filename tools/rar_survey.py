@@ -34,6 +34,9 @@ symlinked folders are not entered). Reading a cloud "online-only" file,
 e.g. Dropbox, makes the cloud provider download it; use
 --skip-online-only to list those files without reading them.
 
+--solid-only prints lines only for solid archives (RAR4 or RAR5); the
+summary still counts every file surveyed.
+
 Header layouts follow Sources/CORarHeaderIndex.m (itself derived from
 XADMaster's XADRARParser.m / XADRAR5Parser.m) and RARLAB's technote.
 
@@ -359,6 +362,12 @@ def main(argv=None):
     parser.add_argument("--skip-online-only", action="store_true",
                         help="list cloud placeholder files without reading "
                              "(and so without downloading) them")
+    parser.add_argument("--solid-only", action="store_true",
+                        help="print a TSV line only for archives whose header says "
+                             "solid (RAR4 or RAR5); the summary on stderr still "
+                             "counts every file surveyed. Archives whose solidity "
+                             "cannot be read (RAR5 with encrypted headers) are not "
+                             "printed")
     args = parser.parse_args(argv)
 
     counters = collections.Counter()
@@ -381,7 +390,8 @@ def main(argv=None):
         if online_only and not args.skip_online_only:
             counters["online-only read (downloaded)"] += 1
         rec["online_only"] = yes_no(online_only)
-        out.write("\t".join(tsv_field(path if c == "path" else rec[c]) for c in COLUMNS) + "\n")
+        if not args.solid_only or rec["solid"] == "yes":
+            out.write("\t".join(tsv_field(path if c == "path" else rec[c]) for c in COLUMNS) + "\n")
 
         counters["files"] += 1
         fmt = rec["format"]

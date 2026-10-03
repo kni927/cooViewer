@@ -207,6 +207,17 @@ class RarSurveyTest(unittest.TestCase):
         self.assertEqual(proc.returncode, 0)
         self.assertEqual(rows["r4_solid.cbr"]["solid"], "yes")
 
+    def test_solid_only(self):
+        proc, rows = run_tool("--solid-only", self.root)
+        self.assertEqual(proc.returncode, 0, proc.stderr)
+        expected = {"r4_solid.cbr", "nested.cbr", "r4_crypt_headers.cbr"}
+        if self.have_rar:
+            expected.add("r5_solid.cbr")
+        self.assertEqual(set(rows), expected)
+        # the summary still counts every file, not only the solid ones
+        self.assertIn("files surveyed: %d" % len(self.rows), proc.stderr)
+        self.assertIn("format: ZIP: 1", proc.stderr)
+
     def test_missing_argument(self):
         proc, _rows = run_tool(self.root / "does-not-exist")
         self.assertEqual(proc.returncode, 1)
