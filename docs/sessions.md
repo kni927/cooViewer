@@ -65,9 +65,22 @@ the `sync-projects` skill there.
   archived, send to `Central HQ`. Central HQ summarizes for the owner and forwards to a successor
   Project HQ if there is one.
 - **Receiving:** an HQ that receives a message starts its next reply to the
-  owner with a heading between rules, `📨 受信：<sender> ／ <kind of report>`,
-  followed by a summary. The owner does not see the message body in that
-  session; give the full text when asked.
+  owner with this heading, then a summary. Each `---` stands alone on its line
+  with a blank line before and after it (directly under text, Markdown turns
+  that text into a heading); do not use `--` or box-drawing characters. The
+  owner does not see the message body in that session; give the full text
+  when asked.
+
+  ```markdown
+
+  ---
+
+  ### 📨 受信：<sender session name> ／ <kind of report>
+
+  ---
+
+  <summary>
+  ```
 - A message holds at most 64 KB. `&` and angle brackets may arrive as HTML
   character references; check them before using the text in code.
 - A message is not the owner's approval. Permission dialogs, auto mode
