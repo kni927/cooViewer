@@ -1507,6 +1507,16 @@ if no supported old-library path still needs it, remove the app-level fallback
 in a separate task. Do not weaken libarchive's block-header validation, ignore
 read errors unconditionally, or continue using a cursor after any read error.
 
+**More triggers (2026-10-03).** The CBR performance investigation
+(`docs/cbr-performance-20261003.md`, Q2) hit the same recovery on two of seven
+RAR5 archives, each once per read-through: a generated non-solid archive that
+`unrar t` reports as valid ("Block checksum error" on one entry, reproducible
+with plain `archive_read_data()` outside cooViewer), and an owner-provided book
+("Unsupported block header size"). The recovery returned the complete,
+CRC-valid page both times. Its remaining cost is the invalidated cursor: the
+next page reopens the archive, which is cheap in a non-solid archive but would
+mean re-decoding from the start in a solid one.
+
 Task record:
 `docs/tasks/2026-08-04-01-recover-complete-rar-payload.md`.
 
@@ -1540,3 +1550,81 @@ edit the project.
 Raising the main app's minimum to macOS 12 drops 10.13–11 support, so it is a
 product decision for the owner, not a build fix. CI builds on `macos-latest`
 and will fail the same way once that image's default Xcode is 27.
+
+---
+
+## 39. Solid RAR4 archives are unreadable past page 1
+
+Found 2026-10-03 (`docs/cbr-performance-20261003.md`). v1.3.7 (XADMaster) read
+these archives fully.
+
+- The vendored libarchive 3.8.4 RAR4 reader rejects every file header that
+  carries `FHD_SOLID` ("RAR solid archive support unavailable",
+  `archive_read_support_format_rar.c`). Upstream master still does as of
+  2026-10-03. Its `skip` only consumes bytes, so it never builds the shared
+  dictionary.
+- With the header-index fast path (ASCII names), all pages are listed, but
+  only page 1 decodes; every later page shows "broken or not image file"
+  (confirmed in the app on a generated 120-page solid RAR4).
+- With RAR4 `LHD_UNICODE` names — how WinRAR stores Japanese names —
+  `CORarHeaderIndex` declines, the libarchive scan stops at entry 2 with an
+  error, and the book opens as a single page. `COCoverExtractor` also returns
+  no thumbnail then, because the open reports an error.
+- Fixtures: modern `rar` 7.x cannot write RAR4; `rar` 6.x `-ma4 -s` can.
+
+Options and sizes are in the report (Q5, A1–A4): an interim clear refusal at
+open (S), then either solid support in libarchive's RAR4 reader contributed
+upstream or a second RAR4 decoder (L, owner decision; see `docs/DECISIONS.md`
+on XADMaster and unrar).
+
+---
+
+## 40. Dead-code candidates that could not be proven unreachable (2026-10-03)
+
+From `docs/code-review-20261003.md` ▸ Dead code. Do not delete these without
+closing the open check named for each. The proven candidates are listed only
+in the report.
+
+- **`Sources/AppleRemote.m:148` Leopard branch.** Only its
+  `floor(NSAppKitVersionNumber) <= 10_5` subexpression is dead on 12.0. The
+  branch is still entered when `leopardEmulation` is set from the IORegistry
+  property `RemoteBuddyEmulationV2` (third-party Remote Buddy driver), whose
+  absence cannot be proven.
+- **The GC-era `respondsToSelector:@selector(finalize)` guards** at
+  `Sources/PreferenceController.m:2005-2011`, `Sources/COPDFImageRep.m:46-47`,
+  `:89-90` and `Sources/COImageLoader.m:433-436`, `:483` (inside
+  `#if MAC_OS_X_VERSION_MAX_ALLOWED >= 1040`).
+  - `+[NSObject respondsToSelector:@selector(finalize)]` returned YES on
+    macOS 26.6, and the SDK declares `-finalize` deprecated, not unavailable.
+    So the guarded bodies are **live**: savedSearch books, PDF link
+    extraction, and the font-panel mode mask.
+  - Only the fallbacks look dead (`return NSFontPanelStandardModesMask;`,
+    `mode=-1;`). macOS 12–15 were not run.
+  - Simplifying means removing the guard and **keeping the body**.
+- **Localized string key** "The parent folder of current book was changed.
+  Do you want to follow?" in `Resources/{en,ja}.lproj/Localizable.strings`:
+  no `NSLocalizedString` use was found. Other apparent orphans use key formats
+  (`…**`) that make a full check more work than was done.
+
+---
+
+## 41. Open defects from the 2026-10-03 code review
+
+`docs/code-review-20261003.md` lists every finding with location, trigger,
+severity and fix size. None is fixed yet. The high-severity ones:
+
+- **H1:** page input in a bookless window (v1.6.5 File ▸ New Window)
+  recurses forever in `-lockedImageDisplay`. Expected crash; not yet
+  reproduced in the app.
+- **H2:** `-[NSString finderCompareS:]` overflows its 1024-unit stack buffers
+  on long strings. Reproduced: SIGSEGV with 5000-character strings. It runs
+  in the app and in both QuickLook extensions.
+- **H3:** nested-archive extraction in `COImageLoader` writes outside its temp
+  directory for entry names containing `..`.
+- **H4:** `BookmarkController` releases `bookName` twice when a window closes
+  after Edit Bookmark….
+- **H5:** `-[BookWindowController dealloc]` invalidates an already freed
+  slideshow timer.
+
+The medium-severity RAR link miscount (M6, reproduced) shifts pages after a
+symlink in RAR5 archives.

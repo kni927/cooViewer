@@ -1140,3 +1140,16 @@ signature checks, the restored-window Finder regression, ⇧-double-click and
 Quick Look and thumbnails. ⇧⌘↓ in Finder opens nothing (Finder does not
 treat it as Open), so it was dropped from the published release notes. See
 `docs/tasks/2026-10-03-03-release-v1.6.5.md`.
+
+### CBR performance vs v1.3.7, and a code review (2026-10-03)
+
+Investigation only, no code change. Against the XADMaster baseline the
+current libarchive path is as fast or faster for open, first page, solid RAR5
+reading and jumps, and much faster for paging back in solid books (cache).
+Two regressions found: solid RAR4 is unreadable past page 1 (KNOWN_ISSUES
+#39), and non-solid archives stored out of page order reopen the decoder
+cursor (1.3× slower read-through on an owner book). The code review lists
+five high-severity defects (KNOWN_ISSUES #41) and the dead code removable
+under the 12.0 minimum. See `docs/cbr-performance-20261003.md`,
+`docs/code-review-20261003.md` and
+`docs/tasks/2026-10-03-04-cbr-perf-and-code-review.md`.
