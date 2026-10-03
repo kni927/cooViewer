@@ -10,13 +10,17 @@ whose target already exists.
 ## Requirements
 
 - `/usr/bin/python3` (macOS Command Line Tools); standard library only.
-- An extractor: `7zz` (`brew install sevenzip`, preferred) or `unar`
-  (`brew install unar`, which also provides `lsar`). Only `--convert` needs
-  one.
+- An extractor: `unar` (`brew install unar`, which also provides `lsar`).
+  Only `--convert` needs one. `7zz` is used instead only when it has the RAR
+  codecs; Homebrew's `sevenzip` is built without them (`7zz i` lists no
+  `Rar3` codec), so its 7zz lists RAR archives but fails every compressed
+  entry with "Unsupported Method", and the tool leaves it out.
 - Books whose RAR4 names are stored without Unicode (Shift_JIS bytes from
-  old Japanese Windows archivers) need `unar`: 7zz on macOS cannot decode
-  them. Their names are decoded from the header bytes with
-  `--legacy-encoding` (default `cp932`). The dry run marks these books.
+  old Japanese Windows archivers) need `unar` in any case: 7zz on macOS
+  cannot decode them. Their names are decoded from the header bytes with
+  `--legacy-encoding` (default `cp932`). The dry run reads only the start of
+  each archive, as `rar_survey.py` does, so these books, and passwords on
+  any entry but the first, show up only in the `--convert` run.
 
 ## Use
 

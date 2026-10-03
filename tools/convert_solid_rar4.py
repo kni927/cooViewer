@@ -27,11 +27,13 @@ Per book, --convert:
      modification time and permissions, and renames it into place, never
      over an existing file.
 
-Extractor: 7zz (Homebrew sevenzip) is preferred, unar/lsar (Homebrew unar)
-is the alternative. RAR4 names stored without Unicode (old archives made
-on Japanese Windows store Shift_JIS bytes) cannot be decoded by 7zz on
-macOS, so such books are extracted with unar and named by decoding the
-header bytes with --legacy-encoding (cp932 by default).
+Extractor: 7zz is preferred when it has the RAR codecs, otherwise
+unar/lsar (Homebrew unar) is used. Homebrew's sevenzip is built without
+them: its 7zz lists RAR archives but cannot decompress them, so it is
+left out. RAR4 names stored without Unicode (old archives made on Japanese
+Windows store Shift_JIS bytes) cannot be decoded by 7zz on macOS, so such
+books are extracted with unar and named by decoding the header bytes with
+--legacy-encoding (cp932 by default).
 
 Runs on the Python 3 that ships with the macOS Command Line Tools
 (/usr/bin/python3, 3.9); standard library only, plus the extractor.
@@ -60,6 +62,7 @@ import rar_survey  # noqa: E402  (header detection shared with the survey)
 TARGET_EXT = {".cbr": ".cbz", ".rar": ".zip"}
 
 LHD_LARGE = 0x0100
+MAX_ENTRIES = 1000000
 LHD_WINDOWMASK = 0x00E0
 LHD_DIRECTORY = 0x00E0
 ZIP_FLAG_UTF8 = 0x0800
@@ -148,7 +151,10 @@ class RarEntry:
 def read_rar4_entries(path):
     """Every file header of a non-encrypted, single-volume RAR4 archive."""
     entries = []
-    with open(path, "rb") as f:
+    # Unbuffered: a buffered reader refills its whole buffer (st_blksize,
+    # which can be large on some volumes) after every seek, and this walk
+    # seeks once per block.
+    with open(path, "rb", buffering=0) as f:
         size = os.fstat(f.fileno()).st_size
         read = rar_survey.read_exact
         pos = len(rar_survey.RAR4_SIG)
@@ -159,6 +165,8 @@ def read_rar4_entries(path):
         add = struct.unpack("<I", read(f, 4))[0] if flags & rar_survey.LONG_BLOCK else 0
         pos += hsize + add
         while pos + 7 <= size:
+            if len(entries) >= MAX_ENTRIES:
+                raise rar_survey.HeaderError("more than %d file headers" % MAX_ENTRIES)
             f.seek(pos)
             _crc, htype, flags, hsize = struct.unpack("<HBHH", read(f, 7))
             if hsize < 7 or pos + hsize > size:
@@ -277,16 +285,30 @@ class Unar:
              "-o", dest, path])
 
 
+def has_rar_codec(seven):
+    """Whether this 7zz can decompress RAR. Homebrew's sevenzip is built
+    without the RAR codecs: it lists RAR archives and extracts STORE
+    entries, but fails every compressed one with "Unsupported Method"."""
+    proc = subprocess.run([seven, "i"], stdin=subprocess.DEVNULL,
+                          stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
+    lines = proc.stdout.decode("utf-8", "replace").splitlines()
+    return any(line.split()[-1:] == ["Rar3"] for line in lines)
+
+
 def find_extractors(choice):
-    """Extractors to use, in order of preference."""
-    found = []
+    """Extractors to use, in order of preference, and notes on any left out."""
+    found, notes = [], []
     seven = shutil.which("7zz")
     unar, lsar = shutil.which("unar"), shutil.which("lsar")
     if seven and choice in ("auto", "7zz"):
-        found.append(SevenZip(seven))
+        if has_rar_codec(seven):
+            found.append(SevenZip(seven))
+        else:
+            notes.append("%s has no RAR codec (Homebrew's sevenzip is built without "
+                         "it), so it is not used" % seven)
     if unar and lsar and choice in ("auto", "unar"):
         found.append(Unar(unar, lsar))
-    return found
+    return found, notes
 
 
 # ------------------------------------------------------------------- planning
@@ -298,7 +320,11 @@ def target_for(path):
 
 
 def classify(path, st, args, planned):
-    """Return (None, entries) for a book to convert, or (skip reason, None)."""
+    """Return (None, entries) for a book to convert, or (skip reason, None).
+
+    The dry run reads only what tools/rar_survey.py reads (the start of the
+    file) and returns entries None; --convert also walks every file header,
+    which reads the whole archive."""
     online_only = bool(getattr(st, "st_flags", 0) & rar_survey.SF_DATALESS)
     if online_only and args.skip_online_only:
         return "online-only (not read)", None
@@ -321,12 +347,16 @@ def classify(path, st, args, planned):
         return "multi-volume", None
     if rec["note"] == "none":
         return "no files in archive", None
-    try:
-        entries = read_rar4_entries(path)
-    except (OSError, rar_survey.HeaderError, struct.error) as exc:
-        return "RAR4 header error: %s" % exc, None
-    if any(e.encrypted for e in entries):
+    if rec["first_file_encrypted"] == "yes":
         return "password-protected", None
+    entries = None
+    if args.convert:
+        try:
+            entries = read_rar4_entries(path)
+        except (OSError, rar_survey.HeaderError, struct.error) as exc:
+            return "RAR4 header error: %s" % exc, None
+        if any(e.encrypted for e in entries):
+            return "password-protected", None
     target = target_for(path)
     if target in planned or (os.path.lexists(target) and not args.delete_originals):
         return "target exists", None
@@ -567,8 +597,9 @@ def main(argv=None):
                              "ZIP is verified in this run; an existing .cbz/.zip is "
                              "verified against the original instead of being skipped")
     parser.add_argument("--extractor", choices=("auto", "7zz", "unar"), default="auto",
-                        help="extractor to use (default: 7zz if installed, else unar; "
-                             "books with legacy non-Unicode names always need unar)")
+                        help="extractor to use (default: 7zz if it has the RAR codecs, "
+                             "which Homebrew's build lacks, else unar; books with legacy "
+                             "non-Unicode names always need unar)")
     parser.add_argument("--legacy-encoding", default="cp932", metavar="CODEC",
                         help="code page of RAR4 names stored without Unicode "
                              "(default: cp932, Japanese Windows)")
@@ -589,10 +620,12 @@ def main(argv=None):
 
     extractors = []
     if args.convert:
-        extractors = find_extractors(args.extractor)
+        extractors, notes = find_extractors(args.extractor)
+        for note in notes:
+            print("convert_solid_rar4: %s" % note, file=sys.stderr)
         if not extractors:
-            print("convert_solid_rar4: no extractor found; install one with "
-                  "`brew install sevenzip` (7zz) or `brew install unar`", file=sys.stderr)
+            print("convert_solid_rar4: no usable extractor; install unar "
+                  "(`brew install unar`)", file=sys.stderr)
             return 2
 
     counters = collections.Counter()
@@ -610,14 +643,13 @@ def main(argv=None):
                 print("skip (%s): %s" % (reason, path), file=out)
             continue
         if not args.convert:
-            note = ""
-            if any(e.legacy_name for e in entries):
-                note = "  [legacy names, %s, needs unar]" % args.legacy_encoding
-            print("would convert: %s -> %s%s" % (path, os.path.basename(target_for(path)), note),
+            print("would convert: %s -> %s" % (path, os.path.basename(target_for(path))),
                   file=out)
             converted += 1
             continue
         existing = os.path.lexists(target_for(path))  # only with --delete-originals
+        print("%s: %s ..." % ("verifying" if existing else "converting", path), file=out)
+        out.flush()
         try:
             target, pages, dropped, used = convert_book(
                 path, st, entries, extractors, args.legacy_encoding, existing)

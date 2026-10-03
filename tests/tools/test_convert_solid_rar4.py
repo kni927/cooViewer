@@ -33,12 +33,17 @@ REPO = pathlib.Path(__file__).resolve().parents[2]
 TOOL = REPO / "tools" / "convert_solid_rar4.py"
 SRC = REPO / "tests" / "fixtures" / "src"
 RAR = shutil.which("rar")
-HAVE_7ZZ = shutil.which("7zz") is not None
 HAVE_UNAR = shutil.which("unar") is not None and shutil.which("lsar") is not None
 
 sys.dont_write_bytecode = True
 sys.path.insert(0, str(REPO / "tools"))
 import convert_solid_rar4 as tool  # noqa: E402
+
+# Homebrew's 7zz has no RAR codecs; it still extracts the STORE fixtures,
+# so the forced-7zz case runs whenever 7zz exists.
+SEVEN = shutil.which("7zz")
+HAVE_7ZZ = SEVEN is not None
+AUTO_EXTRACTOR = "7zz" if HAVE_7ZZ and tool.has_rar_codec(SEVEN) else "unar"
 
 RAR4_SIG = b"Rar!\x1a\x07\x00"
 MHD_VOLUME, MHD_SOLID, MHD_PASSWORD, MHD_FIRSTVOLUME = 0x0001, 0x0008, 0x0080, 0x0100
@@ -134,7 +139,10 @@ SKIPS = {
     "crypt_headers.cbr": "header-encrypted",
     "volume.part1.rar": "multi-volume",
     "password.cbr": "password-protected",
+    "password_first.cbr": "password-protected",
 }
+# the password is on the second entry; the dry run reads only the first
+CONVERT_ONLY_SKIPS = ("password.cbr",)
 # skip reasons of files that are not solid RAR4: summary only by default
 UNLISTED = ("not solid", "RAR5", "not RAR (ZIP)")
 
@@ -176,6 +184,7 @@ def make_books(root):
                                          main_flags=MHD_SOLID | MHD_VOLUME | MHD_FIRSTVOLUME),
         "password.cbr": rar4_archive([(u("001.png"), p["001.png"], 0),
                                       (u("002.jpg"), p["002.jpg"], LHD_PASSWORD)]),
+        "password_first.cbr": rar4_archive([(u("001.png"), p["001.png"], LHD_PASSWORD)]),
     }
     for name, data in books.items():
         (root / name).write_bytes(data)
@@ -203,7 +212,7 @@ def run_tool(*args):
 
 def run_main(*args):
     out = io.StringIO()
-    with contextlib.redirect_stdout(out):
+    with contextlib.redirect_stdout(out), contextlib.redirect_stderr(io.StringIO()):
         status = tool.main([str(a) for a in args])
     return status, out.getvalue()
 
@@ -253,14 +262,16 @@ class DryRunTest(ConvertTestBase):
             self.assertTrue(self.line_for(out, name).startswith("would convert: "))
         self.assertIn("solid_ascii.rar -> solid_ascii.zip", out)
         self.assertIn("UPPER.CBR -> UPPER.CBZ", out)
-        self.assertIn("[legacy names, cp932, needs unar]", self.line_for(out, "solid_legacy.cbr"))
         for name, reason in SKIPS.items():
-            if reason in UNLISTED:
+            if name in CONVERT_ONLY_SKIPS:
+                # found only by walking every header, which the dry run does not
+                self.assertTrue(self.line_for(out, name).startswith("would convert: "))
+            elif reason in UNLISTED:
                 self.assertNotIn(os.sep + name, out)
             else:
                 line = self.line_for(out, name)
                 self.assertTrue(line.startswith("skip (%s" % reason), line)
-        self.assertIn("would convert: %d" % len(CONVERTIBLE), out)
+        self.assertIn("would convert: %d" % (len(CONVERTIBLE) + len(CONVERT_ONLY_SKIPS)), out)
         self.assertIn("dry run, nothing written", out)
         for reason in UNLISTED:
             self.assertRegex(out, r"skipped, %s.*: 1 \(not listed; --list-all lists them\)"
@@ -270,6 +281,8 @@ class DryRunTest(ConvertTestBase):
         proc = run_tool("--list-all", self.root)
         self.assertEqual(proc.returncode, 0, proc.stdout + proc.stderr)
         for name, reason in SKIPS.items():
+            if name in CONVERT_ONLY_SKIPS:
+                continue
             line = self.line_for(proc.stdout, name)
             self.assertTrue(line.startswith("skip (%s" % reason), line)
         self.assertNotIn("not listed", proc.stdout)
@@ -306,6 +319,8 @@ class ConvertTest(ConvertTestBase):
         for name in CONVERTIBLE + tuple(SKIPS):
             self.assertTrue((self.root / name).exists(), name)
         self.assertEqual((self.root / "exists.cbz").read_bytes(), b"already here")
+        for name in ("password.cbr", "password_first.cbr"):
+            self.assertTrue(self.line_for(out, name).startswith("skip (password-protected)"))
         for name in ("plain_rar4.cbz", "r5_solid.cbz", "zip_named.cbz", "password.cbz",
                      "crypt_headers.cbz", "volume.part1.zip"):
             self.assertFalse((self.root / name).exists(), name)
@@ -314,7 +329,9 @@ class ConvertTest(ConvertTestBase):
 
     @unittest.skipUnless(HAVE_7ZZ, "7zz not installed")
     def test_convert_7zz(self):
-        out = self.check_common(run_tool("--convert", "--extractor", "7zz", self.root))
+        with mock.patch.object(tool, "has_rar_codec", return_value=True):
+            status, out = run_main("--convert", "--extractor", "7zz", self.root)
+        self.check_common(subprocess.CompletedProcess([], status, out, ""))
         self.assertIn("needs unar", self.line_for(out, "solid_legacy.cbr"))
         self.assertFalse((self.root / "solid_legacy.cbz").exists())
         self.assertIn("failed: 2", out)
@@ -325,16 +342,19 @@ class ConvertTest(ConvertTestBase):
         self.assertConverted("solid_legacy.cbz")
         self.assertIn("failed: 1", out)
 
-    @unittest.skipUnless(HAVE_7ZZ and HAVE_UNAR, "needs both 7zz and unar")
+    @unittest.skipUnless(HAVE_UNAR, "unar not installed")
     def test_convert_auto(self):
-        out = self.check_common(run_tool("--convert", self.root))
+        proc = run_tool("--convert", self.root)
+        out = self.check_common(proc)
         self.assertConverted("solid_legacy.cbz")
         self.assertIn(", unar)", self.line_for(out, "solid_legacy.cbr"))
-        self.assertIn(", 7zz)", self.line_for(out, "solid_jp.cbr"))
+        self.assertIn(", %s)" % AUTO_EXTRACTOR, self.line_for(out, "solid_jp.cbr"))
+        if AUTO_EXTRACTOR == "unar":
+            self.assertIn("has no RAR codec", proc.stderr)
         self.assertIn("converted: 5", out)
 
 
-@unittest.skipUnless(HAVE_7ZZ or HAVE_UNAR, "no extractor installed")
+@unittest.skipUnless(HAVE_UNAR, "unar not installed")
 class VerifyTest(ConvertTestBase):
     def setUp(self):
         super().setUp()
@@ -394,7 +414,7 @@ class VerifyTest(ConvertTestBase):
         self.assertNoLeftovers()
 
 
-@unittest.skipUnless(HAVE_7ZZ and HAVE_UNAR, "needs both 7zz and unar")
+@unittest.skipUnless(HAVE_UNAR, "unar not installed")
 class DeleteOriginalsTest(ConvertTestBase):
     GOOD = ["solid_jp.cbr", "solid_ascii.rar", "UPPER.CBR", "solid_encname.cbr",
             "solid_legacy.cbr"]

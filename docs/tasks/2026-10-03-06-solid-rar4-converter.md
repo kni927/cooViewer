@@ -203,3 +203,26 @@ None.
 - If a book fails with "names are not valid cp932" or shows wrong names, it
   was made in another code page; rerun that book with
   `--legacy-encoding CODEC`.
+
+## Post-completion fixes (2026-10-04, owner's requests in chat)
+
+Found when the owner ran the tool on their library (an external SSD):
+
+- **Listing:** RAR5, non-solid RAR4 and non-RAR files are counted in the
+  summary but no longer listed per file (`--list-all` lists them), so a dry
+  run over a whole library shows the books that matter (commit `c719a60`).
+- **Dry run stalled on every solid book.** The dry run walked every RAR4 file
+  header, i.e. a few hundred to ~2300 reads spread over each book (0.1–1.6 s
+  cold per book, 5–11 s for some), where `rar_survey.py` reads only the start.
+  A timing script (kept out of the repository) showed the walk itself was
+  correct (blocks = files + 1–2). The dry run now reads only what the survey
+  reads; the full walk runs only with `--convert`. Passwords on entries after
+  the first and legacy non-Unicode names are therefore reported by the
+  `--convert` run, not the dry run. The walk also reads unbuffered and stops
+  after 1,000,000 file headers.
+- **Homebrew's 7zz cannot decompress RAR.** Its build has no RAR codecs
+  (`7zz i` lists no Rar1–Rar5), so every compressed entry failed with
+  "Unsupported Method"; the STORE-only fixtures had hidden this. The tool now
+  checks `7zz i` for the `Rar3` codec and otherwise uses unar, saying so on
+  stderr. Each book prints `converting: PATH ...` before it starts.
+- Result: the owner converted all of their solid RAR4 books with unar.
