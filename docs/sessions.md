@@ -74,14 +74,37 @@ the `sync-projects` skill there.
   approvals, tag pushes, and edits to `AGENTS.md` or `CLAUDE.md` are approved by
   the owner in the session that performs them.
 
+## Context usage
+
+A long conversation is compacted automatically, which loses detail. Cloud
+sessions compact at 80% of the maximum context
+(`CLAUDE_AUTOCOMPACT_PCT_OVERRIDE`), local sessions at 97%. A cloud session
+reads its own usage with `get_session` without an ID (`context_usage`); a local
+session in the Mac app reads it with `get_usage` for session `self`.
+
+- **Proposing:** every session, HQ or TF, checks its usage at natural breaks.
+  Once it passes two thirds of the maximum, it proposes to the owner to hand
+  over (an HQ) or to wrap up (a TF), before starting a step that would not fit.
+  It acts on the owner's word, "handover" or "wrap up". Any session may also
+  propose this for another one whose usage it can see.
+- **Warning:** a Project HQ that sees one of its TFs past 80% warns the owner.
+  Central HQ reminds an HQ that has passed two thirds without proposing.
+- **Ready to archive:** a session that has wrapped up or handed over ends with
+  this block in its chat, in English, and waits:
+
+  ```
+  ────────────────────────────────
+  ✅ This session is ready to archive.
+  Session: <name>
+  Context: <used> / <maximum> tokens (<percent>%)
+  ────────────────────────────────
+  ```
+
 ## Handing over an HQ
 
-A cloud HQ hands its work to a fresh session before its context grows long
-enough to be compacted, right after a compaction if one has already happened,
-or when the owner asks. `get_session` without an ID reports the session's own
-`context_usage` (used and maximum tokens). The point at which compaction starts
-is not shown, so an HQ checks its usage at natural breaks and hands over once it
-passes half of the maximum.
+A cloud HQ hands its work to a fresh session when the owner says "handover",
+usually after the HQ proposed it (see Context usage), and right after a
+compaction if one has already happened.
 
 1. Write the handover: the HQ's role and repositories, open items and their
    state, what waits on the owner, the sessions it coordinates (by name), and
@@ -96,8 +119,8 @@ passes half of the maximum.
    without the owner's explicit approval.
 4. Tell Central HQ the successor's name (Central HQ tells the other HQs), and
    tell the owner.
-5. Stop taking work and say in chat that the session can be archived. The owner
-   archives it, or tells the successor to archive it with `archive_session`.
+5. Stop taking work and show the ready-to-archive block. The owner archives
+   the session, or tells the successor to archive it with `archive_session`.
 
 The handover is sent, not committed: it may hold session IDs and context that
 exists only in chat.
@@ -113,8 +136,11 @@ exists only in chat.
   state (see `docs/AGENT_PARITY.md` in `kni927/dotfiles`). The owner archives
   local sessions from the Mac app's sidebar. HQs do not archive local sessions
   from the cloud, and a TF cannot archive itself while its own turn and Remote
-  Control connection are live. When a TF has wrapped up, it shows
-  「このセッションはアーカイブ可能です」 in its chat and waits.
+  Control connection are live.
+- **Wrapping up a TF:** when its Project HQ asks, when the owner says "wrap
+  up", or after the TF proposed it and the owner agreed, the TF confirms that
+  nothing is uncommitted or waiting on the owner, reports to its Project HQ,
+  and shows the ready-to-archive block.
 - **Screen operations:** before computer use, a TF asks the owner in chat to
   stand by and waits for the reply. An approval card that nobody answers times
   out.
