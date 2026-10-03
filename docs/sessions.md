@@ -9,14 +9,14 @@ the `sync-projects` skill there.
 ## Roles
 
 - **Central HQ** (cloud): oversees every session. Keeps track of what is open
-  and what waits on the owner, relays between projects, and receives reports
-  that lost their recipient. Does not implement.
+  from `list_sessions`, relays between projects, receives reports that lost
+  their recipient, and tells the owner about items that have stalled. Does not
+  implement.
 - **Upstream HQ** (cloud): policy shared by all repositories. Changes
   `kni927/dotfiles` and `kni927/repo-template` and carries the changes to the
   projects with the `sync-projects` skill. The owner brings each Mac up to date
-  with `~/Projects/GitHub/pull-repos.command`. It keeps Central HQ informed of
-  every policy change and of anything that affects other projects, without
-  waiting to be asked.
+  with `~/Projects/GitHub/pull-repos.command`. It sends each policy change to
+  the Project HQs itself, without waiting to be asked.
 - **Project HQ** (cloud): plans one project and writes its TASKs. It is
   archived once its TFs are done, and may first be renamed with a version
   (`cooViewer v1.6.5 HQ`).
@@ -38,6 +38,19 @@ the `sync-projects` skill there.
   look up current IDs with `ListAgents` or `list_sessions`.
 
 ## Messages
+
+Send each message only to the sessions that need it.
+
+- A TF's reports and progress go to its Project HQ only. Central HQ follows
+  them through `list_sessions`.
+- Upstream HQ sends a policy change to every current Project HQ by session ID,
+  and a one-line summary to Central HQ.
+- Information for reference goes to the HQs it concerns, not to Central HQ.
+- An HQ tells the owner itself what waits on the owner. Central HQ reports
+  only items that have stalled.
+- Central HQ receives only: messages between projects (it relays them),
+  reports that lost their recipient (it forwards them to a successor), HQ
+  handovers, and one-line summaries of policy changes.
 
 - **HQ to HQ:** cloud sessions reach each other directly with `send_message`
   (claude-code-remote) to the session ID, in both directions; a reply goes back
