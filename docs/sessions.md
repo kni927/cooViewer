@@ -80,11 +80,12 @@ Send each message only to the sessions that need it.
   archived, send to `Central HQ`. Central HQ summarizes for the owner and forwards to a successor
   Project HQ if there is one.
 - **Receiving:** an HQ that receives a message starts its next reply to the
-  owner with this heading, then a summary. Each `---` stands alone on its line
-  with a blank line before and after it (directly under text, Markdown turns
-  that text into a heading); do not use `--` or box-drawing characters. The
-  owner does not see the message body in that session; give the full text
-  when asked.
+  owner with this heading, then a summary. Replies are not expected by
+  default, so neither the heading nor the summary says "no reply needed". Each
+  `---` stands alone on its line with a blank line before and after it
+  (directly under text, Markdown turns that text into a heading); do not use
+  `--` or box-drawing characters. The owner does not see the message body in
+  that session; give the full text when asked.
 
   ```markdown
 
@@ -149,7 +150,9 @@ compaction if one has already happened.
 3. Start the successor with `create_session` in the same environment, titled
    `<name>`, with the handover as its initial prompt. A Project HQ's successor
    gets the project's repository as `source_url`, like the first one; Upstream
-   HQ and Central HQ are created without one. `source_url` takes one
+   HQ and Central HQ get `https://github.com/kni927/dotfiles`, whose
+   `AGENTS.md` makes `docs/sessions.md` binding (Upstream HQ attaches
+   `kni927/repo-template` with `add_repo`). `source_url` takes one
    repository; the successor's first reply asks the owner to approve attaching
    any others with `add_repo`, which auto mode does not allow without the
    owner's explicit approval.
