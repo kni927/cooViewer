@@ -2,8 +2,8 @@
 
 How the owner's Claude Code sessions are organized and how they reach each
 other. The same file is kept in every repository the owner works in:
-`kni927/repo-template` and its projects, `kni927/dotfiles`, and
-`kni927/home-server`. Change it in `kni927/repo-template` and carry it over with
+`kni927/repo-template` and its projects, `kni927/dotfiles`, `kni927/home-server`,
+and `kni927/hq`. Change it in `kni927/repo-template` and carry it over with
 the `sync-projects` skill there.
 
 ## Roles
@@ -30,8 +30,10 @@ the `sync-projects` skill there.
 
 - `Central HQ`, `Upstream HQ`, `<repo> HQ`, `<repo> TF <what>`, for example
   `cooViewer TF v1.6.5`. No middle dot: local session names are often typed by
-  hand. The current session of a role carries the plain name; a session that
-  has handed over becomes `<name> (handover YYYY-MM-DD)`.
+  hand. The current session of a role carries the plain name. A session that
+  has finished renames itself `✅ <name>`, and one that has handed over
+  `✅ <name> (handover YYYY-MM-DD)`, so the plain name is free and the session
+  list shows what can be archived.
 - Names are unique, because a local session addresses messages by name.
 - A name set from the cloud (`set_session_title`) may not appear in the Mac app.
   Name a local session on the Mac, or let it name itself as the `/tf` skill
@@ -111,13 +113,14 @@ sessions compact at 80% of the maximum context
 reads its own usage with `get_session` without an ID (`context_usage`); a local
 session in the Mac app reads it with `get_usage` for session `self`.
 
-- **Proposing:** every session, HQ or TF, checks its usage at natural breaks.
-  Once it passes two thirds of the maximum, it proposes to the owner to hand
-  over (an HQ) or to wrap up (a TF), before starting a step that would not fit.
-  It acts on the owner's word, "handover" or "wrap up". Any session may also
-  propose this for another one whose usage it can see.
+- **Checking:** every session, HQ or TF, checks its usage at natural breaks
+  and before starting a step that would not fit.
+- **Two thirds:** once usage passes two thirds of the maximum, a cloud HQ
+  hands over (below) and a local TF wraps up (see Local sessions), without
+  waiting for the owner. The owner may also say "handover" or "wrap up" at any
+  time.
 - **Warning:** a Project HQ that sees one of its TFs past 80% warns the owner.
-  Central HQ reminds an HQ that has passed two thirds without proposing.
+  Central HQ reminds an HQ that has passed two thirds and is still working.
 - **Ready to archive:** a session that has wrapped up or handed over ends with
   this block in its chat, in English, and waits. The rules follow the same
   Markdown rules as the receiving heading; the heading is one level larger so
@@ -137,29 +140,30 @@ session in the Mac app reads it with `get_usage` for session `self`.
 
 ## Handing over an HQ
 
-A cloud HQ hands its work to a fresh session when the owner says "handover",
-usually after the HQ proposed it (see Context usage), and right after a
+A cloud HQ hands its work to a fresh session once its usage passes two thirds
+(see Context usage), when the owner says "handover", and right after a
 compaction if one has already happened.
 
 1. Write the handover: the HQ's role and repositories, open items and their
    state, what waits on the owner, the sessions it coordinates (by name), and
    recent decisions with their commits. Leave out what the repositories
    already record.
-2. Rename itself to `<name> (handover YYYY-MM-DD)` with `set_session_title`,
-   using the owner's local date, so the plain name is free and stays unique.
-3. Start the successor with `create_session` in the same environment, titled
-   `<name>`, with the handover as its initial prompt. A Project HQ's successor
-   gets the project's repository as `source_url`, like the first one; Upstream
-   HQ and Central HQ get `https://github.com/kni927/dotfiles`, whose
-   `AGENTS.md` makes `docs/sessions.md` binding (Upstream HQ attaches
-   `kni927/repo-template` with `add_repo`). `source_url` takes one
-   repository; the successor's first reply asks the owner to approve attaching
-   any others with `add_repo`, which auto mode does not allow without the
-   owner's explicit approval.
-4. Tell Central HQ the successor's name (Central HQ tells the other HQs), and
-   tell the owner.
-5. Stop taking work and show the ready-to-archive block. The owner archives
-   the session, or tells the successor to archive it with `archive_session`.
+2. Start the successor with `create_session` in the same environment and with
+   the same `source_url`, titled with the HQ's plain name and with the
+   handover as its initial prompt. `source_url` is the project's repository
+   for a Project HQ, `https://github.com/kni927/dotfiles` for Upstream HQ
+   (which then attaches `kni927/repo-template` with `add_repo`), and
+   `https://github.com/kni927/hq` for Central HQ; their `AGENTS.md` makes this
+   file binding. `source_url` takes one repository, and attaching any other
+   needs the owner's explicit approval, which auto mode requires. If auto mode
+   stops `create_session` or the successor needs that approval, tell the owner
+   and keep working until it is resolved.
+3. Tell the successor's name upstream (Central HQ; when Central HQ itself
+   hands over, Upstream HQ) and downstream (the Project HQs or TFs it
+   coordinates).
+4. Rename itself `✅ <name> (handover YYYY-MM-DD)` with `set_session_title`,
+   using the owner's local date, show the ready-to-archive block, and stop
+   taking work. The owner archives it.
 
 The handover is sent, not committed: it may hold session IDs and context that
 exists only in chat.
@@ -185,10 +189,15 @@ exists only in chat.
   local sessions from the Mac app's sidebar. HQs do not archive local sessions
   from the cloud, and a TF cannot archive itself while its own turn and Remote
   Control connection are live.
-- **Wrapping up a TF:** when its Project HQ asks, when the owner says "wrap
-  up", or after the TF proposed it and the owner agreed, the TF confirms that
-  nothing is uncommitted or waiting on the owner, reports to its Project HQ,
-  and shows the ready-to-archive block.
+- **Wrapping up a TF:** a TF cannot start its own successor. When its usage
+  passes two thirds, when its Project HQ asks, or when the owner says "wrap
+  up", it finishes at the next natural break: it confirms that nothing is
+  uncommitted, reports what is done and what remains to its Project HQ,
+  renames itself `✅ <name>` (for example `✅ cooViewer TF solid RAR4
+  converter`), shows the ready-to-archive block, and waits. The remaining work
+  continues in a new TF: the owner opens one with `/tf`, or, for work that
+  needs no Mac GUI or device, the Project HQ starts a cloud session for it.
+  A TF that has finished its TASK does the same.
 - **Screen operations:** before computer use, a TF asks the owner in chat to
   stand by and waits for the reply. An approval card that nobody answers times
   out.
