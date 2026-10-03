@@ -1596,6 +1596,10 @@ is still unreadable, but it is no longer opened as one page plus broken ones:
   was not installed for this task.
 - `tools/rar_survey.py` counts solid RAR4 books in a folder, for the owner's
   decision on real support below.
+- **Workaround (2026-10-03):** the owner chose conversion over a second
+  decoder (`docs/DECISIONS.md`). `tools/convert_solid_rar4.py` converts solid
+  RAR4 `.cbr`/`.rar` to `.cbz`/`.zip` with identical page bytes; see
+  `tools/convert_solid_rar4.md`.
 
 The rest of this entry describes the underlying limitation.
 

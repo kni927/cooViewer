@@ -1657,6 +1657,19 @@ solid RAR4 past its first entry (KNOWN_ISSUES #39), so such a book opened as
 one page and then broken ones, with no hint why. Checking the main header
 covers both the header-index path and the libarchive fallback.
 
+## Solid RAR4 books are converted to ZIP, not decoded in the app (2026-10-03)
+
+**Decision:** cooViewer gets no second RAR4 decoder. Solid RAR4 books are
+converted outside the app with `tools/convert_solid_rar4.py` to `.cbz`/`.zip`
+(ZIP_STORED, page bytes unchanged, verified per entry by size and CRC-32);
+the refusal at open above stays. The tool uses an installed extractor (`7zz`,
+or `unar` for names stored without Unicode) and neither uses nor bundles
+unrar code.
+
+**Why:** Owner decision (2026-10-03). `tools/rar_survey.py --solid-only` found
+about 90 solid RAR4 books in the owner's library, all old; converting them
+once costs less than carrying and maintaining a second RAR4 decoder.
+
 ## Filter settings are per window (2026-10-03)
 
 **Decision:** A Filter panel change applies only to its own window: the panel
