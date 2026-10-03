@@ -116,14 +116,20 @@ session in the Mac app reads it with `get_usage` for session `self`.
 - **Warning:** a Project HQ that sees one of its TFs past 80% warns the owner.
   Central HQ reminds an HQ that has passed two thirds without proposing.
 - **Ready to archive:** a session that has wrapped up or handed over ends with
-  this block in its chat, in English, and waits:
+  this block in its chat, in English, and waits. The rules follow the same
+  Markdown rules as the receiving heading; the heading is one level larger so
+  that it stands out.
 
-  ```
-  ────────────────────────────────
-  ✅ This session is ready to archive.
-  Session: <name>
-  Context: <used> / <maximum> tokens (<percent>%)
-  ────────────────────────────────
+  ```markdown
+
+  ---
+
+  ## ✅ This session is ready to archive.
+
+  - Session: <name>
+  - Context: <used> / <maximum> tokens (<percent>%)
+
+  ---
   ```
 
 ## Handing over an HQ
