@@ -186,6 +186,11 @@ Full procedural precedent: `docs/tasks/2026-07-26-02-release-v1.5.2.md`.
   touches app state. See
   `docs/tasks/2026-07-31-06-finder-open-reuses-window.md` for a case
   where this was caught before any real window/book was affected.
+- Do not launch a local build with computer use's `open_application`:
+  it resolves the app by bundle ID and starts the Homebrew-managed
+  `/Applications` copy instead. Launch the build by path
+  (`open build/cooViewer.app`) and check which copy is running before
+  acting on it. See `docs/tasks/2026-10-03-05-stability-fixes-and-rar-survey.md`.
 
 ## On-Device Verification Procedure
 
