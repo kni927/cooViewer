@@ -7,7 +7,6 @@
 	IBOutlet id accessoryWindow;
 	IBOutlet id accessoryView;
 	
-	BOOL needFirstScroll;
 	
 	
 	BOOL didFirst;
@@ -26,7 +25,6 @@
 	NSRect fRect;
 	NSRect sRect;
 	NSCursor *crossCursor;
-	NSRect lensRect;
 	
 	
 	/*#import <QuartzCore/QuartzCore.h>*/
@@ -34,7 +32,6 @@
 	NSImage *_image;
 	NSPoint oldPoint;
 	NSPoint cursorMoved;
-	BOOL rightPage;
 	
 	//id target; 
 	BookWindowController *target;

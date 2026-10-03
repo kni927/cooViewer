@@ -7,7 +7,6 @@
 - (void)awakeFromNib
 {
 	lastPoint =  NSZeroPoint;
-	mouseDownPoint =  NSZeroPoint;
 	lastRect =  NSZeroRect;
 	bmarray = [[NSMutableArray alloc] init];
 	attrString = nil;
@@ -171,7 +170,6 @@
 	id lastCell;
 	NSInteger row,col;
 	NSPoint point = [self convertPoint:[theEvent locationInWindow] fromView:nil];
-	mouseDownPoint = point;
 	if ([self getRow:&row column:&col forPoint:point]) {
 		lastCell = [self cellAtRow:row column:col];
 		NSRect imageRect =[lastCell imageRectForBounds:[self cellFrameAtRow:row column:col]];

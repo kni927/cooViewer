@@ -33,9 +33,6 @@ NSRect COIntRect(NSRect aRect)
    leak trace: `controller` and `imageView` are IBOutlets and are not
    retained; every other object ivar is retained (see -setPreferences,
    -setFrame:, -setPageString: and -setInfoString:) and so is released here.
-   `pageBarCursor` is only ever assigned inside the commented-out body of
-   -resetCursorRects, so it is always nil today — released anyway, because
-   the ivar is declared owning and -release on nil costs nothing.
 
    The two timers are scheduled with target:self, so the run loop retains
    this view until they fire; both are repeats:NO and so cannot keep it
@@ -56,7 +53,6 @@ NSRect COIntRect(NSRect aRect)
 
 	[pageStringAttr release];
 	[pageBarBezierPath release];
-	[pageBarCursor release];
 
 	[pageBarFont release];
 	[pageBarFontColor release];

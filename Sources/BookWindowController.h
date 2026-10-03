@@ -90,7 +90,6 @@
 	IBOutlet id bookmarkController;
 	BOOL readSubFolder;
 	
-    IBOutlet id normalWindow;
 	
 	int loopCheck;
 	
@@ -133,7 +132,6 @@
 	//BOOL loopSwitch;
 	BOOL numberSwitch;
 	int resolutionDisplay;	/* ResolutionDisplay, a COResolutionDisplay* value */
-	BOOL fitMode;
 	
 	
 	NSTimer *timer;
@@ -457,7 +455,6 @@
 - (IBAction)noScale:(id)sender;
 - (IBAction)rotateRight:(id)sender;
 - (IBAction)rotateLeft:(id)sender;
-- (IBAction)showFilterPanel:(id)sender;
 
 
 - (void)viewSet;

@@ -16,7 +16,6 @@
 	
 	NSBezierPath *pageBarBezierPath;
 	
-	NSCursor *pageBarCursor;
 	
 	NSRect pageMoverRect;
 	NSRect pageStringRect;
@@ -34,7 +33,6 @@
 	NSPoint pageMargin;
 	NSPoint pageBarMargin;
 	BOOL pageMover;
-	int pageMoverNum;
 	
 	BOOL drawPageBar;
 	NSPoint mouseOldPoint;

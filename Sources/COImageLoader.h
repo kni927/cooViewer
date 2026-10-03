@@ -6,7 +6,6 @@
 @interface COImageLoader : NSObject {
 	BOOL inTempDir;
 
-	NSMutableArray *thumbnailArray;
 
 	id controller;
 

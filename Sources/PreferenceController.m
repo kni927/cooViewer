@@ -1010,16 +1010,6 @@ static const int DIALOG_CANCEL	= 129;
 	} else {
 		[pageBarShowThumbCheck setState:NSOffState];
 	}
-	if ([defaults boolForKey:@"ChangeOpenWith"]) {
-		[changeOpenWithCheck setState:NSOnState];
-	} else {
-		[changeOpenWithCheck setState:NSOffState];
-	}
-	if ([defaults boolForKey:@"ChangeCreator"]) {
-		[changeCreatorCheck setState:NSOnState];
-	} else {
-		[changeCreatorCheck setState:NSOffState];
-	}
 	
 	switch ([defaults integerForKey:@"SortMode"]) {
 		case 0:
@@ -1517,16 +1507,6 @@ static const int DIALOG_CANCEL	= 129;
 		} else {
 			[defaults setBool:NO forKey:@"PageBarShowThumbnail"];
 		}		
-		if ([changeOpenWithCheck state]==NSOnState) {
-			[defaults setBool:YES forKey:@"ChangeOpenWith"];
-		} else {
-			[defaults setBool:NO forKey:@"ChangeOpenWith"];
-		}
-		if ([changeCreatorCheck state]==NSOnState) {
-			[defaults setBool:YES forKey:@"ChangeCreator"];
-		} else {
-			[defaults setBool:NO forKey:@"ChangeCreator"];
-		}
 		
 		switch ([sortModePopUpButton indexOfSelectedItem]) {
 			case 0:
@@ -2002,13 +1982,7 @@ static const int DIALOG_CANCEL	= 129;
 
 - (NSFontPanelModeMask) validModesForFontPanel : (NSFontPanel *) fontPanel
 {
-#if MAC_OS_X_VERSION_MAX_ALLOWED >= 1040
-	if([NSObject respondsToSelector:@selector(finalize)]){
-		return (NSFontPanelAllModesMask - NSFontPanelAllEffectsModeMask);
-	}
-#endif
-	
-	return NSFontPanelStandardModesMask;
+	return (NSFontPanelAllModesMask - NSFontPanelAllEffectsModeMask);
 }
 #pragma mark mouseConfig
 - (IBAction)mouseConfig:(id)sender

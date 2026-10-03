@@ -33,7 +33,6 @@
 	NSMutableArray *bookNameArray;
 
 	id selectedView;
-	NSMutableDictionary *completeAll;
 }
 
 - (void)setSplitViewPosition:(NSSplitView *)splitView position:(NSString *)position;

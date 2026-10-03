@@ -6,7 +6,6 @@
 {
 	NSAttributedString *attrString;
 	NSPoint lastPoint;
-	NSPoint mouseDownPoint;
 	
 	NSRect lastRect;
 	

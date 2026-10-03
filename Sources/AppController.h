@@ -15,7 +15,6 @@
 
 #import "AppleRemote.h"
 #import "GlobalKeyboardDevice.h"
-#import "KeyspanFrontRowControl.h"
 #import "MultiClickRemoteBehavior.h"
 
 @class RemoteControl;

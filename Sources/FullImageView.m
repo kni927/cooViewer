@@ -177,20 +177,6 @@
 	[scrollView reflectScrolledClipView:clipView];
 }
 
-- (void)spaceBarAction
-{
-	NSScrollView *scrollView = [self enclosingScrollView];
-	NSClipView *clipView = [scrollView contentView];
-	if (NSEqualRects([clipView documentVisibleRect],[clipView documentRect])) {
-		return;
-	}
-	float x = [clipView documentRect].size.width - [clipView documentVisibleRect].size.width;
-	float y = [clipView documentRect].size.height - [clipView documentVisibleRect].size.height;
-	
-	[clipView scrollToPoint:NSMakePoint(x,y)];
-	[scrollView reflectScrolledClipView:clipView];
-}
-
 - (void)scrollUp
 {
 	NSScrollView *scrollView = [self enclosingScrollView];

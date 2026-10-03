@@ -1471,24 +1471,6 @@ NSTimeInterval elapsed=0;
 	[image1 drawInRect:drawRect1
 			  fromRect:NSMakeRect(0,0,widthValue01,heightValue01)
 			 operation:NSCompositeSourceOver fraction:1.0];
-	/*
-	if( [NSObject respondsToSelector:@selector(finalize)] ){
-		if ([target readFromLeft]) {
-			[self drawCIImage:image1
-					   inRect:CGRectMake(x,center1,widthValue1,heightValue1)
-					 fromRect:CGRectMake(0,0,[rep1 pixelsWide],[rep1 pixelsHigh])];
-			[self drawCIImage:image2
-					   inRect:CGRectMake(x+widthValue1,center2,widthValue2,heightValue2)
-					 fromRect:CGRectMake(0,0,[rep2 pixelsWide],[rep2 pixelsHigh])];
-		} else {
-			[self drawCIImage:image2
-					   inRect:CGRectMake(x,center2,widthValue2,heightValue2)
-					 fromRect:CGRectMake(0,0,[rep2 pixelsWide],[rep2 pixelsHigh])];
-			[self drawCIImage:image1
-					   inRect:CGRectMake(x+widthValue2,center1,widthValue1,heightValue1)
-					 fromRect:CGRectMake(0,0,[rep1 pixelsWide],[rep1 pixelsHigh])];
-		}
-	}*/
 	
 	if (rotateMode!=0) {
 		[transform invert];

@@ -51,12 +51,7 @@ static FilterPanelController *frontPanelController = nil;
     NSUserDefaults *defaults = [NSUserDefaults standardUserDefaults];
     if ([defaults arrayForKey:@"CIFilterKeys"]) {
         NSArray *tmpSelectedFilterKeys = [defaults arrayForKey:@"CIFilterKeys"];
-        NSMutableDictionary *dic;
-        if (@available(macOS 10.13, *)) {
-            dic = [NSKeyedUnarchiver unarchivedObjectOfClass:[NSObject class] fromData:[defaults objectForKey:@"CIFilters"] error:nil];
-        } else {
-            dic = [NSKeyedUnarchiver unarchiveObjectWithData:[defaults objectForKey:@"CIFilters"]];
-        }
+        NSMutableDictionary *dic = [NSKeyedUnarchiver unarchivedObjectOfClass:[NSObject class] fromData:[defaults objectForKey:@"CIFilters"] error:nil];
         NSEnumerator *enu = [tmpSelectedFilterKeys objectEnumerator];
         NSString *filterKey;
         while (filterKey = [enu nextObject]) {

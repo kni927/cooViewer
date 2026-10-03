@@ -33,8 +33,6 @@ enum {
 	IBOutlet id sortModePopUpButton;
 	
 	
-	IBOutlet id changeOpenWithCheck;
-	IBOutlet id changeCreatorCheck;
 	
 	IBOutlet id showThumbnailCheck;
 	

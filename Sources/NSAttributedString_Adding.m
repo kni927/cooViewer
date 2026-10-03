@@ -69,11 +69,6 @@
 	}
 }
 
--(void)drawAtPoint:(NSPoint)pt bg:(NSColor*)bg
-{
-	[self drawAtPoint:pt bg:bg border:nil];
-}
-
 -(NSSize)sizeWithBG
 {
 	int rad = [self size].height/2;

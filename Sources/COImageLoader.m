@@ -436,57 +436,52 @@ static NSArray *_COImageLoader_archiveTypes=nil;
 		return;
 		
 	} else if([[filePath pathExtension] compare:@"savedSearch" options:NSCaseInsensitiveSearch] == NSOrderedSame){
-		mode=-1;
-#if MAC_OS_X_VERSION_MAX_ALLOWED >= 1040
-		if([NSObject respondsToSelector:@selector(finalize)]){
-			mode=3;
-			NSDictionary *doc = [NSDictionary dictionaryWithContentsOfFile:filePath];
-			NSString *raw = [doc objectForKey:@"RawQuery"];
-			NSArray *scope = [[doc objectForKey:@"SearchCriteria"] objectForKey:@"FXScopeArrayOfPaths"];
+		mode=3;
+		NSDictionary *doc = [NSDictionary dictionaryWithContentsOfFile:filePath];
+		NSString *raw = [doc objectForKey:@"RawQuery"];
+		NSArray *scope = [[doc objectForKey:@"SearchCriteria"] objectForKey:@"FXScopeArrayOfPaths"];
+		
+		MDQueryRef query = MDQueryCreate(kCFAllocatorDefault, (CFStringRef)raw, NULL, NULL);
+		MDQuerySetSearchScope (query,(CFArrayRef)scope,0);
+		
+		MDQueryExecute(query, kMDQuerySynchronous);
+		
+		CFIndex count = MDQueryGetResultCount(query);
+		int i;
+		NSMutableArray *temp = [NSMutableArray array];
+		for (i = 0; i < count; i++) {
+			MDItemRef item = (MDItemRef)MDQueryGetResultAtIndex(query,i);
+			CFStringRef itemPath = MDItemCopyAttribute(item,kMDItemPath);
 			
-			MDQueryRef query = MDQueryCreate(kCFAllocatorDefault, (CFStringRef)raw, NULL, NULL);
-			MDQuerySetSearchScope (query,(CFArrayRef)scope,0);
-			
-			MDQueryExecute(query, kMDQuerySynchronous);
-			
-			CFIndex count = MDQueryGetResultCount(query);
-			int i;
-			NSMutableArray *temp = [NSMutableArray array];
-			for (i = 0; i < count; i++) {
-				MDItemRef item = (MDItemRef)MDQueryGetResultAtIndex(query,i);
-				CFStringRef itemPath = MDItemCopyAttribute(item,kMDItemPath);
-				
-				BOOL isDir;
-				[[NSFileManager defaultManager] fileExistsAtPath:((NSString *) itemPath) isDirectory:&isDir];
-				if (isDir && readSubFolder) {
-					NSArray *ar = [[NSFileManager defaultManager] subpathsAtPath:((NSString *) itemPath)];
-					int ii;
-					for (ii=0; ii<[ar count]; ii++) {
-						[temp addObject:[((NSString *) itemPath) stringByAppendingPathComponent:[ar objectAtIndex:ii]]];
-					}
-				} else {
-					[temp addObject:((NSString *) itemPath)];
-				} 
-				CFRelease(itemPath);
-			}
-			CFRelease(query);
-			NSArray *completeArray;
-			completeArray = [temp pathsMatchingExtensions:filterArray];
-			
-			NSEnumerator *enu=[completeArray objectEnumerator];
-			id path;
-			while (path = [enu nextObject]) {
-				if([[COImageLoader fileTypes] containsObject:[[path pathExtension] lowercaseString]]){
-					COImageLoader *inLoader = [[[COImageLoader alloc] initWithPath:path readSubFolder:NO controller:controller] autorelease];
-					[pathArray addObjectsFromArray:[inLoader pathArray]];
-					[inArchiveArray addObject:inLoader];
-				} else if (path) {
-					[pathArray addObject:path];
+			BOOL isDir;
+			[[NSFileManager defaultManager] fileExistsAtPath:((NSString *) itemPath) isDirectory:&isDir];
+			if (isDir && readSubFolder) {
+				NSArray *ar = [[NSFileManager defaultManager] subpathsAtPath:((NSString *) itemPath)];
+				int ii;
+				for (ii=0; ii<[ar count]; ii++) {
+					[temp addObject:[((NSString *) itemPath) stringByAppendingPathComponent:[ar objectAtIndex:ii]]];
 				}
-			}
-			[contentPathArray addObjectsFromArray:pathArray];
+			} else {
+				[temp addObject:((NSString *) itemPath)];
+			} 
+			CFRelease(itemPath);
 		}
-#endif
+		CFRelease(query);
+		NSArray *completeArray;
+		completeArray = [temp pathsMatchingExtensions:filterArray];
+		
+		NSEnumerator *enu=[completeArray objectEnumerator];
+		id path;
+		while (path = [enu nextObject]) {
+			if([[COImageLoader fileTypes] containsObject:[[path pathExtension] lowercaseString]]){
+				COImageLoader *inLoader = [[[COImageLoader alloc] initWithPath:path readSubFolder:NO controller:controller] autorelease];
+				[pathArray addObjectsFromArray:[inLoader pathArray]];
+				[inArchiveArray addObject:inLoader];
+			} else if (path) {
+				[pathArray addObject:path];
+			}
+		}
+		[contentPathArray addObjectsFromArray:pathArray];
 	} else {
 		mode=0;
 		BOOL isDir;

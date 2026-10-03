@@ -43,51 +43,47 @@
 {
 	id rep = [super imageRepWithContentsOfFile:filename];
 	
-#if MAC_OS_X_VERSION_MAX_ALLOWED >= 1040
-	if([NSObject respondsToSelector:@selector(finalize)]){
-		NSData *data = [NSData dataWithContentsOfFile:filename];
+	NSData *data = [NSData dataWithContentsOfFile:filename];
+	
+	PDFPage		*page;
+	NSArray		*annotations;
+	PDFDocument *pdf = [[[PDFDocument alloc] initWithData:data] autorelease];
+	
+	NSMutableArray *tmpArray = [[NSMutableArray alloc] init];
+	int pageIndex;
+	for (pageIndex = 0; pageIndex < [pdf pageCount]; pageIndex++) {
+		NSMutableArray *tmpTmpArray = [[NSMutableArray alloc] init];
+		page = [pdf pageAtIndex: pageIndex];
 		
-		PDFPage		*page;
-		NSArray		*annotations;
-		PDFDocument *pdf = [[[PDFDocument alloc] initWithData:data] autorelease];
-		
-		NSMutableArray *tmpArray = [[NSMutableArray alloc] init];
-		int pageIndex;
-		for (pageIndex = 0; pageIndex < [pdf pageCount]; pageIndex++) {
-			NSMutableArray *tmpTmpArray = [[NSMutableArray alloc] init];
-			page = [pdf pageAtIndex: pageIndex];
+		// Get page annotations (if any).
+		annotations = [page annotations];
+		if ((annotations != NULL) && ([annotations count] > 0)) {
+			unsigned int	count;
+			unsigned int	i;
 			
-			// Get page annotations (if any).
-			annotations = [page annotations];
-			if ((annotations != NULL) && ([annotations count] > 0)) {
-				unsigned int	count;
-				unsigned int	i;
+			// Walk annotations looking for links.
+			count = (int)[annotations count];
+			for (i = 0; i < count; i++)
+			{
+				PDFAnnotation	*oneAnnotation;
 				
-				// Walk annotations looking for links.
-				count = (int)[annotations count];
-				for (i = 0; i < count; i++)
+				// Link must have a URL associated with it.
+				oneAnnotation = [annotations objectAtIndex: i];
+				if (([[oneAnnotation type] isEqualToString: @"Link"]) && 
+					([(PDFAnnotationLink *)oneAnnotation URL] != NULL))
 				{
-					PDFAnnotation	*oneAnnotation;
-					
-					// Link must have a URL associated with it.
-					oneAnnotation = [annotations objectAtIndex: i];
-					if (([[oneAnnotation type] isEqualToString: @"Link"]) && 
-						([(PDFAnnotationLink *)oneAnnotation URL] != NULL))
-					{
-						[tmpTmpArray addObject:[NSDictionary dictionaryWithObjectsAndKeys:
-												[NSValue valueWithRect:[oneAnnotation bounds]],@"rect",
-												[(PDFAnnotationLink *)oneAnnotation URL],@"url",
-												nil]];
-					}
+					[tmpTmpArray addObject:[NSDictionary dictionaryWithObjectsAndKeys:
+											[NSValue valueWithRect:[oneAnnotation bounds]],@"rect",
+											[(PDFAnnotationLink *)oneAnnotation URL],@"url",
+											nil]];
 				}
 			}
-			[tmpArray addObject:tmpTmpArray];
-			[tmpTmpArray release];
 		}
-		[rep setLinkList:tmpArray];
-		[tmpArray release];
+		[tmpArray addObject:tmpTmpArray];
+		[tmpTmpArray release];
 	}
-#endif
+	[rep setLinkList:tmpArray];
+	[tmpArray release];
 	
 	return rep;
 }

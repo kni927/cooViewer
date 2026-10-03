@@ -1605,64 +1605,6 @@ static NSString * const kBookViewModeKey = @"cooViewerBookViewMode";
 			[thumController showThumbnail:nowPage];
 		}
 	}
-	/*
-	if ([defaults boolForKey:@"ChangeCreator"]) {
-		NSString *tempPath = currentBookPath;
-		if (fromFileName) tempPath = fromFileName;
-		
-		if ([[tempPath pathExtension] compare:@"savedSearch" options:NSCaseInsensitiveSearch] == NSOrderedSame) return;
-		BOOL isDir;
-		NSFileManager *manager = [NSFileManager defaultManager];
-		if ([manager fileExistsAtPath:tempPath isDirectory:&isDir]) {
-			if (isDir) {
-				if (![[NSWorkspace sharedWorkspace] isFilePackageAtPath:tempPath]) {
-					NSLog(@"isDir");
-				}
-			}
-			NSMutableDictionary *newAttr = [NSMutableDictionary dictionaryWithDictionary:[manager fileAttributesAtPath:tempPath traverseLink:YES]];
-			NSString *creatorCodeString = [[[NSBundle mainBundle] infoDictionary] objectForKey:@"CFBundleSignature"];
-			NSNumber *creatorCode = [NSNumber numberWithUnsignedLong:
-				NSHFSTypeCodeFromFileType([NSString stringWithFormat:@"'%@'",creatorCodeString])];
-			[newAttr setObject:creatorCode forKey:NSFileHFSCreatorCode];
-			[manager changeFileAttributes:newAttr atPath:tempPath];
-			[[NSWorkspace sharedWorkspace] noteFileSystemChanged:tempPath];
-		}
-	}*/
-	/*
-	if ([defaults boolForKey:@"ChangeOpenWith"]) {
-		NSString *tempPath = currentBookPath;
-		if (fromFileName) tempPath = fromFileName;
-		if ([[tempPath pathExtension] compare:@"savedSearch" options:NSCaseInsensitiveSearch] == NSOrderedSame) return;		
-		BOOL isDir;
-		if ([[NSFileManager defaultManager] fileExistsAtPath:tempPath isDirectory:&isDir]) {
-			if (isDir && ![[NSWorkspace sharedWorkspace] isFilePackageAtPath:tempPath]) return;
-			
-			FSRef pathRef;
-			FSRef appPathRef;
-			OSStatus pathErr = noErr;
-			OSStatus appPathErr = noErr;
-			pathErr = FSPathMakeRef((const UInt8 *)[tempPath fileSystemRepresentation],&pathRef,NULL);
-			appPathErr = FSPathMakeRef((const UInt8 *)[[[NSBundle mainBundle] bundlePath] fileSystemRepresentation],&appPathRef,NULL);
-			if (pathErr == noErr && appPathErr == noErr) {
-				OSStatus bindErr = noErr;
-				bindErr = _LSSetStrongBindingForRef(&pathRef,&appPathRef);
-				if (bindErr != noErr) {
-					NSLog(@"ApplicationBindingErr");
-					return;
-				}
-			}
-			
-			NSMutableDictionary *newAttr = [NSMutableDictionary dictionaryWithDictionary:[[NSFileManager defaultManager] fileAttributesAtPath:tempPath traverseLink:YES]];
-			NSString *creatorCodeString = [[[NSBundle mainBundle] infoDictionary] objectForKey:@"CFBundleSignature"];
-			NSNumber *creatorCode = [NSNumber numberWithUnsignedLong:
-				NSHFSTypeCodeFromFileType([NSString stringWithFormat:@"'%@'",creatorCodeString])];
-			//NSLog(@"%@",creatorCodeString);
-			[newAttr setObject:creatorCode forKey:NSFileHFSCreatorCode];
-			[[NSFileManager defaultManager] changeFileAttributes:newAttr atPath:tempPath];
-			[[NSWorkspace sharedWorkspace] noteFileSystemChanged:tempPath];
-		}
-	}
-    */
 	
 }
 /* Archive open progress (COArchive extracts everything up front).
@@ -2086,11 +2028,6 @@ static NSString * const kBookViewModeKey = @"cooViewerBookViewMode";
 
 #pragma mark -
 #pragma mark load
-- (NSString*)pathAtIndex:(int)index
-{
-	return [completeMutableArray objectAtIndex:index];
-}
-
 - (NSImage*)loadThumbnailImage:(int)index
 {
 	return [thumController loadImage:index];
@@ -3515,12 +3452,6 @@ static const NSInteger kBookmarkMenuFixedItemCount = 3;
 		rotateMode = 0;
 	}
 	[imageView rotateLeft];
-}
-
-- (IBAction)showFilterPanel:(id)sender
-{
-    IKImageEditPanel *editor = [IKImageEditPanel sharedImageEditPanel];
-    [editor makeKeyAndOrderFront:nil];
 }
 
 /* MW-5: FilterPanelController moved into BookWindow.xib, so the Filter menu

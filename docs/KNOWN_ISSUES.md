@@ -518,6 +518,15 @@ Recorded here so it is not re-investigated as dead code:
   invalidate existing key bindings. Deleting only `GlobalKeyboardDevice`
   from a vendored third-party library is likewise not worth the divergence
   from upstream.
+- **2026-10-03 update** (task
+  `docs/tasks/2026-10-03-05-stability-fixes-and-rar-survey.md`, owner
+  decision): `AGENTS.md` now says there is no upstream to track, and the
+  library's proven dead code was removed — the whole `KeyspanFrontRowControl`
+  class (never instantiated; R2 in `docs/code-review-20261003.md`), and in
+  `AppleRemote.m` the GC-only `-finalize`, the 10.4 cookie table and the
+  AppKit-version half of the 10.5 test (C2–C5; the 10.5 table stays for
+  Remote Buddy's emulation, see #40). `GlobalKeyboardDevice` and the rest of
+  the library are still kept as decided above.
 
 Note: the analyzer also reports 23 "User-facing text should use localized
 string macro" hits (localizability, see #9) and 148
@@ -1617,22 +1626,25 @@ From `docs/code-review-20261003.md` ▸ Dead code. Do not delete these without
 closing the open check named for each. The proven candidates are listed only
 in the report.
 
-- **`Sources/AppleRemote.m:148` Leopard branch.** Only its
-  `floor(NSAppKitVersionNumber) <= 10_5` subexpression is dead on 12.0. The
-  branch is still entered when `leopardEmulation` is set from the IORegistry
-  property `RemoteBuddyEmulationV2` (third-party Remote Buddy driver), whose
-  absence cannot be proven.
-- **The GC-era `respondsToSelector:@selector(finalize)` guards** at
-  `Sources/PreferenceController.m:2005-2011`, `Sources/COPDFImageRep.m:46-47`,
-  `:89-90` and `Sources/COImageLoader.m:433-436`, `:483` (inside
-  `#if MAC_OS_X_VERSION_MAX_ALLOWED >= 1040`).
-  - `+[NSObject respondsToSelector:@selector(finalize)]` returned YES on
-    macOS 26.6, and the SDK declares `-finalize` deprecated, not unavailable.
-    So the guarded bodies are **live**: savedSearch books, PDF link
-    extraction, and the font-panel mode mask.
-  - Only the fallbacks look dead (`return NSFontPanelStandardModesMask;`,
-    `mode=-1;`). macOS 12–15 were not run.
-  - Simplifying means removing the guard and **keeping the body**.
+**Removed 2026-10-03** (task
+`docs/tasks/2026-10-03-05-stability-fixes-and-rar-survey.md`): every proven
+candidate in the report except U12 (C1, C2, C3a, C4, C5, C9, C10, U1–U11,
+and R2, `KeyspanFrontRowControl`), and the GC-era
+`respondsToSelector:@selector(finalize)` guards formerly listed here (C6–C8):
+the owner accepted the inference for macOS 12–15, so the guards and their
+fallbacks (`return NSFontPanelStandardModesMask;`, `mode=-1;`) were removed
+and the guarded bodies — the font-panel mode mask, PDF link extraction,
+savedSearch books — kept, unconditionally. Still open:
+
+- **`Sources/AppleRemote.m` Leopard branch** (`if (leopardEmulation)` in
+  `-setCookieMappingInDictionary:`). Its AppKit-version half was removed
+  (C3a); the branch is still entered when `leopardEmulation` is set from the
+  IORegistry property `RemoteBuddyEmulationV2` (third-party Remote Buddy
+  driver), whose absence cannot be proven.
+- **U12:** the outlets `contextMenuItem` (`BookmarkController.h`) and
+  `contextMenu` (`ThumbnailController.h`) are connected in `BookWindow.xib`
+  but unused in code; removing them needs an XIB edit (#2), which was out of
+  scope.
 - **Localized string key** "The parent folder of current book was changed.
   Do you want to follow?" in `Resources/{en,ja}.lproj/Localizable.strings`:
   no `NSLocalizedString` use was found. Other apparent orphans use key formats

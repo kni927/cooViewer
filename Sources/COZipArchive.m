@@ -62,11 +62,7 @@
 {
 	if (za) zip_discard(za);
 	if (readQueue) {
-#if OS_OBJECT_USE_OBJC
 		[readQueue release];
-#else
-		dispatch_release(readQueue);
-#endif
 	}
 	[dataCache release];
 	[password release];
