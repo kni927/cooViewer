@@ -13,16 +13,27 @@ kUCCollateComposeInsensitiveMask
 @implementation NSString (AddingCompare)
 - (NSComparisonResult)finderCompareS:(NSString *)aString
 {
-	SInt32 compareResult;
-	UniChar buff1[MAXPATHLEN];
-	UniChar buff2[MAXPATHLEN];
-	
-	[self getCharacters:buff1];
-	[aString getCharacters:buff2];
-	
-	UCCompareTextDefault(FINDER_COMPARE_OPTIONS, buff1, [self length], buff2, [aString length], NULL, &compareResult);
-	
-	return((NSComparisonResult)compareResult);      
+	SInt32 compareResult = 0;
+	NSUInteger length1 = [self length];
+	NSUInteger length2 = [aString length];
+	/* The strings include entry names from archive headers, which can be
+	   any length: the usual case uses the stack, longer strings the heap. */
+	UniChar stack1[MAXPATHLEN];
+	UniChar stack2[MAXPATHLEN];
+	UniChar *buff1 = length1 <= MAXPATHLEN ? stack1 : malloc(length1 * sizeof(UniChar));
+	UniChar *buff2 = length2 <= MAXPATHLEN ? stack2 : malloc(length2 * sizeof(UniChar));
+
+	if (buff1 && buff2) {
+		[self getCharacters:buff1 range:NSMakeRange(0, length1)];
+		[aString getCharacters:buff2 range:NSMakeRange(0, length2)];
+		UCCompareTextDefault(FINDER_COMPARE_OPTIONS, buff1, length1, buff2, length2, NULL, &compareResult);
+	} else {
+		compareResult = (SInt32)[self compare:aString];
+	}
+
+	if (buff1 != stack1) free(buff1);
+	if (buff2 != stack2) free(buff2);
+	return((NSComparisonResult)compareResult);
 }
 
 - (NSComparisonResult)randomCompare:(NSString *)otherString

@@ -46,6 +46,15 @@
 
 @end
 
+BOOL COIsContainedEntryPath(NSString *path)
+{
+	if ([path length] == 0 || [path hasPrefix:@"/"]) return NO;
+	for (NSString *component in [path componentsSeparatedByString:@"/"]) {
+		if ([component isEqualToString:@".."]) return NO;
+	}
+	return YES;
+}
+
 /* raw name + payload collected during the sequential read, before the
  * archive-level encoding decision is made */
 @interface COArchiveRawEntry : NSObject
@@ -91,37 +100,83 @@
 	return [self initWithPath:path progress:nil];
 }
 
+typedef enum {
+	COArchiveKindOther = 0,
+	COArchiveKindZip,
+	COArchiveKindRar
+} COArchiveKind;
+
+/* What the file's first bytes say it is; COArchiveKindOther when they name
+   neither ZIP nor RAR (7z, tar, an SFX stub, unreadable). */
+static COArchiveKind COSniffArchiveKind(NSString *path)
+{
+	unsigned char head[7];
+	size_t got = 0;
+	FILE *f = fopen([path fileSystemRepresentation], "rb");
+	if (f) {
+		got = fread(head, 1, sizeof(head), f);
+		fclose(f);
+	}
+	if (got >= 4 && head[0] == 'P' && head[1] == 'K' &&
+	    ((head[2] == 3 && head[3] == 4) || (head[2] == 5 && head[3] == 6) ||
+	     (head[2] == 7 && head[3] == 8)))
+		return COArchiveKindZip;
+	if (got >= 7 && memcmp(head, "Rar!\x1a\x07", 6) == 0 && (head[6] == 0 || head[6] == 1))
+		return COArchiveKindRar;
+	return COArchiveKindOther;
+}
+
+/* Format dispatch: ZIP goes to the libzip lazy reader (COZipArchive), RAR
+   to the libarchive-based partial-lazy reader (CORarArchive). The file's
+   own signature decides, so a .cbr that is really a ZIP (or a .cbz that is
+   a RAR) still gets a lazy reader; the extension is used only when the
+   signature names neither. Returns nil when neither applies or the reader
+   cannot open the file (corrupt/partial zip central directory, a RAR the
+   header checks reject). */
+static COArchive *COOpenLazyArchive(NSString *path, COArchiveProgress progress)
+{
+	COArchiveKind kind = COSniffArchiveKind(path);
+	if (kind == COArchiveKindOther) {
+		NSString *ext = [[path pathExtension] lowercaseString];
+		if ([ext isEqualToString:@"zip"] || [ext isEqualToString:@"cbz"])
+			kind = COArchiveKindZip;
+		else if ([ext isEqualToString:@"rar"] || [ext isEqualToString:@"cbr"])
+			kind = COArchiveKindRar;
+	}
+	if (kind == COArchiveKindZip) {
+		COZipArchive *z = [[COZipArchive alloc] initWithPath:path
+		                                            progress:progress];
+		if ([z zipOpened])
+			return z;
+		NSLog(@"COArchive: libzip cannot open %@ (%@)", path, [z lastError]);
+		[z release];
+	} else if (kind == COArchiveKindRar) {
+		CORarArchive *r = [[CORarArchive alloc] initWithPath:path
+		                                            progress:progress];
+		if ([r rarOpened])
+			return r;
+		NSLog(@"COArchive: CORarArchive cannot open %@ (%@)", path, [r lastError]);
+		[r release];
+	}
+	return nil;
+}
+
++ (COArchive *)lazyArchiveWithPath:(NSString *)path
+{
+	return [COOpenLazyArchive(path, nil) autorelease];
+}
+
 - (id)initWithPath:(NSString *)path progress:(COArchiveProgress)progress
 {
-	// format dispatch: zip/cbz go to the libzip lazy reader
-	// (COZipArchive); rar/cbr go to the libarchive-based partial-lazy
-	// reader (CORarArchive). If either fails to open (corrupt/partial
-	// zip central directory, or a RAR signature check failure — e.g.
-	// a mislabeled non-RAR file with a .cbr extension), fall through
-	// to the libarchive full-extraction path below, which supports
-	// every format and will succeed if the file is readable at all.
+	// A lazy reader if one applies (see COOpenLazyArchive); otherwise,
+	// or if it fails to open, the libarchive full-extraction path below,
+	// which supports every format and will succeed if the file is
+	// readable at all.
 	if ([self isMemberOfClass:[COArchive class]]) {
-		NSString *ext = [[path pathExtension] lowercaseString];
-		if ([ext isEqualToString:@"zip"] || [ext isEqualToString:@"cbz"]) {
-			COZipArchive *z = [[COZipArchive alloc] initWithPath:path
-			                                            progress:progress];
-			if ([z zipOpened]) {
-				[self release];
-				return z;
-			}
-			NSLog(@"COArchive: libzip cannot open %@ (%@); falling back to libarchive",
-			      path, [z lastError]);
-			[z release];
-		} else if ([ext isEqualToString:@"rar"] || [ext isEqualToString:@"cbr"]) {
-			CORarArchive *r = [[CORarArchive alloc] initWithPath:path
-			                                            progress:progress];
-			if ([r rarOpened]) {
-				[self release];
-				return r;
-			}
-			NSLog(@"COArchive: CORarArchive cannot open %@ (%@); falling back to libarchive",
-			      path, [r lastError]);
-			[r release];
+		COArchive *lazy = COOpenLazyArchive(path, progress);
+		if (lazy) {
+			[self release];
+			return lazy;
 		}
 	}
 

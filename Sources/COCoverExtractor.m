@@ -3,10 +3,11 @@
 //  cooViewer
 //
 //  Design (phase 7, docs/tasks/... QuickLook extension TASK):
-//  - Reuses COArchive as-is: initWithPath: dispatches to COZipArchive
-//    (libzip, phase 2) or CORarArchive (libarchive cursor pass +
-//    CORarHeaderIndex header-only fast path, phases 4/6) exactly like
-//    the main app, so opening is fast regardless of archive size or
+//  - Reuses COArchive's dispatch: +lazyArchiveWithPath: picks
+//    COZipArchive (libzip, phase 2) or CORarArchive (libarchive cursor
+//    pass + CORarHeaderIndex header-only fast path, phases 4/6) exactly
+//    like the main app, but never the full-extraction fallback, so
+//    opening is fast regardless of archive size or
 //    solid/non-solid status — the whole point of those phases was to
 //    make this kind of on-demand, single-entry access cheap enough
 //    for QuickLook's time budget.
@@ -73,8 +74,11 @@ NSData *COExtractCoverImageData(NSString *path)
 		return nil;
 	}
 
-	COArchive *archive = [[COArchive alloc] initWithPath:path];
-	if ([archive lastError] || [archive itemCount] == 0) {
+	/* Lazy readers only: the full-extraction fallback decodes every entry
+	   into memory, more than an extension's budget allows for a large
+	   file (a .cbr/.cbz whose data neither reader accepts gets no cover). */
+	COArchive *archive = [[COArchive lazyArchiveWithPath:path] retain];
+	if (!archive || [archive lastError] || [archive itemCount] == 0) {
 		[archive release];
 		return nil;
 	}

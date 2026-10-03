@@ -8,8 +8,11 @@
  *     tests/fixtures/README.md (ASCII and Japanese UTF-8/CP932)
  *   - SHA-256 of every entry payload against tests/fixtures/src
  *   - zip/cbz dispatch to the libzip lazy reader (COZipArchive) and
- *     rar/cbr dispatch to the partial-lazy reader (CORarArchive);
- *     7z/tar stay on the full-extraction libarchive path
+ *     rar/cbr dispatch to the partial-lazy reader (CORarArchive), by
+ *     signature first (mislabeled files); 7z/tar stay on the
+ *     full-extraction libarchive path
+ *   - hostile metadata: ~5000-character entry names, a "../" nested
+ *     archive name, a RAR4 size past the end of the file
  *   - the libzip path is locale-independent (CP932 names survive a
  *     forced C locale; the libarchive zip reader needed the UTF-8
  *     locale workaround in main.m)
@@ -31,6 +34,8 @@
 #import "COArchive.h"
 #import "COZipArchive.h"
 #import "CORarArchive.h"
+#import "CORarHeaderIndex.h"
+#import "NSString_Compare.h"
 
 static int failures = 0;
 static int checks = 0;
@@ -331,26 +336,122 @@ int main(int argc, char **argv)
             }
         }
 
-        // --- mislabeled file: a zip renamed to .cbr must fail the
-        // RAR signature check and fall back to the libarchive
-        // full-extraction path (which detects zip from content,
-        // regardless of extension), exactly like the base COArchive
-        // path already does for e.g. 7z misnamed as .tar ---
+        // --- mislabeled files (M7): the reader is chosen by the file's
+        // signature, so a zip renamed to .cbr gets the libzip lazy
+        // reader (it used to fall back to full extraction into memory),
+        // and a rar renamed to .cbz the RAR reader. A 7z renamed to .cbr
+        // names neither, so it still goes to the full-extraction path,
+        // which +lazyArchiveWithPath: (the QuickLook extensions) refuses ---
         {
+            NSFileManager *fm = [NSFileManager defaultManager];
             NSString *src = [gen stringByAppendingPathComponent:@"test.zip"];
             NSString *p = [gen stringByAppendingPathComponent:@"mislabeled.cbr"];
-            [[NSFileManager defaultManager] removeItemAtPath:p error:nil];
-            if ([[NSFileManager defaultManager] copyItemAtPath:src toPath:p error:nil]) {
+            [fm removeItemAtPath:p error:nil];
+            if ([fm copyItemAtPath:src toPath:p error:nil]) {
                 printf("mislabeled.cbr (zip renamed to .cbr)\n");
                 COArchive *ar = [[[COArchive alloc] initWithPath:p] autorelease];
-                check(![ar isKindOfClass:[CORarArchive class]],
-                      @"mislabeled zip-as-cbr did not fall back to libarchive");
+                check([ar isKindOfClass:[COZipArchive class]],
+                      [NSString stringWithFormat:@"mislabeled zip-as-cbr opened as %s",
+                       class_getName([ar class])]);
                 check([ar itemCount] == 4,
                       [NSString stringWithFormat:@"mislabeled.cbr entry count %d (lastError=%@)",
                        [ar itemCount], [ar lastError]]);
+                check([[COArchive lazyArchiveWithPath:p] isKindOfClass:[COZipArchive class]],
+                      @"mislabeled.cbr: no lazy reader");
             } else {
                 check(NO, @"could not create mislabeled.cbr fixture");
             }
+
+            NSString *rsrc = [gen stringByAppendingPathComponent:@"test.cbr"];
+            NSString *rp = [gen stringByAppendingPathComponent:@"mislabeled_rar.cbz"];
+            [fm removeItemAtPath:rp error:nil];
+            if ([fm fileExistsAtPath:rsrc] && [fm copyItemAtPath:rsrc toPath:rp error:nil]) {
+                printf("mislabeled_rar.cbz (rar renamed to .cbz)\n");
+                COArchive *ar = [[[COArchive alloc] initWithPath:rp] autorelease];
+                check([ar isKindOfClass:[CORarArchive class]],
+                      [NSString stringWithFormat:@"mislabeled rar-as-cbz opened as %s",
+                       class_getName([ar class])]);
+                check([ar itemCount] == 4, @"mislabeled_rar.cbz entry count");
+            } else {
+                printf("mislabeled_rar.cbz: SKIP (rar not installed)\n");
+            }
+
+            NSString *zsrc = [gen stringByAppendingPathComponent:@"test.7z"];
+            NSString *zp = [gen stringByAppendingPathComponent:@"mislabeled_7z.cbr"];
+            [fm removeItemAtPath:zp error:nil];
+            if ([fm fileExistsAtPath:zsrc] && [fm copyItemAtPath:zsrc toPath:zp error:nil]) {
+                printf("mislabeled_7z.cbr (7z renamed to .cbr)\n");
+                COArchive *ar = [[[COArchive alloc] initWithPath:zp] autorelease];
+                check([ar isMemberOfClass:[COArchive class]] && [ar itemCount] == 4,
+                      @"mislabeled_7z.cbr: full-extraction fallback");
+                check([COArchive lazyArchiveWithPath:zp] == nil,
+                      @"mislabeled_7z.cbr: lazy-only open must refuse the full-extraction path");
+            } else {
+                printf("mislabeled_7z.cbr: SKIP (7zz not installed)\n");
+            }
+        }
+
+        // --- long entry names (H2): ~5000-character paths, past the
+        // 1024-unit stack buffers -finderCompareS: used to copy into.
+        // Sorted exactly as COImageLoader/COCoverExtractor sort them ---
+        {
+            NSString *p = [gen stringByAppendingPathComponent:@"long_name.cbz"];
+            printf("long_name.cbz\n");
+            COArchive *ar = [[[COArchive alloc] initWithPath:p] autorelease];
+            check([ar itemCount] == 2, @"long_name.cbz entry count");
+            if ([ar itemCount] == 2) {
+                NSMutableArray *names = [NSMutableArray array];
+                for (COArchiveEntry *e in [ar contents]) {
+                    check([[e path] length] > 4000, @"long_name.cbz: name shorter than expected");
+                    [names addObject:[e path]];
+                }
+                [names sortUsingSelector:@selector(finderCompareS:)];
+                check([[names objectAtIndex:0] hasSuffix:@"/001.jpg"] &&
+                      [[names objectAtIndex:1] hasSuffix:@"/002.jpg"],
+                      @"long_name.cbz: finderCompareS order");
+            }
+            // UCCompareTextDefault's result is signed, not just -1/0/1
+            check([@"page2.jpg" finderCompareS:@"page10.jpg"] < 0,
+                  @"finderCompareS: digits compare as numbers");
+        }
+
+        // --- "../" nested archive (H3): the name comes back from the
+        // archive unchanged; COIsContainedEntryPath is what keeps
+        // COImageLoader from writing it outside its temp directory ---
+        {
+            NSString *p = [gen stringByAppendingPathComponent:@"dotdot.cbz"];
+            printf("dotdot.cbz\n");
+            COArchive *ar = [[[COArchive alloc] initWithPath:p] autorelease];
+            check([ar itemCount] == 2, @"dotdot.cbz entry count");
+            BOOL sawEscape = NO;
+            for (COArchiveEntry *e in [ar contents]) {
+                if ([[e path] isEqualToString:@"../../escape.zip"]) {
+                    sawEscape = YES;
+                    check(!COIsContainedEntryPath([e path]), @"dotdot.cbz: ../ entry accepted");
+                } else {
+                    check(COIsContainedEntryPath([e path]), @"dotdot.cbz: page entry rejected");
+                }
+            }
+            check(sawEscape, @"dotdot.cbz: ../ entry not listed");
+            check(!COIsContainedEntryPath(@"/tmp/abs.zip"), @"absolute entry path accepted");
+            check(!COIsContainedEntryPath(@"a/../../b.zip"), @"inner .. component accepted");
+            check(!COIsContainedEntryPath(@".."), @"bare .. accepted");
+            check(!COIsContainedEntryPath(@""), @"empty entry path accepted");
+            check(COIsContainedEntryPath(@"a/b..c/..x.zip"), @"dots inside names rejected");
+            check(COIsContainedEntryPath(@"sub/inner.cbz"), @"plain nested path rejected");
+        }
+
+        // --- RAR4 64-bit packed size past the end of the file (L9): the
+        // header index declines (the fallback reader takes over) rather
+        // than doing pointer arithmetic with it ---
+        {
+            NSString *p = [gen stringByAppendingPathComponent:@"rar4_huge_size.cbr"];
+            printf("rar4_huge_size.cbr\n");
+            BOOL crypted = NO;
+            check(CORarParseHeadersAtPath(p, &crypted) == nil,
+                  @"rar4_huge_size.cbr: header index accepted a size past the file");
+            COArchive *ar = [[[COArchive alloc] initWithPath:p] autorelease];
+            check([ar itemCount] <= 1, @"rar4_huge_size.cbr: too many entries");
         }
 
         // --- corruption: truncated rar (RAR5 signature intact, rest
@@ -445,8 +546,7 @@ int main(int argc, char **argv)
             // fallback this path replaces *did* support progress/
             // cancel, same as test.tar above; that fallback code is
             // unchanged and still exercised whenever the header
-            // parser declines — see the mislabeled.cbr test above,
-            // which forces the fallback via a non-RAR .cbr file.)
+            // parser declines — see the rar4_huge_size.cbr test above.)
             NSString *rp = [gen stringByAppendingPathComponent:@"test.cbr"];
             if ([[NSFileManager defaultManager] fileExistsAtPath:rp]) {
                 __block int rcalls = 0;

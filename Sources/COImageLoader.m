@@ -601,6 +601,9 @@ static NSArray *_COImageLoader_archiveTypes=nil;
 		if (path) {
 			[rawContentPathArray addObject:path];
 			if([[COImageLoader fileTypes] containsObject:[[path pathExtension] lowercaseString]]){
+				/* Nested archives are written to disk under their entry name;
+				   one that would land outside tempDir is skipped. */
+				if (!COIsContainedEntryPath(path)) continue;
 				if (![self uncompressToTempDir:path]) {
 					return NO;
 				}
@@ -638,10 +641,16 @@ static NSArray *_COImageLoader_archiveTypes=nil;
 
 - (BOOL)uncompressToTempDir:(NSString*)fileName
 {
+	if (!COIsContainedEntryPath(fileName)) return NO;
 	if (!tempDir) {
-        const char *buffer = [[NSString stringWithFormat:@"%@/%@",NSTemporaryDirectory(),@"cooViewer.XXXXXX"] fileSystemRepresentation];
-        mkdtemp((char *)buffer);
-        tempDir = [[NSString stringWithFormat:@"%s", buffer] retain];
+		/* mkdtemp() rewrites its argument, so it needs a buffer of our own,
+		   not -fileSystemRepresentation's. */
+		char buffer[PATH_MAX];
+		NSString *template = [NSTemporaryDirectory() stringByAppendingPathComponent:@"cooViewer.XXXXXX"];
+		if (![template getFileSystemRepresentation:buffer maxLength:sizeof(buffer)] || mkdtemp(buffer) == NULL) {
+			return NO;
+		}
+		tempDir = [[[NSFileManager defaultManager] stringWithFileSystemRepresentation:buffer length:strlen(buffer)] retain];
 	}
 	
 	if ([rawContentPathArray indexOfObject:fileName] != NSNotFound) {

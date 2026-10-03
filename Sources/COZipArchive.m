@@ -13,6 +13,14 @@
 /* decoded-entry cache budget; NSCache evicts under pressure anyway */
 #define CO_ZIP_CACHE_LIMIT (256 * 1024 * 1024)
 
+/* An entry's buffer is sized from the size the archive declares for it,
+   which a crafted file chooses freely (and a decompression bomb states
+   truthfully). Larger entries are refused, and only smaller ones are read
+   ahead unasked, so that opening a book — or a QuickLook extension taking
+   its cover — cannot be made to allocate without bound. */
+#define CO_ZIP_MAX_ENTRY_SIZE (512ULL * 1024 * 1024)
+#define CO_ZIP_MAX_PREFETCH_SIZE (64ULL * 1024 * 1024)
+
 /* implemented in COArchive.m (shared archive-level name decoding) */
 @interface COArchive (COArchiveNameDecoding)
 - (NSString *)decodeName:(NSData *)raw fallback:(NSString *)u8 charset:(NSString *)charset;
@@ -307,6 +315,11 @@
 /* must run on readQueue (zip_t* is not safe for concurrent reads) */
 - (NSData *)readEntryOnQueue:(zip_uint64_t)index size:(unsigned long long)size
 {
+	if (size > CO_ZIP_MAX_ENTRY_SIZE) {
+		NSLog(@"COZipArchive: entry #%llu in %@ declares %llu bytes; refused",
+		      (unsigned long long)index, filePath, size);
+		return nil;
+	}
 	zip_file_t *zf = zip_fopen_index(za, index, 0);
 	if (!zf) {
 		NSLog(@"COZipArchive: cannot open entry #%llu in %@: %s",
@@ -345,6 +358,7 @@
 	if ([dataCache objectForKey:key]) return;
 	zip_uint64_t idx = next->zipIndex;
 	unsigned long long sz = next->size;
+	if (sz > CO_ZIP_MAX_PREFETCH_SIZE) return;
 	dispatch_async(readQueue, ^{	// block retains self until it runs
 		if ([dataCache objectForKey:key]) return;
 		NSData *d = [self readEntryOnQueue:idx size:sz];

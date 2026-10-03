@@ -40,15 +40,19 @@ open(sys.argv[2], "wb").write(bytes(data))
 EOF
 fi
 
+# hostile-metadata fixtures (long names, "../" nested archive, oversized RAR4)
+python3 "$REPO_ROOT/tests/fixtures/make_hostile_fixtures.py" "$GEN"
+
 clang -O2 \
     -I "$REPO_ROOT/vendor/include" \
     -I "$REPO_ROOT/Sources" \
     "$ENGINE_DIR/test_coarchive.m" "$REPO_ROOT/Sources/COArchive.m" "$REPO_ROOT/Sources/COZipArchive.m" \
     "$REPO_ROOT/Sources/CORarArchive.m" "$REPO_ROOT/Sources/CORarHeaderIndex.m" \
+    "$REPO_ROOT/Sources/NSString_Compare.m" \
     "$REPO_ROOT/vendor/lib/libarchive.13.dylib" \
     "$REPO_ROOT/vendor/lib/libuchardet.0.dylib" \
     "$REPO_ROOT/vendor/lib/libzip.5.dylib" \
-    -framework Foundation -framework CoreFoundation \
+    -framework Foundation -framework CoreFoundation -framework CoreServices \
     -Wl,-rpath,"$REPO_ROOT/vendor/lib" \
     -o "$OUT/test_coarchive"
 

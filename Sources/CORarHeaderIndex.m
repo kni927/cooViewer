@@ -345,6 +345,9 @@ static NSMutableArray *ParseRAR4(FILE *f, off_t fileSize, BOOL *outCrypted, BOOL
 
 		if (type == RAR4_BLOCK_END) break;
 
+		// as in ParseRAR5: a data size past the whole file is malformed,
+		// and would overflow the off_t arithmetic below
+		if (datasize > (unsigned long long)fileSize) return nil;
 		off_t next = datastart + (off_t)datasize;
 		if (next <= blockStart) return nil;
 		if (next >= fileSize) break;

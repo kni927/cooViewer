@@ -6,12 +6,14 @@
 //
 //  Design (docs/spike-libarchive-20260711.md, TASK v1.4.0):
 //  - Format dispatch: initWithPath: returns a COZipArchive (libzip
-//    lazy per-entry reader, see COZipArchive.h) for .zip/.cbz files
-//    whose central directory is readable, and a CORarArchive
+//    lazy per-entry reader, see COZipArchive.h) for ZIP files whose
+//    central directory is readable, and a CORarArchive
 //    (libarchive-based partial-lazy reader, see CORarArchive.h) for
-//    .rar/.cbr files; everything below describes the libarchive
-//    full-extraction path used for 7z/tar (and as the fallback when
-//    zip_open fails).
+//    RAR files. The file's signature decides; the extension
+//    (.zip/.cbz, .rar/.cbr) only when the signature names neither.
+//    Everything below describes the libarchive full-extraction path
+//    used for 7z/tar (and as the fallback when a lazy reader cannot
+//    open the file).
 //  - Opening an archive reads it sequentially and extracts every
 //    usable entry into memory (NSData per entry). This matches how
 //    COImageLoader consumes pages (-[entry data] -> NSImage
@@ -82,6 +84,12 @@ typedef enum {
 - (id)initWithPath:(NSString *)path;
 - (id)initWithPath:(NSString *)path progress:(COArchiveProgress)progress;
 
+/* Only the lazy readers (COZipArchive, CORarArchive), chosen by the file's
+ * signature and then its extension; nil instead of the full-extraction
+ * fallback, which decodes every entry into memory. For callers with a
+ * tight memory budget (the QuickLook extensions). */
++ (COArchive *)lazyArchiveWithPath:(NSString *)path;
+
 - (NSString *)filePath;
 - (int)itemCount;
 - (NSArray *)contents;		// COArchiveEntry objects
@@ -99,3 +107,9 @@ typedef enum {
 /* write entry #index's data to fileName (for nested archives) */
 - (BOOL)uncompress:(int)index as:(NSString *)fileName;
 @end
+
+/* YES when an entry path, appended to a directory, stays inside it: not
+ * absolute and without a ".." component. Entry names come from archive
+ * headers unchanged, so this must hold before one is used as a file name
+ * on disk (COImageLoader's nested-archive extraction). */
+BOOL COIsContainedEntryPath(NSString *path);

@@ -60,6 +60,20 @@ the normal EOF path after a future libarchive update fixes the decoder state.
 See [libarchive issue #3352](https://github.com/libarchive/libarchive/issues/3352)
 and [pull request #3361](https://github.com/libarchive/libarchive/pull/3361).
 
+## Hostile-metadata fixtures
+
+`tests/engine/run_tests.sh` runs `make_hostile_fixtures.py`, which writes
+three small synthetic archives into `generated/` (not committed); their
+payloads are a few synthetic bytes, so no licensing applies:
+
+- `long_name.cbz` — two entries with ~5000-character path names.
+- `dotdot.cbz` — a page and a nested archive named `../../escape.zip`.
+- `rar4_huge_size.cbr` — a RAR4 file header whose 64-bit packed size runs
+  past the end of the file.
+
+The suite also copies `test.cbr` to `mislabeled_rar.cbz` and `test.7z` to
+`mislabeled_7z.cbr` at run time, next to the existing `mislabeled.cbr`.
+
 ## Expected page order
 
 1. `001.png`
