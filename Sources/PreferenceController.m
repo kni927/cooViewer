@@ -991,9 +991,25 @@ static const int DIALOG_CANCEL	= 129;
 	} else {
 		[showPageBarCheck setState:NSOffState];
 	}
-	if (![resolutionDisplayPopUp selectItemWithTag:[defaults integerForKey:@"ResolutionDisplay"]]) {
-		[resolutionDisplayPopUp selectItemWithTag:COResolutionDisplayInPageNumber];
+	/* ResolutionDisplay stays the stored state; the two checkboxes are a
+	   view of it. Off does not say where the resolution would go, so that
+	   choice is kept in ResolutionInPageNumber (YES when unset, matching the
+	   default In page number). An unknown value reads as In page number, as
+	   the pop-up this replaced did. */
+	int resolutionDisplay = (int)[defaults integerForKey:@"ResolutionDisplay"];
+	if (resolutionDisplay != COResolutionDisplayOff &&
+		resolutionDisplay != COResolutionDisplaySeparateBar) {
+		resolutionDisplay = COResolutionDisplayInPageNumber;
 	}
+	BOOL resolutionInPageNumber;
+	if (resolutionDisplay == COResolutionDisplayOff) {
+		resolutionInPageNumber = (![defaults objectForKey:@"ResolutionInPageNumber"] ||
+								  [defaults boolForKey:@"ResolutionInPageNumber"]);
+	} else {
+		resolutionInPageNumber = (resolutionDisplay == COResolutionDisplayInPageNumber);
+	}
+	[showResolutionCheck setState:(resolutionDisplay != COResolutionDisplayOff) ? NSOnState : NSOffState];
+	[resolutionInPageNumberCheck setState:resolutionInPageNumber ? NSOnState : NSOffState];
 	
 	if ([defaults boolForKey:@"PageNumAutoHide"]) {
 		[pageNumAutoHideCheck setState:NSOnState];
@@ -1160,6 +1176,15 @@ static const int DIALOG_CANCEL	= 129;
 	}
 	[pageBorderColor setCurrentColor:textBorderColor];
 	
+	/*resolution: its own font; colors are the page number's*/
+	if ([defaults objectForKey:@"ResolutionTextFont"]) {
+		[resolutionFontTextField setFont:[NSUnarchiver unarchiveObjectWithData:[defaults objectForKey:@"ResolutionTextFont"]]];
+	} else {
+		[resolutionFontTextField setFont:[fontTextField font]];
+	}
+	[resolutionFontTextField setTextColor:textColor];
+	[resolutionFontTextField setBackgroundColor:textBGColor];
+	[self resolutionDisplayChanged:nil];
 	
 	
 	[interpolationPopUpButton selectItemAtIndex:[defaults integerForKey:@"Interpolation"]];
@@ -1457,7 +1482,12 @@ static const int DIALOG_CANCEL	= 129;
 		} else {
 			[defaults setBool:NO forKey:@"ShowNumber"];
 		}
-		[defaults setInteger:[resolutionDisplayPopUp selectedTag] forKey:@"ResolutionDisplay"];
+		/*resolution*/
+		[defaults setInteger:[self resolutionDisplayFromChecks] forKey:@"ResolutionDisplay"];
+		[defaults setBool:([resolutionInPageNumberCheck state] == NSOnState) forKey:@"ResolutionInPageNumber"];
+		[defaults setInteger:[accessorySettingView resolutionPosition] forKey:@"ResolutionPosition"];
+		[defaults setObject:[accessorySettingView resolutionMargin] forKey:@"Margin_Resolution"];
+		[defaults setObject:[NSArchiver archivedDataWithRootObject:[resolutionFontTextField font]] forKey:@"ResolutionTextFont"];
 		/*pageBar*/
 		//NSDictionary *pageBarDic;
 		[defaults setInteger:[accessorySettingView pageBarPosition] forKey:@"PageBarPosition"];
@@ -1948,10 +1978,49 @@ static const int DIALOG_CANCEL	= 129;
 - (IBAction)changeFontColor:(id)sender
 {
 	[fontTextField setTextColor:[sender currentColor]];
+	[resolutionFontTextField setTextColor:[sender currentColor]];
 }
 - (IBAction)changeFontBGColor:(id)sender
 {
 	[fontTextField setBackgroundColor:[sender currentColor]];
+	[resolutionFontTextField setBackgroundColor:[sender currentColor]];
+}
+
+- (IBAction)showResolutionFontPanel:(id)sender
+{
+    NSFontPanel* fontPanel;
+    fontPanel = [[NSFontManager sharedFontManager] fontPanel:YES];
+	[[NSFontManager sharedFontManager] setSelectedFont:[resolutionFontTextField font] isMultiple:NO];
+	[fontPanel setLevel:NSMainMenuWindowLevel];
+	[fontPanel setDelegate:(id)self];
+	[[NSFontManager sharedFontManager] setAction:@selector(changeResolutionFont:)];
+    [fontPanel makeKeyAndOrderFront:self];
+}
+- (void)changeResolutionFont:(id)fontManager
+{
+    NSFont *oldFont = [resolutionFontTextField font];
+    NSFont *newFont = [fontManager convertFont:oldFont];
+	[resolutionFontTextField setFont:newFont];
+}
+
+/* The ResolutionDisplay value the two checkboxes stand for. */
+- (int)resolutionDisplayFromChecks
+{
+	if ([showResolutionCheck state] != NSOnState) return COResolutionDisplayOff;
+	if ([resolutionInPageNumberCheck state] == NSOnState) return COResolutionDisplayInPageNumber;
+	return COResolutionDisplaySeparateBar;
+}
+
+/* In page number means something only while the resolution is shown, and
+   the separate bar's font and position only while it has that bar. */
+- (IBAction)resolutionDisplayChanged:(id)sender
+{
+	BOOL shown = ([showResolutionCheck state] == NSOnState);
+	BOOL separateBar = ([self resolutionDisplayFromChecks] == COResolutionDisplaySeparateBar);
+	[resolutionInPageNumberCheck setEnabled:shown];
+	[resolutionFontTextField setEnabled:separateBar];
+	[resolutionFontButton setEnabled:separateBar];
+	[resolutionPositionButton setEnabled:separateBar];
 }
 
 
@@ -2841,6 +2910,7 @@ static const int DIALOG_CANCEL	= 129;
 	[accessorySettingView setPageBarBorderColor:[pageBarBorderColor currentColor]];
 	[accessorySettingView setPageBarReadedColor:[pageBarReadedColor currentColor]];
 	[accessorySettingView setTextFont:[fontTextField font]];
+	[accessorySettingView setResolutionFont:[resolutionFontTextField font]];
 	[accessorySettingView setTextFontColor:[pageColor currentColor]];
 	[accessorySettingView setTextBGColor:[pageBGColor currentColor]];
 	[accessorySettingView setTextBorderColor:[pageBorderColor currentColor]];
@@ -2848,6 +2918,12 @@ static const int DIALOG_CANCEL	= 129;
 	[accessorySettingView setPositionSettingMode:YES];
 	[accessorySettingPanel makeKeyAndOrderFront:self];
 	[accessorySettingView setPageString:@"#1-2/345 (67.jpg | 89.jpg)"];
+	/* The resolution bar is placed here only when it is a bar of its own. */
+	if ([self resolutionDisplayFromChecks] == COResolutionDisplaySeparateBar) {
+		[accessorySettingView setResolutionString:@"1200x1800 | 1200x1800"];
+	} else {
+		[accessorySettingView setResolutionString:nil];
+	}
 	[accessorySettingView drawAccessory];
 }
 

@@ -345,20 +345,20 @@
         <window title="Preferences" allowsToolTipsWhenApplicationIsInactive="NO" autorecalculatesKeyViewLoop="NO" hidesOnDeactivate="YES" releasedWhenClosed="NO" visibleAtLaunch="NO" animationBehavior="default" id="448" userLabel="Preference" customClass="NSPanel">
             <windowStyleMask key="styleMask" titled="YES"/>
             <windowPositionMask key="initialPositionMask" leftStrut="YES" rightStrut="YES" topStrut="YES" bottomStrut="YES"/>
-            <rect key="contentRect" x="335" y="172" width="633" height="580"/>
+            <rect key="contentRect" x="335" y="172" width="709" height="580"/>
             <rect key="screenRect" x="0.0" y="0.0" width="2560" height="1415"/>
             <view key="contentView" id="447">
-                <rect key="frame" x="0.0" y="0.0" width="633" height="580"/>
+                <rect key="frame" x="0.0" y="0.0" width="709" height="580"/>
                 <autoresizingMask key="autoresizingMask"/>
                 <subviews>
                     <tabView fixedFrame="YES" translatesAutoresizingMaskIntoConstraints="NO" id="849">
-                        <rect key="frame" x="13" y="40" width="607" height="534"/>
+                        <rect key="frame" x="13" y="40" width="683" height="534"/>
                         <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
                         <font key="font" metaFont="system"/>
                         <tabViewItems>
                             <tabViewItem label="General" identifier="" id="850">
                                 <view key="view" id="852">
-                                    <rect key="frame" x="10" y="33" width="587" height="488"/>
+                                    <rect key="frame" x="10" y="33" width="663" height="488"/>
                                     <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
                                     <subviews>
                                         <box fixedFrame="YES" title="Default Book Setting" translatesAutoresizingMaskIntoConstraints="NO" id="471">
@@ -706,7 +706,7 @@ go to the last page always.</string>
                             </tabViewItem>
                             <tabViewItem label="Appearance" identifier="" id="1964">
                                 <view key="view" id="1965">
-                                    <rect key="frame" x="10" y="33" width="587" height="488"/>
+                                    <rect key="frame" x="10" y="33" width="663" height="488"/>
                                     <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
                                     <subviews>
                                         <button fixedFrame="YES" translatesAutoresizingMaskIntoConstraints="NO" id="1627">
@@ -991,30 +991,6 @@ go to the last page always.</string>
                                                             <font key="font" metaFont="system"/>
                                                         </buttonCell>
                                                     </button>
-                                                    <textField verticalHuggingPriority="750" horizontalCompressionResistancePriority="250" fixedFrame="YES" translatesAutoresizingMaskIntoConstraints="NO" id="RDp-Lb-001">
-                                                        <rect key="frame" x="176" y="91" width="76" height="17"/>
-                                                        <autoresizingMask key="autoresizingMask"/>
-                                                        <textFieldCell key="cell" sendsActionOnEndEditing="YES" alignment="right" title="Resolution:" id="RDp-Lc-001">
-                                                            <font key="font" metaFont="system"/>
-                                                            <color key="textColor" name="controlTextColor" catalog="System" colorSpace="catalog"/>
-                                                            <color key="backgroundColor" name="controlColor" catalog="System" colorSpace="catalog"/>
-                                                        </textFieldCell>
-                                                    </textField>
-                                                    <popUpButton verticalHuggingPriority="750" fixedFrame="YES" translatesAutoresizingMaskIntoConstraints="NO" id="RDp-PU-001">
-                                                        <rect key="frame" x="254" y="87" width="146" height="22"/>
-                                                        <autoresizingMask key="autoresizingMask"/>
-                                                        <popUpButtonCell key="cell" type="push" title="In page number" bezelStyle="rounded" alignment="left" controlSize="small" lineBreakMode="truncatingTail" state="on" borderStyle="borderAndBezel" tag="1" inset="2" arrowPosition="arrowAtCenter" preferredEdge="maxY" selectedItem="RDp-M1-001" id="RDp-PC-001">
-                                                            <behavior key="behavior" lightByBackground="YES" lightByGray="YES"/>
-                                                            <font key="font" metaFont="smallSystem"/>
-                                                            <menu key="menu" title="OtherViews" id="RDp-Mn-001">
-                                                                <items>
-                                                                    <menuItem title="Off" id="RDp-M0-001"/>
-                                                                    <menuItem title="In page number" state="on" tag="1" id="RDp-M1-001"/>
-                                                                    <menuItem title="Separate bar" tag="2" id="RDp-M2-001"/>
-                                                                </items>
-                                                            </menu>
-                                                        </popUpButtonCell>
-                                                    </popUpButton>
                                                     <button verticalHuggingPriority="750" fixedFrame="YES" translatesAutoresizingMaskIntoConstraints="NO" id="2861">
                                                         <rect key="frame" x="7" y="60" width="100" height="28"/>
                                                         <autoresizingMask key="autoresizingMask"/>
@@ -1026,6 +1002,87 @@ go to the last page always.</string>
                                                             <action selector="setPosition:" target="1673" id="2862"/>
                                                         </connections>
                                                     </button>
+                                                </subviews>
+                                            </view>
+                                        </box>
+                                        <box fixedFrame="YES" title="Resolution" translatesAutoresizingMaskIntoConstraints="NO" id="RSb-Bx-001">
+                                            <rect key="frame" x="433" y="290" width="210" height="134"/>
+                                            <autoresizingMask key="autoresizingMask" flexibleMaxX="YES" flexibleMinY="YES"/>
+                                            <view key="contentView" id="RSb-CV-001">
+                                                <rect key="frame" x="4" y="5" width="202" height="114"/>
+                                                <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
+                                                <subviews>
+                                                    <button fixedFrame="YES" translatesAutoresizingMaskIntoConstraints="NO" id="RSb-Sh-001">
+                                                        <rect key="frame" x="10" y="90" width="56" height="18"/>
+                                                        <autoresizingMask key="autoresizingMask"/>
+                                                        <buttonCell key="cell" type="check" title="Show" bezelStyle="regularSquare" imagePosition="left" alignment="left" inset="2" id="RSb-ShC-001">
+                                                            <behavior key="behavior" changeContents="YES" doesNotDimImage="YES" lightByContents="YES"/>
+                                                            <font key="font" metaFont="system"/>
+                                                        </buttonCell>
+                                                        <connections>
+                                                            <action selector="resolutionDisplayChanged:" target="1673" id="RSb-Ac-001"/>
+                                                        </connections>
+                                                    </button>
+                                                    <button fixedFrame="YES" translatesAutoresizingMaskIntoConstraints="NO" id="RSb-IP-001">
+                                                        <rect key="frame" x="70" y="90" width="126" height="18"/>
+                                                        <autoresizingMask key="autoresizingMask"/>
+                                                        <buttonCell key="cell" type="check" title="In page number" bezelStyle="regularSquare" imagePosition="left" alignment="left" inset="2" id="RSb-IPC-001">
+                                                            <behavior key="behavior" changeContents="YES" doesNotDimImage="YES" lightByContents="YES"/>
+                                                            <font key="font" metaFont="system"/>
+                                                        </buttonCell>
+                                                        <connections>
+                                                            <action selector="resolutionDisplayChanged:" target="1673" id="RSb-Ac-002"/>
+                                                        </connections>
+                                                    </button>
+                                                    <button verticalHuggingPriority="750" fixedFrame="YES" translatesAutoresizingMaskIntoConstraints="NO" id="RSb-SP-001">
+                                                        <rect key="frame" x="7" y="60" width="100" height="28"/>
+                                                        <autoresizingMask key="autoresizingMask"/>
+                                                        <buttonCell key="cell" type="push" title="Set position..." bezelStyle="rounded" alignment="center" controlSize="small" borderStyle="border" inset="2" id="RSb-SPC-001">
+                                                            <behavior key="behavior" pushIn="YES" lightByBackground="YES" lightByGray="YES"/>
+                                                            <font key="font" metaFont="smallSystem"/>
+                                                        </buttonCell>
+                                                        <connections>
+                                                            <action selector="setPosition:" target="1673" id="RSb-Ac-003"/>
+                                                        </connections>
+                                                    </button>
+                                                    <textField verticalHuggingPriority="750" horizontalCompressionResistancePriority="250" fixedFrame="YES" translatesAutoresizingMaskIntoConstraints="NO" id="RSb-FL-001">
+                                                        <rect key="frame" x="9" y="37" width="58" height="17"/>
+                                                        <autoresizingMask key="autoresizingMask" flexibleMaxX="YES" flexibleMinY="YES"/>
+                                                        <textFieldCell key="cell" sendsActionOnEndEditing="YES" alignment="left" title="Font:" id="RSb-FLC-001">
+                                                            <font key="font" metaFont="system"/>
+                                                            <color key="textColor" name="controlTextColor" catalog="System" colorSpace="catalog"/>
+                                                            <color key="backgroundColor" name="controlColor" catalog="System" colorSpace="catalog"/>
+                                                        </textFieldCell>
+                                                    </textField>
+                                                    <textField verticalHuggingPriority="750" fixedFrame="YES" translatesAutoresizingMaskIntoConstraints="NO" id="RSb-FF-001">
+                                                        <rect key="frame" x="68" y="37" width="70" height="19"/>
+                                                        <autoresizingMask key="autoresizingMask"/>
+                                                        <textFieldCell key="cell" scrollable="YES" lineBreakMode="clipping" sendsActionOnEndEditing="YES" state="on" borderStyle="bezel" alignment="center" title="1200x1800" drawsBackground="YES" id="RSb-FFC-001">
+                                                            <font key="font" metaFont="system"/>
+                                                            <color key="textColor" name="textColor" catalog="System" colorSpace="catalog"/>
+                                                            <color key="backgroundColor" name="textBackgroundColor" catalog="System" colorSpace="catalog"/>
+                                                        </textFieldCell>
+                                                    </textField>
+                                                    <button verticalHuggingPriority="750" fixedFrame="YES" translatesAutoresizingMaskIntoConstraints="NO" id="RSb-FS-001">
+                                                        <rect key="frame" x="139" y="32" width="62" height="28"/>
+                                                        <autoresizingMask key="autoresizingMask"/>
+                                                        <buttonCell key="cell" type="push" title="Select..." bezelStyle="rounded" alignment="center" controlSize="small" borderStyle="border" inset="2" id="RSb-FSC-001">
+                                                            <behavior key="behavior" pushIn="YES" lightByBackground="YES" lightByGray="YES"/>
+                                                            <font key="font" metaFont="smallSystem"/>
+                                                        </buttonCell>
+                                                        <connections>
+                                                            <action selector="showResolutionFontPanel:" target="1673" id="RSb-Ac-004"/>
+                                                        </connections>
+                                                    </button>
+                                                    <textField verticalHuggingPriority="750" horizontalCompressionResistancePriority="250" fixedFrame="YES" translatesAutoresizingMaskIntoConstraints="NO" id="RSb-Nt-001">
+                                                        <rect key="frame" x="9" y="2" width="188" height="28"/>
+                                                        <autoresizingMask key="autoresizingMask" flexibleMaxX="YES" flexibleMinY="YES"/>
+                                                        <textFieldCell key="cell" controlSize="small" sendsActionOnEndEditing="YES" alignment="left" title="Colors and auto hide follow Page Number." id="RSb-NtC-001">
+                                                            <font key="font" metaFont="smallSystem"/>
+                                                            <color key="textColor" name="secondaryLabelColor" catalog="System" colorSpace="catalog"/>
+                                                            <color key="backgroundColor" name="controlColor" catalog="System" colorSpace="catalog"/>
+                                                        </textFieldCell>
+                                                    </textField>
                                                 </subviews>
                                             </view>
                                         </box>
@@ -1194,7 +1251,7 @@ go to the last page always.</string>
                             </tabViewItem>
                             <tabViewItem label="Input" identifier="" id="851">
                                 <view key="view" id="853">
-                                    <rect key="frame" x="10" y="33" width="587" height="488"/>
+                                    <rect key="frame" x="10" y="33" width="663" height="488"/>
                                     <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
                                     <subviews>
                                         <textField verticalHuggingPriority="750" horizontalCompressionResistancePriority="250" fixedFrame="YES" translatesAutoresizingMaskIntoConstraints="NO" id="1867">
@@ -1622,7 +1679,7 @@ go to the last page always.</string>
                             </tabViewItem>
                             <tabViewItem label="Advanced" identifier="" id="1607">
                                 <view key="view" id="1608">
-                                    <rect key="frame" x="10" y="33" width="587" height="488"/>
+                                    <rect key="frame" x="10" y="33" width="663" height="488"/>
                                     <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
                                     <subviews>
                                         <textField verticalHuggingPriority="750" horizontalCompressionResistancePriority="250" fixedFrame="YES" translatesAutoresizingMaskIntoConstraints="NO" id="g5s-pD-la3">
@@ -1802,7 +1859,7 @@ go to the last page always.</string>
                         </connections>
                     </tabView>
                     <button verticalHuggingPriority="750" fixedFrame="YES" translatesAutoresizingMaskIntoConstraints="NO" id="882">
-                        <rect key="frame" x="541" y="12" width="78" height="32"/>
+                        <rect key="frame" x="617" y="12" width="78" height="32"/>
                         <autoresizingMask key="autoresizingMask" flexibleMinX="YES" flexibleMaxY="YES"/>
                         <buttonCell key="cell" type="push" title="OK" bezelStyle="rounded" alignment="center" borderStyle="border" inset="2" id="4318">
                             <behavior key="behavior" pushIn="YES" lightByBackground="YES" lightByGray="YES"/>
@@ -1813,7 +1870,7 @@ go to the last page always.</string>
                         </connections>
                     </button>
                     <button verticalHuggingPriority="750" fixedFrame="YES" translatesAutoresizingMaskIntoConstraints="NO" id="883">
-                        <rect key="frame" x="436" y="12" width="104" height="32"/>
+                        <rect key="frame" x="512" y="12" width="104" height="32"/>
                         <autoresizingMask key="autoresizingMask" flexibleMinX="YES" flexibleMaxY="YES"/>
                         <buttonCell key="cell" type="push" title="Cancel" bezelStyle="rounded" alignment="center" borderStyle="border" inset="2" id="4319">
                             <behavior key="behavior" pushIn="YES" lightByBackground="YES" lightByGray="YES"/>
@@ -2417,7 +2474,11 @@ Gw
                 <outlet property="rememberBookSettingsCheck" destination="2850" id="2851"/>
                 <outlet property="showPageBarCheck" destination="2838" id="2841"/>
                 <outlet property="showPageNumCheck" destination="2839" id="2840"/>
-                <outlet property="resolutionDisplayPopUp" destination="RDp-PU-001" id="RDp-Ou-001"/>
+                <outlet property="showResolutionCheck" destination="RSb-Sh-001" id="RSb-Ou-001"/>
+                <outlet property="resolutionInPageNumberCheck" destination="RSb-IP-001" id="RSb-Ou-002"/>
+                <outlet property="resolutionFontTextField" destination="RSb-FF-001" id="RSb-Ou-003"/>
+                <outlet property="resolutionFontButton" destination="RSb-FS-001" id="RSb-Ou-004"/>
+                <outlet property="resolutionPositionButton" destination="RSb-SP-001" id="RSb-Ou-005"/>
                 <outlet property="showThumbnailCheck" destination="2105" id="2107"/>
                 <outlet property="singleSettingTextField" destination="1064" id="1686"/>
                 <outlet property="slideshowSlider" destination="473" id="1713"/>

@@ -21,6 +21,8 @@
 -(NSDictionary*)pageBarSize;
 -(NSDictionary*)pageMargin;
 -(NSDictionary*)pageBarMargin;
+-(int)resolutionPosition;
+-(NSDictionary*)resolutionMargin;
 
 -(void)setPageBarBGColor:(NSColor*)color;
 -(void)setPageBarBorderColor:(NSColor*)color;
@@ -29,5 +31,6 @@
 -(void)setTextBGColor:(NSColor*)color;
 -(void)setTextBorderColor:(NSColor*)color;
 -(void)setTextFont:(NSFont*)font;
+-(void)setResolutionFont:(NSFont*)font;
 
 @end

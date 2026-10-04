@@ -5,7 +5,8 @@
 /* Values of the ResolutionDisplay preference: where the pixel dimensions of
    the shown page(s) appear. It replaced the ShowResolution checkbox, which is
    now read only by the one-time migration in +[BookWindowController
-   initialize]. The values are also the item tags of the Preferences pop-up. */
+   initialize]. Preferences ▸ Resolution shows it as two checkboxes, Show
+   and In page number (-[PreferenceController resolutionDisplayFromChecks]). */
 enum {
 	COResolutionDisplayOff = 0,
 	COResolutionDisplayInPageNumber = 1,
@@ -102,7 +103,13 @@ enum {
 	
     IBOutlet id showPageNumCheck;
     IBOutlet id showPageBarCheck;
-    IBOutlet id resolutionDisplayPopUp;
+    /* Preferences ▸ Resolution. The font field, its Select button and the
+       Set position button apply only to the separate bar. */
+    IBOutlet id showResolutionCheck;
+    IBOutlet id resolutionInPageNumberCheck;
+    IBOutlet id resolutionFontTextField;
+    IBOutlet id resolutionFontButton;
+    IBOutlet id resolutionPositionButton;
 	
     IBOutlet id accessorySettingPanel;
     IBOutlet id accessorySettingView;
@@ -143,6 +150,8 @@ enum {
 
 
 - (IBAction)showPageBarFontPanel:(id)sender;
+- (IBAction)showResolutionFontPanel:(id)sender;
+- (IBAction)resolutionDisplayChanged:(id)sender;
 - (IBAction)changePageBarFontColor:(id)sender;
 - (IBAction)changePageBarBGColor:(id)sender;
 

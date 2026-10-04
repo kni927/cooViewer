@@ -61,10 +61,17 @@
 	BOOL autoHidedPageString;
 	NSAttributedString *pageString;
 	NSAttributedString *infoString;
-	/* The separate resolution bar (ResolutionDisplay = Separate bar). Drawn
-	   with the page number's attributes and shown and auto-hidden with it. */
+	/* The separate resolution bar (ResolutionDisplay = Separate bar). It has
+	   its own corner, margin and font (ResolutionPosition,
+	   Margin_Resolution, ResolutionTextFont, each falling back to the page
+	   number's own when unset); colors and auto-hide are the page
+	   number's. See -resolutionStringRect. */
 	NSAttributedString *resolutionString;
 	NSRect resolutionStringRect;
+	NSDictionary *resolutionStringAttr;
+	NSFont *resolutionFont;
+	NSPoint resolutionMargin;
+	int resolutionStringPosition;
 	
 	int tempPageNum;
 	int pageStringPosition;
@@ -87,6 +94,11 @@ NSRect COIntRect(NSRect aRect);
 
 -(void)setResolutionString:(NSString*)string;
 -(NSRect)resolutionStringRect;
+
+/* Page-number text attributes (color, background-dependent shadow) with
+   the given font: the page number's with TextFont, the resolution bar's
+   with ResolutionTextFont. */
+-(NSDictionary*)textAttributesWithFont:(NSFont*)font;
 
 -(void)drawPageBarBubble;
 -(void)drawPageBar;

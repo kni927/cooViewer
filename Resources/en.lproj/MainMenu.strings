@@ -1417,17 +1417,27 @@
 /* Class = "NSButtonCell"; title = "Radio"; ObjectID = "4424"; */
 "4424.title" = "Radio";
 
-/* Class = "NSTextFieldCell"; title = "Resolution:"; ObjectID = "RDp-Lc-001"; */
-"RDp-Lc-001.title" = "Resolution:";
+/* Class = "NSBox"; title = "Resolution"; ObjectID = "RSb-Bx-001"; */
+"RSb-Bx-001.title" = "Resolution";
 
-/* Class = "NSPopUpButtonCell"; title = "In page number"; ObjectID = "RDp-PC-001"; */
-"RDp-PC-001.title" = "In page number";
+/* Class = "NSButtonCell"; title = "Show"; ObjectID = "RSb-ShC-001"; */
+"RSb-ShC-001.title" = "Show";
 
-/* Class = "NSMenuItem"; title = "Off"; ObjectID = "RDp-M0-001"; */
-"RDp-M0-001.title" = "Off";
+/* Class = "NSButtonCell"; title = "In page number"; ObjectID = "RSb-IPC-001"; */
+"RSb-IPC-001.title" = "In page number";
 
-/* Class = "NSMenuItem"; title = "In page number"; ObjectID = "RDp-M1-001"; */
-"RDp-M1-001.title" = "In page number";
+/* Class = "NSButtonCell"; title = "Set position..."; ObjectID = "RSb-SPC-001"; */
+"RSb-SPC-001.title" = "Set position...";
 
-/* Class = "NSMenuItem"; title = "Separate bar"; ObjectID = "RDp-M2-001"; */
-"RDp-M2-001.title" = "Separate bar";
+/* Class = "NSTextFieldCell"; title = "Font:"; ObjectID = "RSb-FLC-001"; */
+"RSb-FLC-001.title" = "Font:";
+
+/* Class = "NSTextFieldCell"; title = "1200x1800"; ObjectID = "RSb-FFC-001"; */
+"RSb-FFC-001.title" = "1200x1800";
+
+/* Class = "NSButtonCell"; title = "Select..."; ObjectID = "RSb-FSC-001"; */
+"RSb-FSC-001.title" = "Select...";
+
+/* Class = "NSTextFieldCell"; title = "Colors and auto hide follow Page Number."; ObjectID = "RSb-NtC-001"; */
+"RSb-NtC-001.title" = "Colors and auto hide follow Page Number.";
+

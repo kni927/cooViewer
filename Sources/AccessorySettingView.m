@@ -57,6 +57,57 @@
 	[textFont release];
 	textFont = [font retain];
 }
+-(void)setResolutionFont:(NSFont*)font
+{
+	[resolutionFont release];
+	resolutionFont = [font retain];
+}
+
+/* Dashed lines from the two edges of the view that meet in `position`'s
+   corner to the matching corner of `rect`, as drawn for the page bar and
+   the page number. */
+-(void)strokeGuidesForRect:(NSRect)rect position:(int)position
+{
+	NSBezierPath *path = [NSBezierPath bezierPath];
+	float left = rect.origin.x;
+	float right = rect.origin.x+rect.size.width;
+	float top = rect.origin.y+rect.size.height;
+	float bottom = rect.origin.y;
+	switch (position) {
+		case 0:
+			[path moveToPoint:NSMakePoint(0,top)];
+			[path lineToPoint:NSMakePoint(left,top)];
+			[path moveToPoint:NSMakePoint(left,[self visibleRect].size.height)];
+			[path lineToPoint:NSMakePoint(left,top)];
+			break;
+		case 1:
+			[path moveToPoint:NSMakePoint([self visibleRect].size.width,top)];
+			[path lineToPoint:NSMakePoint(right,top)];
+			[path moveToPoint:NSMakePoint(right,[self visibleRect].size.height)];
+			[path lineToPoint:NSMakePoint(right,top)];
+			break;
+		case 2:
+			[path moveToPoint:NSMakePoint(0,bottom)];
+			[path lineToPoint:NSMakePoint(left,bottom)];
+			[path moveToPoint:NSMakePoint(left,0)];
+			[path lineToPoint:NSMakePoint(left,bottom)];
+			break;
+		case 3:
+			[path moveToPoint:NSMakePoint([self visibleRect].size.width,bottom)];
+			[path lineToPoint:NSMakePoint(right,bottom)];
+			[path moveToPoint:NSMakePoint(right,0)];
+			[path lineToPoint:NSMakePoint(right,bottom)];
+			break;
+		default:
+			break;
+	}
+	[[[NSColor grayColor] colorWithAlphaComponent:0.8] set];
+	CGFloat array[2];
+	array[0] = 3.0;
+	array[1] = 5.0;
+	[path setLineDash:array count:2 phase:0.0];
+	[path stroke];
+}
 
 
 -(void)drawRect:(NSRect)frameRect
@@ -173,6 +224,13 @@
 		[path setLineDash:array count:2 phase:0.0];
 		[path stroke];
 		
+		/* Only while the resolution has a bar of its own (PreferenceController
+		   sets the sample string only then). */
+		if (resolutionString) {
+			resolutionStringRect = [self resolutionStringRect];
+			[resolutionString drawAtPoint:resolutionStringRect.origin bg:textBGColor border:textBorderColor];
+			[self strokeGuidesForRect:resolutionStringRect position:resolutionStringPosition];
+		}
 		
 		return;
 	}
@@ -220,26 +278,11 @@
 		positionSettingMode = 0;
 	}
 	[pageStringAttr release];
-	if ([textBGColor isEqualTo:[NSColor clearColor]]) {
-		NSColor *shadowColor = [textFontColor colorUsingColorSpaceName:NSCalibratedWhiteColorSpace];
-		CGFloat white,alpha;
-		[shadowColor getWhite:&white alpha:&alpha];
-		NSShadow *shadow = [[NSShadow alloc] init];
-		[shadow setShadowBlurRadius:white];
-		[shadow setShadowColor:textFontColor];
-		pageStringAttr = [[NSDictionary dictionaryWithObjectsAndKeys:
-			textFontColor,NSForegroundColorAttributeName,
-			textFont,NSFontAttributeName,
-			shadow,NSShadowAttributeName,
-			nil] retain];
-		[shadow release];
-	} else {
-		pageStringAttr = [[NSDictionary dictionaryWithObjectsAndKeys:
-			textFontColor,NSForegroundColorAttributeName,
-			textFont,NSFontAttributeName,
-			nil] retain];
-	}
+	pageStringAttr = [[self textAttributesWithFont:textFont] retain];
+	[resolutionStringAttr release];
+	resolutionStringAttr = [[self textAttributesWithFont:resolutionFont] retain];
 	[self setPageString:[pageString string]];
+	[self setResolutionString:[resolutionString string]];
 }
 
 -(BOOL)positionSettingMode
@@ -262,6 +305,8 @@
 	mouseOldPoint = [event locationInWindow];
 	if (NSPointInRect(mouseOldPoint,[self pageStringRect])) {
 		positionSettingMode = 2;
+	} else if (NSPointInRect(mouseOldPoint,[self resolutionStringRect])) {
+		positionSettingMode = 5;
 	} else if (NSPointInRect(mouseOldPoint,tempRect)) {
 		positionSettingMode = 3;
 	} else if (NSPointInRect(mouseOldPoint,pageBarRect)) {
@@ -287,6 +332,7 @@
 	NSRect newRect,oldRect,tempRect;
 	NSPoint tempPageMargin = pageMargin;
 	NSPoint tempPageBarMargin = pageBarMargin;
+	NSPoint tempResolutionMargin = resolutionMargin;
 	NSPoint temppoint;
 	float xMoved = newMousePoint.x-mouseOldPoint.x;
 	float yMoved = newMousePoint.y-mouseOldPoint.y;
@@ -426,7 +472,62 @@
 				pageBarMargin.y -= newRect.origin.y-tempRect.origin.y;
 			}
 			newRect = [self pageBarRect];
-			break;			
+			break;
+		case 5:
+			/* The resolution bar: case 2 with its own corner and margin. In
+			   the page number's corner -resolutionStringRect adds the page
+			   number's width to the anchor; that is the same with the margin
+			   zeroed below, so the margin arithmetic is unaffected. */
+			switch (resolutionStringPosition) {
+				case 0:
+					resolutionMargin.x += xMoved;
+					resolutionMargin.y -= yMoved;
+					break;
+				case 1:
+					resolutionMargin.x -= xMoved;
+					resolutionMargin.y -= yMoved;
+					break;
+				case 2:
+					resolutionMargin.x += xMoved;
+					resolutionMargin.y += yMoved;
+					break;
+				case 3:
+					resolutionMargin.x -= xMoved;
+					resolutionMargin.y += yMoved;
+					break;
+				default:
+					break;
+			}
+			tempRect = [self resolutionStringRect];
+			if (!NSContainsRect([self visibleRect],tempRect)) {
+				resolutionMargin = tempResolutionMargin;
+				return;
+			}
+			resolutionMargin.x = 0;
+			resolutionMargin.y = 0;
+			temppoint = NSMakePoint(tempRect.origin.x+tempRect.size.width/2,tempRect.origin.y+tempRect.size.height/2);
+			if (NSPointInRect(temppoint,luRect)) {
+				resolutionStringPosition = 0;
+				newRect = [self resolutionStringRect];
+				resolutionMargin.x += tempRect.origin.x-newRect.origin.x;
+				resolutionMargin.y += newRect.origin.y-tempRect.origin.y;
+			} else if (NSPointInRect(temppoint,ruRect)) {
+				resolutionStringPosition = 1;
+				newRect = [self resolutionStringRect];
+				resolutionMargin.x -= tempRect.origin.x-newRect.origin.x;
+				resolutionMargin.y += newRect.origin.y-tempRect.origin.y;
+			} else if (NSPointInRect(temppoint,ldRect)) {
+				resolutionStringPosition = 2;
+				newRect = [self resolutionStringRect];
+				resolutionMargin.x += tempRect.origin.x-newRect.origin.x;
+				resolutionMargin.y -= newRect.origin.y-tempRect.origin.y;
+			} else if (NSPointInRect(temppoint,rdRect)) {
+				resolutionStringPosition = 3;
+				newRect = [self resolutionStringRect];
+				resolutionMargin.x -= tempRect.origin.x-newRect.origin.x;
+				resolutionMargin.y -= newRect.origin.y-tempRect.origin.y;
+			}
+			break;
 		default:
 			break;
 	}
@@ -456,6 +557,17 @@
 	NSDictionary *dic = [NSDictionary dictionaryWithObjectsAndKeys:
 		[NSNumber numberWithInt:pageMargin.x],@"x",
 		[NSNumber numberWithInt:pageMargin.y],@"y",nil];
+	return dic;
+}
+-(int)resolutionPosition
+{
+	return resolutionStringPosition;
+}
+-(NSDictionary*)resolutionMargin
+{
+	NSDictionary *dic = [NSDictionary dictionaryWithObjectsAndKeys:
+		[NSNumber numberWithInt:resolutionMargin.x],@"x",
+		[NSNumber numberWithInt:resolutionMargin.y],@"y",nil];
 	return dic;
 }
 -(NSDictionary*)pageBarMargin

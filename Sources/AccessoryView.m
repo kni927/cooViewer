@@ -68,6 +68,8 @@ NSRect COIntRect(NSRect aRect)
 	[pageString release];
 	[infoString release];
 	[resolutionString release];
+	[resolutionStringAttr release];
+	[resolutionFont release];
 
 	[super dealloc];
 }
@@ -134,6 +136,8 @@ NSRect COIntRect(NSRect aRect)
 		//pageStringBezierPath = nil;
 		pageStringAttr = nil;
 		//pageBarStringAttr = nil;
+		resolutionStringAttr = nil;
+		resolutionFont = nil;
 		
 		accessoryTimer = nil;
 	} else {
@@ -151,6 +155,8 @@ NSRect COIntRect(NSRect aRect)
 		//[pageStringBezierPath release];
 		[pageStringAttr release];
 		//[pageBarStringAttr release];
+		[resolutionStringAttr release];
+		[resolutionFont release];
 	}
 	
 	
@@ -227,6 +233,26 @@ NSRect COIntRect(NSRect aRect)
 		[defaults setObject:[NSDictionary dictionaryWithObjectsAndKeys:[NSNumber numberWithInt:0],@"x",[NSNumber numberWithInt:0],@"y",nil] 
 					 forKey:@"Margin_Page"];
 	}
+	/* The resolution bar's own placement and font. Unset, each is the page
+	   number's, which together with -resolutionStringRect's same-corner rule
+	   puts the bar exactly where it was before it had settings of its own:
+	   beside the page number, in its row. */
+	if ([defaults objectForKey:@"ResolutionPosition"]) {
+		resolutionStringPosition = (int)[defaults integerForKey:@"ResolutionPosition"];
+	} else {
+		resolutionStringPosition = pageStringPosition;
+	}
+	resolutionMargin = pageMargin;
+	if ([defaults dictionaryForKey:@"Margin_Resolution"]) {
+		resolutionMargin.x=[[[defaults dictionaryForKey:@"Margin_Resolution"] objectForKey:@"x"] intValue];
+		resolutionMargin.y=[[[defaults dictionaryForKey:@"Margin_Resolution"] objectForKey:@"y"] intValue];
+	}
+	if ([defaults objectForKey:@"ResolutionTextFont"]) {
+		resolutionFont = [[NSUnarchiver unarchiveObjectWithData:[defaults objectForKey:@"ResolutionTextFont"]] retain];
+	} else {
+		resolutionFont = [textFont retain];
+	}
+	
 	pageBarMargin=NSZeroPoint;
 	if ([defaults dictionaryForKey:@"Margin_PageBar"]) {
 		pageBarMargin.x=[[[defaults dictionaryForKey:@"Margin_PageBar"] objectForKey:@"x"] intValue];
@@ -242,25 +268,8 @@ NSRect COIntRect(NSRect aRect)
 	[pageBarBezierPath closePath];
 	
 	
-	if ([textBGColor isEqualTo:[NSColor clearColor]]) {
-		NSColor *shadowColor = [textFontColor colorUsingColorSpaceName:NSCalibratedWhiteColorSpace];
-		CGFloat white,alpha;
-		[shadowColor getWhite:&white alpha:&alpha];
-		NSShadow *shadow = [[NSShadow alloc] init];
-		[shadow setShadowBlurRadius:white];
-		[shadow setShadowColor:textFontColor];
-		pageStringAttr = [[NSDictionary dictionaryWithObjectsAndKeys:
-			textFontColor,NSForegroundColorAttributeName,
-			textFont,NSFontAttributeName,
-			shadow,NSShadowAttributeName,
-			nil] retain];
-		[shadow release];
-	} else {
-		pageStringAttr = [[NSDictionary dictionaryWithObjectsAndKeys:
-			textFontColor,NSForegroundColorAttributeName,
-			textFont,NSFontAttributeName,
-			nil] retain];
-	}
+	pageStringAttr = [[self textAttributesWithFont:textFont] retain];
+	resolutionStringAttr = [[self textAttributesWithFont:resolutionFont] retain];
 	/* MW-5 follow-up: `if (didFirst) [self setPageString:[self pageString]];`
 	   used to sit here, duplicating the call at the end of this method.
 	   -[AccessoryView pageString] *is* [pageString string], so the two calls
@@ -289,6 +298,27 @@ NSRect COIntRect(NSRect aRect)
 
 
 
+
+-(NSDictionary*)textAttributesWithFont:(NSFont*)font
+{
+	if ([textBGColor isEqualTo:[NSColor clearColor]]) {
+		NSColor *shadowColor = [textFontColor colorUsingColorSpaceName:NSCalibratedWhiteColorSpace];
+		CGFloat white,alpha;
+		[shadowColor getWhite:&white alpha:&alpha];
+		NSShadow *shadow = [[[NSShadow alloc] init] autorelease];
+		[shadow setShadowBlurRadius:white];
+		[shadow setShadowColor:textFontColor];
+		return [NSDictionary dictionaryWithObjectsAndKeys:
+			textFontColor,NSForegroundColorAttributeName,
+			font,NSFontAttributeName,
+			shadow,NSShadowAttributeName,
+			nil];
+	}
+	return [NSDictionary dictionaryWithObjectsAndKeys:
+		textFontColor,NSForegroundColorAttributeName,
+		font,NSFontAttributeName,
+		nil];
+}
 
 - (void)setFrame:(NSRect)frameRect
 {
@@ -872,9 +902,10 @@ NSRect COIntRect(NSRect aRect)
 #pragma mark pageString
 -(void)setPageString:(NSString*)string
 {
-	/* The resolution bar is laid out after the page number, so it moves
-	   whenever the page number changes width or disappears: the old and the
-	   new resolution bar rect are invalidated with the page number's. */
+	/* In the page number's corner the resolution bar is laid out after the
+	   page number, so it moves whenever the page number changes width or
+	   disappears: the old and the new resolution bar rect are invalidated
+	   with the page number's. */
 	NSRect oldResolutionRect = resolutionStringRect;
 	if (!string) {
 		[pageString release];
@@ -953,7 +984,7 @@ NSRect COIntRect(NSRect aRect)
 	   -setPreferences passes [resolutionString string]. */
 	NSAttributedString *newResolutionString = nil;
 	if (string) {
-		newResolutionString = [[NSAttributedString alloc] initWithString:string attributes:pageStringAttr];
+		newResolutionString = [[NSAttributedString alloc] initWithString:string attributes:resolutionStringAttr];
 	}
 	[resolutionString release];
 	resolutionString = newResolutionString;
@@ -965,12 +996,15 @@ NSRect COIntRect(NSRect aRect)
 	}
 }
 
-/* The resolution bar sits in the page number's row, beside it on the side
-   away from the corner the page number is anchored to: left to right
+/* The resolution bar is anchored to its own corner (resolutionStringPosition)
+   and offset by its own margin, the same way the page number is. In the
+   page number's corner it is laid out in that row, beside the page number
+   on the side away from the corner: left to right
    [info][page number][resolution] in the left-hand positions, mirrored in
-   the right-hand ones. Being in that row, it stays clear of the page bar
-   exactly as the page number does. With no page number shown it takes the
-   page number's place. */
+   the right-hand ones, so the two never overlap; with no page number shown
+   it takes the page number's place. With the default settings (corner and
+   margin are the page number's) that is exactly where the bar was before
+   it had settings of its own. */
 -(NSRect)resolutionStringRect
 {
 	if (!resolutionString) return NSZeroRect;
@@ -979,24 +1013,27 @@ NSRect COIntRect(NSRect aRect)
 	NSRect rect = NSMakeRect(0,0,[resolutionString sizeWithBG].width,[resolutionString sizeWithBG].height);
 	rect.size.width = rect.size.width + 1;
 	rect.size.height = rect.size.height + 1;
-	float inset = [self infoStringRect].size.width;
-	if (pageString) inset += [self pageStringRect].size.width + 2;
-	switch (pageStringPosition) {
+	float inset = 0;
+	if (resolutionStringPosition == pageStringPosition) {
+		inset = [self infoStringRect].size.width;
+		if (pageString) inset += [self pageStringRect].size.width + 2;
+	}
+	switch (resolutionStringPosition) {
 		case 0:
-			rect.origin.x = pageMargin.x+2 +inset;
-			rect.origin.y = contentFrame.size.height-rect.size.height-pageMargin.y;
+			rect.origin.x = resolutionMargin.x+2 +inset;
+			rect.origin.y = contentFrame.size.height-rect.size.height-resolutionMargin.y;
 			break;
 		case 1:
-			rect.origin.x = contentFrame.size.width-rect.size.width-pageMargin.x-2 -inset;
-			rect.origin.y = contentFrame.size.height-rect.size.height-pageMargin.y;
+			rect.origin.x = contentFrame.size.width-rect.size.width-resolutionMargin.x-2 -inset;
+			rect.origin.y = contentFrame.size.height-rect.size.height-resolutionMargin.y;
 			break;
 		case 2:
-			rect.origin.x = pageMargin.x+2 +inset;
-			rect.origin.y = 17+pageMargin.y+2;
+			rect.origin.x = resolutionMargin.x+2 +inset;
+			rect.origin.y = 17+resolutionMargin.y+2;
 			break;
 		case 3:
-			rect.origin.x = contentFrame.size.width-rect.size.width-pageMargin.x-2 -inset;
-			rect.origin.y = 17+pageMargin.y+2;
+			rect.origin.x = contentFrame.size.width-rect.size.width-resolutionMargin.x-2 -inset;
+			rect.origin.y = 17+resolutionMargin.y+2;
 			break;
 		default:
 			break;
