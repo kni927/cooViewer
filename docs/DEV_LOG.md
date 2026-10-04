@@ -1186,3 +1186,15 @@ and prefetched in page order: read-through no slower than v1.3.7 on the
 generated corpus (2000 pages 7.3 s → 1.5 s). `tools/cbr_bench/` makes the
 CBR measurement repeatable. Engine suite 302 checks. See
 `docs/tasks/2026-10-04-01-autohide-resolution-rar-positioning.md`.
+
+### Remaining code-review findings fixed (2026-10-04, unreleased)
+
+Every open finding of `docs/code-review-20261003.md` is fixed (KNOWN_ISSUES
+#41 closed): Save Image… can no longer delete its own source, opens are
+refused while a password sheet is up, next/previous folder works without
+opening the submenu first, RAR links no longer shift or break pages, repeated
+entry names are separate pages, wrong ZipCrypto passwords are always
+rejected, lookahead threads share one barrier, and spread pages with a
+fractional point size keep their right and top edges (still one resampling
+step). Engine suite 359 checks plus a new COImageLoader harness. See
+`docs/tasks/2026-10-04-02-review-remainder.md`.
