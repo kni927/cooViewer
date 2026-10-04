@@ -1728,3 +1728,15 @@ controller.
 Keyboard page turns, page-number input and opening a book still do not
 show an auto-hidden page number; that is the existing design (shown on
 mouse movement, hidden 2 s after it stops) and was left unchanged.
+
+**Verified on device (2026-10-04, main app):** with auto-hide on, the page
+number (and the resolution bar) came back on mouse movement in a restored
+window, while another app was frontmost (cause 2), with the page bar
+switched off (cause 1), in the kept last window reused after a refused open
+(the routing log showed `closed-kept`; cause 3), after ⌘N, after a Finder
+open replaced the book, after full screen in and out, after the loupe and
+after the bookmark sheet; and hid again 2 s later. The causes were found by
+reading, not reproduced against the pre-fix build. Cause 1 is the likeliest
+match for the report: the owner's profile binds the page bar's show/hide
+action to a single letter key, so one stray key press hides the page bar and,
+before the fix, the auto-hidden page number with it.

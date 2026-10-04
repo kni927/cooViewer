@@ -1174,3 +1174,15 @@ drop, the empty ⌘N window, closing during a slideshow, after a bookmark edit
 and while thumbnails were still filling, the solid-RAR4 message, per-window
 filters, Quick Look and thumbnails. See
 `docs/tasks/2026-10-03-07-release-v1.6.6.md`.
+
+### Auto-hide fix, Resolution preferences, non-solid RAR positioning (2026-10-04, unreleased)
+
+The auto-hidden page number comes back in every case found (page bar
+switched off, window not key or app inactive, reused last window —
+KNOWN_ISSUES #42). Resolution has its own Preferences section below Page
+Number, with its own corner, margin and font for the separate bar; existing
+profiles look the same. Non-solid RAR pages are read by direct positioning
+and prefetched in page order: read-through no slower than v1.3.7 on the
+generated corpus (2000 pages 7.3 s → 1.5 s). `tools/cbr_bench/` makes the
+CBR measurement repeatable. Engine suite 302 checks. See
+`docs/tasks/2026-10-04-01-autohide-resolution-rar-positioning.md`.
