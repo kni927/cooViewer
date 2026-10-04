@@ -163,7 +163,8 @@ compaction if one has already happened.
 1. Write the handover: the HQ's role and repositories, open items and their
    state, what waits on the owner, the sessions it coordinates (by name), and
    recent decisions with their commits. Leave out what the repositories
-   already record.
+   already record and what the owner's personal preferences already say (how
+   to address the owner, the language and tone of replies).
 2. Start the successor with `create_session` in the same environment and with
    the same `source_url`, titled with the HQ's plain name and with the
    handover as its initial prompt. `source_url` is the project's repository
