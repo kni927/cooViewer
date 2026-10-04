@@ -14,7 +14,9 @@ the `sync-projects` skill there.
   implement.
 - **Upstream HQ** (cloud): policy shared by all repositories. Changes
   `kni927/dotfiles` and `kni927/repo-template` and carries the changes to the
-  projects with the `sync-projects` skill. The owner brings each Mac up to date
+  projects with the `sync-projects` skill. It is also the HQ of
+  `kni927/dotfiles`, `kni927/repo-template`, and `kni927/home-server`, which
+  have no Project HQ of their own. The owner brings each Mac up to date
   with `~/Projects/GitHub/pull-repos.command`. It sends each policy change to
   the Project HQs itself, without waiting to be asked.
 - **Project HQ** (cloud): plans one project and writes its TASKs. It is
@@ -36,6 +38,9 @@ the `sync-projects` skill there.
   `✅ <name> (handover YYYY-MM-DD)`, so the plain name is free and the session
   list shows what can be archived.
 - Names are unique, because a local session addresses messages by name.
+- **A repository's HQ:** `<repo> HQ` for a project; `Upstream HQ` for
+  `kni927/dotfiles`, `kni927/repo-template`, and `kni927/home-server` (there is
+  no `dotfiles HQ`); `Central HQ` for `kni927/HQ`. `kni927/gateway` has none.
 - A name set from the cloud (`set_session_title`) may not appear in the Mac app.
   Name a local session on the Mac, or let it name itself as the `/tf` skill
   does.
@@ -62,14 +67,14 @@ Send each message only to the sessions that need it.
   to the `from-session` of the received message. Look up an HQ's current ID by
   name with `list_sessions`.
 - **TF ready:** right after naming itself, a TF sends its name and that it is
-  waiting for a TASK, with `SendMessage` to `<repo> HQ` as `ListAgents` lists
-  it, or to `Central HQ` if that HQ cannot be reached. The Project HQ tells the
+  waiting for a TASK, with `SendMessage` to its repository's HQ (Names) as
+  `ListAgents` lists it, or to `Central HQ` if that HQ cannot be reached. The Project HQ tells the
   owner under the receiving heading below, then sends the TASK to the
   `from-session` of that message, so it does not depend on finding the TF by
   name.
 - **HQ to TF:** `send_message` (claude-code-remote) to the TF's session ID, with
-  the TASK text. The TF accepts TASKs only from its own Project HQ, or, in a
-  repository without one (such as `kni927/HQ`), from the HQ the owner names.
+  the TASK text. The TF accepts TASKs only from its repository's HQ, or, in a
+  repository without one, from the HQ the owner names.
   It shows that the TASK arrived and its key points, not the full text, since
   `TASK.md` is archived later. It then runs `git pull` on `main` (stopping if
   that would not be a fast-forward; a TF in a worktree instead runs
@@ -229,12 +234,14 @@ The `hq-handover` skill walks through these steps.
    the same `source_url` and `source_revision` `main`, titled with the HQ's plain name and with the
    handover as its initial prompt. `source_url` is the project's repository
    for a Project HQ, `https://github.com/kni927/dotfiles` for Upstream HQ
-   (which then attaches `kni927/repo-template` with `add_repo`), and
-   `https://github.com/kni927/HQ` for Central HQ; their `AGENTS.md` makes this
-   file binding. `source_url` takes one repository, and attaching any other
-   needs the owner's explicit approval, which auto mode requires. If auto mode
-   stops `create_session` or the successor needs that approval, tell the owner
-   and keep working until it is resolved.
+   (which then attaches the other repositories it works in with `add_repo`),
+   and `https://github.com/kni927/HQ` for Central HQ; their `AGENTS.md` makes
+   this file binding. `source_url` takes one repository. Auto mode refuses
+   `add_repo` without the owner's explicit approval, except in `kni927/dotfiles`
+   and `kni927/HQ`, whose `.claude/settings.json` allows it so that Upstream HQ
+   and Central HQ can attach repositories after a handover. If auto mode stops
+   `create_session` or the successor needs that approval, tell the owner and
+   keep working until it is resolved.
 3. Tell the successor's name upstream (Central HQ; when Central HQ itself
    hands over, Upstream HQ) and downstream (the Project HQs or TFs it
    coordinates).
