@@ -611,9 +611,12 @@ static BOOL CORarEntryCounts(struct archive_entry *entry)
 	NSMutableData *payload = [NSMutableData data];
 	BOOL entryOK = YES;
 	NSString *entryError = nil;
+	/* On the heap: readQueue's GCD threads have 512 KB stacks (code review
+	   L11). */
+	NSMutableData *chunk = [NSMutableData dataWithLength:256 * 1024];
+	char *buf = [chunk mutableBytes];
 	for (;;) {
-		char buf[256 * 1024];
-		la_ssize_t got = archive_read_data(cursor, buf, sizeof(buf));
+		la_ssize_t got = archive_read_data(cursor, buf, [chunk length]);
 		if (got == 0) break;
 		if (got < 0) {
 			const char *errorString = archive_error_string(cursor);

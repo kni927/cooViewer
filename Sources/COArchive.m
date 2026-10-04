@@ -328,6 +328,10 @@ static COArchive *COOpenLazyArchive(NSString *path, COArchiveProgress progress)
 
 	NSMutableArray *rawEntries = [NSMutableArray array];
 	NSMutableData *allRaw = [NSMutableData data];
+	/* The read buffer lives on the heap: this runs on worker threads whose
+	   stacks are 512 KB (code review L11). */
+	NSMutableData *chunk = [NSMutableData dataWithLength:256 * 1024];
+	char *buf = [chunk mutableBytes];
 	BOOL allHaveUTF8 = YES;
 
 	for (;;) {
@@ -368,8 +372,7 @@ static COArchive *COOpenLazyArchive(NSString *path, COArchiveProgress progress)
 		NSMutableData *payload = [NSMutableData data];
 		BOOL entryOK = YES;
 		for (;;) {
-			char buf[256 * 1024];
-			la_ssize_t got = archive_read_data(a, buf, sizeof(buf));
+			la_ssize_t got = archive_read_data(a, buf, [chunk length]);
 			if (got == 0) break;
 			if (got < 0) {
 				NSLog(@"COArchive: skipping corrupt entry '%s' in %@: %s",

@@ -37,10 +37,13 @@
 {
 	id object;
 	int index;
-	for (index = 0; index<[bmarray count]; index++) {
+	/* Backwards, so a removal does not skip the entry that moves into its
+	   place (code review L11); removeObjectAtIndex: rather than
+	   removeObject:, which removes every equal entry. */
+	for (index = (int)[bmarray count] - 1; index >= 0; index--) {
 		object = [bmarray objectAtIndex:index];
 		if ([[object objectForKey:@"row"] intValue] == row && [[object objectForKey:@"column"] intValue] == column) {
-			[bmarray removeObject:object];
+			[bmarray removeObjectAtIndex:index];
 		}
 	}
 }

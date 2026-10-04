@@ -1645,17 +1645,17 @@ and R2, `KeyspanFrontRowControl`), and the GC-era
 the owner accepted the inference for macOS 12–15, so the guards and their
 fallbacks (`return NSFontPanelStandardModesMask;`, `mode=-1;`) were removed
 and the guarded bodies — the font-panel mode mask, PDF link extraction,
-savedSearch books — kept, unconditionally. Still open:
+savedSearch books — kept, unconditionally. **Removed 2026-10-04** (task
+`docs/tasks/2026-10-04-02-review-remainder.md`): U12, the outlets
+`contextMenuItem` and `contextMenu` and their two `BookWindow.xib`
+connections (the menus themselves stay; they are still the table's and the
+matrix's menus). Still open:
 
 - **`Sources/AppleRemote.m` Leopard branch** (`if (leopardEmulation)` in
   `-setCookieMappingInDictionary:`). Its AppKit-version half was removed
   (C3a); the branch is still entered when `leopardEmulation` is set from the
   IORegistry property `RemoteBuddyEmulationV2` (third-party Remote Buddy
   driver), whose absence cannot be proven.
-- **U12:** the outlets `contextMenuItem` (`BookmarkController.h`) and
-  `contextMenu` (`ThumbnailController.h`) are connected in `BookWindow.xib`
-  but unused in code; removing them needs an XIB edit (#2), which was out of
-  scope.
 - **Localized string key** "The parent folder of current book was changed.
   Do you want to follow?" in `Resources/{en,ja}.lproj/Localizable.strings`:
   no `NSLocalizedString` use was found. Other apparent orphans use key formats
@@ -1690,9 +1690,12 @@ are separate pages), M9 (the data errors a wrong key causes in the ZipCrypto
 or AES validation entry count as a wrong password), L3 (the QuickLook cover
 read disables prefetch), M5 and M8 (one lookahead barrier, counted and
 generation-tagged detaches, a lock for `cacheArray`; `docs/DECISIONS.md`
-2026-10-04).
+2026-10-04), L8 (indexed loops for the legacy key/mouse array migration),
+L11 (bookmark icons removed backwards; the text and page-bar shadow radius
+starts at 1.0 when the colour has no white equivalent; a negative
+`ImageCache` counts as 0; the 256 KB archive read buffers are on the heap).
 
-**Still open:** M10, L8, L11.
+**Still open:** M10.
 
 ---
 

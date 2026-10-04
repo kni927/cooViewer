@@ -196,7 +196,6 @@ Gw
             <connections>
                 <outlet property="bookmarkPanel" destination="561" id="627"/>
                 <outlet property="bookmarkTableView" destination="612" id="628"/>
-                <outlet property="contextMenuItem" destination="638" id="650"/>
                 <outlet property="controller" destination="-2" id="1516"/>
                 <outlet property="newBookmarkTextField" destination="713" id="715"/>
             </connections>
@@ -490,7 +489,6 @@ Gw
         <customObject id="1113" userLabel="ThumbnailController" customClass="ThumbnailController">
             <connections>
                 <outlet property="comicModeButton" destination="2249" id="2254"/>
-                <outlet property="contextMenu" destination="2256" id="2262"/>
                 <outlet property="controller" destination="-2" id="1274"/>
                 <outlet property="matrix" destination="1175" id="1213"/>
                 <outlet property="nameTextField" destination="2201" id="2203"/>

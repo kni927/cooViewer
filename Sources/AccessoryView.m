@@ -303,7 +303,10 @@ NSRect COIntRect(NSRect aRect)
 {
 	if ([textBGColor isEqualTo:[NSColor clearColor]]) {
 		NSColor *shadowColor = [textFontColor colorUsingColorSpaceName:NSCalibratedWhiteColorSpace];
-		CGFloat white,alpha;
+		/* A colour that has no white equivalent (e.g. a pattern) converts
+		   to nil and leaves these untouched; start from the radius a white
+		   font gets (code review L11). */
+		CGFloat white = 1.0, alpha = 1.0;
 		[shadowColor getWhite:&white alpha:&alpha];
 		NSShadow *shadow = [[[NSShadow alloc] init] autorelease];
 		[shadow setShadowBlurRadius:white];
@@ -410,7 +413,7 @@ NSRect COIntRect(NSRect aRect)
 			
 			if ([pageBarBGColor isEqualTo:[NSColor clearColor]]) {
 				NSColor *shadowColor = [pageBarFontColor colorUsingColorSpaceName:NSCalibratedWhiteColorSpace];
-				CGFloat white,alpha;
+				CGFloat white = 1.0, alpha = 1.0;	// as above, for a nil conversion
 				[shadowColor getWhite:&white alpha:&alpha];
 				NSShadow *shadow = [[NSShadow alloc] init];
 				[shadow setShadowBlurRadius:white];

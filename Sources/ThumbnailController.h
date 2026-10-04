@@ -30,7 +30,6 @@
     IBOutlet id nameTextField;
     IBOutlet id onlyBookmarkButton;
     IBOutlet id comicModeButton;
-    IBOutlet id contextMenu;
 	
 	NSArray *keyArray;
 	

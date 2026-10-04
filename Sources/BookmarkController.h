@@ -16,8 +16,6 @@
     IBOutlet id bookmarkPanel;
     IBOutlet id bookmarkTableView;
 
-    IBOutlet id contextMenuItem;
-
     IBOutlet id newBookmarkTextField;
 
 	/* The window the sheet is attached to. Not an outlet: -editBookmark:

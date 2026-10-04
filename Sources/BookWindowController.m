@@ -315,16 +315,20 @@ static NSPoint gNextWindowCascadePoint;
 		skipPage = 10;
 	}
 	
-	NSEnumerator *enu = [keyArray objectEnumerator];
+	/* Indexed loops, not enumerators: an entry is replaced in place, and
+	   mutating an array while an enumerator walks it raises (code review
+	   L8). indexOfObject: also found the first *equal* entry, not this one. */
 	id dic;
 	id newDic;
-	while (dic = [enu nextObject]) {
+	NSUInteger index;
+	for (index = 0; index < [keyArray count]; index++) {
+		dic = [keyArray objectAtIndex:index];
 		if (![dic valueForKey:@"value"]) {
 			switch ([[dic objectForKey:@"action"] intValue]) {
 				case 13: case 14:
 					newDic = [NSMutableDictionary dictionaryWithDictionary:dic];
 					[newDic setObject:[NSNumber numberWithInt:skipPage] forKey:@"value"];
-					[keyArray replaceObjectAtIndex:[keyArray indexOfObject:dic] withObject:newDic];
+					[keyArray replaceObjectAtIndex:index withObject:newDic];
 					break;
 				default:
 					break;
@@ -332,14 +336,14 @@ static NSPoint gNextWindowCascadePoint;
 		}
 	}
 	[defaults setObject:keyArray forKey:@"KeyArray"];
-	enu = [mouseArray objectEnumerator];
-	while (dic = [enu nextObject]) {
+	for (index = 0; index < [mouseArray count]; index++) {
+		dic = [mouseArray objectAtIndex:index];
 		if (![dic valueForKey:@"value"]) {
 			switch ([[dic objectForKey:@"action"] intValue]) {
 				case 5: case 19: case 20:
 					newDic = [NSMutableDictionary dictionaryWithDictionary:dic];
 					[newDic setObject:[NSNumber numberWithInt:skipPage] forKey:@"value"];
-					[mouseArray replaceObjectAtIndex:[mouseArray indexOfObject:dic] withObject:newDic];
+					[mouseArray replaceObjectAtIndex:index withObject:newDic];
 					break;
 				default:
 					break;
@@ -367,7 +371,10 @@ static NSPoint gNextWindowCascadePoint;
     [defaults setBool:useCalayer forKey:@"UseCALayer"];
 	
 	
-	cacheSize = (int)[defaults integerForKey:@"ImageCache"];
+	/* A negative value would make the trim test (count > cacheSize+4)
+	   compare against a huge unsigned number and never trim (code review
+	   L11). */
+	cacheSize = MAX(0, (int)[defaults integerForKey:@"ImageCache"]);
 	[defaults setInteger:cacheSize forKey:@"ImageCache"];
 	int thumbnailCache = (int)[defaults integerForKey:@"ThumbnailCache"];
 	[defaults setInteger:thumbnailCache forKey:@"ThumbnailCache"];
@@ -2636,7 +2643,7 @@ static NSString * const kBookViewModeKey = @"cooViewerBookViewMode";
 	}
 	
 	/*cache*/
-	cacheSize = (int)[defaults integerForKey:@"ImageCache"];
+	cacheSize = MAX(0, (int)[defaults integerForKey:@"ImageCache"]);	// see -windowDidLoad
 	[self trimImageCache];
 	[thumController setmaxCacheCount:(int)[defaults integerForKey:@"ThumbnailCache"]];
 	
