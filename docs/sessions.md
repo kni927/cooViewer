@@ -23,8 +23,8 @@ the `sync-projects` skill there.
   under that repository in the claude.ai session list. It is archived once its
   TFs are done, and may first be renamed with a version (`cooViewer v1.6.5 HQ`).
 - **TF**, task force (usually a local session on a Mac): receives a TASK from
-  its Project HQ, carries it out, and reports back. A new TF is opened for each
-  piece of work.
+  its Project HQ, carries it out, and reports back. A TF takes one TASK after
+  another until it wraps up, and hands heavy work to subagents.
 
 ## Names
 
@@ -67,10 +67,17 @@ Send each message only to the sessions that need it.
   `from-session` of that message, so it does not depend on finding the TF by
   name.
 - **HQ to TF:** `send_message` (claude-code-remote) to the TF's session ID, with
-  the TASK text. The TF accepts TASKs only from its own Project HQ. It shows
-  that the TASK arrived and its key points, not the full text, since `TASK.md`
-  is archived later. It then runs `git pull` on `main`, saves the text as
-  `TASK.md` at the repository root, and carries it out.
+  the TASK text. The TF accepts TASKs only from its own Project HQ, or, in a
+  repository without one (such as `kni927/HQ`), from the HQ the owner names.
+  It shows that the TASK arrived and its key points, not the full text, since
+  `TASK.md` is archived later. It then runs `git pull` on `main` (stopping if
+  that would not be a fast-forward), saves the text as `TASK.md` at the
+  repository root, and carries it out. Where a TASK explicitly asks for
+  something else than these steps (for example "do not change the
+  repository", so `TASK.md` stays in the scratchpad), the TASK wins; the TF
+  tells the owner in one line which step it changed, and asks when the
+  conflict is unclear. After a TASK, the TF reports and waits for the next
+  one.
 - **TF to HQ:** a local session has no send addressed by session ID. Use
   `SendMessage` to the HQ's name as `ListAgents` lists it. Each send reports
   "one-way" (cannot reply); that is the wording of anthropics/claude-code#98897,
@@ -117,12 +124,19 @@ session in the Mac app reads it with `get_usage` for session `self`.
   and before starting a step that would not fit. It does not report its usage
   in ordinary replies; it reports only when it hands over or wraps up, in the
   ready-to-archive block.
-- **Two thirds:** once usage passes two thirds of the maximum, a cloud HQ
-  hands over (below) and a local TF wraps up (see Local sessions), without
-  waiting for the owner. The owner may also say "handover" or "wrap up" at any
-  time.
-- **Warning:** a Project HQ that sees one of its TFs past 80% warns the owner.
-  Central HQ reminds an HQ that has passed two thirds and is still working.
+- **Thresholds:** a cloud HQ hands over (below) and a local TF wraps up (see
+  Local sessions) without waiting for the owner, at a natural break where the
+  handover stays short:
+
+  | Session | From (at a natural break) | At the latest (next break) |
+  |---|---|---|
+  | Cloud HQ | 75% | 85% |
+  | Local TF | 80% | 90% |
+
+  A compaction before that is acceptable. The owner may also say "handover"
+  or "wrap up" at any time.
+- **Warning:** a Project HQ that sees one of its TFs past 90% warns the owner.
+  Central HQ reminds an HQ that has passed 85% and is still working.
 - **Ready to archive:** a session that has wrapped up or handed over ends with
   this block in its chat, in English, and waits. The rules follow the same
   Markdown rules as the receiving heading; the heading is one level larger so
@@ -142,8 +156,8 @@ session in the Mac app reads it with `get_usage` for session `self`.
 
 ## Handing over an HQ
 
-A cloud HQ hands its work to a fresh session once its usage passes two thirds
-(see Context usage), when the owner says "handover", and right after a
+A cloud HQ hands its work to a fresh session at the thresholds in Context
+usage, when the owner says "handover", and right after a
 compaction if one has already happened.
 
 1. Write the handover: the HQ's role and repositories, open items and their
@@ -184,22 +198,28 @@ exists only in chat.
   but still take turns with what the Mac has only once: the installed app and
   its preferences, simulators and devices, signing, and releases.
 - **Lifetime:** quitting the Claude app archived the local sessions connected
-  through Remote Control, and restarting the app did not bring them back. Open
-  a new TF for each piece of work.
+  through Remote Control, and restarting the app did not bring them back.
+  Computer-use app access is granted per session, so a long-lived TF asks for
+  it once.
 - **Archiving:** the Web and the Mac app can disagree about a local session's
   state (see `docs/AGENT_PARITY.md` in `kni927/dotfiles`). The owner archives
   local sessions from the Mac app's sidebar. HQs do not archive local sessions
   from the cloud, and a TF cannot archive itself while its own turn and Remote
   Control connection are live.
-- **Wrapping up a TF:** a TF cannot start its own successor. When its usage
-  passes two thirds, when its Project HQ asks, or when the owner says "wrap
-  up", it finishes at the next natural break: it confirms that nothing is
+- **Subagents:** a TF hands heavy work (builds, test runs, investigations,
+  computer-use checks) to subagents (the Agent tool), so what they read does
+  not fill the TF's context. Their permission dialogs and computer-use access
+  prompts appear in the TF's window as usual. Use worktree isolation only when
+  the work must not touch the main directory.
+- **Wrapping up a TF:** a TF cannot start its own successor. At the
+  thresholds in Context usage, when its Project HQ asks, or when the owner
+  says "wrap up", it finishes at a natural break: it confirms that nothing is
   uncommitted, reports what is done and what remains to its Project HQ,
   renames itself `✅ <name>` (for example `✅ cooViewer TF solid RAR4
-  converter`), shows the ready-to-archive block, and waits. The remaining work
-  continues in a new TF: the owner opens one with `/tf`, or, for work that
-  needs no Mac GUI or device, the Project HQ starts a cloud session for it.
-  A TF that has finished its TASK does the same.
+  converter`), shows the ready-to-archive block, and waits. When work
+  remains that needs the Mac, it also offers a new TF with `spawn_task`, so
+  the owner starts it with one click; work that needs no Mac GUI or device
+  continues in a cloud session the Project HQ starts.
 - **Screen operations:** before computer use, a TF asks the owner in chat to
   stand by and waits for the reply. An approval card that nobody answers times
   out.
