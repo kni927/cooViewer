@@ -63,6 +63,22 @@ if command -v rar >/dev/null 2>&1; then
     (cd "$SRC" && rar a -idq "$GEN/test_rar5_unordered.cbr" 003.png 001.png 004.jpg 002.jpg)
 fi
 
+# B2: a non-solid RAR4 stored in page order whose entries are larger than the
+# reader's 256 KB decode chunk, so a prefetch can be stopped part-way through
+# one. The entries are pseudo-random bytes (not images); the harness compares
+# them with the files in rar4_large_src.
+LARGE_SRC="$GEN/rar4_large_src"
+python3 - "$LARGE_SRC" <<'EOF'
+import pathlib, random, sys
+out = pathlib.Path(sys.argv[1])
+out.mkdir(parents=True, exist_ok=True)
+rng = random.Random(20261004)
+for name in ("001.png", "002.jpg", "003.png", "004.jpg"):
+    (out / name).write_bytes(rng.randbytes(1024 * 1024))
+EOF
+python3 "$REPO_ROOT/tests/fixtures/make_rar4_fixture.py" \
+    "$LARGE_SRC" "$GEN/test_rar4_large.cbr" >/dev/null
+
 # link entries between pages (code review M6): a Unix symbolic link in the
 # hand-written RAR4 (header index, and libarchive fallback with Unicode
 # names), and a symbolic plus a hard link in RAR5 by rar when installed

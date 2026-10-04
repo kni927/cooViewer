@@ -170,6 +170,7 @@
 
 	[lock release];
 	[cacheLock release];
+	[decodeLock release];
 
 	[super dealloc];
 }
@@ -232,6 +233,7 @@ static NSPoint gNextWindowCascadePoint;
 	
 	lock = [[NSLock allocWithZone:NULL] init];
 	cacheLock = [[NSLock alloc] init];
+	decodeLock = [[NSLock alloc] init];
 	//lock = [[NSConditionLock allocWithZone:NULL] initWithCondition:0];
 	//composeLock = [[NSLock allocWithZone:NULL] init];
 	
@@ -2542,63 +2544,73 @@ static void COPerformOpenStep(void (^block)(void))
 	return image;
 }
 
-/* The two thread entry points. -lookahead and -lookaheadAndCompose are also
-   called directly on the main thread (the loop branches in
-   -lockedImageDisplay), where nothing needs counting because they cannot
-   outlive their caller; only a *detached* run does. The count is incremented
-   before the detach, not here, so a thread that has not been scheduled yet is
-   already accounted for. The argument is the generation the thread was
-   detached in (see `lookaheadGeneration`).
+/* Starts a lookahead on its own thread. The count is incremented before the
+   detach, not on the thread, so a thread that has not been scheduled yet is
+   already accounted for; the thread is tagged with the generation current at
+   the detach (see `lookaheadGeneration`). `compose` is kept for the callers:
+   the composing and plain lookaheads have always read the same pages.
 
-   Each gets its own autorelease pool: the existing bodies create one only
-   after taking `lock`, so anything autoreleased while blocked on it would
-   otherwise have no pool. */
--(void)lookaheadThread:(NSNumber *)generation
-{
-	NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];
-	[self lookaheadForGeneration:[generation unsignedIntValue] compose:NO];
-	atomic_fetch_sub(&pendingLookaheadCount, 1);
-	[pool release];
-}
-
--(void)lookaheadAndComposeThread:(NSNumber *)generation
-{
-	NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];
-	[self lookaheadForGeneration:[generation unsignedIntValue] compose:YES];
-	atomic_fetch_sub(&pendingLookaheadCount, 1);
-	[pool release];
-}
-
+   The thread holds its own reference to this controller, taken here, and
+   gives it back on the main thread when it ends. An abandoned lookahead can
+   outlive the close of its window, and a retired window's controller must
+   not be deallocated on a lookahead thread. A __block object variable is not
+   retained by the blocks under manual reference counting, so the explicit
+   retain and the main-thread release are the only ones. */
 - (void)detachLookaheadComposing:(BOOL)compose
 {
-	NSNumber *generation = [NSNumber numberWithUnsignedInt:atomic_load(&lookaheadGeneration)];
+	unsigned int generation = atomic_load(&lookaheadGeneration);
 	atomic_fetch_add(&pendingLookaheadCount, 1);
-	[NSThread detachNewThreadSelector:(compose ? @selector(lookaheadAndComposeThread:)
-	                                           : @selector(lookaheadThread:))
-	                         toTarget:self withObject:generation];
+	__block BookWindowController *controller = [self retain];
+	[NSThread detachNewThreadWithBlock:^{
+		NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];
+		[controller lookaheadForGeneration:generation pages:2 detached:YES];
+		[pool release];
+		dispatch_async(dispatch_get_main_queue(), ^{
+			[controller release];
+		});
+	}];
 }
 
-/* Waits (bounded) until no detached lookahead is left, then takes `lock`
-   once, as the old barrier did: a lookahead that is mid-page holds it.
-   The wait is bounded on purpose. -loadImage: can reach an archive read, and
-   a read that ends up on the main thread's modal progress path would
-   deadlock an unbounded wait. When it times out, the generation moves on,
-   so a thread still queued behind `lock` returns without touching anything
-   when it gets there. Returns whether the wait timed out. */
-- (BOOL)waitForDetachedLookahead
+/* Ends the current generation: every running lookahead returns without
+   publishing anything, and none of them is counted any more. Under `lock`,
+   so a thread's "is my generation current? then decrement / publish" is
+   never split by it. */
+- (void)abandonLookahead
 {
-	BOOL timedOut = NO;
+	[lock lock];
+	atomic_fetch_add(&lookaheadGeneration, 1);
+	atomic_store(&pendingLookaheadCount, 0);
+	[lock unlock];
+}
+
+/* Waits (bounded) until no lookahead of the current generation is left.
+   The wait is bounded on purpose. A decode can reach an archive read, and a
+   read that ends up on the main thread's modal progress path would deadlock
+   an unbounded wait. When it times out, the generation is abandoned, so a
+   thread still running returns without touching anything. Returns whether
+   the wait timed out. */
+- (BOOL)waitForCurrentLookahead
+{
 	NSDate *deadline = [NSDate dateWithTimeIntervalSinceNow:2.0];
 	while (atomic_load(&pendingLookaheadCount) > 0) {
 		if ([deadline timeIntervalSinceNow] <= 0) {
-			timedOut = YES;
-			atomic_fetch_add(&lookaheadGeneration, 1);
-			break;
+			[self abandonLookahead];
+			return YES;
 		}
 		[NSThread sleepUntilDate:[NSDate dateWithTimeIntervalSinceNow:0.001]];
 	}
-	[lock lock];
-	[lock unlock];
+	return NO;
+}
+
+/* The barrier: no current lookahead left, then decodeLock once, as the old
+   barrier took `lock` once — an abandoned lookahead may still be decoding a
+   page, and after this returns none is (one waiting for decodeLock sees its
+   generation has ended and does not start). */
+- (BOOL)waitForDetachedLookahead
+{
+	BOOL timedOut = [self waitForCurrentLookahead];
+	[decodeLock lock];
+	[decodeLock unlock];
 	return timedOut;
 }
 
@@ -2624,24 +2636,33 @@ static void COPerformOpenStep(void (^block)(void))
 
    -stopLookahead covers a running thread and one that was detached but has
    not entered the body yet. The generation moves on in any case: a thread
-   still waiting for `lock` after a timed-out wait would otherwise read the
-   released imageLoader, or the next book's (code review M5).
-   +detachNewThreadSelector:toTarget: retains this object for the thread's
-   duration, so the controller itself stays valid. */
+   that has not reached its first check yet would otherwise read the
+   released imageLoader, or the next book's (code review M5). A lookahead
+   holds its own references to this controller and to the loader it reads
+   (see -detachLookaheadComposing: and -lookaheadForGeneration:...). */
 - (void)joinLookaheadThreads
 {
 	[self stopLookahead];
-	atomic_fetch_add(&lookaheadGeneration, 1);
+	[self abandonLookahead];
+}
+
+/* Main-thread reads into the list, up to `pages` pages. Not counted: they
+   cannot outlive their caller. Like the old body, which took `lock` for its
+   whole run, they first let a running lookahead finish. */
+-(void)lookaheadPages:(NSUInteger)pages
+{
+	[self waitForCurrentLookahead];
+	[self lookaheadForGeneration:atomic_load(&lookaheadGeneration) pages:pages detached:NO];
 }
 
 -(void)lookahead
 {
-	[self lookaheadForGeneration:atomic_load(&lookaheadGeneration) compose:NO];
+	[self lookaheadPages:2];
 }
 
 -(void)lookaheadAndCompose
 {
-	[self lookaheadForGeneration:atomic_load(&lookaheadGeneration) compose:YES];
+	[self lookaheadPages:2];
 }
 
 /* A detached run from an earlier generation: the main thread stopped
@@ -2651,96 +2672,150 @@ static void COPerformOpenStep(void (^block)(void))
 	return generation != atomic_load(&lookaheadGeneration);
 }
 
--(void)lookaheadForGeneration:(unsigned int)generation compose:(BOOL)compose
+/* Reads pages into imageMutableArray until it holds `pages`, the book ends,
+   the generation ends or -stopLookahead asks it to stop (B2).
+
+   nowPage, imageMutableArray, the page name and the image cache are read
+   and written under `lock`; the decode itself, the slow part on a slow
+   book, runs outside it. So -lockedImageDisplay can take the first page as
+   soon as it is in the list instead of waiting for the run to read the
+   second as well. A page is added only while the run's generation is
+   current and the list still ends right before it (nowPage + count is the
+   page's index); otherwise it is dropped.
+
+   The decode is -loadImage:'s for a page at or after nowPage: the image
+   cache, then the loader. -loadImage:'s firstImage / secondImage shortcut is
+   for nowPage-1 and nowPage-2, the pages on screen, and never applies to a
+   lookahead, so the image is the same object -loadImage: would return.
+
+   A detached run holds decodeLock while it decodes, keeps its own reference
+   to the loader (a book teardown may release the controller's while it
+   decodes) and gives it back on the main thread, and decrements
+   pendingLookaheadCount only while its generation is current
+   (-abandonLookahead has zeroed it otherwise). Lock order: `lock`, then
+   cacheLock; decodeLock is never held with either. */
+-(void)lookaheadForGeneration:(unsigned int)generation pages:(NSUInteger)pages detached:(BOOL)detached
 {
-	if (compose) {
-		[self composeLookaheadForGeneration:generation];
-		return;
-	}
+	COImageLoader *loader = nil;
+	BOOL entered = NO;
+
 	[lock lock];
-	if ([self lookaheadGenerationEnded:generation]) {
-		[lock unlock];
-		return;
+	if (![self lookaheadGenerationEnded:generation]) {
+		entered = YES;
+		threadCount++;
+		loader = [imageLoader retain];
 	}
-	threadCount++;
-	NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];
-	
-	int i = nowPage;
-	i += [imageMutableArray count];
-	
-	if (i < [completeMutableArray count]) {
-		while([imageMutableArray count] < 2) {
-			if (threadStop || [self lookaheadGenerationEnded:generation]) {
-				threadStop = NO;
-				threadCount--;
-				[lock unlock];
-				[pool release];
-				return;
-			}
-			[imageMutableArray addObject:[self loadImage:i]];
-			i = nowPage;
-			i += [imageMutableArray count];
-			if (i == [completeMutableArray count]) {
-				break;
+	[lock unlock];
+
+	BOOL more = entered;
+	while (more) {
+		NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];
+		NSString *name = nil;
+		NSImage *image = nil;
+		BOOL decoded = NO;
+		int index = 0;
+		more = NO;
+
+		[lock lock];
+		if ([self lookaheadGenerationEnded:generation]) {
+		} else if (threadStop) {
+			threadStop = NO;
+		} else {
+			index = nowPage + (int)[imageMutableArray count];
+			if ([imageMutableArray count] < pages && index < [completeMutableArray count]) {
+				name = [[completeMutableArray objectAtIndex:index] retain];
+				if (cacheSize != 0) image = [[self cachedImageNamed:name] retain];
+				more = YES;
+			} else if (nowPage > [completeMutableArray count]) {
+				nowPage = (int)[completeMutableArray count];
 			}
 		}
-	} else if (nowPage == [completeMutableArray count]) {
-	} else if (nowPage > [completeMutableArray count]) {
-		nowPage = (int)[completeMutableArray count];
+		[lock unlock];
+
+		if (more && !image) {
+			if (detached) [decodeLock lock];
+			/* Abandoned while it waited for decodeLock: nothing to read for. */
+			if (![self lookaheadGenerationEnded:generation]) {
+				image = [[loader itemAtIndex:index] retain];
+				decoded = YES;
+			}
+			if (detached) [decodeLock unlock];
+		}
+
+		if (image) {
+			[lock lock];
+			if (![self lookaheadGenerationEnded:generation]
+				&& nowPage + (int)[imageMutableArray count] == index) {
+				[imageMutableArray addObject:image];
+				if (decoded) {
+					if (cacheSize != 0) [self cacheImage:image named:name];
+					[self trimImageCache];
+				}
+			}
+			[lock unlock];
+		} else {
+			more = NO;
+		}
+
+		[image release];
+		[name release];
+		[pool release];
 	}
-	threadStop = NO;
-	threadCount--;
+
+	[lock lock];
+	if (entered) threadCount--;
+	if (detached && ![self lookaheadGenerationEnded:generation]) {
+		atomic_fetch_sub(&pendingLookaheadCount, 1);
+	}
 	[lock unlock];
-	[pool release];
+
+	if (detached && loader) {
+		__block COImageLoader *ownedLoader = loader;
+		dispatch_async(dispatch_get_main_queue(), ^{
+			[ownedLoader release];
+		});
+	} else {
+		[loader release];
+	}
 }
 
--(void)composeLookaheadForGeneration:(unsigned int)generation
+/* B2: -lockedImageDisplay waits only for the pages this turn shows, then
+   abandons the lookahead that is still reading further ahead (the page it is
+   decoding is not lost: the archive readers cache decoded entries, and the
+   next lookahead, which waits for decodeLock, finds it there). One page, or
+   two in a spread when the first is small and not the last. Returns as soon
+   as the list has them, when no current lookahead is left to add them, or
+   after 2 s, the bound -waitForLookahead has; the caller reads what is
+   missing itself. */
+- (NSUInteger)waitForLookaheadPages:(NSUInteger)pages until:(NSDate *)deadline
 {
-	[lock lock];
-	if ([self lookaheadGenerationEnded:generation]) {
+	for (;;) {
+		[lock lock];
+		NSUInteger count = [imageMutableArray count];
+		BOOL running = atomic_load(&pendingLookaheadCount) > 0;
 		[lock unlock];
-		return;
+		if (count >= pages || !running || [deadline timeIntervalSinceNow] <= 0) {
+			return count;
+		}
+		[NSThread sleepUntilDate:[NSDate dateWithTimeIntervalSinceNow:0.001]];
 	}
-	threadCount++;
-	NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];
-	
-	int i = nowPage;
-	i += [imageMutableArray count];
-	
-	
-	if (i < [completeMutableArray count]) {
-		 while([imageMutableArray count] < 2) {
-			 if (threadStop || [self lookaheadGenerationEnded:generation]) {
-				 threadCount--;
-				 threadStop = NO;
-				 [lock unlock];
-				 [pool release];
-				 return;
-			 }
-			 [imageMutableArray addObject:[self loadImage:i]];
-			 i = nowPage;
-			 i += [imageMutableArray count];
-			 if (i == [completeMutableArray count]) {
-				 break;
-			 }
-		 }
-	} else if (nowPage == [completeMutableArray count]) {
-	} else if (nowPage > [completeMutableArray count]) {
-		nowPage = (int)[completeMutableArray count];
-	}
-	
-	if (threadStop) {
-		threadCount--;
-		threadStop = NO;
-		[lock unlock];
-		[pool release];
-		return;
-	}
+}
 
-	threadStop = NO;
-	threadCount--;
-	[lock unlock];
-	[pool release];
+- (void)waitForDisplayedPages
+{
+	NSDate *deadline = [NSDate dateWithTimeIntervalSinceNow:2.0];
+	NSUInteger count = [self waitForLookaheadPages:1 until:deadline];
+	int total = (int)[completeMutableArray count];
+	if (readMode <= 1 && count > 0 && nowPage < total && nowPage+1 != total) {
+		NSImage *first;
+		[lock lock];
+		first = [[[imageMutableArray objectAtIndex:0] retain] autorelease];
+		[lock unlock];
+		if ([self isSmallImage:first page:nowPage+1]) {
+			[self waitForLookaheadPages:2 until:deadline];
+		}
+	}
+	[self abandonLookahead];
 }
 
 #pragma mark image
@@ -2828,11 +2903,10 @@ static void COPerformOpenStep(void (^block)(void))
 	   this method again, without bound. */
 	if ([completeMutableArray count] == 0) return;
 	/* The display reads and removes the pages the last lookahead added;
-	   it must not do so while that lookahead is still adding them, which
-	   the `while ... count` polls below alone did not prevent (code review
-	   M5). Every keyboard next-page already waited like this before
-	   calling here. */
-	[self waitForLookahead];
+	   it must not do so while that lookahead is still adding them (code
+	   review M5). It waits for the pages it shows, not for the whole
+	   lookahead, then abandons it (B2; see -waitForDisplayedPages). */
+	[self waitForDisplayedPages];
 	if (readMode > 1) {
 		if (nowPage == [completeMutableArray count]) {
 			if (loopCheck == 0) {
@@ -2851,9 +2925,10 @@ static void COPerformOpenStep(void (^block)(void))
 				}
 			}
 		} else if (nowPage < [completeMutableArray count]) {
-			/* No lookahead is running any more (waited for above), so an
-			   empty list will not fill by itself: read the page here. */
-			if ([imageMutableArray count] == 0) [self lookahead];
+			/* No lookahead adds to the list any more (abandoned above), so
+			   an empty list will not fill by itself: read the page here, and
+			   only that one. */
+			if ([imageMutableArray count] == 0) [self lookaheadPages:1];
 			if ([imageMutableArray count] == 0) return;
 			//[self isSmallImage:[imageMutableArray objectAtIndex:0] page:nowPage+1];
 			[imageView setImage:nil];
@@ -2873,8 +2948,9 @@ static void COPerformOpenStep(void (^block)(void))
 		}
 	} else {
 		if (nowPage < [completeMutableArray count]) {			
-			/* As above: nothing will fill the list behind this point. */
-			if ([imageMutableArray count] == 0) [self lookaheadAndCompose];
+			/* As above: nothing will fill the list behind this point. The
+			   second page of a spread is read below, only if it is needed. */
+			if ([imageMutableArray count] == 0) [self lookaheadPages:1];
 			if ([imageMutableArray count] == 0) return;
 			[imageView setImage:nil];
 			[firstImage release];
@@ -3074,6 +3150,9 @@ static void COPerformOpenStep(void (^block)(void))
 	}
 	if (singleSetting != [defaults integerForKey:@"SingleSetting"]) {
 		singleSetting = (int)[defaults integerForKey:@"SingleSetting"];
+		/* The sort-mode change above may have shown a page and detached a
+		   lookahead; let it publish before the list is changed below. */
+		[self waitForLookahead];
 		if ([imageView image]) {
 			if (secondImage) {
 				if (![self isSmallImage:firstImage page:nowPage-2] || ![self isSmallImage:secondImage page:nowPage-1]) {

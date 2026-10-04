@@ -1827,6 +1827,30 @@ locking each of the ~130 accesses. Cost: `-lockedImageDisplay` now waits for
 a running lookahead to read both of its pages, as the keyboard next-page
 already did before calling it.
 
+*Updated 2026-10-04 (B2 of `docs/tasks/2026-10-04-03-cleanup-and-performance.md`).*
+That cost is gone. A lookahead now takes `lock` only to read the page it
+should load and to publish it; it decodes outside `lock`, under its own
+`decodeLock`, and publishes only if its generation is still current and the
+page is still the next one in the list (`nowPage + count == index`).
+`-abandonLookahead` (under `lock`: the generation moves on and
+`pendingLookaheadCount` drops to 0) is the only place the generation
+changes; an abandoned thread finishes its decode, keeps its own retains on
+the loader and the controller (released on the main thread), and publishes
+nothing. `-lockedImageDisplay` waits only for the pages it shows
+(`-waitForDisplayedPages`: one, or two in a spread whose first page is small
+and not the last; still bounded by 2 s) and then abandons any running
+lookahead. Jumps abandon instead of waiting and no longer load two pages
+before display. The pre-waits in front of `-imageDisplay` in the key, mouse
+and slideshow next-page paths were dropped, because `-lockedImageDisplay`
+does its own waiting. `-waitForLookahead`/`-stopLookahead` keep their
+meaning for every other caller and end by taking `decodeLock` once, so
+after them no thread is inside the loader (the sort in `-setSortMode:` relies
+on this). Known residue: after a jump, an abandoned thread can still be
+decoding while the main thread decodes the shown page of the same loader;
+archives and folders serialize or do not share state, but a PDF book's
+shared `COPDFImageRep` page state was already raced by main-thread drawing
+and is now raced slightly more often.
+
 ## A book with no readable pages fails the open with an alert (2026-10-04)
 
 **Decision:** A book with nothing to show — an empty folder, an archive with
@@ -1879,3 +1903,38 @@ kept because the All Bookmarks browser's Open button starts an open while its
 own modal session is up. Making nested reads asynchronous would mean
 splitting `-checkArchiveContainer:` and the nested prompt, which decision 3
 of the password entry already declined.
+
+## A read that misses the cache cancels other pages' prefetches; the decoded-bytes cache scales with RAM (2026-10-04)
+
+**Decision:** In the lazy readers (`CORarArchive`, `COZipArchive`), a read of
+an entry that is not in the decoded-bytes cache records that entry as the
+one in demand and moves an atomic prefetch generation on before it waits
+for the serial read queue. A queued prefetch of any other entry then returns
+without reading. A running RAR prefetch stops at its next header boundary,
+or after its current 256 KB chunk only when stopping is cheap: a positioned
+(non-solid) cursor, or a demanded entry behind it that is not in the cache
+(the demand has to rewind anyway). A forward cursor (solid, or the
+libarchive fallback index) is otherwise never stopped, whether its demanded
+entry lies ahead or is already cached, because that would throw away the
+cursor and force the next read to rewind. A stopped read
+caches nothing and invalidates the cursor. A prefetch of the demanded entry
+itself is never cancelled. ZIP only skips queued prefetches. The cache limit
+of both readers is `clamp(physicalMemory / 32, 256 MB, 1 GB)` per open book
+(`COArchiveDecodedCacheLimitForPhysicalMemory`): 8 GB → 256 MB (unchanged),
+16 GB → 512 MB, 24 GB → 768 MB, 32 GB or more → 1 GB. No preference.
+
+**Why:** Owner task 2026-10-04 (B2; survey C3 in
+`docs/cbr-performance-20261003.md`). A jump waited behind a prefetch of a
+page it no longer wanted. Measured with `tools/cbr_bench/` on an 8 GB M1,
+macOS 26.6.2, against f36048f (median of 3, a busy machine): non-solid RAR5
+jumps to the middle and the last page went from 26–28 ms to 13–16 ms (five
+jumps 84 → 52 ms, 83 → 55 ms on a 559 MB book), stepping back 300 pages in
+the 559 MB book from 29 to 14 ms; read-through, paced reading and peak
+footprint unchanged; solid RAR5 jumps unchanged (they are bound by the
+rewind). The limit is per book because each window has its own; 1/32 of RAM
+keeps four large books under an eighth of memory, `NSCache` still evicts
+under memory pressure, and the floor keeps today's behaviour on 8 GB Macs.
+The larger limits were not measured (the test Mac has 8 GB). Continuing on
+the open cursor for the next stored entry already existed; a counter
+(`cursorContinueCount`) and an engine test now show it (an in-order RAR5:
+one stream open, 119 continuations for 120 pages).

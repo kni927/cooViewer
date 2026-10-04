@@ -10,9 +10,15 @@
 //    size. The zip_t* handle stays open for the document lifetime.
 //  - Entry data is decoded on demand in -[COZipEntry data] via
 //    zip_fopen_index/zip_fread, cached in an NSCache keyed by entry
-//    index with a byte-cost limit, so peak memory stays bounded.
+//    index with a byte-cost limit (COArchiveDecodedCacheLimit, scaled
+//    with physical memory), so peak memory stays bounded.
 //    After a demand read, the next entry in archive order is
-//    prefetched on the read queue.
+//    prefetched on the read queue. A read that misses the cache cancels
+//    the prefetches scheduled before it (B2): one that has not started
+//    returns at once (-prefetchSkippedCount). One already reading
+//    finishes its single entry (at most CO_ZIP_MAX_PREFETCH_SIZE; a
+//    page-sized deflate entry takes milliseconds), so
+//    -prefetchAbortedCount stays 0 here.
 //  - Thread safety: a zip_t* does not support concurrent reads. All
 //    libzip calls after init are serialized on a private serial
 //    dispatch queue; -data may be called from any thread.

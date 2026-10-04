@@ -193,6 +193,8 @@ static COArchive *COOpenLazyArchive(NSString *path, COArchiveProgress progress)
 		lastError = nil;
 		crypted = NO;
 		cancelled = NO;
+		atomic_init(&prefetchGeneration, 0);
+		atomic_init(&demandKey, ULONG_MAX);
 		refusedSolidRAR4 = solidRAR4;
 		if (solidRAR4)
 			lastError = [@"solid RAR4 archives are not supported" retain];
@@ -207,6 +209,7 @@ static COArchive *COOpenLazyArchive(NSString *path, COArchiveProgress progress)
 	[filePath release];
 	[contentArray release];
 	[lastError release];
+	[outstandingPrefetchKeys release];
 	[super dealloc];
 }
 
@@ -272,6 +275,21 @@ static COArchive *COOpenLazyArchive(NSString *path, COArchiveProgress progress)
 - (NSUInteger)prefetchCount
 {
 	@synchronized(self) { return prefetchCount; }
+}
+
+- (NSUInteger)prefetchCancelledCount
+{
+	@synchronized(self) { return prefetchCancelledCount; }
+}
+
+- (NSUInteger)prefetchSkippedCount
+{
+	@synchronized(self) { return prefetchSkippedCount; }
+}
+
+- (NSUInteger)prefetchAbortedCount
+{
+	@synchronized(self) { return prefetchAbortedCount; }
 }
 
 - (BOOL)uncompress:(int)index as:(NSString *)fileName
@@ -455,3 +473,66 @@ out:
 }
 
 @end
+
+@implementation COArchive (COLazyReaderPrefetch)
+
+- (void)noteDemandReadOfKey:(unsigned long)key
+{
+	/* demandKey first: a prefetch that sees the new generation then also
+	   sees the key that moved it on (both sequentially consistent). */
+	atomic_store(&demandKey, key);
+	atomic_fetch_add(&prefetchGeneration, 1);
+	@synchronized(self) {
+		NSUInteger same = [outstandingPrefetchKeys countForObject:
+		                   [NSNumber numberWithUnsignedLong:key]];
+		if ([outstandingPrefetchKeys count] > (same > 0 ? 1 : 0))
+			prefetchCancelledCount++;
+	}
+}
+
+- (unsigned long)beginPrefetchOfKey:(unsigned long)key
+{
+	@synchronized(self) {
+		if (!outstandingPrefetchKeys)
+			outstandingPrefetchKeys = [[NSCountedSet alloc] init];
+		[outstandingPrefetchKeys addObject:[NSNumber numberWithUnsignedLong:key]];
+		prefetchCount++;
+	}
+	return atomic_load(&prefetchGeneration);
+}
+
+- (BOOL)prefetchOfKey:(unsigned long)key supersededSince:(unsigned long)generation
+            demandKey:(unsigned long *)outDemandKey
+{
+	if (atomic_load(&prefetchGeneration) == generation) return NO;
+	unsigned long wanted = atomic_load(&demandKey);
+	if (outDemandKey) *outDemandKey = wanted;
+	return wanted != key;
+}
+
+- (void)endPrefetchOfKey:(unsigned long)key skipped:(BOOL)skipped aborted:(BOOL)aborted
+{
+	@synchronized(self) {
+		[outstandingPrefetchKeys removeObject:[NSNumber numberWithUnsignedLong:key]];
+		if (skipped) prefetchSkippedCount++;
+		if (aborted) prefetchAbortedCount++;
+	}
+}
+
+@end
+
+uint64_t COArchiveDecodedCacheLimitForPhysicalMemory(uint64_t physicalMemory)
+{
+	const uint64_t lowest = 256ULL * 1024 * 1024;
+	const uint64_t highest = 1024ULL * 1024 * 1024;
+	uint64_t limit = physicalMemory / 32;
+	if (limit < lowest) return lowest;
+	if (limit > highest) return highest;
+	return limit;
+}
+
+NSUInteger COArchiveDecodedCacheLimit(void)
+{
+	return (NSUInteger)COArchiveDecodedCacheLimitForPhysicalMemory(
+		[[NSProcessInfo processInfo] physicalMemory]);
+}

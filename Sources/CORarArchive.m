@@ -16,8 +16,7 @@
 #include <stdlib.h>
 #include <errno.h>
 
-/* decoded-entry cache budget; same policy as COZipArchive */
-#define CO_RAR_CACHE_LIMIT (256 * 1024 * 1024)
+CORarPrefetchCheckpointHook CORarPrefetchCheckpointHookForTesting = NULL;
 
 static uint32_t CORarCRC32(NSData *data)
 {
@@ -102,7 +101,8 @@ BOOL CORarPayloadMatchesExpectedMetadata(NSData *payload,
 @interface CORarArchive (private)
 - (BOOL)indexArchiveViaHeaderParser;
 - (void)indexArchiveViaLibarchiveWithProgress:(COArchiveProgress)progress;
-- (NSData *)readEntryOnQueue:(CORarEntry *)entry;
+- (NSData *)readEntryOnQueue:(CORarEntry *)entry prefetchGeneration:(const unsigned long *)generation
+                     aborted:(BOOL *)outAborted;
 - (void)prefetchAfterEntry:(CORarEntry *)entry;
 - (void)invalidateCursor;
 @end
@@ -144,6 +144,13 @@ BOOL CORarPayloadMatchesExpectedMetadata(NSData *payload,
 	return n;
 }
 
+- (NSUInteger)cursorContinueCount
+{
+	__block NSUInteger n = 0;
+	dispatch_sync(readQueue, ^{ n = cursorContinueCount; });
+	return n;
+}
+
 /* Called once from COArchive's designated initializer, on the
  * initializing (main) thread — see the Thread safety note in
  * CORarArchive.h for why this must not be dispatched to a background
@@ -155,7 +162,7 @@ BOOL CORarPayloadMatchesExpectedMetadata(NSData *payload,
 	readQueue = dispatch_queue_create("cooViewer.CORarArchive.read", DISPATCH_QUEUE_SERIAL);
 	dataCache = [[NSCache alloc] init];
 	[dataCache setName:@"CORarArchive.dataCache"];
-	[dataCache setTotalCostLimit:CO_RAR_CACHE_LIMIT];
+	[dataCache setTotalCostLimit:COArchiveDecodedCacheLimit()];	// same policy as COZipArchive
 
 	if ([self indexArchiveViaHeaderParser]) {
 		rarOpened = YES;
@@ -524,11 +531,14 @@ static BOOL CORarEntryCounts(struct archive_entry *entry)
 	NSNumber *key = [NSNumber numberWithUnsignedInteger:ordinal];
 	NSData *cached = [dataCache objectForKey:key];
 	if (!cached) {
+		// B2: whatever read-ahead is queued or running for another entry
+		// should not keep this read waiting (see CORarArchive.h)
+		[self noteDemandReadOfKey:ordinal];
 		__block NSData *result = nil;
 		dispatch_sync(readQueue, ^{
 			NSData *d = [dataCache objectForKey:key];
 			if (!d) {
-				d = [self readEntryOnQueue:entry];
+				d = [self readEntryOnQueue:entry prefetchGeneration:NULL aborted:NULL];
 				if (d)
 					[dataCache setObject:d forKey:key cost:[d length]];
 			}
@@ -549,13 +559,32 @@ static BOOL CORarEntryCounts(struct archive_entry *entry)
  * when it doesn't exist yet or has already passed the target (i.e. the
  * viewer paged backwards). A read error can return the accumulated
  * payload only when trusted header size and CRC metadata both match;
- * the cursor is invalidated either way. */
-- (NSData *)readEntryOnQueue:(CORarEntry *)requestedEntry
+ * the cursor is invalidated either way.
+ *
+ * `generation` is NULL for a read someone is waiting for. A prefetch passes
+ * the generation it was scheduled in and stops, returning nil with
+ * *outAborted = YES, once a cache-missing read of another entry has come in
+ * since (B2): at any header boundary of the walk, where the cursor stays
+ * valid for that read to continue from or replace; and after any decoded
+ * chunk if the rest of the entry is not worth finishing, i.e. the cursor is
+ * a positioned one (a new positioned open is cheap) or the wanted entry
+ * lies behind this one and is not in the cache (that read reopens anyway).
+ * A forward cursor keeps decoding otherwise: heading for an entry before
+ * the wanted one, stopping it would force that read to start over from the
+ * beginning of the file, which in a solid archive means decoding
+ * everything again; and when the wanted entry is behind but already cached
+ * (a read that missed the cache just before that entry was stored), that
+ * read needs no cursor at all, so stopping would only throw this one away
+ * and make the next page rewind. */
+- (NSData *)readEntryOnQueue:(CORarEntry *)requestedEntry prefetchGeneration:(const unsigned long *)generation
+                     aborted:(BOOL *)outAborted
 {
 	NSUInteger ordinal = requestedEntry->ordinal;
 	BOOL positioned = (positioningPrefixLength > 0 && requestedEntry->hasHeaderOffset);
+	if (outAborted) *outAborted = NO;
 	if (positioned && cursor && ordinal == cursorNext) {
 		// already there: continue on the cursor
+		cursorContinueCount++;
 	} else if (positioned) {
 		[self invalidateCursor];
 		cursor = CORarOpenPositionedStream(filePath, positioningPrefixLength,
@@ -577,6 +606,9 @@ static BOOL CORarEntryCounts(struct archive_entry *entry)
 			      filePath, (unsigned long)ordinal);
 			return nil;
 		}
+	} else {
+		// forward from where the cursor is
+		cursorContinueCount++;
 	}
 
 	// Walk to entry #ordinal. Headers that do not count (links, sidecars,
@@ -585,6 +617,15 @@ static BOOL CORarEntryCounts(struct archive_entry *entry)
 	// have such a header in front of the page (code review M6).
 	struct archive_entry *entry;
 	for (;;) {
+		if (generation) {
+			if (CORarPrefetchCheckpointHookForTesting)
+				CORarPrefetchCheckpointHookForTesting(self, ordinal, NO);
+			if ([self prefetchOfKey:ordinal supersededSince:*generation demandKey:NULL]) {
+				// between entries: cursor and cursorNext stay valid
+				*outAborted = YES;
+				return nil;
+			}
+		}
 		int r = archive_read_next_header(cursor, &entry);
 		if (r == ARCHIVE_EOF || r < ARCHIVE_WARN) {
 			NSLog(@"CORarArchive: stream ended before entry #%lu in %@",
@@ -626,6 +667,20 @@ static BOOL CORarEntryCounts(struct archive_entry *entry)
 			break;
 		}
 		[payload appendBytes:buf length:(NSUInteger)got];
+		if (generation) {
+			if (CORarPrefetchCheckpointHookForTesting)
+				CORarPrefetchCheckpointHookForTesting(self, ordinal, YES);
+			unsigned long wanted = 0;
+			if ([self prefetchOfKey:ordinal supersededSince:*generation demandKey:&wanted] &&
+			    (positioned ||
+			     (wanted < ordinal &&
+			      ![dataCache objectForKey:[NSNumber numberWithUnsignedInteger:(NSUInteger)wanted]]))) {
+				// mid-entry: the cursor cannot be continued
+				[self invalidateCursor];
+				*outAborted = YES;
+				return nil;
+			}
+		}
 	}
 	cursorNext++;
 
@@ -697,12 +752,19 @@ static BOOL CORarEntryCounts(struct archive_entry *entry)
 	if (!next) return;
 	NSNumber *key = [NSNumber numberWithUnsignedInteger:next->ordinal];
 	if ([dataCache objectForKey:key]) return;
-	@synchronized(self) { prefetchCount++; }
+	unsigned long generation = [self beginPrefetchOfKey:next->ordinal];
 	dispatch_async(readQueue, ^{	// block retains self until it runs
-		if ([dataCache objectForKey:key]) return;
-		NSData *d = [self readEntryOnQueue:next];
-		if (d)
-			[dataCache setObject:d forKey:key cost:[d length]];
+		BOOL skipped = NO, aborted = NO;
+		if ([dataCache objectForKey:key]) {
+			// already read
+		} else if ([self prefetchOfKey:next->ordinal supersededSince:generation demandKey:NULL]) {
+			skipped = YES;	// B2: a read of another entry came in meanwhile
+		} else {
+			NSData *d = [self readEntryOnQueue:next prefetchGeneration:&generation aborted:&aborted];
+			if (d)
+				[dataCache setObject:d forKey:key cost:[d length]];
+		}
+		[self endPrefetchOfKey:next->ordinal skipped:skipped aborted:aborted];
 	});
 }
 

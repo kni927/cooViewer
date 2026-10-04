@@ -62,13 +62,40 @@
 //    RAR4 Unicode names, ...) have no offsets and keep the
 //    fast-forward-from-the-start cursor described above.
 //  - Decoded NSData is cached in an NSCache keyed by ordinal, with a
-//    byte-cost limit, consistent with COZipArchive's cache policy.
-//    After a successful on-demand decode, the next *page* is
+//    byte-cost limit that scales with physical memory
+//    (COArchiveDecodedCacheLimit), consistent with COZipArchive's cache
+//    policy. After an on-demand read, the next *page* is
 //    prefetched (B2): COImageLoader hands over the page order with
 //    -setPrefetchPageOrder:, and without one the next entry in stream order is
 //    used. When page order and stream order agree, the cursor is
-//    already sitting right after the just-decoded entry; when they do
-//    not, direct positioning makes the prefetch a cheap reposition.
+//    already sitting right after the just-decoded entry and the read
+//    continues on it (-cursorContinueCount); when they do not, direct
+//    positioning makes the prefetch a cheap reposition.
+//  - Prefetch cancellation (B2, docs/cbr-performance-20261003.md): a read
+//    that misses the cache (a jump, or a page the prefetch has not
+//    reached) cancels every prefetch scheduled before it, except one of
+//    the same entry (COArchive's -noteDemandReadOfKey:). A cancelled
+//    prefetch that has not started returns at once
+//    (-prefetchSkippedCount). One that is running stops
+//    (-prefetchAbortedCount), returning nil and caching nothing:
+//      - before any header of its walk to the entry, always — the
+//        cursor is between entries there and stays valid, so the read
+//        that cancelled it continues from it or replaces it as it would
+//        have anyway;
+//      - after any decoded 256 KB chunk, only when finishing the entry
+//        is not worth it: the cursor is a positioned one (a new
+//        positioned open is cheap), or the wanted entry lies behind this
+//        one and is not in the decoded cache (that read reopens from the
+//        start anyway). The cursor is invalidated. A forward cursor whose
+//        wanted entry lies further ahead keeps decoding, since stopping it
+//        would make that read start over from the beginning of the file —
+//        in a solid archive, decoding everything again. So does one whose
+//        wanted entry lies behind but is already cached (a read that
+//        missed the cache just before the entry was stored): that read
+//        needs no cursor, and stopping would only make the next page
+//        rewind.
+//    The wanted entry's own prefetch is never cancelled; the read waits
+//    for it and then finds it in the cache.
 //  - Thread safety: a single struct archive* stream is not safe for
 //    concurrent use. The index pass runs synchronously, entirely on
 //    whichever single thread initializes the object, exactly like the
@@ -85,7 +112,12 @@
 //    Once the index pass finishes, every cursor operation for entry
 //    decode is serialized on a private dispatch queue instead, since
 //    -data is called from COImageLoader's lookahead/prefetch threads
-//    as well as the main thread.
+//    as well as the main thread. Prefetches are blocks on that same
+//    queue. Cancellation never touches the stream from outside it: the
+//    reading thread only moves an atomic generation counter (and records
+//    the entry it wants) before it waits on the queue, and the prefetch
+//    on the queue reads that counter at its checkpoints and stops
+//    itself.
 //  - Filename encoding (libarchive fallback path): same policy as
 //    COArchive/COZipArchive — raw header bytes
 //    (archive_entry_pathname) and libarchive's UTF-8 conversion
@@ -196,11 +228,23 @@ BOOL CORarPayloadMatchesExpectedMetadata(NSData *payload,
 	   only. */
 	NSUInteger rewindCount;
 	NSUInteger positionedOpenCount;
+	/* Reads that used the open cursor without opening a stream (readQueue
+	   only). */
+	NSUInteger cursorContinueCount;
 }
 - (BOOL)rarOpened;
 - (BOOL)usesDirectPositioning;
+/* Diagnostics; each waits for the reads queued before it. */
 - (NSUInteger)rewindCount;
 - (NSUInteger)positionedOpenCount;
+- (NSUInteger)cursorContinueCount;
 /* internal, used by CORarEntry */
 - (NSData *)dataForEntry:(CORarEntry *)entry;
 @end
+
+/* Tests only (tests/engine): when set, called on the read queue by a
+ * prefetch at each cancellation checkpoint, just before it checks —
+ * `decoding` NO before a header of its walk, YES after a decoded chunk of
+ * entry `ordinal`. NULL in the app. */
+typedef void (*CORarPrefetchCheckpointHook)(CORarArchive *archive, NSUInteger ordinal, BOOL decoding);
+extern CORarPrefetchCheckpointHook CORarPrefetchCheckpointHookForTesting;

@@ -23,22 +23,30 @@
 	NSMutableDictionary *currentBookSetting;
 	/* Lookahead threads that have entered the body — incremented after
 	   `lock` is taken, so it says "a lookahead is running", not "a lookahead
-	   exists". -lockedImageDisplay reads it to decide whether waiting for a
-	   second page is worth it. */
+	   exists". Only counted; nothing reads it any more. */
 	int threadCount;
-	/* Lookahead threads that have been *detached* and not yet returned,
-	   including one that has not reached -lookahead yet. This is the one
-	   -joinLookaheadThreads waits on: `threadCount` cannot answer "is it
-	   safe to tear the book down", because a thread blocked on `lock` has
-	   not incremented it yet. Written from both the main thread and the
-	   lookahead threads. */
+	/* Lookahead threads of the current generation that have been *detached*
+	   and not yet returned, including one that has not reached -lookahead
+	   yet. This is the one -joinLookaheadThreads waits on: `threadCount`
+	   cannot answer "is it safe to tear the book down", because a thread
+	   blocked on `lock` has not incremented it yet. Incremented on the main
+	   thread at the detach; a thread decrements it under `lock`, and only
+	   while its generation is still current; -abandonLookahead zeroes it
+	   when it ends the generation. */
 	_Atomic int pendingLookaheadCount;
-	/* Bumped whenever the main thread gives up waiting for lookahead
-	   threads (and on every book teardown). A thread is detached with the
-	   value current at that moment and returns without touching anything
-	   once it no longer matches, so a straggler cannot write into arrays
-	   the main thread has moved on with (code review M5). */
+	/* Bumped whenever the main thread gives up on the running lookahead
+	   threads: a wait that timed out, -abandonLookahead (a page turn that
+	   has its pages, a jump), and every book teardown. Always bumped under
+	   `lock`. A thread is detached with the value current at that moment and
+	   returns without touching anything once it no longer matches, so a
+	   straggler cannot write into arrays the main thread has moved on with
+	   (code review M5). */
 	_Atomic unsigned int lookaheadGeneration;
+	/* Held by a detached lookahead while it decodes a page, which it does
+	   outside `lock` (B2). -waitForLookahead and -stopLookahead take it once
+	   at the end, as they used to take `lock`, so after either returns no
+	   lookahead — current or abandoned — is still inside the loader. */
+	NSLock *decodeLock;
 	/* Guards cacheArray: -loadImage: runs on lookahead threads and, for the
 	   thumbnail panel and the page-bar bubble, on the main thread at the
 	   same time (code review M8). Held only around the array operations,
@@ -503,6 +511,13 @@
    was detached but had not taken `lock` yet. */
 - (void)waitForLookahead;
 - (void)stopLookahead;
+/* Ends the current lookahead generation without waiting: a running
+   lookahead finishes the page it is decoding, publishes nothing and
+   returns. For a jump, which changes only nowPage and imageMutableArray
+   and so need not wait for a page it is about to throw away. Not a
+   substitute for -stopLookahead before anything that changes the loader's
+   page list (a re-sort): an abandoned lookahead may still be reading it. */
+- (void)abandonLookahead;
 /* Starts a lookahead on its own thread, counted and tagged with the
    current generation. Every detach goes through here. */
 - (void)detachLookaheadComposing:(BOOL)compose;

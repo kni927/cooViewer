@@ -44,6 +44,7 @@
 //
 
 #import <Foundation/Foundation.h>
+#include <stdatomic.h>
 
 @interface COArchiveEntry : NSObject
 {
@@ -83,6 +84,19 @@ typedef enum {
 	BOOL refusedSolidRAR4;
 	BOOL prefetchDisabled;
 	NSUInteger prefetchCount;	// prefetches scheduled (lazy readers)
+	/* Prefetch cancellation (B2), lazy readers only; see -prefetchSkippedCount.
+	   A read that misses the decoded-entry cache records the entry it wants
+	   (demandKey: CORarArchive's ordinal, COZipArchive's zip index) and moves
+	   prefetchGeneration on; every prefetch captured the generation when it
+	   was scheduled. outstandingPrefetchKeys holds the keys of prefetches
+	   scheduled and not yet finished; it and the three counters are guarded
+	   by @synchronized(self). */
+	_Atomic unsigned long prefetchGeneration;
+	_Atomic unsigned long demandKey;
+	NSCountedSet *outstandingPrefetchKeys;
+	NSUInteger prefetchSkippedCount;
+	NSUInteger prefetchCancelledCount;
+	NSUInteger prefetchAbortedCount;
 }
 - (id)initWithPath:(NSString *)path;
 - (id)initWithPath:(NSString *)path progress:(COArchiveProgress)progress;
@@ -129,7 +143,52 @@ typedef enum {
  * (for tests). */
 - (void)disablePrefetch;
 - (NSUInteger)prefetchCount;
+
+/* Prefetch cancellation (B2). A read whose entry is not in the lazy reader's
+ * decoded-entry cache cancels every prefetch of another entry scheduled
+ * before it (see COLazyReaderPrefetch below), so a jump
+ * does not wait behind read-ahead it no longer wants on the reader's serial
+ * read queue. Nothing to call: the read itself does it. For tests and
+ * tools/cbr_bench (always 0 on the full-extraction path):
+ * -prefetchCancelledCount: cache-missing reads made while a prefetch of
+ *   another entry was scheduled and not finished (a read of the entry a
+ *   prefetch is already reading just waits for it, and is not counted);
+ * -prefetchSkippedCount: prefetches dropped before they started reading;
+ * -prefetchAbortedCount: prefetches stopped part-way (CORarArchive only; see
+ *   CORarArchive.h for when that is allowed). A skipped or aborted prefetch
+ *   caches nothing. */
+- (NSUInteger)prefetchCancelledCount;
+- (NSUInteger)prefetchSkippedCount;
+- (NSUInteger)prefetchAbortedCount;
 @end
+
+/* For the lazy readers' prefetch cancellation (B2); nothing else calls these.
+ * A key names an entry in the reader's own terms (see demandKey above). */
+@interface COArchive (COLazyReaderPrefetch)
+/* Any thread, before a cache-missing read waits on the read queue: cancels
+ * every prefetch scheduled so far, except one of this same entry. */
+- (void)noteDemandReadOfKey:(unsigned long)key;
+/* When scheduling a prefetch of `key`: counts it and returns the generation
+ * the prefetch is valid for. Every -beginPrefetchOfKey: is paired with
+ * exactly one -endPrefetchOfKey:skipped:aborted:, at the end of the
+ * prefetch's block. */
+- (unsigned long)beginPrefetchOfKey:(unsigned long)key;
+/* YES when a read that missed the cache has come in since `generation` and
+ * wants an entry other than `key`; *outDemandKey (optional) is then that
+ * entry. */
+- (BOOL)prefetchOfKey:(unsigned long)key supersededSince:(unsigned long)generation
+            demandKey:(unsigned long *)outDemandKey;
+- (void)endPrefetchOfKey:(unsigned long)key skipped:(BOOL)skipped aborted:(BOOL)aborted;
+@end
+
+/* The byte budget of a lazy reader's decoded-entry NSCache (CORarArchive,
+ * COZipArchive), per open archive: physicalMemory / 32, clamped to
+ * 256 MB ... 1 GB. 8 GB of RAM gives 256 MB (the fixed budget before this),
+ * 16 GB 512 MB, 32 GB and more 1 GB. NSCache also evicts under memory
+ * pressure. COArchiveDecodedCacheLimit() applies it to
+ * -[NSProcessInfo physicalMemory]. */
+uint64_t COArchiveDecodedCacheLimitForPhysicalMemory(uint64_t physicalMemory);
+NSUInteger COArchiveDecodedCacheLimit(void);
 
 /* YES when an entry path, appended to a directory, stays inside it: not
  * absolute and without a ".." component. Entry names come from archive

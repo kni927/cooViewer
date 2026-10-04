@@ -179,7 +179,7 @@ static BOOL IsWindowMouseAction(int action)
 			switch (action) {
 				case 0:
 					//nextpage
-					[self waitForLookahead];
+					/* No waitForLookahead: -lockedImageDisplay waits for the pages it shows (B2). */
 					[self imageDisplay];
 					break;
 					
@@ -228,18 +228,18 @@ static BOOL IsWindowMouseAction(int action)
 					//toppage
 					if (secondImage) {
 						if (nowPage > 2) {
-							[self stopLookahead];
+							/* A jump, as in -goTo:array: (B2). */
+							[self abandonLookahead];
 							[imageMutableArray removeAllObjects];
 							nowPage = 0;
-							[self lookahead];
 							[self imageDisplay];
 						}
 					} else {
 						if (nowPage > 1) {
-							[self stopLookahead];
+							/* A jump, as in -goTo:array: (B2). */
+							[self abandonLookahead];
 							[imageMutableArray removeAllObjects];
 							nowPage = 0;
-							[self lookahead];
 							[self imageDisplay];
 						}
 					}		
@@ -521,7 +521,7 @@ static BOOL IsWindowMouseAction(int action)
 				case 27:
 					//PageDown + NextPage
 					if ([imageView next] == YES) {
-						[self waitForLookahead];
+						/* No waitForLookahead: -lockedImageDisplay waits for the pages it shows (B2). */
 						[self imageDisplay];
 					}
 					break;
@@ -996,7 +996,7 @@ static BOOL IsWindowMouseAction(int action)
 				case 0:
 					//next/prevpage
 					if (left) {
-						[self waitForLookahead];
+						/* No waitForLookahead: -lockedImageDisplay waits for the pages it shows (B2). */
 						[self imageDisplay];
 					} else {
 						//[lock lock];
@@ -1048,18 +1048,18 @@ static BOOL IsWindowMouseAction(int action)
 					} else {
 						if (secondImage) {
 							if (nowPage > 2) {
-								[self stopLookahead];
+								/* A jump, as in -goTo:array: (B2). */
+								[self abandonLookahead];
 								[imageMutableArray removeAllObjects];
 								nowPage = 0;
-								[self lookahead];
 								[self imageDisplay];
 							}
 						} else {
 							if (nowPage > 1) {
-								[self stopLookahead];
+								/* A jump, as in -goTo:array: (B2). */
+								[self abandonLookahead];
 								[imageMutableArray removeAllObjects];
 								nowPage = 0;
-								[self lookahead];
 								[self imageDisplay];
 							}
 						}	
@@ -1119,7 +1119,7 @@ static BOOL IsWindowMouseAction(int action)
 					}
 				case 6:
 					//nextpage
-					[self waitForLookahead];
+					/* No waitForLookahead: -lockedImageDisplay waits for the pages it shows (B2). */
 					[self imageDisplay];
 					break;
 				case 7:
@@ -1153,18 +1153,18 @@ static BOOL IsWindowMouseAction(int action)
 					//toppage
 					if (secondImage) {
 						if (nowPage > 2) {
-							[self stopLookahead];
+							/* A jump, as in -goTo:array: (B2). */
+							[self abandonLookahead];
 							[imageMutableArray removeAllObjects];
 							nowPage = 0;
-							[self lookahead];
 							[self imageDisplay];
 						}
 					} else {
 						if (nowPage > 1) {
-							[self stopLookahead];
+							/* A jump, as in -goTo:array: (B2). */
+							[self abandonLookahead];
 							[imageMutableArray removeAllObjects];
 							nowPage = 0;
-							[self lookahead];
 							[self imageDisplay];
 						}
 					}		
@@ -1402,7 +1402,7 @@ static BOOL IsWindowMouseAction(int action)
 				case 34:
 					//PageDown + NextPage
 					if ([imageView next] == YES) {
-						[self waitForLookahead];
+						/* No waitForLookahead: -lockedImageDisplay waits for the pages it shows (B2). */
 						[self imageDisplay];
 					}
 					break;
@@ -1437,7 +1437,7 @@ static BOOL IsWindowMouseAction(int action)
 					//PageUp/Down + Prev/NextPage
 					if (left) {
 						if ([imageView next] == YES) {
-							[self waitForLookahead];
+							/* No waitForLookahead: -lockedImageDisplay waits for the pages it shows (B2). */
 							[self imageDisplay];
 						}
 					} else {
@@ -2336,11 +2336,10 @@ static BOOL IsWindowMouseAction(int action)
 -(void)goToFirst
 {
 	/* No lookahead may be adding pages while the list changes below
-	   (code review M5). */
-	[self stopLookahead];
+	   (code review M5). A jump, as in -goTo:array: (B2). */
+	[self abandonLookahead];
 	[imageMutableArray removeAllObjects];
 	nowPage = 0;
-	[self lookahead];
 	[self imageDisplay];
 }
 -(void)showThumbnail
@@ -2574,8 +2573,12 @@ static BOOL IsWindowMouseAction(int action)
 - (void)goTo:(int)page array:(NSArray*)array
 {
 	/* No lookahead may be adding pages while the list changes below
-	   (code review M5). */
-	[self stopLookahead];
+	   (code review M5). A jump changes only nowPage and the list, so it
+	   abandons the lookahead rather than waiting for the page it is
+	   reading, and leaves the list empty: -lockedImageDisplay reads only
+	   the page or pages it shows, and the lookahead it starts reads on
+	   from there (B2). */
+	[self abandonLookahead];
 	//[completeMutableArray autorelease];
 	if (array == nil) {
 		//[completeMutableArray retain];
@@ -2590,7 +2593,6 @@ static BOOL IsWindowMouseAction(int action)
 		nowPage = (int)[completeMutableArray count]-1;
 	}
 	[imageMutableArray removeAllObjects];
-	[self lookahead];
 	[self imageDisplay];
 }
 
@@ -2633,7 +2635,8 @@ static BOOL IsWindowMouseAction(int action)
 - (void)goToPar:(float)par
 {
 	if (![self hasBookOpen]) return;
-	[self stopLookahead];
+	/* A jump, as in -goTo:array: (B2). */
+	[self abandonLookahead];
 	
 	float temp = (int)[completeMutableArray count]*par;
 	int page = (int)temp;
@@ -2648,7 +2651,6 @@ static BOOL IsWindowMouseAction(int action)
 		nowPage = (int)[completeMutableArray count]-1;
 	}
 	[imageMutableArray removeAllObjects];
-	[self lookahead];
 	[self imageDisplay];
 }
 
@@ -2786,7 +2788,7 @@ static BOOL IsWindowMouseAction(int action)
 
 -(void)doSlideshow
 {
-	[self waitForLookahead];
+	/* No waitForLookahead: -lockedImageDisplay waits for the pages it shows (B2). */
 	[self imageDisplay];
 }
 

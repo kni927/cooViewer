@@ -1906,3 +1906,49 @@ window's book.
 
 This is a feature gap, not a defect. Whether to add it is an owner decision,
 left to a future task.
+
+---
+
+## 45. A mouse "skip"/"back skip" action also turns one more page
+
+Found by reading during task `docs/tasks/2026-10-04-03-cleanup-and-performance.md`
+(B2), present at least since the start of that task: in
+`-[BookWindowController mouseAction:]` (`Sources/BookWindowController_input.m`),
+`case 5` (skip / back skip, with the page count in the action's `value`) has
+no `break`, so it falls through into `case 6` (next page) and shows one more
+page after the skip. Only reachable through a mouse binding to the skip
+action; the key bindings use a separate switch and are not affected. Not
+reproduced on device. The fix is the missing `break`; left for its own task
+because it changes how far an existing binding moves.
+
+---
+
+## 46. A solid book can stall for seconds per page under memory pressure, and the UI freezes meanwhile
+
+Found during the on-device check of B2 (task
+`docs/tasks/2026-10-04-03-cleanup-and-performance.md`, 2026-10-04) on an
+8 GB Mac with little free memory (about 150 MB free, swapping): a slideshow
+(0.1 s delay, spreads) on a generated 300-page solid RAR5 book of about
+2 MB pages took 10–13 s per step from page 241 on, and menus, Esc and the
+quit Apple event did not respond until the step finished.
+
+Cause (headless reproduction, not reproduced on device on demand): the
+decoded bytes of a page live in the archive's `NSCache`, which the system
+may empty under memory pressure. In a solid archive the read cursor only
+moves forward, so a page the cursor has already passed and the cache has
+lost can only be read again by decoding the stream from the start — about
+5 s at page 240 of that book. A simulation of the app's lookahead and
+display logic gave the same rewinds and times with the archive layer and
+the lookahead from before B2 (f36048f) as with B2, so it is not a B2
+regression; B2's own race that could throw away a solid cursor was found
+in the same investigation and fixed before B2 was committed.
+
+Two separate parts:
+- **Lost decoded pages** in solid archives. B3 of the same task (decode-ahead
+  into a disk cache) is the intended mitigation; see its result.
+- **Synchronous reads on the main thread.** When the page to show is not
+  ready, `-lockedImageDisplay` reads it on the main thread (as it did
+  before B2, after its lock barrier), so any read that needs a rewind
+  freezes the UI for its whole duration, including a backward jump in a
+  large solid book. Moving that read off the main thread is a change to
+  the display flow, not done here.

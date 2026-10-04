@@ -10,9 +10,6 @@
 #include <uchardet.h>
 #include <string.h>
 
-/* decoded-entry cache budget; NSCache evicts under pressure anyway */
-#define CO_ZIP_CACHE_LIMIT (256 * 1024 * 1024)
-
 /* An entry's buffer is sized from the size the archive declares for it,
    which a crafted file chooses freely (and a decompression bomb states
    truthfully). Larger entries are refused, and only smaller ones are read
@@ -87,7 +84,8 @@
 	readQueue = dispatch_queue_create("cooViewer.COZipArchive.read", DISPATCH_QUEUE_SERIAL);
 	dataCache = [[NSCache alloc] init];
 	[dataCache setName:@"COZipArchive.dataCache"];
-	[dataCache setTotalCostLimit:CO_ZIP_CACHE_LIMIT];
+	// decoded-entry budget scaled with RAM; NSCache evicts under pressure anyway
+	[dataCache setTotalCostLimit:COArchiveDecodedCacheLimit()];
 	cryptoStatus = COArchiveCryptoNone;
 	firstEncIndex = -1;
 	[self readCentralDirectory];
@@ -317,6 +315,8 @@ static BOOL COZipErrorMeansWrongPassword(int ze)
 	NSNumber *key = [NSNumber numberWithUnsignedLongLong:index];
 	NSData *cached = [dataCache objectForKey:key];
 	if (!cached) {
+		// B2: a queued prefetch of another entry does not make this wait
+		[self noteDemandReadOfKey:(unsigned long)index];
 		__block NSData *result = nil;
 		dispatch_sync(readQueue, ^{
 			NSData *d = [dataCache objectForKey:key];
@@ -383,12 +383,19 @@ static BOOL COZipErrorMeansWrongPassword(int ze)
 	zip_uint64_t idx = next->zipIndex;
 	unsigned long long sz = next->size;
 	if (sz > CO_ZIP_MAX_PREFETCH_SIZE) return;
-	@synchronized(self) { prefetchCount++; }
+	unsigned long generation = [self beginPrefetchOfKey:(unsigned long)idx];
 	dispatch_async(readQueue, ^{	// block retains self until it runs
-		if ([dataCache objectForKey:key]) return;
-		NSData *d = [self readEntryOnQueue:idx size:sz];
-		if (d)
-			[dataCache setObject:d forKey:key cost:[d length]];
+		BOOL skipped = NO;
+		if ([dataCache objectForKey:key]) {
+			// already read
+		} else if ([self prefetchOfKey:(unsigned long)idx supersededSince:generation demandKey:NULL]) {
+			skipped = YES;	// B2: a read of another entry came in meanwhile
+		} else {
+			NSData *d = [self readEntryOnQueue:idx size:sz];
+			if (d)
+				[dataCache setObject:d forKey:key cost:[d length]];
+		}
+		[self endPrefetchOfKey:(unsigned long)idx skipped:skipped aborted:NO];
 	});
 }
 

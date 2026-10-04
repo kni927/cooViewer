@@ -69,6 +69,96 @@ static NSString *sha256(NSData *data)
     return s;
 }
 
+/* --- B2 test seams. The prefetch entry points are private to the readers;
+   the read queue and the decoded-entry cache are reached through the
+   runtime, so the readers need no test-only accessors. --- */
+@interface CORarArchive (B2Testing)
+- (void)prefetchAfterEntry:(CORarEntry *)entry;
+@end
+@interface COZipArchive (B2Testing)
+- (void)prefetchAfterOrdinal:(NSUInteger)ordinal;
+@end
+
+static id ivarOf(id object, Class cls, const char *name)
+{
+    Ivar iv = class_getInstanceVariable(cls, name);
+    return iv ? object_getIvar(object, iv) : nil;
+}
+
+/* Parks the prefetch that reaches the armed checkpoint until released. */
+static dispatch_semaphore_t hookReached, hookRelease;
+static NSUInteger hookOrdinal;
+static BOOL hookDecoding;
+static _Atomic int hookArmed;
+
+static void parkingCheckpointHook(CORarArchive *archive, NSUInteger ordinal, BOOL decoding)
+{
+    (void)archive;
+    if (ordinal != hookOrdinal || decoding != hookDecoding) return;
+    int armed = 1;
+    if (!atomic_compare_exchange_strong(&hookArmed, &armed, 0)) return;
+    dispatch_semaphore_signal(hookReached);
+    dispatch_semaphore_wait(hookRelease, DISPATCH_TIME_FOREVER);
+}
+
+/* Waits (up to 5 s) until a read on another thread has registered as
+   cancelling a prefetch. */
+static BOOL waitForCancelledCount(COArchive *ar, NSUInteger want)
+{
+    for (int i = 0; i < 500; i++) {
+        if ([ar prefetchCancelledCount] >= want) return YES;
+        usleep(10000);
+    }
+    return NO;
+}
+
+/* Reads `demand` on another thread while a prefetch is parked: either at the
+   armed checkpoint (`ordinal`, `decoding`) after `trigger` started it, or —
+   with a nil-ordinal "queued" mode — behind a blocker on `queue`, after
+   `trigger` queued it. The parked prefetch is released once the read has
+   cancelled it. Returns the read's data; *ok is NO on a timeout. */
+static NSData *readWhilePrefetchParked(COArchive *ar, dispatch_queue_t queue,
+                                       NSUInteger ordinal, BOOL decoding,
+                                       void (^trigger)(void), COArchiveEntry *demand, BOOL *ok)
+{
+    *ok = YES;
+    NSUInteger cancelledBefore = [ar prefetchCancelledCount];
+    dispatch_semaphore_t release = dispatch_semaphore_create(0);
+    if (queue) {
+        dispatch_async(queue, ^{ dispatch_semaphore_wait(release, DISPATCH_TIME_FOREVER); });
+        trigger();
+    } else {
+        hookReached = dispatch_semaphore_create(0);
+        hookRelease = release;
+        hookOrdinal = ordinal;
+        hookDecoding = decoding;
+        atomic_store(&hookArmed, 1);
+        CORarPrefetchCheckpointHookForTesting = parkingCheckpointHook;
+        trigger();
+        if (dispatch_semaphore_wait(hookReached, dispatch_time(DISPATCH_TIME_NOW, 10 * NSEC_PER_SEC)) != 0) {
+            atomic_store(&hookArmed, 0);
+            CORarPrefetchCheckpointHookForTesting = NULL;
+            *ok = NO;
+            dispatch_release(hookReached);
+            dispatch_release(release);
+            return nil;
+        }
+    }
+    __block NSData *result = nil;
+    dispatch_group_t group = dispatch_group_create();
+    dispatch_group_async(group, dispatch_get_global_queue(QOS_CLASS_USER_INITIATED, 0), ^{
+        @autoreleasepool { result = [[demand data] retain]; }
+    });
+    if (!waitForCancelledCount(ar, cancelledBefore + 1)) *ok = NO;
+    dispatch_semaphore_signal(release);
+    dispatch_group_wait(group, DISPATCH_TIME_FOREVER);
+    CORarPrefetchCheckpointHookForTesting = NULL;
+    if (!queue) dispatch_release(hookReached);
+    dispatch_release(group);
+    dispatch_release(release);
+    return [result autorelease];
+}
+
 static void testArchive(NSString *path, NSArray *names, NSArray *srcHashes)
 {
     // 7z/rar fixtures are optional (make_fixtures.sh skips them when
@@ -475,6 +565,320 @@ int main(int argc, char **argv)
                 }
                 check([ar rewindCount] == 0 && [ar positionedOpenCount] >= 1,
                       @"RAR5 final-block fixture was not read by direct positioning");
+            }
+        }
+
+        // --- B2 / survey C3: the decoded-entry cache budget scales with
+        // physical memory, physicalMemory / 32 within 256 MB ... 1 GB, and
+        // both lazy readers use it ---
+        {
+            printf("decoded-entry cache limit\n");
+            const uint64_t MB = 1024ULL * 1024, GB = 1024 * MB;
+            check(COArchiveDecodedCacheLimitForPhysicalMemory(0) == 256 * MB, @"cache limit: 0 bytes of RAM");
+            check(COArchiveDecodedCacheLimitForPhysicalMemory(4 * GB) == 256 * MB, @"cache limit: 4 GB");
+            check(COArchiveDecodedCacheLimitForPhysicalMemory(8 * GB) == 256 * MB, @"cache limit: 8 GB");
+            check(COArchiveDecodedCacheLimitForPhysicalMemory(16 * GB) == 512 * MB, @"cache limit: 16 GB");
+            check(COArchiveDecodedCacheLimitForPhysicalMemory(24 * GB) == 768 * MB, @"cache limit: 24 GB");
+            check(COArchiveDecodedCacheLimitForPhysicalMemory(32 * GB) == 1 * GB, @"cache limit: 32 GB");
+            check(COArchiveDecodedCacheLimitForPhysicalMemory(128 * GB) == 1 * GB, @"cache limit: 128 GB");
+            check(COArchiveDecodedCacheLimitForPhysicalMemory(UINT64_MAX) == 1 * GB, @"cache limit: UINT64_MAX");
+            NSUInteger limit = COArchiveDecodedCacheLimit();
+            check(limit == COArchiveDecodedCacheLimitForPhysicalMemory([[NSProcessInfo processInfo] physicalMemory]),
+                  @"cache limit: not taken from physicalMemory");
+            COArchive *zip = [[[COArchive alloc] initWithPath:[gen stringByAppendingPathComponent:@"test.cbz"]] autorelease];
+            NSCache *zipCache = ivarOf(zip, [COZipArchive class], "dataCache");
+            check([zip isKindOfClass:[COZipArchive class]] && [zipCache totalCostLimit] == limit,
+                  @"COZipArchive: cache limit not applied");
+            COArchive *rar = [[[COArchive alloc] initWithPath:[gen stringByAppendingPathComponent:@"test_rar4.cbr"]] autorelease];
+            NSCache *rarCache = ivarOf(rar, [CORarArchive class], "dataCache");
+            check([rar isKindOfClass:[CORarArchive class]] && [rarCache totalCostLimit] == limit,
+                  @"CORarArchive: cache limit not applied");
+            printf("  (this machine: %llu MB RAM -> %lu MB)\n",
+                   [[NSProcessInfo processInfo] physicalMemory] / MB, (unsigned long)(limit / MB));
+        }
+
+        // --- B2: reading pages in stored order continues on the open
+        // cursor — one positioned open for the whole book, no rewinds —
+        // with the prefetch off (every page read on demand) and on (every
+        // page after the first read ahead, then served from the cache) ---
+        NSString *largeSrc = [gen stringByAppendingPathComponent:@"rar4_large_src"];
+        NSMutableArray *largeHashes = [NSMutableArray array];
+        for (NSString *f in srcFiles) {
+            NSData *d = [NSData dataWithContentsOfFile:[largeSrc stringByAppendingPathComponent:f]];
+            if (d) [largeHashes addObject:sha256(d)];
+        }
+        check([largeHashes count] == 4, @"rar4_large_src not generated");
+        for (NSString *f in @[ @"test_rar4.cbr", @"test.cbr", @"test_rar4_large.cbr" ]) {
+            NSString *p = [gen stringByAppendingPathComponent:f];
+            if (![[NSFileManager defaultManager] fileExistsAtPath:p]) continue;
+            NSArray *hashes = [f isEqualToString:@"test_rar4_large.cbr"] ? largeHashes : srcHashes;
+            if ([hashes count] != 4) continue;
+            printf("%s cursor continuation\n", [f UTF8String]);
+            int withPrefetch;
+            for (withPrefetch = 0; withPrefetch < 2; withPrefetch++) {
+                CORarArchive *ar = (CORarArchive *)[[[COArchive alloc] initWithPath:p] autorelease];
+                if (![ar isKindOfClass:[CORarArchive class]] || [ar itemCount] != 4 || ![ar usesDirectPositioning]) {
+                    check(NO, [NSString stringWithFormat:@"%@: expected 4 entries read by direct positioning", f]);
+                    break;
+                }
+                if (withPrefetch)
+                    [ar setPrefetchPageOrder:[ar contents]];
+                else
+                    [ar disablePrefetch];
+                int k;
+                for (k = 0; k < 4; k++) {
+                    NSData *d = [[[ar contents] objectAtIndex:k] data];
+                    check([sha256(d) isEqualToString:[hashes objectAtIndex:k]],
+                          [NSString stringWithFormat:@"%@: sha mismatch for page %d", f, k + 1]);
+                    [ar positionedOpenCount];	// let the prefetch finish
+                }
+                NSString *mode = withPrefetch ? @"prefetch on" : @"prefetch off";
+                check([ar positionedOpenCount] == 1 && [ar rewindCount] == 0,
+                      [NSString stringWithFormat:@"%@ (%@): %lu positioned opens, %lu rewinds", f, mode,
+                       (unsigned long)[ar positionedOpenCount], (unsigned long)[ar rewindCount]]);
+                check([ar cursorContinueCount] == 3,
+                      [NSString stringWithFormat:@"%@ (%@): cursor continued %lu times, not 3", f, mode,
+                       (unsigned long)[ar cursorContinueCount]]);
+                check([ar prefetchCount] == (withPrefetch ? 3 : 0),
+                      [NSString stringWithFormat:@"%@ (%@): %lu prefetches", f, mode,
+                       (unsigned long)[ar prefetchCount]]);
+                check([ar prefetchCancelledCount] == 0 && [ar prefetchSkippedCount] == 0 &&
+                      [ar prefetchAbortedCount] == 0,
+                      [NSString stringWithFormat:@"%@ (%@): a prefetch was cancelled", f, mode]);
+            }
+        }
+
+        // --- B2: a read of another entry cancels a queued prefetch. The
+        // read queue is held by a blocker; the prefetch of page 2 is queued
+        // behind it; page 4 is then read on another thread. Once that read
+        // has registered, the blocker goes: the prefetch must return
+        // without reading, and only page 4's stream is opened. ---
+        {
+            NSString *p = [gen stringByAppendingPathComponent:@"test_rar4_unordered.cbr"];
+            printf("test_rar4_unordered.cbr queued prefetch skipped\n");
+            CORarArchive *ar = (CORarArchive *)[[[COArchive alloc] initWithPath:p] autorelease];
+            NSMutableArray *pages = [NSMutableArray array];
+            for (NSString *name in asciiNames) {
+                CORarEntry *e = rarEntryNamed(ar, name);
+                if (e) [pages addObject:e];
+            }
+            if ([pages count] == 4 && [ar usesDirectPositioning]) {
+                [ar setPrefetchPageOrder:pages];
+                CORarEntry *b = [pages objectAtIndex:1], *d = [pages objectAtIndex:3];
+                BOOL ok;
+                NSData *data = readWhilePrefetchParked(ar, ivarOf(ar, [CORarArchive class], "readQueue"), 0, NO,
+                    ^{ [ar prefetchAfterEntry:[pages objectAtIndex:0]]; }, d, &ok);
+                check(ok, @"queued RAR prefetch: timed out");
+                check([sha256(data) isEqualToString:[srcHashes objectAtIndex:3]], @"queued RAR prefetch: page 4 sha");
+                check([ar prefetchCount] == 1 && [ar prefetchCancelledCount] == 1 && [ar prefetchSkippedCount] == 1 &&
+                      [ar prefetchAbortedCount] == 0,
+                      [NSString stringWithFormat:@"queued RAR prefetch: scheduled %lu cancelled %lu skipped %lu aborted %lu",
+                       (unsigned long)[ar prefetchCount], (unsigned long)[ar prefetchCancelledCount],
+                       (unsigned long)[ar prefetchSkippedCount], (unsigned long)[ar prefetchAbortedCount]]);
+                check([ivarOf(ar, [CORarArchive class], "dataCache")
+                       objectForKey:[NSNumber numberWithUnsignedInteger:b->ordinal]] == nil,
+                      @"queued RAR prefetch: page 2 was read anyway");
+                check([ar positionedOpenCount] == 1 && [ar rewindCount] == 0,
+                      [NSString stringWithFormat:@"queued RAR prefetch: %lu positioned opens (want 1)",
+                       (unsigned long)[ar positionedOpenCount]]);
+                check([sha256([b data]) isEqualToString:[srcHashes objectAtIndex:1]], @"queued RAR prefetch: page 2 afterwards");
+            } else {
+                check(NO, @"test_rar4_unordered.cbr: expected 4 positioned pages");
+            }
+        }
+        {
+            NSString *p = [gen stringByAppendingPathComponent:@"test.cbz"];
+            printf("test.cbz queued prefetch skipped\n");
+            COZipArchive *ar = (COZipArchive *)[[[COArchive alloc] initWithPath:p] autorelease];
+            if ([ar isKindOfClass:[COZipArchive class]] && [ar itemCount] == 4) {
+                COZipEntry *b = [[ar contents] objectAtIndex:1];
+                COZipEntry *d = [[ar contents] objectAtIndex:3];
+                BOOL ok;
+                NSData *data = readWhilePrefetchParked(ar, ivarOf(ar, [COZipArchive class], "readQueue"), 0, NO,
+                    ^{ [ar prefetchAfterOrdinal:0]; }, d, &ok);
+                check(ok, @"queued ZIP prefetch: timed out");
+                check([sha256(data) isEqualToString:[srcHashes objectAtIndex:3]], @"queued ZIP prefetch: entry 4 sha");
+                check([ar prefetchCount] == 1 && [ar prefetchCancelledCount] == 1 && [ar prefetchSkippedCount] == 1 &&
+                      [ar prefetchAbortedCount] == 0,
+                      [NSString stringWithFormat:@"queued ZIP prefetch: scheduled %lu cancelled %lu skipped %lu aborted %lu",
+                       (unsigned long)[ar prefetchCount], (unsigned long)[ar prefetchCancelledCount],
+                       (unsigned long)[ar prefetchSkippedCount], (unsigned long)[ar prefetchAbortedCount]]);
+                check([ivarOf(ar, [COZipArchive class], "dataCache")
+                       objectForKey:[NSNumber numberWithUnsignedLongLong:b->zipIndex]] == nil,
+                      @"queued ZIP prefetch: entry 2 was read anyway");
+            } else {
+                check(NO, @"test.cbz: expected 4 entries on COZipArchive");
+            }
+        }
+
+        // --- B2: a running prefetch is stopped where that is cheap. Each
+        // case parks the prefetch at a checkpoint, reads another page on a
+        // second thread, then lets the prefetch go on. ---
+        if ([largeHashes count] == 4) {
+            // positioned cursor, mid-entry: page 2's prefetch (1 MB, past
+            // the 256 KB chunk) stops after its first chunk for page 4
+            NSString *p = [gen stringByAppendingPathComponent:@"test_rar4_large.cbr"];
+            printf("test_rar4_large.cbr running prefetch aborted mid-entry\n");
+            CORarArchive *ar = (CORarArchive *)[[[COArchive alloc] initWithPath:p] autorelease];
+            if ([ar isKindOfClass:[CORarArchive class]] && [ar itemCount] == 4 && [ar usesDirectPositioning]) {
+                NSArray *pages = [ar contents];
+                [ar setPrefetchPageOrder:pages];
+                CORarEntry *b = [pages objectAtIndex:1];
+                BOOL ok;
+                NSData *data = readWhilePrefetchParked(ar, nil, b->ordinal, YES,
+                    ^{ [[pages objectAtIndex:0] data]; }, [pages objectAtIndex:3], &ok);
+                check(ok, @"mid-entry abort: timed out");
+                check([sha256(data) isEqualToString:[largeHashes objectAtIndex:3]], @"mid-entry abort: page 4 sha");
+                check([ar prefetchAbortedCount] == 1 && [ar prefetchSkippedCount] == 0,
+                      [NSString stringWithFormat:@"mid-entry abort: aborted %lu skipped %lu",
+                       (unsigned long)[ar prefetchAbortedCount], (unsigned long)[ar prefetchSkippedCount]]);
+                check([ivarOf(ar, [CORarArchive class], "dataCache")
+                       objectForKey:[NSNumber numberWithUnsignedInteger:b->ordinal]] == nil,
+                      @"mid-entry abort: the partial page 2 was cached");
+                // page 1 opened, page 2 continued on it, page 4 opened anew
+                check([ar positionedOpenCount] == 2 && [ar cursorContinueCount] == 1 && [ar rewindCount] == 0,
+                      [NSString stringWithFormat:@"mid-entry abort: opens %lu continues %lu rewinds %lu",
+                       (unsigned long)[ar positionedOpenCount], (unsigned long)[ar cursorContinueCount],
+                       (unsigned long)[ar rewindCount]]);
+                check([sha256([b data]) isEqualToString:[largeHashes objectAtIndex:1]], @"mid-entry abort: page 2 afterwards");
+            } else {
+                check(NO, @"test_rar4_large.cbr: expected 4 positioned entries");
+            }
+        }
+        {
+            // forward cursor (the fallback-indexed RAR4 has no offsets).
+            // Stored and page order alike: 003, 001, 004, 002.
+            NSString *p = [gen stringByAppendingPathComponent:@"test_rar4_unordered_unicode.cbr"];
+            NSArray *storedSrc = @[ @2, @0, @3, @1 ];	// srcHashes index per stored entry
+            printf("test_rar4_unordered_unicode.cbr running prefetch, forward cursor\n");
+
+            // the wanted entry lies ahead: the prefetch must finish
+            CORarArchive *ar = (CORarArchive *)[[[COArchive alloc] initWithPath:p] autorelease];
+            if ([ar isKindOfClass:[CORarArchive class]] && [ar itemCount] == 4 && ![ar usesDirectPositioning]) {
+                NSArray *e = [ar contents];
+                [ar setPrefetchPageOrder:e];
+                CORarEntry *b = [e objectAtIndex:1];
+                BOOL ok;
+                NSData *data = readWhilePrefetchParked(ar, nil, b->ordinal, YES,
+                    ^{ [[e objectAtIndex:0] data]; }, [e objectAtIndex:3], &ok);
+                check(ok, @"forward, wanted ahead: timed out");
+                check([sha256(data) isEqualToString:[srcHashes objectAtIndex:[[storedSrc objectAtIndex:3] intValue]]],
+                      @"forward, wanted ahead: sha");
+                check([ar prefetchAbortedCount] == 0 && [ar prefetchSkippedCount] == 0,
+                      @"forward, wanted ahead: the prefetch was stopped");
+                check([ivarOf(ar, [CORarArchive class], "dataCache")
+                       objectForKey:[NSNumber numberWithUnsignedInteger:b->ordinal]] != nil,
+                      @"forward, wanted ahead: the prefetched entry is not cached");
+                check([ar rewindCount] == 1 && [ar cursorContinueCount] == 2,
+                      [NSString stringWithFormat:@"forward, wanted ahead: rewinds %lu continues %lu",
+                       (unsigned long)[ar rewindCount], (unsigned long)[ar cursorContinueCount]]);
+            } else {
+                check(NO, @"test_rar4_unordered_unicode.cbr: expected 4 entries on the forward cursor");
+            }
+
+            // the wanted entry lies behind: the prefetch stops mid-entry
+            ar = (CORarArchive *)[[[COArchive alloc] initWithPath:p] autorelease];
+            if ([ar isKindOfClass:[CORarArchive class]] && [ar itemCount] == 4) {
+                NSArray *e = [ar contents];
+                [ar setPrefetchPageOrder:e];
+                CORarEntry *c = [e objectAtIndex:2];
+                BOOL ok;
+                NSData *data = readWhilePrefetchParked(ar, nil, c->ordinal, YES,
+                    ^{ [[e objectAtIndex:1] data]; }, [e objectAtIndex:0], &ok);
+                check(ok, @"forward, wanted behind: timed out");
+                check([sha256(data) isEqualToString:[srcHashes objectAtIndex:[[storedSrc objectAtIndex:0] intValue]]],
+                      @"forward, wanted behind: sha");
+                check([ar prefetchAbortedCount] == 1, @"forward, wanted behind: the prefetch was not stopped");
+                check([ivarOf(ar, [CORarArchive class], "dataCache")
+                       objectForKey:[NSNumber numberWithUnsignedInteger:c->ordinal]] == nil,
+                      @"forward, wanted behind: the partial entry was cached");
+                check([ar rewindCount] == 2,
+                      [NSString stringWithFormat:@"forward, wanted behind: rewinds %lu (want 2)",
+                       (unsigned long)[ar rewindCount]]);
+                check([sha256([c data]) isEqualToString:[srcHashes objectAtIndex:[[storedSrc objectAtIndex:2] intValue]]],
+                      @"forward, wanted behind: entry afterwards");
+            }
+
+            // the wanted entry lies behind but is already cached: a second
+            // thread missed the cache for entry 2 just before its read
+            // stored it, and registers its demand only once entry 3's
+            // prefetch is decoding. That read needs no cursor, so the
+            // prefetch must finish and keep the cursor for entry 4.
+            ar = (CORarArchive *)[[[COArchive alloc] initWithPath:p] autorelease];
+            if ([ar isKindOfClass:[CORarArchive class]] && [ar itemCount] == 4) {
+                NSArray *e = [ar contents];
+                [ar setPrefetchPageOrder:e];
+                CORarEntry *b = [e objectAtIndex:1], *c = [e objectAtIndex:2];
+                NSCache *cache = ivarOf(ar, [CORarArchive class], "dataCache");
+                check(b->ordinal < c->ordinal, @"forward, wanted behind and cached: stored order");
+                hookReached = dispatch_semaphore_create(0);
+                hookRelease = dispatch_semaphore_create(0);
+                hookOrdinal = c->ordinal;
+                hookDecoding = YES;
+                atomic_store(&hookArmed, 1);
+                CORarPrefetchCheckpointHookForTesting = parkingCheckpointHook;
+                NSData *first = [b data];	// rewind 1; schedules entry 3's prefetch
+                BOOL parked = dispatch_semaphore_wait(hookReached,
+                    dispatch_time(DISPATCH_TIME_NOW, 10 * NSEC_PER_SEC)) == 0;
+                check(parked, @"forward, wanted behind and cached: timed out");
+                if (parked) {
+                    check([cache objectForKey:[NSNumber numberWithUnsignedInteger:b->ordinal]] != nil,
+                          @"forward, wanted behind and cached: entry 2 not cached");
+                    // the racing read's registration, as -dataForEntry: makes it
+                    // after its cache miss
+                    [ar noteDemandReadOfKey:b->ordinal];
+                    check([ar prefetchCancelledCount] == 1,
+                          @"forward, wanted behind and cached: the demand did not cancel");
+                } else {
+                    atomic_store(&hookArmed, 0);
+                }
+                dispatch_semaphore_signal(hookRelease);
+                [ar positionedOpenCount];	// let the prefetch finish
+                CORarPrefetchCheckpointHookForTesting = NULL;
+                check([cache objectForKey:[NSNumber numberWithUnsignedInteger:c->ordinal]] != nil,
+                      @"forward, wanted behind and cached: the prefetch did not cache entry 3");
+                NSData *again = [b data];	// the racing read, served from the cache
+                NSString *bHash = [srcHashes objectAtIndex:[[storedSrc objectAtIndex:1] intValue]];
+                check([sha256(first) isEqualToString:bHash] && [sha256(again) isEqualToString:bHash],
+                      @"forward, wanted behind and cached: entry 2 sha");
+                check([ar prefetchAbortedCount] == 0 && [ar prefetchSkippedCount] == 0,
+                      [NSString stringWithFormat:@"forward, wanted behind and cached: aborted %lu skipped %lu",
+                       (unsigned long)[ar prefetchAbortedCount], (unsigned long)[ar prefetchSkippedCount]]);
+                check([ar rewindCount] == 1,
+                      [NSString stringWithFormat:@"forward, wanted behind and cached: rewinds %lu (want 1)",
+                       (unsigned long)[ar rewindCount]]);
+                // entry 4 continues on the kept cursor
+                check([sha256([[e objectAtIndex:3] data]) isEqualToString:
+                       [srcHashes objectAtIndex:[[storedSrc objectAtIndex:3] intValue]]],
+                      @"forward, wanted behind and cached: entry 4 sha");
+                check([ar rewindCount] == 1 && [ar cursorContinueCount] == 2,
+                      [NSString stringWithFormat:@"forward, wanted behind and cached: rewinds %lu continues %lu (want 1, 2)",
+                       (unsigned long)[ar rewindCount], (unsigned long)[ar cursorContinueCount]]);
+                dispatch_release(hookReached);
+                dispatch_release(hookRelease);
+            }
+
+            // stopped between entries: the prefetch of entry 4 walks past
+            // entry 2, which is then read; the cursor is kept, so that read
+            // continues on it instead of starting over
+            ar = (CORarArchive *)[[[COArchive alloc] initWithPath:p] autorelease];
+            if ([ar isKindOfClass:[CORarArchive class]] && [ar itemCount] == 4) {
+                NSArray *e = [ar contents];
+                [ar setPrefetchPageOrder:@[ [e objectAtIndex:0], [e objectAtIndex:3], [e objectAtIndex:1] ]];
+                CORarEntry *last = [e objectAtIndex:3];
+                BOOL ok;
+                NSData *data = readWhilePrefetchParked(ar, nil, last->ordinal, NO,
+                    ^{ [[e objectAtIndex:0] data]; }, [e objectAtIndex:1], &ok);
+                check(ok, @"forward, between entries: timed out");
+                check([sha256(data) isEqualToString:[srcHashes objectAtIndex:[[storedSrc objectAtIndex:1] intValue]]],
+                      @"forward, between entries: sha");
+                check([ar prefetchAbortedCount] == 1, @"forward, between entries: the prefetch was not stopped");
+                check([ar rewindCount] == 1 && [ar cursorContinueCount] == 2,
+                      [NSString stringWithFormat:@"forward, between entries: rewinds %lu continues %lu (want 1, 2)",
+                       (unsigned long)[ar rewindCount], (unsigned long)[ar cursorContinueCount]]);
+                check([ivarOf(ar, [CORarArchive class], "dataCache")
+                       objectForKey:[NSNumber numberWithUnsignedInteger:last->ordinal]] == nil,
+                      @"forward, between entries: entry 4 was cached");
             }
         }
 
