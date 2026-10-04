@@ -299,13 +299,21 @@ NSRect COIntRect(NSRect aRect)
 	pageBarBezierPath = [[NSBezierPath bezierPathWithRectWithDoubleArc:innerRect] retain];
 	[pageBarBezierPath closePath];
 }
+/* Sent by -[CustomImageView setPreferences]'s tracking area, for every
+   window, key or not. The page number and the resolution bar are shown
+   whether or not the page bar is: until KNOWN_ISSUES #42 this whole method
+   sat behind [controller indicator], which is the page bar's own on/off
+   switch (ShowPageBar), so with the page bar hidden an auto-hidden page
+   number never came back. */
 - (void)mouseMoved:(NSEvent *)theEvent
 {
     NSDisableScreenUpdates();
     NSPoint lensOldPoint;
-    if (controller && [controller indicator] && imageView && ![imageView loupeIsVisible]) {
+    if (controller && imageView && ![imageView loupeIsVisible]) {
         lensOldPoint = [[self window] mouseLocationOutsideOfEventStream];
-        
+
+        /* Harmless with the page bar switched off: -drawRect: and
+           -pageBarRect consult [controller indicator] themselves. */
         if (autoHidedPageBar) {
             autoHidedPageBar = NO;
             [self displayRect:[self pageBarRect]];

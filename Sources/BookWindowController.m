@@ -4,7 +4,6 @@
 #import "BookmarkController.h"
 #import "AllBookmarkController.h"	/* MW-5 item 5: app-wide half, reached via appController */
 #import "CustomImageView.h"
-#import "AccessoryView.h"	/* -detachFromWindowController (KNOWN_ISSUES #36) */
 #import "FullImagePanel.h"
 #import "FilterPanelController.h"	/* per-window filters (code review L6) */
 #import "RemoteControl.h"	/* kRemoteButton* constants used by the 1.2b14 migration block below */
@@ -3551,13 +3550,6 @@ static const NSInteger kBookmarkMenuFixedItemCount = 3;
 	   covers a close that lands while neither has run yet. */
 	bookLoadInFlight = NO;
 
-	/* KNOWN_ISSUES #36: the accessory overlay outlives this controller by one
-	   window close (#26), and holds unretained outlets to it. Drop them here,
-	   while this object is still alive — a draw request queued before the
-	   close otherwise reaches -[AccessoryView drawRect:] after -dealloc and
-	   sends -indicator to freed memory. */
-	[[imageView accessoryView] detachFromWindowController];
-
 	/* Was a bare [lock lock]/[lock unlock] pair, which waits only for a
 	   lookahead that is already *inside* the body. A thread detached a
 	   moment earlier and still blocked on that same lock would sail past it
@@ -3648,8 +3640,20 @@ static const NSInteger kBookmarkMenuFixedItemCount = 3;
 
 	/* MW-7: hand the window back to the registry. It is retired — removed
 	   and released — unless it is the last one, which stays as the window
-	   File ▸ Open and Open the last page reuse. */
-	[appController retireWindowController:self];
+	   File ▸ Open and Open the last page reuse.
+
+	   KNOWN_ISSUES #36: the accessory overlay outlives a retired controller
+	   by one window close (#26), and holds unretained outlets to it. They
+	   are dropped here, while this object is still alive (the registry's
+	   release is an autorelease) — a draw request queued before the close
+	   otherwise reaches -[AccessoryView drawRect:] after -dealloc and sends
+	   -indicator to freed memory. Only on retirement: the kept last window
+	   is reused by the next open with this same controller, and an overlay
+	   detached from it drew neither the page number nor the page bar and
+	   ignored mouse movement for the rest of the run (KNOWN_ISSUES #42). */
+	if ([appController retireWindowController:self]) {
+		[imageView detachAccessoryFromWindowController];
+	}
 }
 
 /* The thumbnail, bookmark, full-image and filter panels are separate windows

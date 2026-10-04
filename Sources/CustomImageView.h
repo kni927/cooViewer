@@ -10,6 +10,9 @@
 	
 	
 	BOOL didFirst;
+	/* Delivers mouse movement over the content view to accessoryView,
+	   whether or not this window is key; see -setPreferences. */
+	NSTrackingArea *accessoryTrackingArea;
 	NSWindow *lensWindow;
 	int maxEnlargement;
 
@@ -115,5 +118,6 @@
 -(void)setInfoString:(NSString*)string;
 
 -(id)accessoryView;
+- (void)detachAccessoryFromWindowController;
 -(void)setAccessoryWindowFrame;
 @end

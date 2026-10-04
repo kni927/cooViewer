@@ -38,6 +38,9 @@
 		lensWindow = nil;
 	}
 
+	/* Removed from the content view by -detachAccessoryFromWindowController. */
+	[accessoryTrackingArea release];
+
 	[_image release];
 	[filters release];
 	[crossCursor release];
@@ -146,7 +149,25 @@
 		[accessoryWindow setFrame:temp display:YES];
 		[[self window] addChildWindow:accessoryWindow ordered:NSWindowAbove];
 //		[accessoryWindow orderFront:self];
-		
+
+		/* Auto-hidden accessories come back on mouse movement. The window's
+		   own mouseMoved: (CustomWindow -> -mouseMoved: below) reaches only
+		   the key window of the active app, so over an inactive cooViewer, or
+		   over a book window that is not key, the page number stayed hidden
+		   until a click made the window key. A tracking area with
+		   NSTrackingActiveAlways reports movement in every case; it is now
+		   the only route to -[AccessoryView mouseMoved:], so an event is
+		   handled once. On the content view, not this view: in the zoom
+		   modes this view's frame follows the image and may not cover the
+		   window. */
+		accessoryTrackingArea = [[NSTrackingArea alloc] initWithRect:NSZeroRect
+		                                                     options:(NSTrackingMouseMoved |
+		                                                              NSTrackingActiveAlways |
+		                                                              NSTrackingInVisibleRect)
+		                                                       owner:accessoryView
+		                                                    userInfo:nil];
+		[[[self window] contentView] addTrackingArea:accessoryTrackingArea];
+
 		dragScrollDic = [[NSMutableDictionary alloc] init];
 		fitScreenMode = 0;
 		setting = 0;
@@ -282,7 +303,8 @@
 		[NSCursor pop];
 	}
 	[[self window] invalidateCursorRectsForView: self];
-	[accessoryView mouseMoved:theEvent];
+	/* accessoryView gets its mouse movement from accessoryTrackingArea
+	   (see -setPreferences), not from here. */
 	//[self resetCursorRects];
 	//[self resetCursorRects];
 }
@@ -1703,6 +1725,18 @@ NSTimeInterval elapsed=0;
 -(void)drawPageMover:(int)page
 {
 	[accessoryView drawPageMover:page];
+}
+
+/* KNOWN_ISSUES #36, for a window controller that is being retired. The
+   tracking area does not retain its owner, accessoryView, so it leaves the
+   content view here, while the window is still valid, rather than in
+   -dealloc. */
+- (void)detachAccessoryFromWindowController
+{
+	if (accessoryTrackingArea) {
+		[[[self window] contentView] removeTrackingArea:accessoryTrackingArea];
+	}
+	[accessoryView detachFromWindowController];
 }
 
 -(id)accessoryView

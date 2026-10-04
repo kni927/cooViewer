@@ -1672,3 +1672,52 @@ per window), L7, L9.
 **Still open:** M1, M3–M6, M8–M12, L2–L5, L8, L11. The most visible are the
 RAR link miscount (M6, reproduced: pages shift after a symlink in RAR5
 archives) and Save Image… onto its own source deleting the original (M1).
+
+---
+
+## 42. ~~Auto-hidden page number sometimes never comes back~~ — FIXED (2026-10-04)
+
+Reported by the owner, not reliably reproducible: with `PageNumAutoHide`
+on, the page number sometimes did not appear at all and moving the mouse did
+not bring it back; turning auto-hide off showed it, and it often came back
+on its own later.
+
+`autoHidedPageString` is cleared in exactly one place,
+`-[AccessoryView mouseMoved:]`. Found by reading; three independent ways for
+that method never to run, or to run and do nothing:
+
+1. **Gated on the page bar.** The whole method sat behind
+   `[controller indicator]`, which is `ShowPageBar` — the page bar's own
+   on/off switch (menu item and key action 20), not "accessories on". With
+   the page bar switched off, the page number (and the separate resolution
+   bar) never came back. Deterministic.
+2. **Key window only.** The method was reached through
+   `-[CustomWindow mouseMoved:]` → `-[CustomImageView mouseMoved:]`, i.e.
+   window mouse-moved events, which AppKit sends to the first responder of
+   the key window. Over a cooViewer window that is not key (another book
+   window, or a panel, is key) or while another app is active (a second
+   display, a fullscreen Space), moving the mouse did nothing until a click
+   made the window key — "it fixes itself later". (AppKit's documented
+   routing; not reproduced against the pre-fix build.)
+3. **The kept last window lost its outlets.** `-windowWillClose:` called
+   `-[AccessoryView detachFromWindowController]` (#36) on every close, but
+   the registry keeps the last window and reuses it with the same
+   controller for the next open — reachable when the last window closes
+   before any book was shown (closing the empty launch window, or a first
+   open that fails, e.g. a cancelled password). From then on `controller`
+   and `imageView` stayed nil in that window: no page number, no page bar,
+   no reaction to the mouse, for the rest of the run.
+
+**Fix.** (1) The page-number/resolution part of `-mouseMoved:` no longer
+depends on `[controller indicator]`; the page bar's own drawing still does.
+(2) `CustomImageView` installs an `NSTrackingArea` on the window's content
+view (`NSTrackingMouseMoved | NSTrackingActiveAlways |
+NSTrackingInVisibleRect`) owned by the `AccessoryView`; it is now the only
+route to `-[AccessoryView mouseMoved:]`, so each movement is handled once,
+key window or not. (3) The detach (and the tracking area's removal) happens
+only when `-[AppController retireWindowController:]` actually retires the
+controller.
+
+Keyboard page turns, page-number input and opening a book still do not
+show an auto-hidden page number; that is the existing design (shown on
+mouse movement, hidden 2 s after it stops) and was left unchanged.
