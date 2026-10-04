@@ -1845,3 +1845,37 @@ nothing said. The stand-in was never what a broken page showed, so removing
 it changes nothing for books with pages. An encryption the format cannot
 decrypt no longer ends the open as a cancel would (`mode` -1); it ends as a
 book with no pages, so it is reported instead of failing silently.
+
+## The archive read of a book being opened is asynchronous; nested reads stay synchronous (2026-10-04)
+
+**Decision:** `-[BookWindowController openPage:last:]` builds its loader
+with `deferArchiveRead:YES`. The archive read runs on a global queue
+(`-[COImageLoader readArchive]`); the window shows a window-modal progress
+sheet only if the read takes more than 150 ms, with no modal session; the
+rest of the open (`-finishArchiveRead`, the password check,
+`-openPageWithLoader:`) continues on the main thread in the default and
+modal-panel run-loop modes. Every open ends in exactly one of success,
+failure, cancel, window close or quit, and each ending goes through
+`-openDidEnd`, which clears `bookLoadInFlight`, `restoredBookOpening` and the
+deferred-show flag; `bookLoadInFlight` stays set through the read, so the
+existing "refuse a second open into a busy window" gates are unchanged.
+A quit asks `-[AppController cancelPendingOpensForTermination]` (formerly
+`-cancelPasswordPrompts`), which now also cancels loads; nothing of a
+cancelled book is persisted. A window that is not on screen yet stays
+hidden until the open succeeds, the progress sheet is shown, or a password
+sheet needs it; a never-shown window that fails stays hidden and registered,
+like a cancelled password prompt. Restored windows are exempt from that
+deferral. The launch drain's deadline is pushed while a restored window's
+read is in flight. Archives nested in an archive, archives inside a folder or
+saved-search book, and the nested password prompt keep the synchronous path
+and its modal progress session.
+
+**Why:** KNOWN_ISSUES #33's loading half and #20 case 3 (owner task,
+2026-10-04, B1). It is the continuation-passing shape the password prompt
+already uses ("The archive password prompt is window-modal…"), extended one
+step earlier. Continuations do not run in the event-tracking mode, so a menu
+being tracked never sees a book change under it; the modal-panel mode is
+kept because the All Bookmarks browser's Open button starts an open while its
+own modal session is up. Making nested reads asynchronous would mean
+splitting `-checkArchiveContainer:` and the nested prompt, which decision 3
+of the password entry already declined.

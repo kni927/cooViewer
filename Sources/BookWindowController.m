@@ -938,7 +938,7 @@ static NSPoint gNextWindowCascadePoint;
 	/* v1.6.x: the shared give-up funnel for a bad archive or a cancelled
 	   password — whichever -openPage:last: this open started with, it
 	   ends here rather than at the success tail. */
-	bookLoadInFlight = NO;
+	[self openDidEnd];
 	[newImageLoader release];
 	[self restoreBookIdentityAfterAbandonedOpen];
 	if ([self hasBookOpen]) {
@@ -954,9 +954,14 @@ static NSPoint gNextWindowCascadePoint;
 			   failed open into quit-on-last-close whenever it is the only
 			   window and a book was read earlier in the session — a state
 			   that did not exist before File ▸ New Window. */
-		} else if (closeWindow) {
+		} else if (closeWindow && [[self window] isVisible]) {
 			[[self window] performClose:self];
 		} else {
+			/* Also where a window this open never showed ends up (KNOWN_ISSUES
+			   #30): it was kept hidden until the book could be shown, so there
+			   is nothing on screen to close. It stays registered and bookless,
+			   the state a cancelled password leaves, and the next open reuses
+			   it. Not closing it also keeps it out of quit-on-last-close. */
 			[[self window] orderOut:self];
 		}
 	}
@@ -1084,7 +1089,10 @@ static NSString * const kBookViewModeKey = @"cooViewerBookViewMode";
 	/* KNOWN_ISSUES #33 added the fourth case: a restored book that turned out
 	   to be encrypted is not finished while its password sheet is up. It
 	   outlives -openRestoredBook now, because that method returns as soon as
-	   the sheet is on screen instead of blocking until the book is open. */
+	   the sheet is on screen instead of blocking until the book is open.
+	   #33's loading half made the third case outlive it too: an archive is
+	   read asynchronously, and restoredBookOpening stays set until the open
+	   ends. */
 	return (restorationInFlight || restoredBookPending || restoredBookOpening
 			|| [self isWaitingForUserInput]);
 }
@@ -1250,8 +1258,10 @@ static NSString * const kBookViewModeKey = @"cooViewerBookViewMode";
 	restoredBookPending = NO;
 	restoredPage = 0;
 	restoredFitScreenMode = 0;
-	/* KNOWN_ISSUES #32: cleared once the open below has returned, so a Finder
-	   request held for this launch is not drained into the middle of it. */
+	/* KNOWN_ISSUES #32: cleared when the open below ends (-openDidEnd), so a
+	   Finder request held for this launch is not drained into the middle of
+	   it. Since KNOWN_ISSUES #33's loading half that can be well after
+	   -openPage:last: has returned: an archive is read asynchronously. */
 	restoredBookOpening = YES;
 
 	/* View mode before the book, so the spread is composed once, in the mode
@@ -1266,17 +1276,14 @@ static NSString * const kBookViewModeKey = @"cooViewerBookViewMode";
 
 	[self setCurrentBookPathAndOldBookPath:path];
 
-	/* Restoration knows which page it wants, so -openPage:last:'s "go to the
-	   last page?" handling — which only triggers on page 0, and can put up a
-	   modal alert — must not run: the page it would offer is the one being
-	   restored anyway. goToLastPageMode is read by -openPage:last: alone,
-	   and is put back from the preference straight afterwards. */
-	int savedGoToLastPageMode = goToLastPageMode;
-	goToLastPageMode = 2;
+	/* Restoration knows which page it wants, so the open's "go to the last
+	   page?" handling — which only triggers on page 0, and can put up a modal
+	   alert — must not run: the page it would offer is the one being restored
+	   anyway. -openPageWithLoader:... skips it while restoredBookOpening is
+	   set. (This used to set goToLastPageMode to 2 around the call and put it
+	   back afterwards, which only worked while the whole open ran inside the
+	   call.) */
 	[self openPage:page last:NO];
-	goToLastPageMode = savedGoToLastPageMode;
-
-	restoredBookOpening = NO;
 }
 
 #pragma mark -
@@ -1313,7 +1320,20 @@ static NSString * const kBookViewModeKey = @"cooViewerBookViewMode";
 	   the `bookLoadInFlight` ivar comment in the header. */
 	bookLoadInFlight = YES;
 
-	[[self window] makeKeyAndOrderFront:self];
+	/* KNOWN_ISSUES #30/#33: a window that is not on screen yet — a new
+	   window, or the hidden one the registry keeps — is shown only once
+	   there is something to show (see `openShowDeferred` in the header), so
+	   a book that cannot be opened does not flash a window up and close it
+	   again. A window already on screen is brought forward now, as always,
+	   and so is a restored window, so that restored windows keep coming
+	   forward in the order their books are opened. */
+	NSWindow *bookWindow = [self window];
+	openShowDeferred = (!restoredBookOpening
+						&& ![bookWindow isVisible]
+						&& ![bookWindow isMiniaturized]);
+	if (!openShowDeferred) {
+		[bookWindow makeKeyAndOrderFront:self];
+	}
 
 	[progressIndicator startAnimation:self];
 	[progressIndicator displayIfNeeded];
@@ -1358,13 +1378,41 @@ static NSString * const kBookViewModeKey = @"cooViewerBookViewMode";
 	   can be a sheet this window owns rather than a modal loop the whole
 	   application sits in. The rest of the open then happens in
 	   -openPageWithLoader:page:last:fromFileName:, either directly below or
-	   from the sheet's completion handler. */
+	   from the sheet's completion handler.
+
+	   KNOWN_ISSUES #33, the loading half: `deferArchiveRead` likewise — an
+	   archive book is not read inside this initializer. The read runs on a
+	   worker thread with no modal session (-beginArchiveLoadForLoader:...),
+	   and the open resumes at -continueOpenWithLoader:... when it is done.
+	   A folder, saved search or PDF is listed here as before, and goes on to
+	   the same continuation directly. */
 	COImageLoader *newImageLoader = [[COImageLoader alloc] initWithPath:currentBookPath
 															displayPath:currentBookPath
 														  readSubFolder:readSubFolder
 															 controller:self
-													deferPasswordPrompt:YES];
+													deferPasswordPrompt:YES
+													   deferArchiveRead:YES];
 
+	if (newImageLoader && [newImageLoader needsArchiveRead]) {
+		[self beginArchiveLoadForLoader:newImageLoader
+								   page:page
+								   last:last
+						   fromFileName:fromFileName];
+		return;
+	}
+
+	[self continueOpenWithLoader:newImageLoader page:page last:last fromFileName:fromFileName];
+}
+
+/* The open once the book has been read: an encrypted archive asks for its
+   password first (KNOWN_ISSUES #33), anything else goes straight on. The loader
+   and `fromFileName` are owned by the open, as for
+   -openPageWithLoader:page:last:fromFileName:. */
+- (void)continueOpenWithLoader:(COImageLoader *)newImageLoader
+						  page:(int)page
+						  last:(BOOL)last
+				  fromFileName:(NSString *)fromFileName
+{
 	if (newImageLoader && [newImageLoader needsPassword]) {
 		[self askPasswordForLoader:newImageLoader
 							  page:page
@@ -1375,6 +1423,32 @@ static NSString * const kBookViewModeKey = @"cooViewerBookViewMode";
 	}
 
 	[self openPageWithLoader:newImageLoader page:page last:last fromFileName:fromFileName];
+}
+
+/* Every open ends in exactly one of five ways — it succeeds, the book cannot be
+   opened, it is cancelled (the read or the password prompt), its window is
+   closed, or a quit takes it down — and each of them comes through here, from
+   the success tail of -openPageWithLoader:..., from -abandonOpenWithLoader:...
+   (failure, cancel and quit), or from -windowWillClose:. The per-open flags
+   are cleared in this one place so that none of the five can leave one set. */
+- (void)openDidEnd
+{
+	bookLoadInFlight = NO;
+	restoredBookOpening = NO;
+	openShowDeferred = NO;
+}
+
+/* Puts a window on screen that this open has kept hidden so far (see
+   `openShowDeferred`). Called when the open succeeds, when its load is slow
+   enough for the progress sheet, and before a password sheet, each of which
+   needs the window. */
+- (void)showWindowForOpenIfNeeded
+{
+	if (!openShowDeferred) {
+		return;
+	}
+	openShowDeferred = NO;
+	[[self window] makeKeyAndOrderFront:self];
 }
 
 /* A book that cannot be opened at all, and why: a solid RAR4, refused at open
@@ -1439,7 +1513,12 @@ static NSString * const kBookViewModeKey = @"cooViewerBookViewMode";
 					   fromFileName:fromFileName
 						closeWindow:YES];
 		return;
-	} else if ([self hasBookOpen]) {
+	}
+	/* The book opens: a window this open has kept hidden comes on screen now,
+	   before the "Go to the last page?" alert below and before the first page
+	   is composed for it. */
+	[self showWindowForOpenIfNeeded];
+	if ([self hasBookOpen]) {
 		/*ウィンドウを開いてたら準備する*/
 		//currentBookPathではなくoldBookPath
 		//currentBookNameではなくoldBookName
@@ -1508,7 +1587,13 @@ static NSString * const kBookViewModeKey = @"cooViewerBookViewMode";
 	NSData *aliasData = currentBookAlias;
 	
 	/*goto lastpage?*/
-	if (goToLastPageMode<2 && !last && page == 0) {
+	/* Not for a book window restoration brought back: it knows which page it
+	   wants, and the page this would offer is that one anyway. Keyed on
+	   restoredBookOpening, which lasts as long as the open does, because the
+	   open can now resume long after -openRestoredBook has returned (an
+	   archive read, a password sheet). */
+	int lastPageMode = restoredBookOpening ? 2 : goToLastPageMode;
+	if (lastPageMode<2 && !last && page == 0) {
 		id object = [appController searchFromRecentItems:currentBookPath index:nil];
 		if (object) {
 			page = [[object objectForKey:@"page"] intValue];
@@ -1519,7 +1604,7 @@ static NSString * const kBookViewModeKey = @"cooViewerBookViewMode";
 				page = [[object objectForKey:@"page"] intValue];
 			}
 		}
-		if (goToLastPageMode==0 && page) {
+		if (lastPageMode==0 && page) {
 			NSAlert *alert = [[[NSAlert alloc] init] autorelease];
 			[alert setMessageText:NSLocalizedString(@"Go to the last page",@"")];
 			[alert setInformativeText:[NSString stringWithFormat:NSLocalizedString(@"Do you want to go to %i page?",@""),page+1]];
@@ -1645,8 +1730,9 @@ static NSString * const kBookViewModeKey = @"cooViewerBookViewMode";
 	   before the display pass, since -imageDisplay is what used to make the
 	   old [imageView image] test start answering YES. */
 	bookOpen = YES;
-	/* v1.6.x: the load this -openPage:last: started has finished. */
-	bookLoadInFlight = NO;
+	/* v1.6.x: the load this -openPage:last: started has finished. Not the
+	   very end of the method, but nothing below can start another open. */
+	[self openDidEnd];
 	/* MW-8: and this is the book window restoration will bring back. Made
 	   here, once per open, rather than in -encodeRestorableStateWithCoder:,
 	   which runs again after every page turn. */
@@ -1748,10 +1834,243 @@ static NSString * const kBookViewModeKey = @"cooViewerBookViewMode";
 - (IBAction)cancelArchiveLoad:(id)sender
 {
 	/* Unambiguous by construction: the sheet belongs to exactly one load,
-	 * and the flag it sets is read only by that load's progress callback. */
+	 * and the flag it sets is read only by that load's progress callback.
+	 * An asynchronous load (KNOWN_ISSUES #33) is also told through its own
+	 * loader; pendingArchiveLoader is nil for the synchronous path. */
 	atomic_store(&archiveLoadCancelled, 1);
+	[pendingArchiveLoader cancelArchiveRead];
 	[archiveProgressLabel setStringValue:NSLocalizedString(@"Cancelling…", @"")];
 	[archiveProgressCancelButton setEnabled:NO];
+}
+
+#pragma mark asynchronous archive load (KNOWN_ISSUES #33)
+
+/* The run-loop modes an open resumes in. The default mode, and the modal-panel
+   mode so that a book opened from inside an application-modal session (the All
+   Bookmarks browser's Open button, which leaves the browser up) still finishes
+   while that session runs, as it did when the whole open ran inside it. Not
+   the event-tracking mode: the open does not resume in the middle of a menu
+   being tracked or a window being resized, but straight after. Main-queue
+   blocks alone would run in all three. */
+static NSArray *COOpenResumeModes(void)
+{
+	return [NSArray arrayWithObjects:NSDefaultRunLoopMode, NSModalPanelRunLoopMode, nil];
+}
+
+/* Runs `block` on the main thread in COOpenResumeModes(), on a later pass than
+   the current one. Callable from any thread. */
+static void COPerformOpenStep(void (^block)(void))
+{
+	dispatch_async(dispatch_get_main_queue(), ^{
+		[[NSRunLoop mainRunLoop] performInModes:COOpenResumeModes() block:block];
+		CFRunLoopWakeUp(CFRunLoopGetMain());
+	});
+}
+
+/* KNOWN_ISSUES #33, the loading half. The archive of the book this window is
+   opening is read on a worker thread, and no modal session runs while it is:
+   the other windows can be raised, paged and driven from the menus throughout.
+   The open is continuation-passing, as the password prompt's already is — the
+   read's completion resumes it at -continueOpenWithLoader:..., exactly where
+   -openPage:last: would have gone on had the read been inline.
+
+   A read that is still running after 150 ms gets the progress sheet, as before
+   (a ZIP or non-solid RAR reads only its directory and never gets one). The
+   sheet is window-modal and nothing more: its Cancel button (Esc) cancels the
+   read, and the open then ends as a cancelled read always has. A quit cancels
+   it the same way (-cancelArchiveLoadForTermination). Closing the window
+   cancels it and drops the open (-windowWillClose:). While it runs,
+   bookLoadInFlight keeps this window out of every other open, as before
+   (-refuseOpenWhileBusy, and AppController's routing gate).
+
+   The block captures — and so retains — the loader, `fromFileName` and self
+   for as long as the read runs, which is the lifetime they need. */
+- (void)beginArchiveLoadForLoader:(COImageLoader *)loader
+							 page:(int)page
+							 last:(BOOL)last
+					 fromFileName:(NSString *)fromFileName
+{
+	archiveLoadInFlight = YES;
+	archiveLoadQuitting = NO;
+	pendingArchiveLoader = loader;
+	atomic_store(&archiveLoadCancelled, 0);
+	atomic_store(&archiveLoadDone, 0);
+	atomic_store(&archiveLoadTotal, 0);
+	unsigned int token = ++archiveLoadToken;
+	unsigned int closeCountAtStart = windowCloseCount;
+
+	dispatch_async(dispatch_get_global_queue(QOS_CLASS_USER_INITIATED, 0), ^{
+		[loader readArchive];
+		COPerformOpenStep(^{
+			[self archiveLoadDidFinishWithLoader:loader
+											page:page
+											last:last
+									fromFileName:fromFileName
+										   token:token
+									  closeCount:closeCountAtStart];
+		});
+	});
+
+	[self performSelector:@selector(presentArchiveProgressSheetForLoad:)
+			   withObject:[NSNumber numberWithUnsignedInt:token]
+			   afterDelay:0.15
+				  inModes:COOpenResumeModes()];
+}
+
+/* Whether the load a completion or a delayed step belongs to is still this
+   window's current one: the window has not been closed since it started (a
+   close drops the load, and the registry may since have reused the window for
+   another open) and no other load has started. */
+- (BOOL)isCurrentArchiveLoad:(unsigned int)token closeCount:(unsigned int)closeCountAtStart
+{
+	return (archiveLoadInFlight
+			&& token == archiveLoadToken
+			&& windowCloseCount == closeCountAtStart);
+}
+
+- (void)presentArchiveProgressSheetForLoad:(NSNumber *)token
+{
+	if (!archiveLoadInFlight || archiveLoadQuitting || archiveProgressSheetShown
+		|| [token unsignedIntValue] != archiveLoadToken) {
+		return;
+	}
+	/* A slow load is worth showing the window for: the sheet is what says
+	   something is happening, and its Cancel button is the way out. */
+	[self showWindowForOpenIfNeeded];
+	if (![self canPresentSheet]) {
+		/* Miniaturized: the read carries on without a sheet. */
+		return;
+	}
+	if ([[self window] attachedSheet] != nil) {
+		/* An earlier sheet on this window — the "Cannot open" alert of a
+		   previous open — is still up. Try again once it may have gone. */
+		[self performSelector:_cmd withObject:token afterDelay:0.15 inModes:COOpenResumeModes()];
+		return;
+	}
+
+	[self buildArchiveProgressSheet];
+	[archiveProgressBar setIndeterminate:YES];
+	[archiveProgressBar setDoubleValue:0.0];
+	[archiveProgressCancelButton setEnabled:YES];
+	NSString *name = [[pendingArchiveLoader displayPath] lastPathComponent];
+	[archiveProgressLabel setStringValue:
+		[NSString stringWithFormat:NSLocalizedString(@"Opening “%@”…", @""),
+			name ? name : @""]];
+
+	[[self sheetParentWindow] beginSheet:archiveProgressSheet
+					   completionHandler:^(NSModalResponse r) { (void)r; }];
+	[archiveProgressBar startAnimation:self];
+	archiveProgressSheetShown = YES;
+
+	/* The run loop retains the timer, and the timer this object; both are let
+	   go by -endArchiveProgressSheet, which every end of the load reaches. */
+	archiveProgressTimer = [NSTimer timerWithTimeInterval:0.05
+												   target:self
+												 selector:@selector(refreshArchiveProgress:)
+												 userInfo:nil
+												  repeats:YES];
+	[[NSRunLoop currentRunLoop] addTimer:archiveProgressTimer forMode:NSRunLoopCommonModes];
+	[self refreshArchiveProgress:nil];
+}
+
+/* Takes the asynchronous load's progress sheet down, if it is up, and stops
+   its timer. Answers whether there was a sheet. */
+- (BOOL)endArchiveProgressSheet
+{
+	[archiveProgressTimer invalidate];
+	archiveProgressTimer = nil;
+	if (!archiveProgressSheetShown) {
+		return NO;
+	}
+	archiveProgressSheetShown = NO;
+	[archiveProgressBar stopAnimation:self];
+	[[self sheetParentWindow] endSheet:archiveProgressSheet];
+	[archiveProgressSheet orderOut:self];
+	return YES;
+}
+
+/* The read has returned (finished, failed or cancelled), on the main thread. */
+- (void)archiveLoadDidFinishWithLoader:(COImageLoader *)loader
+								  page:(int)page
+								  last:(BOOL)last
+						  fromFileName:(NSString *)fromFileName
+								 token:(unsigned int)token
+							closeCount:(unsigned int)closeCountAtStart
+{
+	if (![self isCurrentArchiveLoad:token closeCount:closeCountAtStart]) {
+		/* The window was closed during the read. -windowWillClose: has already
+		   put the book identity back, taken the sheet down and cleared the
+		   load's state — and by now the window may be running another open,
+		   whose state that is. Only what this open owns is dropped. */
+		[self discardPendingOpen:loader fromFileName:fromFileName];
+		return;
+	}
+
+	if (![self endArchiveProgressSheet]) {
+		[self resumeOpenAfterArchiveReadWithLoader:loader page:page last:last fromFileName:fromFileName];
+		return;
+	}
+	/* AppKit is still taking the progress sheet down, and the open may need
+	   to attach another one straight away — a password prompt, a "Cannot
+	   open" alert, or a nested archive's own progress sheet. Resume on a later
+	   pass, as the password re-ask does. archiveLoadInFlight stays YES across
+	   the gap, so the window's identity is still the pending open's to a close
+	   or a quit landing in it. */
+	COPerformOpenStep(^{
+		if (![self isCurrentArchiveLoad:token closeCount:closeCountAtStart]) {
+			[self discardPendingOpen:loader fromFileName:fromFileName];
+			return;
+		}
+		[self resumeOpenAfterArchiveReadWithLoader:loader page:page last:last fromFileName:fromFileName];
+	});
+}
+
+- (void)resumeOpenAfterArchiveReadWithLoader:(COImageLoader *)loader
+										page:(int)page
+										last:(BOOL)last
+								fromFileName:(NSString *)fromFileName
+{
+	BOOL quitting = archiveLoadQuitting;
+	archiveLoadInFlight = NO;
+	archiveLoadQuitting = NO;
+	pendingArchiveLoader = nil;
+
+	if (quitting) {
+		/* A quit cancelled this read, and the process is still here — it is
+		   between the quit's two passes, or the quit did not go ahead. Ends as
+		   a cancel, without the alert a failed read would get: nothing of this
+		   book was persisted, and nothing is now. */
+		[self abandonOpenWithLoader:loader fromFileName:fromFileName closeWindow:NO];
+		return;
+	}
+
+	/* Lists the entries — a cancelled read leaves the book not opened, which
+	   -openPageWithLoader:... ends silently — and may open nested archives,
+	   which still read synchronously (-runArchiveLoadNamed:usingBlock:). */
+	[loader finishArchiveRead];
+	[self continueOpenWithLoader:loader page:page last:last fromFileName:fromFileName];
+}
+
+- (BOOL)cancelArchiveLoadForTermination
+{
+	if (!archiveLoadInFlight) {
+		return NO;
+	}
+	archiveLoadQuitting = YES;
+	atomic_store(&archiveLoadCancelled, 1);
+	[pendingArchiveLoader cancelArchiveRead];
+	BOOL dismissedSheet = [self endArchiveProgressSheet];
+	/* A window shown only for this open has nothing in it to come back to:
+	   ordered out, it is not saved as a restorable window either. */
+	if (![self hasBookOpen] && !shownWithoutBook) {
+		[[self window] orderOut:self];
+	}
+	return dismissedSheet;
+}
+
+- (BOOL)isLoadingRestoredBook
+{
+	return (restoredBookOpening && archiveLoadInFlight);
 }
 
 - (void)refreshArchiveProgress:(id)sender
@@ -1775,8 +2094,15 @@ static NSString * const kBookViewModeKey = @"cooViewerBookViewMode";
 {
 	/* Nested load (an archive inside an archive), or no window to hang a
 	 * sheet on: run it inline. This is what every load did before MW-1,
-	 * minus the event pump — it blocks, but it cannot swallow input. */
-	if (archiveLoadDepth > 0 || ![self canPresentSheet]) {
+	 * minus the event pump — it blocks, but it cannot swallow input.
+	 *
+	 * KNOWN_ISSUES #33: the book a window opens no longer comes through here
+	 * (see -beginArchiveLoadForLoader:...); what does is an archive its
+	 * listing opens — nested in an archive, or inside a folder or saved
+	 * search — and that keeps this synchronous path and its modal session.
+	 * A window that open has kept hidden (`openShowDeferred`) counts as one a
+	 * sheet can be hung on: it is shown below if the load turns out slow. */
+	if (archiveLoadDepth > 0 || (![self canPresentSheet] && !openShowDeferred)) {
 		archiveLoadDepth++;
 		block();
 		archiveLoadDepth--;
@@ -1803,6 +2129,14 @@ static NSString * const kBookViewModeKey = @"cooViewerBookViewMode";
 	 * path behaving exactly as it did before MW-1. */
 	dispatch_time_t grace = dispatch_time(DISPATCH_TIME_NOW, 150ull * NSEC_PER_MSEC);
 	if (dispatch_semaphore_wait(done, grace) == 0) {
+		dispatch_release(done);
+		archiveLoadDepth--;
+		return;
+	}
+
+	[self showWindowForOpenIfNeeded];
+	if (![self canPresentSheet]) {
+		dispatch_semaphore_wait(done, DISPATCH_TIME_FOREVER);
 		dispatch_release(done);
 		archiveLoadDepth--;
 		return;
@@ -1936,6 +2270,8 @@ static NSString * const kBookViewModeKey = @"cooViewerBookViewMode";
 				fromFileName:(NSString *)fromFileName
 			   wrongPassword:(BOOL)wrong
 {
+	/* A window this open has kept hidden is the sheet's parent: show it. */
+	[self showWindowForOpenIfNeeded];
 	if (![self canPresentSheet]) {
 		/* No window to hang a sheet on — the same fallback the rest of this
 		   class uses. Ask inline and finish the open right here. */
@@ -2053,10 +2389,11 @@ static NSString * const kBookViewModeKey = @"cooViewerBookViewMode";
 	return YES;
 }
 
-/* The window went away while its password prompt was in flight: drop what the
-   pending open owns. Deliberately touches nothing else. -windowWillClose: has
-   already torn the window down, put its book identity back, stopped the
-   spinner and cleared passwordOpenInFlight/bookLoadInFlight — and by the time
+/* The window went away while its password prompt or its archive read was in
+   flight: drop what the pending open owns. Deliberately touches nothing else.
+   -windowWillClose: has already torn the window down, put its book identity
+   back, stopped the spinner and cleared passwordOpenInFlight/bookLoadInFlight
+   (and the read's own state) — and by the time
    this runs the registry may have reused the window for a newer open, whose
    flags and spinner those now are. */
 - (void)discardPendingOpen:(COImageLoader *)loader fromFileName:(NSString *)fromFileName
@@ -3732,8 +4069,24 @@ static const NSInteger kBookmarkMenuFixedItemCount = 3;
 	   close button and Cmd+W are blocked while a sheet is attached, and a quit
 	   cancels the prompt first, so this is a programmatic close only.) */
 	windowCloseCount++;
-	if (passwordOpenInFlight && [[self window] attachedSheet] != nil) {
+	/* KNOWN_ISSUES #33, the loading half: the same holds for an archive read in
+	   flight, for the whole of archiveLoadInFlight — the identity is the
+	   pending open's until the read has handed the open back. The read is told
+	   to stop, its sheet comes down, and its completion, seeing the count has
+	   moved, drops only what it owns (-archiveLoadDidFinishWithLoader:...).
+	   Unlike a password sheet, this can be a user's close: in the moment
+	   before the progress sheet appears, the window takes Cmd+W. */
+	if ((passwordOpenInFlight && [[self window] attachedSheet] != nil)
+		|| archiveLoadInFlight) {
 		[self restoreBookIdentityAfterAbandonedOpen];
+	}
+	if (archiveLoadInFlight) {
+		atomic_store(&archiveLoadCancelled, 1);
+		[pendingArchiveLoader cancelArchiveRead];
+		[self endArchiveProgressSheet];
+		archiveLoadInFlight = NO;
+		archiveLoadQuitting = NO;
+		pendingArchiveLoader = nil;
 	}
 	passwordOpenInFlight = NO;
 	/* Whatever open this window was running is over; a window the registry
@@ -3745,8 +4098,10 @@ static const NSInteger kBookmarkMenuFixedItemCount = 3;
 	/* v1.6.x: defensive, matching passwordOpenInFlight above — a closed
 	   window must never keep reading as mid-load. -abandonOpenWithLoader:/
 	   -discardPendingOpen: already clear this on their own exits; this
-	   covers a close that lands while neither has run yet. */
-	bookLoadInFlight = NO;
+	   covers a close that lands while neither has run yet. -openDidEnd
+	   clears the rest of the open's state with it: a restored book whose
+	   window is closed is not going to finish opening. */
+	[self openDidEnd];
 
 	/* Was a bare [lock lock]/[lock unlock] pair, which waits only for a
 	   lookahead that is already *inside* the body. A thread detached a

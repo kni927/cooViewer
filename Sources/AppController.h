@@ -133,11 +133,13 @@ extern NSString * const CooViewerBookWindowRestorationIdentifier;
  * rather than at First Responder — see the .m. */
 - (IBAction)allBookmarks:(id)sender;
 - (IBAction)preferences:(id)sender;
-/* Takes down every window's archive password prompt, answering whether there
- * was one. Called from -[COApplication terminate:], which has to clear them
+/* Takes down every window's archive password prompt and cancels every
+ * window's archive load (KNOWN_ISSUES #33), answering whether a sheet was taken
+ * down. Called from -[COApplication terminate:], which has to clear them
  * before AppKit's -terminate: runs: AppKit refuses to terminate while a sheet
- * is attached, and never reaches -applicationShouldTerminate:. */
-- (BOOL)cancelPasswordPrompts;
+ * is attached, and never reaches -applicationShouldTerminate:. Also called
+ * from the AppleEvent quit handler and -applicationShouldTerminate:. */
+- (BOOL)cancelPendingOpensForTermination;
 /* KNOWN_ISSUES #20 case 1. Ends the All Bookmarks browser's application-modal
  * session, saving its edits as OK does, and answers whether there was one.
  * Called from -[COApplication terminate:] and the AppleEvent quit handler; a

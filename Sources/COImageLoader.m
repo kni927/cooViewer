@@ -4,6 +4,8 @@
 
 @interface COImageLoader(private)
 -(void)content;
+-(COArchive *)newArchiveContainer;
+-(void)finishArchiveOpen;
 -(BOOL)checkArchiveContainer:(int)index;
 -(NSString *)uncompressEntry:(NSUInteger)index named:(NSString *)fileName duplicate:(BOOL)duplicate;
 -(BOOL)unlockEncryptedArchive;
@@ -60,12 +62,21 @@ static NSArray *_COImageLoader_archiveTypes=nil;
 
 - (id)initWithPath:(NSString *)path displayPath:(NSString *)dispPath readSubFolder:(BOOL)boo controller:(id)ctr deferPasswordPrompt:(BOOL)defer;
 {
+	return [self initWithPath:path displayPath:dispPath readSubFolder:boo controller:ctr
+		  deferPasswordPrompt:defer deferArchiveRead:NO];
+}
+
+- (id)initWithPath:(NSString *)path displayPath:(NSString *)dispPath readSubFolder:(BOOL)boo controller:(id)ctr deferPasswordPrompt:(BOOL)defer deferArchiveRead:(BOOL)deferRead
+{
 
 	self = [super init];
     if (self) {
 		controller = ctr;
 		deferPasswordPrompt = defer;
 		needsPassword = NO;
+		deferArchiveRead = deferRead;
+		needsArchiveRead = NO;
+		atomic_store(&archiveReadCancelled, 0);
 		tempDir = nil;
 		inTempDir = NO;
 		inArchiveArray = [[NSMutableArray alloc] init];
@@ -413,6 +424,37 @@ static NSArray *_COImageLoader_archiveTypes=nil;
 {
 	inTempDir = b;
 }
+
+#pragma mark deferred archive read (KNOWN_ISSUES #33)
+
+- (BOOL)needsArchiveRead
+{
+	return needsArchiveRead;
+}
+
+- (void)readArchive
+{
+	if (!needsArchiveRead || archiveContainer) return;
+	/* A worker thread has no autorelease pool of its own to rely on for the
+	   temporaries of a read that can hold the whole archive in memory. */
+	@autoreleasepool {
+		archiveContainer = [self newArchiveContainer];
+	}
+}
+
+- (void)finishArchiveRead
+{
+	if (!needsArchiveRead) return;
+	needsArchiveRead = NO;
+	/* Back to the archive mode -content set before it deferred the read. */
+	mode = 2;
+	[self finishArchiveOpen];
+}
+
+- (void)cancelArchiveRead
+{
+	atomic_store(&archiveReadCancelled, 1);
+}
 @end
 
 @implementation COImageLoader(private)
@@ -434,25 +476,30 @@ static NSArray *_COImageLoader_archiveTypes=nil;
 		
 	} else if([[COImageLoader archiveTypes] containsObject:[[filePath pathExtension] lowercaseString]]) {
 		mode=2;
-		COArchiveProgress progress = ^BOOL(long long done, long long total) {
-			if (controller && [controller respondsToSelector:@selector(archiveReadProgress:total:)])
-				return [controller archiveReadProgress:done total:total];
-			return YES;
-		};
+		/* KNOWN_ISSUES #33: the host reads the archive itself, off the main
+		 * thread and without a modal session (-readArchive, then
+		 * -finishArchiveRead). Nothing has been read, so nothing is open. */
+		if (deferArchiveRead) {
+			needsArchiveRead = YES;
+			mode = -1;
+			return;
+		}
 		/* The read is the expensive part of opening a book and the only
 		 * part that reports progress. Since MW-1 the host runs it off the
 		 * main thread behind a progress sheet (see
 		 * -[BookWindowController runArchiveLoadNamed:usingBlock:]) so it can no
 		 * longer freeze the UI or consume unrelated events. Hosts with no
 		 * controller — the QuickLook and Thumbnail extensions — keep the
-		 * plain synchronous read.
+		 * plain synchronous read. Since #33's loading half, the book a window
+		 * opens takes the deferred path above instead; this one is left to
+		 * nested archives and the archives inside a folder or saved search.
 		 *
 		 * Only the read moves. Everything after it, including
 		 * -checkArchiveContainer: and its password prompt, still runs on
 		 * the caller's (main) thread exactly as before. */
 		__block COArchive *opened = nil;
 		void (^readBlock)(void) = ^{
-			opened = [[COArchive alloc] initWithPath:filePath progress:progress];
+			opened = [self newArchiveContainer];
 		};
 		if (controller && [controller respondsToSelector:@selector(runArchiveLoadNamed:usingBlock:)]) {
 			[controller runArchiveLoadNamed:[displayPath lastPathComponent]
@@ -461,14 +508,7 @@ static NSArray *_COImageLoader_archiveTypes=nil;
 			readBlock();
 		}
 		archiveContainer = opened;
-		if (!archiveContainer || [archiveContainer cancelled] ||
-		    [archiveContainer refusedSolidRAR4]) {
-			mode = -1;
-			return;
-		}
-		if ([archiveContainer lastError])
-			NSLog(@"COImageLoader: %@: %@", filePath, [archiveContainer lastError]);
-		[self checkArchiveContainer:0];
+		[self finishArchiveOpen];
 		return;
 		
 	} else if([[filePath pathExtension] compare:@"savedSearch" options:NSCaseInsensitiveSearch] == NSOrderedSame){
@@ -549,6 +589,34 @@ static NSArray *_COImageLoader_archiveTypes=nil;
 		}
 	}
 	[contentPathArray sortUsingSelector:@selector(finderCompareS:)];
+}
+
+/* The archive read itself, shared by the inline path in -content and the
+ * deferred -readArchive. Returns a +1 COArchive (or nil). Reports progress to
+ * the controller from whatever thread this runs on; this loader's own
+ * -cancelArchiveRead stops it as well. */
+- (COArchive *)newArchiveContainer
+{
+	COArchiveProgress progress = ^BOOL(long long done, long long total) {
+		if (atomic_load(&archiveReadCancelled)) return NO;
+		if (controller && [controller respondsToSelector:@selector(archiveReadProgress:total:)])
+			return [controller archiveReadProgress:done total:total];
+		return YES;
+	};
+	return [[COArchive alloc] initWithPath:filePath progress:progress];
+}
+
+/* What follows the read, on the main thread: `mode` is 2 on entry. */
+- (void)finishArchiveOpen
+{
+	if (!archiveContainer || [archiveContainer cancelled] ||
+	    [archiveContainer refusedSolidRAR4]) {
+		mode = -1;
+		return;
+	}
+	if ([archiveContainer lastError])
+		NSLog(@"COImageLoader: %@: %@", filePath, [archiveContainer lastError]);
+	[self checkArchiveContainer:0];
 }
 
 /* Encrypted archive: try to make it readable.

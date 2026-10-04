@@ -126,6 +126,40 @@
 	NSTextField *archiveProgressLabel;
 	NSButton *archiveProgressCancelButton;
 
+	/* KNOWN_ISSUES #33, the loading half: the archive read of the book this
+	   window is opening runs without a modal session (see
+	   -beginArchiveLoadForLoader:page:last:fromFileName:).
+
+	   `archiveLoadInFlight` is YES from the moment the read is dispatched
+	   until the open is handed back to the main thread's continuation —
+	   including the run-loop pass between ending the progress sheet and
+	   resuming — or the load is dropped by a close. While it is YES the
+	   window's book identity (currentBookPath and the "old book" slot)
+	   belongs to the pending open. `archiveLoadToken` is bumped per load, so
+	   a delayed sheet presentation or a late completion can tell whether it
+	   still belongs to the current one. `pendingArchiveLoader` is an
+	   unretained handle (the open owns the loader) for cancelling the read.
+	   `archiveLoadQuitting` is set when a quit cancels the load: the open then
+	   ends silently, without an alert and without persisting anything.
+	   `archiveProgressTimer` refreshes the sheet's bar in every run-loop mode
+	   while it is up. */
+	BOOL archiveLoadInFlight;
+	unsigned int archiveLoadToken;
+	COImageLoader *pendingArchiveLoader;
+	BOOL archiveLoadQuitting;
+	BOOL archiveProgressSheetShown;
+	NSTimer *archiveProgressTimer;
+
+	/* YES while an open into a window that was not on screen when the open
+	   began has not shown it yet. Such a window is shown only once there is
+	   something to see: the open succeeded, the load is slow enough for the
+	   progress sheet, or a password sheet needs a parent. A book that fails
+	   before any of those leaves the window hidden, so a failed open into a
+	   new window shows no window at all (KNOWN_ISSUES #30's flash). Restored
+	   windows are exempt: they are shown at the start of the open as before,
+	   so the restored windows keep the order they are opened in. */
+	BOOL openShowDeferred;
+
     //IBOutlet id pageTextField;
 	
     IBOutlet id imageView;
@@ -232,8 +266,11 @@
 	   cleared at every exit -openPage:last: can reach: the success tail of
 	   -openPageWithLoader:page:last:fromFileName:, -abandonOpenWithLoader:
 	   fromFileName:closeWindow: (the shared failure/cancel funnel), and
-	   -windowWillClose: (window closed mid-password-wait; the prompt's
-	   -discardPendingOpen:fromFileName: then only drops what it owns).
+	   -windowWillClose: (window closed mid-password-wait or mid-read; the
+	   prompt's or the read's -discardPendingOpen:fromFileName: then only
+	   drops what it owns). Those three go through -openDidEnd, which clears
+	   the other per-open state with it. Since KNOWN_ISSUES #33's loading half
+	   this stays YES for the whole asynchronous archive read too.
 	   Read through -isBookLoadInFlight. */
 	BOOL bookLoadInFlight;
 
@@ -286,7 +323,11 @@
 	   answering, `restoredBookPending` from there until the book has
 	   actually been opened. `restoredBookOpening` covers the open itself,
 	   which -isRestoredBookUnfinished needs and the other two do not — see
-	   the comment on that method (KNOWN_ISSUES #32). */
+	   the comment on that method (KNOWN_ISSUES #32). It stays YES until
+	   that open ends, however it ends (-openDidEnd): the archive read is
+	   asynchronous now, so the open outlives -openRestoredBook, and it is
+	   also what tells -openPageWithLoader:... not to ask "Go to the last
+	   page?" for a restored book. */
 	NSURL *restoredBookURL;
 	BOOL restoredAccessStarted;
 	BOOL restorationInFlight;
@@ -384,9 +425,31 @@
  * does not consume events aimed at anything else. At the outermost level
  * the block is run on a background thread while the main thread drives a
  * modal progress sheet; nested calls run it inline. Called by
- * COImageLoader. `name` labels the sheet. */
+ * COImageLoader. `name` labels the sheet.
+ *
+ * KNOWN_ISSUES #33: since the loading half, the book a window opens does not
+ * come here — its loader defers the read and the window drives it without a
+ * modal session. This synchronous path is what is left for the archives a
+ * book's own listing opens: an archive nested in an archive, and an archive
+ * inside a folder or saved-search book. */
 - (void)runArchiveLoadNamed:(NSString *)name usingBlock:(void (^)(void))block;
 - (IBAction)cancelArchiveLoad:(id)sender;
+
+/* Cancels this window's archive load, if one is in flight, so that a quit can
+ * proceed: the read is told to stop, the progress sheet comes down, and the
+ * open ends silently whenever its read returns — or never, the process having
+ * exited — persisting nothing. Answers whether a sheet was taken down, in
+ * which case the quit has to wait a run-loop pass (see -[COApplication
+ * terminate:]). Called for every window from -[AppController
+ * cancelPendingOpensForTermination]. */
+- (BOOL)cancelArchiveLoadForTermination;
+
+/* YES while this window is reading the archive of a book window restoration
+ * brought back. -[AppController settleLaunch] keeps its deadline open for
+ * that: before #33's loading half the read ran in a modal session, which the
+ * launch drain's poll could not run inside, so the deadline could not expire
+ * in the middle of one. */
+- (BOOL)isLoadingRestoredBook;
 
 /* The window sheets raised on behalf of a load should attach to. One
  * window today; the seam exists so MW-5 can make it per-window. */
@@ -421,7 +484,7 @@
 
 /* Takes this window's password prompt down as a cancel, so that a quit can
  * proceed, answering whether there was one to take down. Called for every
- * window from -[AppController cancelPasswordPrompts]. */
+ * window from -[AppController cancelPendingOpensForTermination]. */
 - (BOOL)cancelPasswordPromptForTermination;
 
 

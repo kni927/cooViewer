@@ -703,7 +703,7 @@ clean-domain launch test.
 
 ---
 
-## 20. Cannot Quit While Modal Sheets Are Displayed (Multi-Window Arc, Phase 9) — CASE 1 FIXED (2026-10-04)
+## 20. Cannot Quit While Modal Sheets Are Displayed (Multi-Window Arc, Phase 9) — CASES 1 AND 3 FIXED (2026-10-04)
 
 *Also listed as #34 in the v1.6.0 release's known limitations; that block was
 folded into this entry on 2026-10-04.*
@@ -714,8 +714,8 @@ fix** as of v1.6.0 (`docs/DECISIONS.md`, "Quitting with a password prompt
 up needs an NSApplication subclass"), and `docs/release-notes-v1.6.0.md`
 lists them as known limitations. Task
 `docs/tasks/2026-10-04-03-cleanup-and-performance.md` reopened them: case 1
-is fixed (C2), case 2 is re-verified and kept, and case 3 belongs to that
-task's B1.
+is fixed (C2), case 2 is re-verified and kept, and case 3 is fixed for the
+book being opened (B1, #33).
 
 ### ~~Case 1: All Bookmark Browser (`runModalForWindow:`)~~ — FIXED (2026-10-04)
 
@@ -756,7 +756,12 @@ cancelled; the app does not stay open. Re-verified on device 2026-10-04
 converting it would require reworking nested-archive loading. The record of
 the deferral is `docs/tasks/2026-07-30-06-all-bookmark-entry-and-quit-with-sheet.md`.
 
-### Case 3: Archive-Load Progress Sheet
+### ~~Case 3: Archive-Load Progress Sheet~~ — FIXED FOR TOP-LEVEL BOOKS (2026-10-04)
+
+Fixed by #33's loading half: the load of the book being opened has no modal
+session any more, and a quit cancels it and quits at once. A nested or
+folder-inner archive load still uses the old modal session, where the
+description below still applies.
 
 When loading a large archive, a progress sheet may appear. Cmd+Q is
 swallowed (the `NSModalSession` consumes it). **However**, an AppleEvent
@@ -764,8 +769,7 @@ quit (e.g. `osascript -e 'tell app "cooViewer" to quit'`) works
 immediately.
 
 **Workaround:** Wait for the progress sheet to complete, or use an AppleEvent
-quit from the shell. Planned to be fixed by B1 of the 2026-10-04 cleanup and
-performance task, which replaces the modal session with a window-modal sheet.
+quit from the shell.
 
 ---
 
@@ -1271,10 +1275,10 @@ but `NotOpened` ends the open with "Cannot open "<name>"." and the reason —
 as a sheet on a window that stays on screen, otherwise as an
 application-modal alert, exactly as #39's refusal already did — before
 anything of the window's current book is torn down and before Recent Books
-is touched. A new window that was shown for the open is closed again (it
-appears briefly, because the window is ordered front before the read starts;
-see B1 of the same task); an existing window keeps its book; a cancel stays
-silent. A page that fails to decode is unchanged: it was never `empty.png`
+is touched. A new window is not shown at all (since B1 of the same task it
+stays hidden until the open succeeds or a sheet needs it; before that it
+appeared briefly and was closed again); an existing window keeps its book; a
+cancel stays silent. A page that fails to decode is unchanged: it was never `empty.png`
 but the `broken` image from `-itemAtIndex:`. An empty or unreadable nested
 archive now contributes no pages instead of one `empty.png` page.
 
@@ -1437,7 +1441,7 @@ project owner in that task: the restored window, at its saved page.
 
 ---
 
-## 33. Loading a book still blocks the other windows
+## 33. ~~Loading a book still blocks the other windows~~ — FIXED FOR TOP-LEVEL BOOKS (2026-10-04)
 
 MW-1 replaced the app-modal password `NSAlert` with a sheet on the window
 whose book needs the password, and moved the archive read off the main
@@ -1479,6 +1483,38 @@ costs nothing in practice, and the same continuation-passing seam the password
 half now uses is where an asynchronous open would go. The prompt for an
 archive nested *inside* another archive also still uses the synchronous,
 app-modal path, by design (see decision 3 in that DECISIONS entry).
+
+### The loading half is FIXED for top-level books (2026-10-04)
+
+Task `docs/tasks/2026-10-04-03-cleanup-and-performance.md`, B1. The archive
+read of the book being opened now runs on a background queue with no modal
+session: `COImageLoader` defers it (`deferArchiveRead`), the window controller
+runs `-readArchive` off the main thread, shows a window-modal progress sheet
+after 150 ms, and continues the open on the main thread when the read ends
+(`-finishArchiveRead`, then the password check and the rest of the open). The
+other windows can be raised, paged and driven from the menus during a load;
+Cancel stops the read; a quit during a load cancels it and quits at once,
+persisting nothing of the cancelled book (#20 case 3); a second open into
+the loading window is still refused. A new window is not shown until the
+open succeeds, the progress sheet appears, or a password sheet needs it, so
+a book that cannot be opened no longer flashes a window (#30).
+
+Still synchronous, through the old modal progress session: an archive nested
+in an archive, an archive inside a folder or saved-search book, and the
+nested-archive password prompt (decision 3 above).
+
+Verified on device (2026-10-04): two windows, a 322 MB solid 7z loading in
+one for about 18 s while the other was raised, paged and driven from the
+menus; Cancel button; menu Quit, Quit and Close All Windows and an
+`osascript` quit during a load each quit within half a second, and nothing of
+the loading book reached Recent Books or LastPages; a replace-load that was
+cancelled or quit kept the old book and page; Finder opens during a load went
+to another window, or brought the loading window forward for the same book;
+a restored slow book held the launch drain until it finished, and the
+Finder book then replaced it. Not performed: Esc and Cmd+Q as key presses,
+and closing a window while its progress sheet is up (the test tooling could
+not reach them). The 7z progress bar stays indeterminate (no total is
+reported for that read path); not checked against the previous build.
 
 ---
 

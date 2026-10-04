@@ -165,26 +165,32 @@ static NSString * const kLaunchRequestKindHelper = @"helper-url";
    stays as the backstop for any route that does reach the delegate. */
 - (NSApplicationTerminateReply)applicationShouldTerminate:(NSApplication *)sender
 {
-	[self cancelPasswordPrompts];
+	[self cancelPendingOpensForTermination];
 	return NSTerminateNow;
 }
 
-/* Takes down every window's password prompt, and answers whether there was one
-   to take down — COApplication uses that to decide whether the quit has to wait
-   a run-loop pass for AppKit to finish dismissing the sheets. Each prompt ends
-   as a cancel, by the rule the prompt already follows: a window that had a book
-   keeps it, a bookless window stays bookless. Nothing about the abandoned book
-   is persisted — RecentItems, LastPages and the restorable state are written by
-   the second half of the open, which a cancelled prompt never reaches — so an
-   archive whose password was never entered leaves no trace to come back on at
-   the next launch. */
-- (BOOL)cancelPasswordPrompts
+/* Takes down every window's password prompt and cancels every window's
+   archive load, and answers whether a sheet was taken down — COApplication uses
+   that to decide whether the quit has to wait a run-loop pass for AppKit to
+   finish dismissing the sheets. Each prompt ends as a cancel, by the rule the
+   prompt already follows: a window that had a book keeps it, a bookless window
+   stays bookless. A load is cancelled and its open ends silently, whenever its
+   read returns, unless the process has exited first (KNOWN_ISSUES #33, the
+   loading half; #20 case 3). Nothing about the abandoned book is persisted —
+   RecentItems, LastPages and the restorable state are written by the second
+   half of the open, which neither a cancelled prompt nor a cancelled load ever
+   reaches — so a book that was never opened leaves no trace to come back on at
+   the next launch. Was -cancelPasswordPrompts before loads were asynchronous. */
+- (BOOL)cancelPendingOpensForTermination
 {
 	BOOL dismissedAny = NO;
 	NSEnumerator *enu = [windowControllers objectEnumerator];
 	id aController;
 	while (aController = [enu nextObject]) {
 		if ([aController cancelPasswordPromptForTermination]) {
+			dismissedAny = YES;
+		}
+		if ([aController cancelArchiveLoadForTermination]) {
 			dismissedAny = YES;
 		}
 	}
@@ -219,7 +225,7 @@ static NSString * const kLaunchRequestKindHelper = @"helper-url";
               withReplyEvent:(NSAppleEventDescriptor *)replyEvent
 {
 	[self endAllBookmarksModalForTermination];
-	[self cancelPasswordPrompts];
+	[self cancelPendingOpensForTermination];
 	[NSApp performSelector:@selector(terminate:) withObject:self afterDelay:0.0];
 }
 
@@ -979,8 +985,10 @@ static NSString * const kLaunchRequestKindHelper = @"helper-url";
 
    -isRestoredBookUnfinished covers all three stages: AppKit still deciding,
    decoded but not yet opened, and mid-open. The last one matters because
-   -openPage:last: spins the run loop (MW-1's modal session), so this
-   -performSelector: can fire *inside* a restored book's open. */
+   a restored book's open does not finish inside -openRestoredBook — it used
+   to spin the run loop in MW-1's modal session, and since KNOWN_ISSUES #33's
+   loading half its archive read is asynchronous — so this -performSelector:
+   can fire *inside* a restored book's open. */
 - (void)settleLaunch
 {
 	if (launchSettled) {
@@ -993,11 +1001,19 @@ static NSString * const kLaunchRequestKindHelper = @"helper-url";
 	   as any window is waiting on input — otherwise it would expire while the
 	   sheet is up and drain the queue early, which is exactly the duplicate
 	   window #32 removed. */
+	/* KNOWN_ISSUES #33's loading half: the same for a restored book whose
+	   archive is still being read. The read used to run in a modal session,
+	   which this poll could not run inside, so the deadline never expired in
+	   the middle of one; now it would, and a slow restored archive would send
+	   the Finder's book to a new window. A read always ends — it finishes, or
+	   the user cancels it from its sheet — so this cannot hold the queue for
+	   ever. */
 	BOOL waitingForUser = NO;
 	NSEnumerator *userEnu = [windowControllers objectEnumerator];
 	id aWindowController;
 	while (aWindowController = [userEnu nextObject]) {
-		if ([aWindowController isWaitingForUserInput]) {
+		if ([aWindowController isWaitingForUserInput]
+			|| [aWindowController isLoadingRestoredBook]) {
 			waitingForUser = YES;
 			break;
 		}

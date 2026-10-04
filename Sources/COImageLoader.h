@@ -1,4 +1,5 @@
 #import <Cocoa/Cocoa.h>
+#include <stdatomic.h>
 #import "COPDFImage.h"
 #import "COPDFImageRep.h"
 #import "COArchive.h"	/* COArchiveCryptoStatus, for -tryPassword: */
@@ -60,6 +61,19 @@ typedef enum {
 	BOOL deferPasswordPrompt;
 	BOOL needsPassword;
 
+	/* Archive reading (KNOWN_ISSUES #33, the loading half). A host that opens
+	 * a book without blocking asks for `deferArchiveRead`: -content then only
+	 * records that the archive still has to be read (`needsArchiveRead`), and
+	 * the host runs -readArchive on a thread of its choosing and
+	 * -finishArchiveRead on the main thread afterwards. Every other caller —
+	 * nested and folder-inner loaders, the tests, hosts with no controller —
+	 * reads inline in -content as before. `archiveReadCancelled` belongs to
+	 * this loader's read alone, so a read abandoned by its host stops even if
+	 * the host has since started another one. */
+	BOOL deferArchiveRead;
+	BOOL needsArchiveRead;
+	_Atomic int archiveReadCancelled;
+
 	BOOL readSubFolder;
 	int mode;
 	
@@ -76,6 +90,13 @@ typedef enum {
  * two initializers above pass NO, so nothing but an explicit opt-in changes
  * behaviour. */
 - (id)initWithPath:(NSString *)path displayPath:(NSString *)dispPath readSubFolder:(BOOL)boo controller:(id)ctr deferPasswordPrompt:(BOOL)defer;
+/* The designated initializer since KNOWN_ISSUES #33's loading half.
+ * `deferRead` = YES means "do not read an archive book here; tell me it still
+ * needs reading" — see -needsArchiveRead / -readArchive / -finishArchiveRead.
+ * Only archive books are affected; a folder, saved search or PDF is listed
+ * here as before, including any archives inside a folder, which are read
+ * inline. The initializers above pass NO. */
+- (id)initWithPath:(NSString *)path displayPath:(NSString *)dispPath readSubFolder:(BOOL)boo controller:(id)ctr deferPasswordPrompt:(BOOL)defer deferArchiveRead:(BOOL)deferRead;
 //- (id)initWithPath:(NSString *)path readSubFolder:(BOOL)boo;
 //- (id)initWithPath:(NSString *)path displayPath:(NSString *)dispPath readSubFolder:(BOOL)boo;
 
@@ -121,6 +142,26 @@ typedef enum {
  * archive cannot be opened at all and the host should give up. Safe to call
  * only while -needsPassword is YES. */
 - (COArchiveCryptoStatus)tryPassword:(NSString *)entered;
+
+/* YES when this loader was opened with `deferArchiveRead`, the book is an
+ * archive, and -finishArchiveRead has not run yet. The loader holds nothing in
+ * that state — `mode` is -1, -pagesStatus is NotOpened, there are no pages. */
+- (BOOL)needsArchiveRead;
+/* Reads the archive: the expensive part of opening it, and the only part that
+ * reports progress (to the controller's -archiveReadProgress:total:, from the
+ * calling thread). Safe on any thread; touches no AppKit state. Call once,
+ * while -needsArchiveRead is YES, and never at the same time as anything else
+ * on this loader. */
+- (void)readArchive;
+/* Main thread, after -readArchive has returned (or instead of it, which leaves
+ * the book not opened). Does the rest of what -content would have done: a
+ * cancelled read or a refused solid RAR4 ends with `mode` -1, otherwise the
+ * entries are listed — which may open nested archives inline and, for an
+ * encrypted ZIP, leave -needsPassword YES. -needsArchiveRead is NO afterwards. */
+- (void)finishArchiveRead;
+/* Asks a -readArchive in progress, or one yet to start, to stop at its next
+ * progress report; the read then ends as a cancelled one. Any thread. */
+- (void)cancelArchiveRead;
 
 /* The book is a solid RAR4 archive, refused at open (KNOWN_ISSUES #39):
  * `mode` is -1, as for any failed open, and the host can tell the user why. */

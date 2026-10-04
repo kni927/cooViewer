@@ -36,6 +36,54 @@ static COImageLoader *loaderFor(NSString *dir, NSString *name)
     return [[[COImageLoader alloc] initWithPath:path readSubFolder:NO controller:nil] autorelease];
 }
 
+// A host that reads the archive itself (KNOWN_ISSUES #33, the loading half).
+static COImageLoader *deferredLoaderFor(NSString *path, id controller)
+{
+    return [[[COImageLoader alloc] initWithPath:path
+                                    displayPath:path
+                                  readSubFolder:NO
+                                     controller:controller
+                            deferPasswordPrompt:YES
+                               deferArchiveRead:YES] autorelease];
+}
+
+// -readArchive on a worker thread, as the window controller runs it; returns
+// once it has.
+static void readOnWorkerThread(COImageLoader *loader)
+{
+    dispatch_semaphore_t done = dispatch_semaphore_create(0);
+    dispatch_async(dispatch_get_global_queue(QOS_CLASS_USER_INITIATED, 0), ^{
+        [loader readArchive];
+        dispatch_semaphore_signal(done);
+    });
+    dispatch_semaphore_wait(done, DISPATCH_TIME_FOREVER);
+    dispatch_release(done);
+}
+
+// A controller whose progress callback cancels the read, as the progress
+// sheet's Cancel button does through -[BookWindowController
+// archiveReadProgress:total:]. Counts the calls, so a test can tell that a
+// read really was cancelled from the callback rather than never reported.
+@interface CancellingController : NSObject {
+@public
+    _Atomic int calls;
+}
+- (BOOL)archiveReadProgress:(long long)done total:(long long)total;
+@end
+
+@implementation CancellingController
+- (BOOL)archiveReadProgress:(long long)done total:(long long)total
+{
+    atomic_fetch_add(&calls, 1);
+    return NO;
+}
+@end
+
+static int pixelsWide(NSImage *image)
+{
+    return (int)[[[image representations] firstObject] pixelsWide];
+}
+
 int main(int argc, char **argv)
 {
     @autoreleasepool {
@@ -183,6 +231,107 @@ int main(int argc, char **argv)
                     check(bad == nil,
                           [NSString stringWithFormat:@"%@: page 4 does not decode", name]);
                 }
+            }
+        }
+
+        // --- KNOWN_ISSUES #33, the loading half: a deferred loader holds
+        // nothing until it is read; read on a worker thread and finished on
+        // this (main) thread it lists exactly the pages an inline loader
+        // does, and they decode the same ---
+        for (NSString *name in @[ @"test.7z", @"test.tar", @"test.zip", @"test.cbr" ]) {
+            NSString *path = [gen stringByAppendingPathComponent:name];
+            if (![[NSFileManager defaultManager] fileExistsAtPath:path]) {
+                printf("%s deferred read (skipped: not generated)\n", [name UTF8String]);
+                continue;
+            }
+            printf("%s (deferred read)\n", [name UTF8String]);
+            COImageLoader *inline_ = loaderFor(gen, name);
+            COImageLoader *deferred = deferredLoaderFor(path, nil);
+            check([deferred needsArchiveRead] && [deferred itemCount] == 0 &&
+                  [deferred mode] < 0 && [deferred pagesStatus] == COImageLoaderNotOpened,
+                  [NSString stringWithFormat:@"%@: deferred loader holds nothing before the read "
+                   "(needs %d, %d pages, status %d)", name, [deferred needsArchiveRead],
+                   [deferred itemCount], (int)[deferred pagesStatus]]);
+            readOnWorkerThread(deferred);
+            check([deferred needsArchiveRead] && [deferred itemCount] == 0,
+                  [NSString stringWithFormat:@"%@: nothing listed before -finishArchiveRead", name]);
+            [deferred finishArchiveRead];
+            check(![deferred needsArchiveRead] && [deferred pagesStatus] == COImageLoaderHasPages &&
+                  [deferred mode] == [inline_ mode],
+                  [NSString stringWithFormat:@"%@: deferred read finished (status %d, mode %d vs %d)",
+                   name, (int)[deferred pagesStatus], [deferred mode], [inline_ mode]]);
+            check([inline_ itemCount] > 0 && [[deferred pathArray] isEqualToArray:[inline_ pathArray]],
+                  [NSString stringWithFormat:@"%@: same pages as an inline read (%d vs %d)",
+                   name, [deferred itemCount], [inline_ itemCount]]);
+            if ([deferred itemCount] == [inline_ itemCount]) {
+                int i;
+                for (i = 0; i < [inline_ itemCount]; i++) {
+                    int want = pixelsWide([inline_ itemAtIndex:i]);
+                    int got = pixelsWide([deferred itemAtIndex:i]);
+                    check(want > 0 && got == want,
+                          [NSString stringWithFormat:@"%@: page %d decodes the same (%d vs %d px)",
+                           name, i + 1, got, want]);
+                }
+            }
+        }
+
+        // A folder book is listed in the initializer as before: there is no
+        // archive of its own to defer.
+        printf("corrupt_page_dir (deferred loader, not an archive)\n");
+        {
+            NSString *path = [[gen stringByAppendingPathComponent:@"no_pages"]
+                              stringByAppendingPathComponent:@"corrupt_page_dir"];
+            COImageLoader *loader = deferredLoaderFor(path, nil);
+            check(![loader needsArchiveRead] && [loader itemCount] == 4 &&
+                  [loader pagesStatus] == COImageLoaderHasPages,
+                  [NSString stringWithFormat:@"folder: no deferred read, 4 pages (needs %d, %d pages)",
+                   [loader needsArchiveRead], [loader itemCount]]);
+        }
+
+        // A cancelled deferred read is a book that was not opened, as a
+        // cancelled inline read is: by the controller's progress callback
+        // (the sheet's Cancel button), or by -cancelArchiveRead (a close or a
+        // quit). These two formats go through libarchive's full read, which
+        // reports progress.
+        for (NSString *name in @[ @"test.7z", @"test.tar" ]) {
+            NSString *path = [gen stringByAppendingPathComponent:name];
+            if (![[NSFileManager defaultManager] fileExistsAtPath:path]) continue;
+            printf("%s (cancelled deferred read)\n", [name UTF8String]);
+            CancellingController *cancelling = [[[CancellingController alloc] init] autorelease];
+            COImageLoader *loader = deferredLoaderFor(path, cancelling);
+            readOnWorkerThread(loader);
+            [loader finishArchiveRead];
+            check(atomic_load(&cancelling->calls) > 0,
+                  [NSString stringWithFormat:@"%@: the read reported progress", name]);
+            check([loader itemCount] == 0 && [loader mode] < 0 &&
+                  [loader pagesStatus] == COImageLoaderNotOpened && ![loader needsArchiveRead],
+                  [NSString stringWithFormat:@"%@: cancelled from the callback: %d pages, status %d",
+                   name, [loader itemCount], (int)[loader pagesStatus]]);
+
+            COImageLoader *stopped = deferredLoaderFor(path, nil);
+            [stopped cancelArchiveRead];
+            readOnWorkerThread(stopped);
+            [stopped finishArchiveRead];
+            check([stopped itemCount] == 0 && [stopped pagesStatus] == COImageLoaderNotOpened,
+                  [NSString stringWithFormat:@"%@: cancelled by -cancelArchiveRead: %d pages, status %d",
+                   name, [stopped itemCount], (int)[stopped pagesStatus]]);
+        }
+
+        // An encrypted ZIP read the deferred way still hands the password to
+        // the host afterwards.
+        {
+            NSString *encPath = [[gen stringByAppendingPathComponent:@"no_pages"]
+                                 stringByAppendingPathComponent:@"encrypted_text_only.cbz"];
+            if ([[NSFileManager defaultManager] fileExistsAtPath:encPath]) {
+                printf("encrypted_text_only.cbz (deferred read, then password)\n");
+                COImageLoader *loader = deferredLoaderFor(encPath, nil);
+                readOnWorkerThread(loader);
+                [loader finishArchiveRead];
+                check([loader needsPassword] && [loader pagesStatus] == COImageLoaderNotOpened,
+                      @"encrypted_text_only: deferred read asks for the password");
+                check([loader tryPassword:@"SECRET"] == COArchiveCryptoOK &&
+                      [loader pagesStatus] == COImageLoaderNoImages,
+                      @"encrypted_text_only: deferred read, password accepted, no images");
             }
         }
 
