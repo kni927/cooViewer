@@ -114,6 +114,25 @@ Send each message only to the sessions that need it.
   approvals, tag pushes, and edits to `AGENTS.md` or `CLAUDE.md` are approved by
   the owner in the session that performs them.
 
+## Proposing improvements
+
+Every session, HQ or TF, proposes improvements to how the work is done without
+waiting to be asked, not only what it was told to do.
+
+- **When:** it follows a multi-step procedure from the documents by hand,
+  repeats steps it or another session did before, works around the same
+  problem again, or makes a mistake that a written procedure would prevent.
+- **What:** usually a skill; otherwise a script, a hook, a setting, or a
+  rule in the template. Say what it would do, what it saves, and where it
+  would live: the project's `.claude/skills/` for one project,
+  `kni927/repo-template` for every project, `kni927/dotfiles` for the Mac
+  setup and local sessions. A cloud session sees only skills in its
+  repository, so a skill for HQs lives in the repositories they run in.
+- **To whom:** the session proposes to the owner. One that concerns every
+  repository also goes to Upstream HQ; a TF sends its proposals with its
+  report to its Project HQ.
+- **Proposing is not doing:** build it only after the owner agrees.
+
 ## Context usage
 
 A long conversation is compacted automatically, which loses detail. Cloud
