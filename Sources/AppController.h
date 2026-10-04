@@ -170,7 +170,10 @@ extern NSString * const CooViewerBookWindowRestorationIdentifier;
 /* Every live window controller, in creation order. */
 - (NSArray *)windowControllers;
 /* The window controller app-level commands act on: the one whose window last
-   became main, falling back to the most recently created. Never nil. */
+   became main; when none has (at launch, notably while the app is inactive,
+   or after the front window was retired), the topmost visible book window in
+   -[NSApp orderedWindows]; when no book window is on screen, the most
+   recently created. Never nil. */
 - (id)frontController;
 /* Creates, registers and nib-loads a window controller. The window itself is
    not shown until a book is opened in it. */

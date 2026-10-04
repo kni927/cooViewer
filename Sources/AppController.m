@@ -679,8 +679,45 @@ static NSString * const kLaunchRequestKindHelper = @"helper-url";
 		return frontWindowController;
 	}
 	/* Before any window has become main — at launch, and after the front
-	   window has been retired without another taking over yet. */
+	   window has been retired without another taking over yet. While the app
+	   is inactive no window becomes main, so this is also where a launch drain
+	   lands when restoration ran in the background (Remaining Issues of
+	   docs/tasks/2026-10-02-02-launch-drain-replaces-front-window.md, where
+	   the old creation-order fallback was seen on every drain line of an
+	   inactive launch): the topmost visible book window in AppKit's own window
+	   order is the one the user sees in front, which creation order is not —
+	   restored books finish opening in an order of their own. */
+	id ordered = [self topmostOrderedWindowController];
+	if (ordered) {
+		return ordered;
+	}
+	/* No book window is on screen (the app has none shown yet, or is hidden):
+	   the most recently created one, as before. */
 	return [windowControllers lastObject];
+}
+
+/* The registered window controller whose window is frontmost among the
+   visible, non-miniaturized ones in -[NSApp orderedWindows] (front to back),
+   or nil. Hidden windows — including a restored window whose book is gone,
+   which MW-8 keeps hidden and empty — and windows that are not book windows
+   (the All Bookmarks browser, Preferences, panels) are skipped. */
+- (id)topmostOrderedWindowController
+{
+	NSEnumerator *windowEnu = [[NSApp orderedWindows] objectEnumerator];
+	NSWindow *window;
+	while (window = [windowEnu nextObject]) {
+		if (![window isVisible] || [window isMiniaturized]) {
+			continue;
+		}
+		NSEnumerator *enu = [windowControllers objectEnumerator];
+		id aController;
+		while (aController = [enu nextObject]) {
+			if ([aController window] == window) {
+				return aController;
+			}
+		}
+	}
+	return nil;
 }
 
 /* Slot 0 keeps the historical unsuffixed frame autosave names
@@ -1153,10 +1190,20 @@ static NSString * const kLaunchRequestKindHelper = @"helper-url";
 	NSString *appMainName = mainWindow ? (appMain ? [self routingNameOfController:appMain] : @"other")
 									   : @"none";
 
+	/* How -frontController resolved, by the same three steps it takes. */
+	NSString *frontRule;
+	if (frontWindowController) {
+		frontRule = @"tracked";
+	} else if ([self topmostOrderedWindowController]) {
+		frontRule = @"fallback-ordered";
+	} else {
+		frontRule = @"fallback-last";
+	}
+
 	return [NSString stringWithFormat:@"windows=%lu visible=%d front=%@(%@) appMain=%@ active=%@ |%@",
 			(unsigned long)[windowControllers count], visible,
 			[self routingNameOfController:[self frontController]],
-			(frontWindowController ? @"tracked" : @"fallback-last"),
+			frontRule,
 			appMainName, ([NSApp isActive] ? @"YES" : @"NO"), summary];
 }
 

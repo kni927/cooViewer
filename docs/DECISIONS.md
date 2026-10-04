@@ -1558,6 +1558,17 @@ time the front window is the one tracked through `-windowDidBecomeMain:`, and
 it matched AppKit's main window on every drain line. See
 `docs/tasks/2026-10-02-02-launch-drain-replaces-front-window.md`.
 
+*Updated 2026-10-04.* When the app launches inactive no window becomes main,
+so there is no tracked front window and `-frontController` used to fall back
+to the most recently created window. It now takes the topmost visible book
+window in `-[NSApp orderedWindows]` first, and only then the most recently
+created one; the routing log names the rule (`tracked`, `fallback-ordered`,
+`fallback-last`). The tracked case, which is the Finder double-click while
+running and every active launch, is unchanged. On device, an inactive launch
+(`open -g`) with two restored windows logged `front=#1(fallback-ordered)
+active=NO` and replaced that window's book; in that run the topmost window
+was also the last created, so the old rule would have chosen the same one.
+
 ## Minimum macOS is 12.0 (2026-10-02)
 
 **Decision:** The main app's deployment target is macOS 12.0 Monterey, the
