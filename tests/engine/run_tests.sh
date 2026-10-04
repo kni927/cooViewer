@@ -49,6 +49,19 @@ python3 "$REPO_ROOT/tests/fixtures/make_rar4_fixture.py" --solid "$SRC" "$GEN/te
 python3 "$REPO_ROOT/tests/fixtures/make_rar4_fixture.py" --solid --unicode-names \
     "$SRC" "$GEN/test_rar4_solid_unicode.cbr" >/dev/null
 
+# non-solid archives whose stored order is not page order, for direct
+# positioning (B1): RAR4 by the hand-written generator, RAR5 by rar when
+# installed. The Unicode-named RAR4 takes the libarchive fallback index
+# pass and so keeps the fast-forward cursor.
+python3 "$REPO_ROOT/tests/fixtures/make_rar4_fixture.py" --order 3,1,4,2 \
+    "$SRC" "$GEN/test_rar4_unordered.cbr" >/dev/null
+python3 "$REPO_ROOT/tests/fixtures/make_rar4_fixture.py" --order 3,1,4,2 --unicode-names \
+    "$SRC" "$GEN/test_rar4_unordered_unicode.cbr" >/dev/null
+if command -v rar >/dev/null 2>&1; then
+    rm -f "$GEN/test_rar5_unordered.cbr"
+    (cd "$SRC" && rar a -idq "$GEN/test_rar5_unordered.cbr" 003.png 001.png 004.jpg 002.jpg)
+fi
+
 clang -O2 \
     -I "$REPO_ROOT/vendor/include" \
     -I "$REPO_ROOT/Sources" \

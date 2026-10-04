@@ -112,6 +112,12 @@ typedef enum {
 
 /* write entry #index's data to fileName (for nested archives) */
 - (BOOL)uncompress:(int)index as:(NSString *)fileName;
+
+/* The entries of -contents that are pages, in page order (the order the
+ * viewer shows them, which need not be archive order). A hint for a lazy
+ * reader's prefetch; the base implementation ignores it, and so does
+ * COZipArchive. CORarArchive prefetches the next page by it (B2). */
+- (void)setPrefetchPageOrder:(NSArray *)entries;
 @end
 
 /* YES when an entry path, appended to a directory, stays inside it: not

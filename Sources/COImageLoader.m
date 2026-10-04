@@ -626,6 +626,26 @@ static NSArray *_COImageLoader_archiveTypes=nil;
 	[contentPathArray addObjectsFromArray:[pathArray pathsMatchingExtensions:filterArray]];
 	[contentPathArray sortUsingSelector:@selector(finderCompareS:)];
 	//NSLog(@"%@",contentPathDic);
+
+	/* B2: the archive's own pages in the order they are shown, so a lazy
+	   reader prefetches the next page rather than the next entry in
+	   archive order. Resolved the way -itemAtIndex: does (first entry with
+	   that raw name); pages from nested archives have no entry here. */
+	NSMutableDictionary *firstIndexByRawName = [NSMutableDictionary dictionary];
+	NSUInteger rawIndex;
+	for (rawIndex = 0; rawIndex < [rawContentPathArray count]; rawIndex++) {
+		NSString *rawName = [rawContentPathArray objectAtIndex:rawIndex];
+		if (![firstIndexByRawName objectForKey:rawName])
+			[firstIndexByRawName setObject:[NSNumber numberWithUnsignedInteger:rawIndex] forKey:rawName];
+	}
+	NSMutableArray *pageOrder = [NSMutableArray array];
+	for (NSString *page in contentPathArray) {
+		NSString *rawName = [contentPathDic objectForKey:page];
+		NSNumber *itemIndex = rawName ? [firstIndexByRawName objectForKey:rawName] : nil;
+		if (itemIndex && [itemIndex unsignedIntegerValue] < [items count])
+			[pageOrder addObject:[items objectAtIndex:[itemIndex unsignedIntegerValue]]];
+	}
+	[archiveContainer setPrefetchPageOrder:pageOrder];
 	return YES;
 }
 

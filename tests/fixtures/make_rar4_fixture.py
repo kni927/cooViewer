@@ -93,16 +93,21 @@ def end_header_block() -> bytes:
 
 
 def create_archive(source_dir: pathlib.Path, output_path: pathlib.Path,
-                   solid: bool = False, unicode_names: bool = False) -> None:
+                   solid: bool = False, unicode_names: bool = False,
+                   order: tuple[int, ...] | None = None) -> None:
     """solid sets MHD_SOLID in the archive header and LHD_SOLID on every
     file after the first, as rar -s does; the data stays STORE, so only the
     flags make it a solid archive (cooViewer refuses solid RAR4 by the
     archive-header flag, KNOWN_ISSUES #39). unicode_names sets LHD_UNICODE,
-    which makes CORarHeaderIndex decline and the libarchive fallback run."""
+    which makes CORarHeaderIndex decline and the libarchive fallback run.
+    order stores the files in that order (1-based FIXTURES indices), so
+    stored order differs from page order, as rar does for non-solid
+    archives made from APFS directory order."""
     output_path.parent.mkdir(parents=True, exist_ok=True)
 
     blocks = [RAR4_SIGNATURE, archive_header_block(solid)]
-    for i, fixture in enumerate(FIXTURES):
+    fixtures = FIXTURES if order is None else tuple(FIXTURES[n - 1] for n in order)
+    for i, fixture in enumerate(fixtures):
         source_path = source_dir / fixture.source_name
         if not source_path.is_file():
             raise FileNotFoundError(f"Source file not found: {source_path}")
@@ -125,13 +130,15 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--solid", action="store_true", help="Flag the archive as solid")
     parser.add_argument("--unicode-names", action="store_true",
                         help="Store names as LHD_UNICODE (UTF-8 form)")
+    parser.add_argument("--order", type=lambda v: tuple(int(n) for n in v.split(",")),
+                        help="Stored order as 1-based source indices, e.g. 3,1,4,2")
     return parser.parse_args()
 
 
 def main() -> None:
     args = parse_args()
     create_archive(source_dir=args.source_dir.resolve(), output_path=args.output.resolve(),
-                   solid=args.solid, unicode_names=args.unicode_names)
+                   solid=args.solid, unicode_names=args.unicode_names, order=args.order)
     print(f"Created: {args.output}")
 
 

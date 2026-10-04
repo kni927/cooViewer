@@ -1598,6 +1598,10 @@ without new layout rules. No resampling step is added: the bars are overlays
 in `AccessoryView`; decode → `drawInRect:` is untouched. See
 `docs/tasks/2026-10-03-01-v1.6.5-features.md`.
 
+The Preferences pop-up and the bar's placement were superseded on
+2026-10-04 ("Resolution has its own Preferences section"); the stored
+values are unchanged.
+
 ## Finder ⇧-open, drag and drop and File ▸ New Window share one routing gate (2026-10-03)
 
 **Decision:** `-[AppController openFiles:preferringWindow:entry:]` replaces
@@ -1701,3 +1705,67 @@ guards' bodies are live features (font-panel mode mask, PDF links,
 `.savedSearch`); `+[NSObject respondsToSelector:@selector(finalize)]` is YES on
 macOS 26 and the owner accepted that inference for macOS 12–15. See
 `docs/tasks/2026-10-03-05-stability-fixes-and-rar-survey.md`.
+
+## Auto-hidden overlays come back on mouse movement over any window (2026-10-04)
+
+**Decision:** `-[AccessoryView mouseMoved:]` is fed by an `NSTrackingArea`
+on the book window's content view (`NSTrackingMouseMoved |
+NSTrackingActiveAlways | NSTrackingInVisibleRect`, owned by the
+`AccessoryView`), no longer by the window's own mouse-moved events. The page
+number and the resolution bar come back whether or not the page bar is
+switched on (`ShowPageBar` gates only the page bar). The overlay's outlets
+are detached (#36) only when the registry retires the window controller, not
+on every close. Keyboard page turns, page-number input and opening a book
+still leave an auto-hidden page number hidden.
+
+**Why:** Owner report (2026-10-04): with auto-hide on, the page number
+sometimes never came back. Window mouse-moved events reach only the key
+window of the active app, the method was gated on the page bar's switch, and
+the kept last window lost its outlets on close — KNOWN_ISSUES #42. The
+overlay is drawn in its own child window; nothing in the render path changes.
+
+## Resolution has its own Preferences section; `ResolutionDisplay` stays the stored state (2026-10-04)
+
+**Decision:** Preferences ▸ Appearance has a Resolution box (Show, In page
+number, font, Set position…) beside Page Number, replacing the three-way
+pop-up. `ResolutionDisplay` (0 Off / 1 In page number / 2 Separate bar)
+stays the stored state, so existing profiles need no migration; the two
+checkboxes are a view of it, and `ResolutionInPageNumber` only remembers the
+second checkbox while Show is off. The separate bar has its own corner,
+margin and font (`ResolutionPosition`, `Margin_Resolution`,
+`ResolutionTextFont`), placed in the position-setting panel like the page
+number. Unset, each falls back to the page number's, and in the page
+number's corner the bar is laid out beside the page number as before — so an
+existing profile shows exactly what it showed. Colors and auto-hide follow
+the page number. The font, its Select button and Set position are disabled
+unless the separate bar is in use. The Preferences window is 76 pt wider to
+fit the box.
+
+**Why:** Owner request (2026-10-04). A separate corner and size need their
+own keys; keeping `ResolutionDisplay` avoids a second migration on top of the
+2026-10-03 one. Colors and auto-hide were kept shared: the bar is still a
+page-number-style label, and one auto-hide switch for both labels matches
+how they are shown and hidden together. The bar stays an `AccessoryView`
+overlay; no resampling step is added.
+
+## Non-solid RAR entries are read by direct positioning; prefetch follows page order (2026-10-04)
+
+**Decision:** For a non-solid RAR4/RAR5 archive indexed by
+`CORarHeaderIndex`, each entry keeps its header's file offset, and
+`CORarArchive` reads an entry its cursor is not already on by opening a
+libarchive stream (`archive_read_open2`) whose read callback presents the
+signature and main header and then continues at that entry's header. Solid
+archives (archive flag or any per-file solid flag), and archives that took
+the libarchive fallback index pass (header encryption, multi-volume, RAR4
+Unicode names, malformed headers) keep the forward cursor that rewinds to
+the start. After a read, the next *page* is prefetched: `COImageLoader`
+passes the page order with `-[COArchive setPrefetchPageOrder:]` (a no-op
+except in `CORarArchive`). The vendored libarchive is unchanged.
+
+**Why:** Owner decision (2026-10-04, B1 + B2 of
+`docs/cbr-performance-20261003.md`): out-of-order non-solid books reopened
+and walked the archive from the start for every page behind the cursor,
+3.7× slower than v1.3.7 on 2000 pages. Measured after the change with
+`tools/cbr_bench/`: read-through no slower than v1.3.7 on every generated
+archive, page turns at reading pace served from the prefetch. Decode side
+only; no resampling step.

@@ -92,8 +92,22 @@
 	BOOL hasUncompressedSize;
 	BOOL hasFileCRC;
 	uint32_t fileCRC;
+	unsigned long long headerOffset;	// file offset of this entry's
+					// header block (its first byte:
+					// RAR5 header CRC / RAR4 HEAD_CRC)
 }
 @end
+
+/* What CORarArchive needs to decode an entry without walking to it from
+ * the start (B1, docs/cbr-performance-20261003.md): a stream made of the
+ * file's first prefixLength bytes — signature and main archive header —
+ * followed by the file from an entry's headerOffset reads, to libarchive,
+ * like an archive whose first entry is that one. Only valid when !solid:
+ * a solid entry's decoder state depends on every entry before it. */
+typedef struct {
+	unsigned long long prefixLength;
+	BOOL solid;	// archive-level flag, or any file header's per-file one
+} CORarArchiveLayout;
 
 /* Attempts a fast, header-only enumeration of path (RAR4 or RAR5).
  * Returns entries in stream order on success (same filtering policy
@@ -103,6 +117,10 @@
  * scan in that case. *outCrypted is set to YES if any per-entry
  * encrypted file was found (and skipped) along the way. */
 NSArray *CORarParseHeadersAtPath(NSString *path, BOOL *outCrypted);
+
+/* The same, also reporting the layout above (outLayout may be NULL). */
+NSArray *CORarParseHeadersAtPathWithLayout(NSString *path, BOOL *outCrypted,
+                                           CORarArchiveLayout *outLayout);
 
 /* YES when path is a RAR4 archive whose main header sets MHD_SOLID.
  * libarchive's RAR4 reader cannot decode past the first entry of one

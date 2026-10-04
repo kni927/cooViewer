@@ -260,6 +260,10 @@ static COArchive *COOpenLazyArchive(NSString *path, COArchiveProgress progress)
 	return crypted ? COArchiveCryptoUnsupported : COArchiveCryptoNone;
 }
 
+- (void)setPrefetchPageOrder:(NSArray *)entries
+{
+}
+
 - (BOOL)uncompress:(int)index as:(NSString *)fileName
 {
 	if (index < 0 || index >= (int)[contentArray count]) return NO;

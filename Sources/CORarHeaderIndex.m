@@ -84,7 +84,8 @@ static CORarHeaderEntry *MakeEntry(NSData *rawName, NSString *utf8Name,
                                     unsigned long long compressedSize,
                                     unsigned long long uncompressedSize,
                                     BOOL hasUncompressedSize,
-                                    BOOL hasFileCRC, uint32_t fileCRC)
+                                    BOOL hasFileCRC, uint32_t fileCRC,
+                                    off_t headerOffset)
 {
 	CORarHeaderEntry *e = [[[CORarHeaderEntry alloc] init] autorelease];
 	e->rawName = [rawName retain];
@@ -94,6 +95,7 @@ static CORarHeaderEntry *MakeEntry(NSData *rawName, NSString *utf8Name,
 	e->hasUncompressedSize = hasUncompressedSize;
 	e->hasFileCRC = hasFileCRC;
 	e->fileCRC = fileCRC;
+	e->headerOffset = (unsigned long long)headerOffset;
 	return e;
 }
 
@@ -107,8 +109,11 @@ static const uint8_t kRAR5Sig[8] = {'R','a','r','!',0x1a,0x07,0x01,0x00};
 #define RAR5_HDR_END        5
 
 #define RAR5_ARCHIVEFLAG_VOLUME 0x0001
+#define RAR5_ARCHIVEFLAG_SOLID  0x0004
+#define RAR5_COMPINFO_SOLID     0x0040
 
-static NSMutableArray *ParseRAR5(FILE *f, off_t fileSize, BOOL *outCrypted, BOOL *outUnsupported)
+static NSMutableArray *ParseRAR5(FILE *f, off_t fileSize, BOOL *outCrypted, BOOL *outUnsupported,
+                                 CORarArchiveLayout *layout)
 {
 	*outCrypted = NO;
 	*outUnsupported = NO;
@@ -136,13 +141,18 @@ static NSMutableArray *ParseRAR5(FILE *f, off_t fileSize, BOOL *outCrypted, BOOL
 	uint64_t archiveFlags;
 	if (!ReadVInt(f, &archiveFlags)) return nil;
 	if (archiveFlags & RAR5_ARCHIVEFLAG_VOLUME) { *outUnsupported = YES; return nil; }
+	layout->solid = (archiveFlags & RAR5_ARCHIVEFLAG_SOLID) != 0;
 
-	if (headersize > (uint64_t)fileSize) return nil;
-	if (fseeko(f, blockStart + (off_t)headersize, SEEK_SET) != 0) return nil;
+	if (headersize > (uint64_t)fileSize || datasize > (uint64_t)fileSize) return nil;
+	// signature and main header, data area included (normally none)
+	layout->prefixLength = (unsigned long long)(blockStart + (off_t)headersize + (off_t)datasize);
+	if (layout->prefixLength > (unsigned long long)fileSize) return nil;
+	if (fseeko(f, (off_t)layout->prefixLength, SEEK_SET) != 0) return nil;
 
 	NSMutableArray *entries = [NSMutableArray array];
 
 	for (;;) {
+		off_t headerOffset = ftello(f);
 		if (!ReadU32LE(f, &crc32)) break;	// clean EOF, done
 		if (!ReadVInt(f, &headersize)) return nil;
 		blockStart = ftello(f);
@@ -175,7 +185,7 @@ static NSMutableArray *ParseRAR5(FILE *f, off_t fileSize, BOOL *outCrypted, BOOL
 			if (fileflags & 0x0002) { uint32_t mtime; if (!ReadU32LE(f, &mtime)) return nil; }
 			if (hasFileCRC && !ReadU32LE(f, &fileCRC)) return nil;
 			if (!isDirectory) { if (!ReadVInt(f, &compinfo)) return nil; }
-			(void)compinfo;
+			if (compinfo & RAR5_COMPINFO_SOLID) layout->solid = YES;
 			if (!ReadVInt(f, &osval)) return nil;
 			(void)osval;
 			if (!ReadVInt(f, &namelength)) return nil;
@@ -217,7 +227,7 @@ static NSMutableArray *ParseRAR5(FILE *f, off_t fileSize, BOOL *outCrypted, BOOL
 				// RAR5 names are UTF-8 by spec; if that somehow fails,
 				// fall through with rawName only (shared uchardet path)
 				[entries addObject:MakeEntry(nameBuf, [u8 autorelease], datasize, uncompsize,
-				                                  !unknownSize, hasFileCRC, fileCRC)];
+				                                  !unknownSize, hasFileCRC, fileCRC, headerOffset)];
 			}
 		}
 		// type 3 (Service) and anything unrecognized: nothing extra
@@ -243,6 +253,7 @@ static const uint8_t kRAR4Sig[7] = {'R','a','r','!',0x1a,0x07,0x00};
 #define LHD_SPLIT_BEFORE 0x0001
 #define LHD_SPLIT_AFTER  0x0002
 #define LHD_PASSWORD     0x0004
+#define LHD_SOLID        0x0010
 #define LHD_UNICODE      0x0200
 #define LHD_LARGE        0x0100
 #define LHD_WINDOWMASK   0x00e0
@@ -254,7 +265,8 @@ static const uint8_t kRAR4Sig[7] = {'R','a','r','!',0x1a,0x07,0x00};
 #define RAR4_BLOCK_FILE    0x74
 #define RAR4_BLOCK_END     0x7b
 
-static NSMutableArray *ParseRAR4(FILE *f, off_t fileSize, BOOL *outCrypted, BOOL *outUnsupported)
+static NSMutableArray *ParseRAR4(FILE *f, off_t fileSize, BOOL *outCrypted, BOOL *outUnsupported,
+                                 CORarArchiveLayout *layout)
 {
 	*outCrypted = NO;
 	*outUnsupported = NO;
@@ -290,6 +302,13 @@ static NSMutableArray *ParseRAR4(FILE *f, off_t fileSize, BOOL *outCrypted, BOOL
 			archiveflags = flags;
 			if (archiveflags & MHD_VOLUME) { *outUnsupported = YES; return nil; }
 			if (archiveflags & MHD_PASSWORD) { *outUnsupported = YES; return nil; }
+			if (archiveflags & MHD_SOLID) layout->solid = YES;
+			// signature and main header: the first archive block ends the
+			// prefix (a data area, if any, is part of it)
+			if (layout->prefixLength == 0) {
+				if (datasize > (unsigned long long)fileSize) return nil;
+				layout->prefixLength = (unsigned long long)(datastart + (off_t)datasize);
+			}
 		} else if (type == RAR4_BLOCK_FILE) {
 			uint32_t size32, filecrc, dostime, attrs;
 			uint8_t os, version, method;
@@ -331,6 +350,7 @@ static NSMutableArray *ParseRAR4(FILE *f, off_t fileSize, BOOL *outCrypted, BOOL
 			BOOL isDirectory = ((flags & LHD_WINDOWMASK) == LHD_DIRECTORY) ||
 			                   (version == 15 && os == 0 && (attrs & 0x10));
 			BOOL isEncrypted = (flags & LHD_PASSWORD) != 0;
+			if (flags & LHD_SOLID) layout->solid = YES;
 
 			if (isDirectory) {
 				// no entry
@@ -340,7 +360,7 @@ static NSMutableArray *ParseRAR4(FILE *f, off_t fileSize, BOOL *outCrypted, BOOL
 				// zero-byte entry, skip
 			} else if (!IsAppleDoubleName([nameBuf bytes], [nameBuf length])) {
 				[entries addObject:MakeEntry(nameBuf, nil, datasize, size,
-				                                  YES, YES, filecrc)];
+				                                  YES, YES, filecrc, blockStart)];
 			}
 		}
 
@@ -378,6 +398,12 @@ BOOL CORarIsSolidRAR4AtPath(NSString *path)
 
 NSArray *CORarParseHeadersAtPath(NSString *path, BOOL *outCrypted)
 {
+	return CORarParseHeadersAtPathWithLayout(path, outCrypted, NULL);
+}
+
+NSArray *CORarParseHeadersAtPathWithLayout(NSString *path, BOOL *outCrypted,
+                                           CORarArchiveLayout *outLayout)
+{
 	FILE *f = fopen([path fileSystemRepresentation], "rb");
 	if (!f) return nil;
 
@@ -386,15 +412,19 @@ NSArray *CORarParseHeadersAtPath(NSString *path, BOOL *outCrypted)
 	if (fileSize < 8) { fclose(f); return nil; }
 
 	BOOL crypted = NO, unsupported = NO;
-	NSMutableArray *entries = ParseRAR5(f, fileSize, &crypted, &unsupported);
+	CORarArchiveLayout layout = { 0, NO };
+	NSMutableArray *entries = ParseRAR5(f, fileSize, &crypted, &unsupported, &layout);
 	if (!entries && !unsupported) {
 		crypted = NO;
-		entries = ParseRAR4(f, fileSize, &crypted, &unsupported);
+		layout.prefixLength = 0;
+		layout.solid = NO;
+		entries = ParseRAR4(f, fileSize, &crypted, &unsupported, &layout);
 	}
 
 	fclose(f);
 
 	if (!entries) return nil;
 	*outCrypted = crypted;
+	if (outLayout) *outLayout = layout;
 	return entries;
 }

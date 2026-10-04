@@ -52,6 +52,13 @@ cooViewer refuses solid RAR4 by its archive-header flag
 (`docs/KNOWN_ISSUES.md` #39). Both are also written by
 `tests/engine/run_tests.sh`.
 
+`test_rar4_unordered.cbr`, `test_rar4_unordered_unicode.cbr` and (when `rar`
+is installed) `test_rar5_unordered.cbr` are non-solid archives stored as
+003, 001, 004, 002, so stored order is not page order. They exercise direct
+positioning (`docs/DECISIONS.md`, 2026-10-04); the Unicode-named RAR4 takes
+the libarchive fallback index pass and so keeps the forward cursor. All
+three are written by `tests/engine/run_tests.sh`.
+
 ## Committed RAR5 final-block fixture
 
 `sample/header_error_sample.rar` is a valid RAR5 archive containing one

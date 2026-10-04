@@ -1534,6 +1534,13 @@ mean re-decoding from the start in a solid one.
 Task record:
 `docs/tasks/2026-08-04-01-recover-complete-rar-payload.md`.
 
+
+**2026-10-04:** non-solid archives are now read by direct positioning
+(`docs/DECISIONS.md`, 2026-10-04), and the recovery runs unchanged on that
+path; the cursor invalidation it forces costs one positioned open instead of
+a walk from the start. Covered by the engine suite (the committed fixture,
+read twice by direct positioning).
+
 ---
 
 ## 38. ~~Xcode 27 rejects the main targets' 10.13 deployment target~~ — FIXED (2026-10-02)

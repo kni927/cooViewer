@@ -392,3 +392,48 @@ every fast-path file and 3–5 ms on the RAR4 fallback.
    It needs the v1.3.7 worktree recipe (Xcode 27:
    `MACOSX_DEPLOYMENT_TARGET=12.0`) and `rar` 6.x for RAR4 fixtures. Not
    committed in this task.
+
+## Follow-up 2026-10-04 — B1 + B2 implemented
+
+Task: `docs/tasks/2026-10-04-01-autohide-resolution-rar-positioning.md`.
+B1 (direct positioning for non-solid archives) and B2 (prefetch the next
+page in page order) are in `CORarArchive`; see its header comment.
+
+Measured with `tools/cbr_bench/` (this report's method, made repeatable):
+same Apple Silicon Mac, macOS 26.6.2, warm cache, median of 3 runs, build
+order rotated. `before` is the code before B1/B2, `current` after, `v137`
+the v1.3.7 XADMaster wrapper. Generated corpus only (the owner book of the
+table above was not used): pages are synthetic JPEGs (~1.4 MB, or ~90 KB
+for the 2000-page books); RAR5 archives are `rar` 7.23 `-m3`, RAR4 archives
+are hand-written STORE (no `rar` 6.x here); `n` archives are stored in a
+shuffled order, `r5s` is solid. Corpus and harness: `tools/cbr_bench/README.md`.
+
+**Read-through (all pages in page order, back to back):**
+
+| file | v137 | before | current | stream opens before → current | peak MB v137 / before / current |
+|---|---|---|---|---|---|
+| r4n (120) | 0.21 s | 0.14 s | **0.07 s** | 40 → 118 | 319 / 192 / 192 |
+| r4n_small (2000) | 0.23 s | 7.17 s | **0.16 s** | 647 → 2000 | 262 / 50 / 176 |
+| r5n (120) | 2.15 s | 1.67 s | **1.60 s** | 40 → 120 | 258 / 158 / 150 |
+| r5n_small (2000) | 1.96 s | 7.29 s | **1.50 s** | 681 → 1999 | 256 / 75 / 153 |
+| r5s (solid, 120) | 2.13 s | 1.62 s | 1.62 s | 1 → 1 | 217 / 189 / 156 |
+
+- **The target is met:** read-through is no slower than v1.3.7 on every
+  archive, and the 2000-page books go from 3.7× slower to 0.7–0.8×.
+- The stream opens are now cheap positioned opens (signature + main header
+  + the entry), not reopens with a header walk from the start; `before`'s
+  were all from the start. Page p90/max in a non-solid read-through drop
+  from 3–29 / 8–72 ms to 0–14 / 1–18 ms.
+- **Page turns at reading pace** (30 pages, one per 300 ms, median): r5n
+  41 / 34 / **0** ms (v137 / before / current), r5n_small 4 / 9 / **0**: the
+  next page is now the one prefetched.
+- **Jumps** in a non-solid book cost about one entry decode (r5n → middle
+  27 ms, v137 16 ms): the request waits behind the prefetch already running
+  on the serial read queue. Unchanged from `before`. Solid jumps are
+  unchanged (r5s → middle ~790 ms, v137 ~1000 ms).
+- **Memory:** peak rises on the 2000-page books (50–75 → 153–176 MB)
+  because the prefetched pages are now the ones read next and stay in the
+  256 MB `NSCache`; still below v1.3.7 (256–262 MB in this harness).
+- No read failures; the RAR5 trailing-error recovery (#37) did not fire on
+  this corpus. It is covered on the positioned path by the engine suite
+  (`header_error_sample.rar`, read twice).

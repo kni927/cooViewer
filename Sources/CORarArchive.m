@@ -11,6 +11,10 @@
 #include <uchardet.h>
 #include <string.h>
 #include <sys/stat.h>
+#include <fcntl.h>
+#include <unistd.h>
+#include <stdlib.h>
+#include <errno.h>
 
 /* decoded-entry cache budget; same policy as COZipArchive */
 #define CO_RAR_CACHE_LIMIT (256 * 1024 * 1024)
@@ -82,6 +86,8 @@ BOOL CORarPayloadMatchesExpectedMetadata(NSData *payload,
 		expectedSize = inExpectedSize;
 		hasExpectedCRC = inHasExpectedCRC;
 		expectedCRC = inExpectedCRC;
+		hasHeaderOffset = NO;
+		headerOffset = 0;
 	}
 	return self;
 }
@@ -97,7 +103,7 @@ BOOL CORarPayloadMatchesExpectedMetadata(NSData *payload,
 - (BOOL)indexArchiveViaHeaderParser;
 - (void)indexArchiveViaLibarchiveWithProgress:(COArchiveProgress)progress;
 - (NSData *)readEntryOnQueue:(CORarEntry *)entry;
-- (void)prefetchAfterArrayIndex:(NSUInteger)arrayIndex;
+- (void)prefetchAfterEntry:(CORarEntry *)entry;
 - (void)invalidateCursor;
 @end
 
@@ -110,12 +116,32 @@ BOOL CORarPayloadMatchesExpectedMetadata(NSData *payload,
 		[readQueue release];
 	}
 	[dataCache release];
+	[nextPageByOrdinal release];
 	[super dealloc];
 }
 
 - (BOOL)rarOpened
 {
 	return rarOpened;
+}
+
+- (BOOL)usesDirectPositioning
+{
+	return positioningPrefixLength > 0;
+}
+
+- (NSUInteger)rewindCount
+{
+	__block NSUInteger n = 0;
+	dispatch_sync(readQueue, ^{ n = rewindCount; });
+	return n;
+}
+
+- (NSUInteger)positionedOpenCount
+{
+	__block NSUInteger n = 0;
+	dispatch_sync(readQueue, ^{ n = positionedOpenCount; });
+	return n;
 }
 
 /* Called once from COArchive's designated initializer, on the
@@ -159,8 +185,10 @@ BOOL CORarPayloadMatchesExpectedMetadata(NSData *payload,
 - (BOOL)indexArchiveViaHeaderParser
 {
 	BOOL headerCrypted = NO;
-	NSArray *headerEntries = CORarParseHeadersAtPath(filePath, &headerCrypted);
+	CORarArchiveLayout layout = { 0, NO };
+	NSArray *headerEntries = CORarParseHeadersAtPathWithLayout(filePath, &headerCrypted, &layout);
 	if (!headerEntries) return NO;
+	BOOL positionable = (!layout.solid && layout.prefixLength > 0);
 
 	NSMutableData *allRaw = [NSMutableData data];
 	BOOL allHaveUTF8 = YES;
@@ -206,6 +234,10 @@ BOOL CORarPayloadMatchesExpectedMetadata(NSData *payload,
 		                                    hasExpectedCRC:he->hasFileCRC
 		                                       expectedCRC:he->fileCRC] autorelease];
 		e->arrayIndex = [contentArray count];
+		if (positionable) {
+			e->hasHeaderOffset = YES;
+			e->headerOffset = he->headerOffset;
+		}
 		[contentArray addObject:e];
 	}
 
@@ -218,6 +250,8 @@ BOOL CORarPayloadMatchesExpectedMetadata(NSData *payload,
 	}
 
 	crypted = headerCrypted;
+	if (positionable)
+		positioningPrefixLength = layout.prefixLength;
 	return YES;
 }
 
@@ -230,6 +264,102 @@ static struct archive *CORarOpenStream(NSString *filePath)
 	if (archive_read_open_filename(a, [filePath fileSystemRepresentation],
 	                               256 * 1024) != ARCHIVE_OK) {
 		archive_read_free(a);
+		return NULL;
+	}
+	return a;
+}
+
+/* B1: a libarchive input stream that is the file's first prefixLength
+ * bytes (signature and main header) followed by the file from
+ * entryOffset (an entry's header) to the end. Owned by the stream: freed
+ * by the close callback, which libarchive calls exactly once, also when
+ * the open fails after archive_read_open2 has been entered. */
+typedef struct {
+	int fd;
+	unsigned long long prefixLength;
+	unsigned long long entryOffset;
+	unsigned long long virtualSize;
+	unsigned long long position;	// in the virtual stream
+	void *buffer;
+} CORarPositionedStream;
+
+#define CO_RAR_POSITIONED_BLOCK (256 * 1024)
+
+static la_ssize_t CORarPositionedRead(struct archive *a, void *clientData, const void **outBuffer)
+{
+	CORarPositionedStream *s = clientData;
+	*outBuffer = s->buffer;
+	if (s->position >= s->virtualSize) return 0;
+	unsigned long long fileOffset, available;
+	if (s->position < s->prefixLength) {
+		fileOffset = s->position;
+		available = s->prefixLength - s->position;
+	} else {
+		fileOffset = s->entryOffset + (s->position - s->prefixLength);
+		available = s->virtualSize - s->position;
+	}
+	size_t want = (size_t)(available < CO_RAR_POSITIONED_BLOCK ? available : CO_RAR_POSITIONED_BLOCK);
+	ssize_t got = pread(s->fd, s->buffer, want, (off_t)fileOffset);
+	if (got < 0) {
+		archive_set_error(a, errno, "read error");
+		return ARCHIVE_FATAL;
+	}
+	s->position += (unsigned long long)got;
+	return got;
+}
+
+static la_int64_t CORarPositionedSkip(struct archive *a, void *clientData, la_int64_t request)
+{
+	CORarPositionedStream *s = clientData;
+	if (request <= 0) return 0;
+	unsigned long long remaining = s->virtualSize - s->position;
+	unsigned long long skip = (unsigned long long)request < remaining ? (unsigned long long)request : remaining;
+	s->position += skip;
+	return (la_int64_t)skip;
+}
+
+static int CORarPositionedClose(struct archive *a, void *clientData)
+{
+	CORarPositionedStream *s = clientData;
+	close(s->fd);
+	free(s->buffer);
+	free(s);
+	return ARCHIVE_OK;
+}
+
+static struct archive *CORarOpenPositionedStream(NSString *filePath,
+                                                 unsigned long long prefixLength,
+                                                 unsigned long long entryOffset)
+{
+	int fd = open([filePath fileSystemRepresentation], O_RDONLY);
+	if (fd < 0) return NULL;
+	struct stat st;
+	if (fstat(fd, &st) != 0 || entryOffset < prefixLength ||
+	    entryOffset >= (unsigned long long)st.st_size) {
+		close(fd);
+		return NULL;
+	}
+	CORarPositionedStream *s = calloc(1, sizeof(*s));
+	void *buffer = malloc(CO_RAR_POSITIONED_BLOCK);
+	if (!s || !buffer) {
+		free(s);
+		free(buffer);
+		close(fd);
+		return NULL;
+	}
+	s->fd = fd;
+	s->prefixLength = prefixLength;
+	s->entryOffset = entryOffset;
+	s->virtualSize = prefixLength + ((unsigned long long)st.st_size - entryOffset);
+	s->position = 0;
+	s->buffer = buffer;
+
+	struct archive *a = archive_read_new();
+	archive_read_support_format_rar(a);
+	archive_read_support_format_rar5(a);
+	if (archive_read_open2(a, s, NULL, CORarPositionedRead, CORarPositionedSkip,
+	                       CORarPositionedClose) != ARCHIVE_OK) {
+		archive_read_free(a);	// s was freed by the close callback
 		return NULL;
 	}
 	return a;
@@ -396,24 +526,41 @@ static BOOL CORarEntryIsAppleDouble(struct archive_entry *entry)
 		cached = [result autorelease];
 	}
 
-	[self prefetchAfterArrayIndex:entry->arrayIndex];
+	[self prefetchAfterEntry:entry];
 	return cached;
 }
 
 /* must run on readQueue (a struct archive* stream is not safe for
- * concurrent use). Fast-forwards -cursor to the requested stream
- * ordinal, reopening from the start of the file when the cursor
- * doesn't exist yet or has already passed the target (i.e. the
+ * concurrent use). Brings -cursor to the requested stream ordinal. With
+ * direct positioning (B1) any cursor that is not exactly there is
+ * replaced by a stream positioned on the entry's header. Otherwise the
+ * cursor is fast-forwarded, after reopening from the start of the file
+ * when it doesn't exist yet or has already passed the target (i.e. the
  * viewer paged backwards). A read error can return the accumulated
  * payload only when trusted header size and CRC metadata both match;
  * the cursor is invalidated either way. */
 - (NSData *)readEntryOnQueue:(CORarEntry *)requestedEntry
 {
 	NSUInteger ordinal = requestedEntry->ordinal;
-	if (!cursor || ordinal < cursorNext) {
+	BOOL positioned = (positioningPrefixLength > 0 && requestedEntry->hasHeaderOffset);
+	if (positioned && cursor && ordinal == cursorNext) {
+		// already there: continue on the cursor
+	} else if (positioned) {
+		[self invalidateCursor];
+		cursor = CORarOpenPositionedStream(filePath, positioningPrefixLength,
+		                                   requestedEntry->headerOffset);
+		cursorNext = ordinal;
+		positionedOpenCount++;
+		if (!cursor) {
+			NSLog(@"CORarArchive: cannot open %@ at entry #%lu",
+			      filePath, (unsigned long)ordinal);
+			return nil;
+		}
+	} else if (!cursor || ordinal < cursorNext) {
 		[self invalidateCursor];
 		cursor = CORarOpenStream(filePath);
 		cursorNext = 0;
+		rewindCount++;
 		if (!cursor) {
 			NSLog(@"CORarArchive: cannot reopen %@ for entry #%lu",
 			      filePath, (unsigned long)ordinal);
@@ -499,10 +646,43 @@ static BOOL CORarEntryIsAppleDouble(struct archive_entry *entry)
 	cursorNext = 0;
 }
 
-- (void)prefetchAfterArrayIndex:(NSUInteger)arrayIndex
+/* B2: the page after `entry` in page order, as handed over by
+ * -setPrefetchPageOrder:; nil after the last page. */
+- (void)setPrefetchPageOrder:(NSArray *)entries
 {
-	if (arrayIndex + 1 >= [contentArray count]) return;
-	CORarEntry *next = [contentArray objectAtIndex:arrayIndex + 1];
+	NSMutableDictionary *next = [NSMutableDictionary dictionary];
+	CORarEntry *previous = nil;
+	for (id object in entries) {
+		if (![object isKindOfClass:[CORarEntry class]]) continue;
+		CORarEntry *e = object;
+		if (e->owner != self) continue;
+		if (previous)
+			[next setObject:e forKey:[NSNumber numberWithUnsignedInteger:previous->ordinal]];
+		previous = e;
+	}
+	NSDictionary *frozen = [next copy];
+	@synchronized(self) {
+		[nextPageByOrdinal release];
+		nextPageByOrdinal = frozen;
+	}
+}
+
+/* Prefetches the next page (B2), or without a page order the next entry
+ * in stream order, as before. */
+- (void)prefetchAfterEntry:(CORarEntry *)entry
+{
+	CORarEntry *next = nil;
+	BOOL hasPageOrder = NO;
+	@synchronized(self) {
+		if (nextPageByOrdinal) {
+			hasPageOrder = YES;
+			next = [[[nextPageByOrdinal objectForKey:
+			          [NSNumber numberWithUnsignedInteger:entry->ordinal]] retain] autorelease];
+		}
+	}
+	if (!hasPageOrder && entry->arrayIndex + 1 < [contentArray count])
+		next = [contentArray objectAtIndex:entry->arrayIndex + 1];
+	if (!next) return;
 	NSNumber *key = [NSNumber numberWithUnsignedInteger:next->ordinal];
 	if ([dataCache objectForKey:key]) return;
 	dispatch_async(readQueue, ^{	// block retains self until it runs

@@ -312,6 +312,127 @@ int main(int argc, char **argv)
             }
         }
 
+        // --- B1/B2: direct positioning for non-solid RAR whose stored
+        // order is not page order (docs/cbr-performance-20261003.md cause
+        // 2). Stored 003,001,004,002. Every read in page order, then
+        // backwards, then a jump, must decode the right bytes without ever
+        // walking the cursor from the start (rewindCount stays 0). The page
+        // order hint makes the prefetch after page N fetch page N+1: once
+        // the queue has drained, reading N+1 opens no stream. ---
+        for (NSString *f in @[ @"test_rar4_unordered.cbr", @"test_rar5_unordered.cbr" ]) {
+            NSString *p = [gen stringByAppendingPathComponent:f];
+            if (![[NSFileManager defaultManager] fileExistsAtPath:p]) continue;
+            printf("%s direct positioning\n", [f UTF8String]);
+            COArchive *ar = [[[COArchive alloc] initWithPath:p] autorelease];
+            check([ar isKindOfClass:[CORarArchive class]], [NSString stringWithFormat:@"%@: not CORarArchive", f]);
+            if (![ar isKindOfClass:[CORarArchive class]] || [ar itemCount] != 4) {
+                check(NO, [NSString stringWithFormat:@"%@: expected 4 entries", f]);
+                continue;
+            }
+            CORarArchive *rar = (CORarArchive *)ar;
+            check([rar usesDirectPositioning], [NSString stringWithFormat:@"%@: direct positioning not used", f]);
+            NSArray *stored = @[ @"003.png", @"001.png", @"004.jpg", @"002.jpg" ];
+            NSMutableArray *pages = [NSMutableArray array];	// page order
+            for (NSString *name in asciiNames) {
+                CORarEntry *e = rarEntryNamed(ar, name);
+                check(e != nil, [NSString stringWithFormat:@"%@: %@ missing", f, name]);
+                if (e) [pages addObject:e];
+            }
+            int i;
+            for (i = 0; i < 4; i++)
+                check([[[[ar contents] objectAtIndex:i] path] isEqualToString:[stored objectAtIndex:i]],
+                      [NSString stringWithFormat:@"%@: stored order #%d", f, i]);
+            if ([pages count] != 4) continue;
+            [ar setPrefetchPageOrder:pages];
+
+            int sequence[] = { 0, 1, 2, 3, 2, 0, 3, 1 };	// forward, back, jumps
+            int k;
+            for (k = 0; k < 8; k++) {
+                int page = sequence[k];
+                CORarEntry *e = [pages objectAtIndex:page];
+                check([sha256([e data]) isEqualToString:[srcHashes objectAtIndex:page]],
+                      [NSString stringWithFormat:@"%@: sha mismatch for page %d (step %d)", f, page + 1, k]);
+            }
+            check([rar rewindCount] == 0,
+                  [NSString stringWithFormat:@"%@: cursor rewound %lu times", f, (unsigned long)[rar rewindCount]]);
+            check([rar positionedOpenCount] > 0, [NSString stringWithFormat:@"%@: no positioned open", f]);
+
+            // B2 on a fresh archive: read page 1, let the prefetch run,
+            // then page 2 must come from the cache
+            COArchive *fresh = [[[COArchive alloc] initWithPath:p] autorelease];
+            CORarArchive *freshRar = (CORarArchive *)fresh;
+            NSMutableArray *freshPages = [NSMutableArray array];
+            for (NSString *name in asciiNames) {
+                CORarEntry *e = rarEntryNamed(fresh, name);
+                if (e) [freshPages addObject:e];
+            }
+            if ([freshPages count] == 4) {
+                // two pages only, so reading page 2 prefetches nothing
+                [fresh setPrefetchPageOrder:[freshPages subarrayWithRange:NSMakeRange(0, 2)]];
+                [(CORarEntry *)[freshPages objectAtIndex:0] data];
+                NSUInteger opensAfterPage1 = [freshRar positionedOpenCount];	// waits for the prefetch
+                NSData *page2 = [(CORarEntry *)[freshPages objectAtIndex:1] data];
+                check([sha256(page2) isEqualToString:[srcHashes objectAtIndex:1]],
+                      [NSString stringWithFormat:@"%@: B2 page 2 sha mismatch", f]);
+                check([freshRar positionedOpenCount] == opensAfterPage1,
+                      [NSString stringWithFormat:@"%@: page 2 was not prefetched (opens %lu -> %lu)", f,
+                       (unsigned long)opensAfterPage1, (unsigned long)[freshRar positionedOpenCount]]);
+            }
+        }
+
+        // --- the paths that keep the fast-forward cursor: solid RAR5
+        // (decoder state spans entries) and an archive that took the
+        // libarchive fallback index pass (RAR4 Unicode names: no header
+        // offsets). Both still decode every page, in any order. ---
+        {
+            printf("no direct positioning: solid and fallback\n");
+            NSString *solid = [gen stringByAppendingPathComponent:@"test_solid.cbr"];
+            if ([[NSFileManager defaultManager] fileExistsAtPath:solid]) {
+                CORarArchive *ar = (CORarArchive *)[[[COArchive alloc] initWithPath:solid] autorelease];
+                check([ar isKindOfClass:[CORarArchive class]] && ![ar usesDirectPositioning],
+                      @"test_solid.cbr: solid RAR5 must not use direct positioning");
+            }
+            NSString *fallback = [gen stringByAppendingPathComponent:@"test_rar4_unordered_unicode.cbr"];
+            CORarArchive *ar = (CORarArchive *)[[[COArchive alloc] initWithPath:fallback] autorelease];
+            check([ar isKindOfClass:[CORarArchive class]] && [ar itemCount] == 4,
+                  @"unordered Unicode RAR4: not opened on CORarArchive with 4 entries");
+            if ([ar isKindOfClass:[CORarArchive class]] && [ar itemCount] == 4) {
+                check(![ar usesDirectPositioning], @"fallback-indexed RAR4 must not use direct positioning");
+                int sequence[] = { 3, 0, 2, 1 };
+                int k;
+                for (k = 0; k < 4; k++) {
+                    COArchiveEntry *e = [[ar contents] objectAtIndex:sequence[k]];
+                    NSUInteger want = [asciiNames indexOfObject:[e path]];
+                    check(want != NSNotFound && [sha256([e data]) isEqualToString:[srcHashes objectAtIndex:want]],
+                          [NSString stringWithFormat:@"fallback RAR4: sha mismatch at %d", sequence[k]]);
+                }
+                check([ar positionedOpenCount] == 0, @"fallback RAR4 opened a positioned stream");
+            }
+        }
+
+        // --- the RAR5 trailing-error recovery (KNOWN_ISSUES #37) on the
+        // direct-positioning path, twice: the second read follows the
+        // cursor invalidation the recovery does. ---
+        {
+            printf("RAR5 recovery on the direct-positioning path\n");
+            CORarArchive *ar = (CORarArchive *)[[[COArchive alloc] initWithPath:rar5Final] autorelease];
+            check([ar isKindOfClass:[CORarArchive class]] && [ar usesDirectPositioning],
+                  @"RAR5 final-block fixture should use direct positioning");
+            CORarEntry *entry = [ar isKindOfClass:[CORarArchive class]] ? rarEntryNamed(ar, @"synthetic_payload.bin") : nil;
+            if (entry) {
+                int k;
+                for (k = 0; k < 2; k++) {
+                    NSData *payload = [entry data];
+                    check(CORarPayloadMatchesExpectedMetadata(payload,
+                              entry->hasExpectedSize, entry->expectedSize,
+                              entry->hasExpectedCRC, entry->expectedCRC),
+                          [NSString stringWithFormat:@"positioned recovery read %d failed", k + 1]);
+                }
+                check([ar rewindCount] == 0 && [ar positionedOpenCount] >= 1,
+                      @"RAR5 final-block fixture was not read by direct positioning");
+            }
+        }
+
         // --- locale independence of the libzip path: CP932 names must
         // decode correctly even under the C locale (the libarchive zip
         // reader corrupts them without the main.m setlocale workaround)

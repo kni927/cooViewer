@@ -48,11 +48,27 @@
 //    Backward page turns pay for a fresh fast-forward from the
 //    start; see the phase 4 task doc for why this was accepted
 //    rather than adding another dependency.
+//  - Direct positioning (B1, docs/cbr-performance-20261003.md): for a
+//    non-solid archive indexed by the header parser, every entry
+//    carries its header's file offset, and the cursor is never walked
+//    from the start. A read that the cursor is not already positioned
+//    for opens a fresh stream through a read callback that presents the
+//    signature and main header and then continues at that entry's
+//    header (CORarPositionedStream below), so libarchive sees it as the
+//    archive's first entry. Sequential reads then continue on that
+//    cursor exactly as before. Solid archives (whose decoder state
+//    depends on every earlier entry) and archives that took the
+//    libarchive fallback index pass (header encryption, multi-volume,
+//    RAR4 Unicode names, ...) have no offsets and keep the
+//    fast-forward-from-the-start cursor described above.
 //  - Decoded NSData is cached in an NSCache keyed by ordinal, with a
 //    byte-cost limit, consistent with COZipArchive's cache policy.
-//    After a successful on-demand decode, the entry immediately
-//    following it in the stream is prefetched for free (the cursor
-//    is already sitting right after the just-decoded entry).
+//    After a successful on-demand decode, the next *page* is
+//    prefetched (B2): COImageLoader hands over the page order with
+//    -setPrefetchPageOrder:, and without one the next entry in stream order is
+//    used. When page order and stream order agree, the cursor is
+//    already sitting right after the just-decoded entry; when they do
+//    not, direct positioning makes the prefetch a cheap reposition.
 //  - Thread safety: a single struct archive* stream is not safe for
 //    concurrent use. The index pass runs synchronously, entirely on
 //    whichever single thread initializes the object, exactly like the
@@ -143,6 +159,8 @@
 	unsigned long long expectedSize;
 	BOOL hasExpectedCRC;
 	uint32_t expectedCRC;
+	BOOL hasHeaderOffset;	// direct positioning available (see above)
+	unsigned long long headerOffset;
 }
 - (id)initWithPath:(NSString *)inPath owner:(CORarArchive *)inOwner
            ordinal:(NSUInteger)inOrdinal
@@ -166,8 +184,22 @@ BOOL CORarPayloadMatchesExpectedMetadata(NSData *payload,
 	dispatch_queue_t readQueue;	// serializes every libarchive call
 	NSCache *dataCache;		// NSNumber(ordinal) -> NSData
 	BOOL rarOpened;			// index pass succeeded (else caller falls back)
+	/* Non-zero only when entries can be read by direct positioning: the
+	   length of the signature + main header prefix (CORarArchiveLayout). */
+	unsigned long long positioningPrefixLength;
+	/* B2: NSNumber(ordinal) -> CORarEntry of the next page, from
+	   -setPrefetchPageOrder:. Guarded by @synchronized(self). */
+	NSDictionary *nextPageByOrdinal;
+	/* Diagnostics for tests and tools/cbr_bench: cursor streams opened
+	   from the start of the file, and by direct positioning. readQueue
+	   only. */
+	NSUInteger rewindCount;
+	NSUInteger positionedOpenCount;
 }
 - (BOOL)rarOpened;
+- (BOOL)usesDirectPositioning;
+- (NSUInteger)rewindCount;
+- (NSUInteger)positionedOpenCount;
 /* internal, used by CORarEntry */
 - (NSData *)dataForEntry:(CORarEntry *)entry;
 @end
