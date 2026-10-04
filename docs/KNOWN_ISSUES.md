@@ -3,19 +3,32 @@
 This document collects fragile areas, gotchas, and "do not touch lightly" spots
 in the codebase. Read this before making non-trivial changes.
 
+Entry numbers are references used elsewhere (commits, task archives, source
+comments) and are not reused. #34 and #35 are unused: they were sub-items of a
+"v1.6.0 Release — Known Limitations" block, folded into #20 and #44 on
+2026-10-04. #43 and #44 were numbered #20 and #21 until then, duplicating the
+current #20 and #21; the entry that other documents referred to by that
+number kept it.
+
+Older entries and survey records name `Controller`, `Controller.m`,
+`Controller.h` and `Controller_input.m`. Since MW-5 (2026-07-29) these are
+`BookWindowController` and its files; line numbers in survey and history
+paragraphs are as of when they were written.
+
 ---
 
 ## 1. MRC (Manual Reference Counting) Project — Watch Out for ARC Mixing
 
-cooViewer's own code is built with **MRC** (Manual Reference Counting) as the
-baseline, while the submodules (XADMaster, UniversalDetector) may be built
-with ARC (or a mix, depending on the file).
+cooViewer's own code is built with **MRC** (Manual Reference Counting): no
+target in `cooViewer.xcodeproj` sets `CLANG_ENABLE_OBJC_ARC`, so the app, the
+QuickLook extensions and the New Window helper are all MRC. The vendored
+libraries under `vendor/` (libarchive, libzip, uchardet) are C libraries.
 
 - Do **not** assume ARC semantics (no automatic `retain`/`release`/`autorelease`,
   no implicit `__strong`/`__weak`) when editing `.m` files in the main project.
-- When passing objects across the MRC/ARC boundary (e.g. calling into
-  XADMaster), be careful about ownership — bridging mistakes here cause subtle
-  leaks or over-releases that are hard to reproduce.
+- If ARC code is ever added, be careful about ownership across the MRC/ARC
+  boundary — bridging mistakes there cause subtle leaks or over-releases that
+  are hard to reproduce.
 - New files added to the project should match the memory-management model of
   the surrounding code unless there's a strong reason to change it (and if you
   do change it, set the `-fobjc-arc` / `-fno-objc-arc` compiler flag explicitly
@@ -25,8 +38,11 @@ with ARC (or a mix, depending on the file).
 
 ## 2. Nib Dependency — Interface Builder Must Stay in Sync
 
-Several controllers (`Controller`, `PreferenceController`, etc.) are wired up
-through `Base.lproj/MainMenu.xib`.
+Several controllers are wired up through nibs: the app-wide ones
+(`AppController`, `PreferenceController`, `AllBookmarkController`, etc.) in
+`Resources/Base.lproj/MainMenu.xib`, and the per-window ones
+(`BookWindowController`, `CustomImageView`, `ThumbnailController`, etc.) in
+`Resources/Base.lproj/BookWindow.xib`.
 
 - Any change to an `IBOutlet` or `IBAction` in the `.h`/`.m` files **must** be
   mirrored in the `.xib` (rename, retype, rewire, or remove the connection).
@@ -35,8 +51,6 @@ through `Base.lproj/MainMenu.xib`.
   UI (outlet is nil).
 - Conversely, if you delete or rename a control in Interface Builder, check
   that no outlet/action in code still references the old name.
-- `MainMenu~.nib` is a **legacy** nib kept for reference only — do not edit it,
-  and do not confuse it with the active `MainMenu.xib`.
 - Xcode's nib editor can silently leave stale connections behind; after editing
   the xib, build and actually launch the app to confirm there's no
   KVC-compliance crash on startup.
@@ -49,9 +63,10 @@ The logic that decides which physical side (left/right on screen) corresponds
 to which logical image (`firstImage`/`secondImage`) depends on **both**:
 
 - the current `readMode` (RTL vs LTR — values `0,2` vs `1,3`), and
-- the geometric composition produced by `returnComposeImage:secondImage and:firstImage`.
+- the spread layout `-[CustomImageView drawImages:and:]` draws (reached from
+  `-[BookWindowController composeImage]`, which passes `secondImage` first).
 
-Mapping (from `composeImage`):
+Mapping (as recorded in `-[BookWindowController imageInfoForClickPoint:]`):
 ```
 RTL (readMode 0,2): LEFT = secondImage, RIGHT = firstImage
 LTR (readMode 1,3): LEFT = firstImage,  RIGHT = secondImage
@@ -67,7 +82,7 @@ two-page spreads.
 
 ## 4. `imageInfoForClickPoint:` Is Fragile — Touch Carefully
 
-`Controller.m`'s `imageInfoForClickPoint:(NSPoint)windowPoint` determines which
+`BookWindowController.m`'s `imageInfoForClickPoint:(NSPoint)windowPoint` determines which
 page of a spread was clicked by comparing the click X position against the
 center X of `[[window contentView] frame]`, then re-mapping geometric
 left/right to `firstImage`/`secondImage` using the `readMode` rules above.
@@ -87,7 +102,7 @@ left/right to `firstImage`/`secondImage` using the `readMode` rules above.
 
 ## 5. `mouseAction:` Case 59 — Special-Cased, Reason Unclear, Do Not Refactor Blindly
 
-In `Controller_input.m`, the mouse action dispatcher's **case 59**
+In `BookWindowController_input.m`, the mouse action dispatcher's **case 59**
 ("Contextual Menu") is handled specially: it calls `[imageView menu]` (the
 standard `NSView -menu` property) rather than going through the generic
 mouse-action machinery used by other cases.
@@ -144,14 +159,14 @@ metadata embedded in the image file (e.g. a 300 DPI scan reports a smaller
 "size" than its pixel dimensions). For anything that needs the actual pixel
 resolution (HUD display, save/export, etc.), read
 `NSImageRep.pixelsWide` / `pixelsHigh` instead — see `pixelSizeStringForImage:`
-in `Controller.m`.
+in `BookWindowController.m`.
 
 ---
 
 ## 7. Scroll Wheel Handling — Precision Devices Need Accumulation
 
-`wheelAction:` in `Controller_input.m` accumulates `deltaY` across events
-(`wheelDeltaAccum` in `Controller.h`) rather than acting on a single event's
+`wheelAction:` in `BookWindowController_input.m` accumulates `deltaY` across events
+(`wheelDeltaAccum` in `BookWindowController.h`) rather than acting on a single event's
 delta, because precision scroll devices (trackpads, MX-style precision mice)
 emit many small fractional deltas per physical notch.
 
@@ -164,10 +179,11 @@ emit many small fractional deltas per physical notch.
 
 ---
 
-## 8. NSUserDefaults Keys Must Be Registered in `awakeFromNib`
+## 8. NSUserDefaults Keys Must Be Registered in `+[BookWindowController initialize]`
 
-New preference keys (e.g. `ShowResolution`) must have a default value
-registered inside `Controller`'s `awakeFromNib`. Skipping this means the first
+New preference keys (e.g. `ResolutionDisplay`) must have a default value
+registered in `+[BookWindowController initialize]` (`BookWindowController.m`;
+until MW-3 this was `Controller`'s `awakeFromNib`, see #19). Skipping this means the first
 launch after an update reads `nil`/`0`/`NO` for the new key until the user
 opens Preferences and the value happens to get written — leading to
 inconsistent first-run behavior that's hard to reproduce once you've run the
@@ -184,28 +200,59 @@ order), which is easy to miss during a quick manual test in your own locale.
 
 ---
 
-## 10. No Automated Tests — Manual Verification Required
+## 10. No Automated Tests of the App — Manual Verification Required
 
-There is no test suite. Every change — especially to the areas above — needs
-to be verified by actually building (`xcodebuild -configuration Deployment`)
-and running the app (`open build/Deployment/cooViewer.app`) against real
-comic archives, in multiple `readMode` / preference combinations where
-relevant.
+The app itself has no automated tests: `cooViewer.xcodeproj` has no XCTest or
+UI-test target, so nothing automatically exercises windows, menus, input,
+rendering or the QuickLook extensions. What is automated runs from the
+command line, outside the Xcode project:
+
+- `tests/engine/run_tests.sh` builds and runs the `COArchive` harness
+  (`test_coarchive.m`, every fixture archive) and the `COImageLoader` harness
+  (`test_imageloader.m`); `run_password_test.sh` and
+  `run_encryption_test.sh` cover encrypted ZIP. They need
+  `vendor/build-libs.sh` and `tests/fixtures/make_fixtures.sh` to have run
+  (`tests/fixtures/README.md`).
+- `tests/helper/run_tests.sh` tests the New Window helper's URL handling
+  (`CONewWindowURL`) and, given a built app, checks its embedded helper
+  (`verify_bundles.py`).
+- `tests/tools/` tests `tools/rar_survey.py` and `tools/convert_solid_rar4.py`.
+- `tools/cbr_bench/` benchmarks RAR reading; it measures, it does not pass or
+  fail.
+- `tools/spread_diff.py` compares spread captures with a tolerance
+  (`CLAUDE.md`, "Spread Capture & Comparison Methodology"); the captures
+  still come from the running app.
+
+Every change to the app — especially to the areas above — still needs to be
+verified by building with the command in `CLAUDE.md` and running the app
+(`open build/cooViewer.app`, per the On-Device Verification Procedure in
+`CLAUDE.md`) against real comic archives, in multiple `readMode` /
+preference combinations where relevant.
 
 ---
 
-## 11. Submodules Are Off-Limits
+## 11. Vendored Libraries Are Off-Limits
 
-`XADMaster/` and `UniversalDetector/` are git submodules vendored for archive
-extraction and encoding detection. Do not edit them directly in this repo —
-any fix belongs upstream. If submodules appear empty after cloning, run:
+The project no longer has git submodules: `XADMaster/` and
+`UniversalDetector/` were replaced in v1.4.0 by libarchive, libzip and
+uchardet. `vendor/build-libs.sh` (needs cmake) checks out pinned upstream
+revisions into `vendor/src/` and builds them once as universal dylibs into
+`vendor/lib/`, with headers in `vendor/include/`; all three directories are
+git-ignored, and the dylibs are bundled in the app's `Frameworks/`. Do not edit
+the vendored sources — any fix belongs upstream (see #37). If the libraries
+are missing after cloning, run:
 ```bash
-git submodule update --init --recursive
+vendor/build-libs.sh
 ```
 
 ---
 
 ## 12. Unsigned Build → Repeated Folder-Access Prompts / Gatekeeper Translocation
+
+*Scope today:* released builds are Developer ID signed and notarized by CI
+(`CLAUDE.md`, "Releasing"), which is the "real fix" at the end of this entry.
+Part (a) still applies to local builds; part (b) was written for the unsigned
+releases and has not been re-checked against the notarized ones.
 
 The project builds with `CODE_SIGN_IDENTITY = ""` (no Developer ID — at most
 an implicit ad-hoc signature on Apple Silicon). This is **not** an App Sandbox
@@ -375,8 +422,9 @@ killall Dockでは解消せず、OS再起動でのみ解消した。
 1. `pluginkit -m -v -p com.apple.quicklook.preview` /
    `com.apple.quicklook.thumbnail` で、`/Applications/cooViewer.app`
    以外の場所からQuickLook拡張が登録されていないか確認する。
-2. 余分なcooViewer.appのインストール(特に`build/Deployment/`配下の
-   ビルド成果物)を削除する。
+2. 余分なcooViewer.appのインストール(特に`build/cooViewer.app`や
+   `CLAUDE.md`のビルドコマンドの`$BUILD_TMP`配下のビルド成果物)を
+   削除する。登録の解除は下の「後始末」を参照。
 3. `killall Finder && killall Dock`を試す。
 4. それでも解消しない場合、Mac自体の再起動を試す(これまでの再現例では
    再起動が最も確実だった)。
@@ -384,8 +432,10 @@ killall Dockでは解消せず、OS再起動でのみ解消した。
 **ビルド成果物は自動的に登録される(v1.6.4リリース時の知見、2026-10-02)**:
 `CLAUDE.md`のビルドコマンドでビルドし、`build/cooViewer.app`を開くと、
 明示的な`lsregister`/`pluginkit -a`を一度も実行していなくても、
-ビルド成果物(`$TMPDIR/cooViewer-build/sym/Deployment/cooViewer.app`、
-その中のヘルパーと拡張、単体のヘルパー成果物、`build/cooViewer.app`)が
+ビルド成果物(`$BUILD_TMP/sym/Deployment/cooViewer.app`、
+その中のヘルパーと拡張、単体のヘルパー成果物、`build/cooViewer.app`。
+`BUILD_TMP`は`CLAUDE.md`のビルドコマンドの
+`$(getconf DARWIN_USER_TEMP_DIR)cooViewer-build`)が
 リリース版と同じバンドルID・同じバージョンでLaunchServices/PlugInKitに
 登録される。v1.6.4のリリース検証開始時にはPreview拡張とThumbnail拡張が
 それぞれ2つずつ登録されていた。これが本項の不整合を引き起こす仕組みである。
@@ -617,6 +667,12 @@ and immediately writes it back** into the persistent domain:
 the same shape — the list above is the set named in the backlog request,
 not the full extent.)
 
+*Current location (2026-10-04):* the write-backs are in
+`-[BookWindowController windowDidLoad]`, which is the former
+`-[Controller awakeFromNib]` body (MW-5), so they now run each time a book
+window's nib loads; the registration is in `+initialize` (above). The line
+numbers in this entry are from the original survey.
+
 Consequences:
 
 - **A registered default only ever applies on the very first launch.**
@@ -649,11 +705,17 @@ clean-domain launch test.
 
 ## 20. Cannot Quit While Modal Sheets Are Displayed (Multi-Window Arc, Phase 9) — CASE 1 FIXED (2026-10-04)
 
+*Also listed as #34 in the v1.6.0 release's known limitations; that block was
+folded into this entry on 2026-10-04.*
+
 Three known cases where quit (Cmd+Q, application menu, or AppleEvent) was
 blocked or deferred while a modal is active. They were **decided not to
-fix** as of v1.6.0; task `docs/tasks/2026-10-04-03-cleanup-and-performance.md`
-reopened them: case 1 is fixed (C2), case 2 is re-verified and kept, and
-case 3 belongs to that task's B1.
+fix** as of v1.6.0 (`docs/DECISIONS.md`, "Quitting with a password prompt
+up needs an NSApplication subclass"), and `docs/release-notes-v1.6.0.md`
+lists them as known limitations. Task
+`docs/tasks/2026-10-04-03-cleanup-and-performance.md` reopened them: case 1
+is fixed (C2), case 2 is re-verified and kept, and case 3 belongs to that
+task's B1.
 
 ### ~~Case 1: All Bookmark Browser (`runModalForWindow:`)~~ — FIXED (2026-10-04)
 
@@ -706,44 +768,6 @@ quit from the shell. Planned to be fixed by B1 of the 2026-10-04 cleanup and
 performance task, which replaces the modal session with a window-modal sheet.
 
 ---
-
-## 21. All Bookmark Browser: No Page-Jump-on-Click Gesture
-
-The All Bookmarks browser lists bookmarks for the currently open book, but
-there is **no gesture to click a bookmark to jump to that page** — the Open
-button in the browser opens a *different* book from a different folder.
-
-This is a feature gap, not a defect. Whether to add it is an owner decision,
-left to a future task.
-
-## 20. `en.lproj/Localizable.strings` Is UTF-16LE, `ja.lproj` Is UTF-8
-
-`Resources/en.lproj/Localizable.strings` is UTF-16 little-endian;
-`Resources/ja.lproj/Localizable.strings` is UTF-8. Both are valid — the
-`.strings` format allows either — but the asymmetry is a trap:
-
-- Appending to the en file with a UTF-8 tool (`cat >>`, `echo >>`, a
-  plain `open(path,'a')`) silently produces a file that is *still*
-  accepted by `plutil -lint` but whose appended keys do not resolve.
-  This happened during MW-1 and was caught only by checking that the new
-  keys could be read back with `plutil -extract`.
-- Verify string edits semantically, not by eyeballing a diff — git shows
-  the UTF-16 file as `Bin` and reports no useful line diff:
-
-```bash
-plutil -extract "your new key" raw -o - Resources/en.lproj/Localizable.strings
-```
-
-To edit the en file, decode and re-encode explicitly, preserving UTF-16:
-
-```python
-raw = open(p, 'rb').read(); text = raw.decode('utf-16')
-open(p, 'wb').write((text + addition).encode('utf-16'))
-```
-
-Normalising both files to UTF-8 would remove the trap and is a
-reasonable standalone task; it has not been done because it rewrites a
-large localization file wholesale and wants its own verification pass.
 
 ## 21. ~~Composed-Spread Cache Is Not Keyed By Screen~~ — RESOLVED BY DELETION (2026-07-29)
 
@@ -1458,33 +1482,6 @@ app-modal path, by design (see decision 3 in that DECISIONS entry).
 
 ---
 
-## 23. v1.6.0 Release — Known Limitations
-
-### #34: Cannot quit while modals are displayed (three cases)
-
-Three scenarios remain where quit (Cmd+Q, application menu, or AppleEvent) is
-blocked or deferred while a modal is active. These are **decided not to fix**
-as of v1.6.0.
-
-- **All Bookmarks browser** (`runModalForWindow:`): The browser is modal.
-  Close it before quitting.
-- **Nested-archive password prompt**: Quit is **deferred** — answering the
-  prompt or cancelling it will then fire the deferred quit; the app does not
-  stay open.
-- **Archive-load progress sheet**: Cmd+Q is swallowed by the `NSModalSession`.
-  An AppleEvent quit (e.g. `osascript -e 'tell app "cooViewer" to quit'`)
-  works immediately.
-
-See DECISIONS.md "Three modal-quit edge cases" for details.
-
-### #35: All Bookmarks browser has no bookmark-to-page navigation
-
-The browser displays bookmarks from the current book but does not support
-clicking a bookmark to jump to that page. The Open button switches to a
-different book. This is a feature gap left to future consideration.
-
----
-
 ## 36. ~~Closing one of several windows crashes in `-[AccessoryView drawRect:]`~~ — FIXED (2026-07-30)
 
 Shipped in v1.6.0 and reported from the field: with more than one window
@@ -1822,3 +1819,54 @@ reading, not reproduced against the pre-fix build. Cause 1 is the likeliest
 match for the report: the owner's profile binds the page bar's show/hide
 action to a single letter key, so one stray key press hides the page bar and,
 before the fix, the auto-hidden page number with it.
+
+---
+
+## 43. `en.lproj/Localizable.strings` Is UTF-16LE, `ja.lproj` Is UTF-8 (formerly #20)
+
+`Resources/en.lproj/Localizable.strings` is UTF-16 little-endian;
+`Resources/ja.lproj/Localizable.strings` is UTF-8. Both are valid — the
+`.strings` format allows either — but the asymmetry is a trap:
+
+- Appending to the en file with a UTF-8 tool (`cat >>`, `echo >>`, a
+  plain `open(path,'a')`) silently produces a file that is *still*
+  accepted by `plutil -lint` but whose appended keys do not resolve.
+  This happened during MW-1 and was caught only by checking that the new
+  keys could be read back with `plutil -extract`.
+- Verify string edits semantically, not by eyeballing a diff — git shows
+  the UTF-16 file as `Bin` and reports no useful line diff:
+
+```bash
+plutil -extract "your new key" raw -o - Resources/en.lproj/Localizable.strings
+```
+
+To edit the en file, decode and re-encode explicitly, preserving UTF-16:
+
+```python
+raw = open(p, 'rb').read(); text = raw.decode('utf-16')
+open(p, 'wb').write((text + addition).encode('utf-16'))
+```
+
+Normalising both files to UTF-8 would remove the trap and is a
+reasonable standalone task; it has not been done because it rewrites a
+large localization file wholesale and wants its own verification pass.
+
+---
+
+## 44. All Bookmark Browser: No Page-Jump-on-Click Gesture (formerly #21)
+
+*Also listed as #35 in the v1.6.0 release's known limitations; that block was
+folded into this entry on 2026-10-04.*
+
+The All Bookmarks browser (`Bookmark ▸ All Bookmarks…`) lists the books
+recorded in `BookSettings` and, for the selected book, its bookmarks as
+editable name/page rows, but there is **no gesture to click a bookmark to
+jump to that page**. Its only open affordance, the Open button, acts on the
+*book* selection and carries no page: it brings forward a window already
+showing that book, and otherwise replaces the front window's book
+(`docs/DECISIONS.md`, "The All Bookmark browser gets its own app-targeted
+menu item"). Bookmark navigation lives in the Bookmark menu, for the front
+window's book.
+
+This is a feature gap, not a defect. Whether to add it is an owner decision,
+left to a future task.
