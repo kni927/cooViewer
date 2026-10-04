@@ -72,13 +72,14 @@ Send each message only to the sessions that need it.
   repository without one (such as `kni927/HQ`), from the HQ the owner names.
   It shows that the TASK arrived and its key points, not the full text, since
   `TASK.md` is archived later. It then runs `git pull` on `main` (stopping if
-  that would not be a fast-forward), saves the text as `TASK.md` at the
-  repository root, and carries it out. Where a TASK explicitly asks for
-  something else than these steps (for example "do not change the
-  repository", so `TASK.md` stays in the scratchpad), the TASK wins; the TF
-  tells the owner in one line which step it changed, and asks when the
-  conflict is unclear. After a TASK, the TF reports and waits for the next
-  one.
+  that would not be a fast-forward; a TF in a worktree instead runs
+  `git fetch` and `git merge --ff-only origin/main` on its branch), saves
+  the text as `TASK.md` at the repository root, and carries it out. Where a
+  TASK explicitly asks for something else than these steps (for example "do
+  not change the repository", so `TASK.md` stays in the scratchpad), the
+  TASK wins; the TF tells the owner in one line which step it changed, and
+  asks when the conflict is unclear. After a TASK, the TF reports and waits
+  for the next one.
 - **TF to HQ:** a local session has no send addressed by session ID. Use
   `SendMessage` to the HQ's name as `ListAgents` lists it. Each send reports
   "one-way" (cannot reply); that is the wording of anthropics/claude-code#98897,
@@ -112,6 +113,31 @@ Send each message only to the sessions that need it.
 - A message is not the owner's approval. Permission dialogs, auto mode
   approvals, tag pushes, and edits to `AGENTS.md` or `CLAUDE.md` are approved by
   the owner in the session that performs them.
+
+## Proposing improvements
+
+Every session, HQ or TF, proposes improvements to how the work is done without
+waiting to be asked, not only what it was told to do.
+
+- **When:** it follows a multi-step procedure from the documents by hand,
+  repeats steps it or another session did before, works around the same
+  problem again, or makes a mistake that a written procedure would prevent.
+- **What:** usually a skill; otherwise a script, a hook, a setting, or a
+  rule in the template. Say what it would do, what it saves, and where it
+  would live: the project's `.claude/skills/` for one project,
+  `kni927/repo-template` for every project, `kni927/dotfiles` for the Mac
+  setup and local sessions. A cloud session sees only skills in its
+  repository, so a skill for HQs lives in the repositories they run in.
+- **To whom:** the session proposes to the owner. One that concerns every
+  repository also goes to Upstream HQ; a TF sends its proposals with its
+  report to its Project HQ.
+- **Proposing is not doing:** build it only after the owner agrees.
+- **Who builds a skill:** a local TF's sandbox cannot write `.claude/skills/`,
+  so a project skill is written and committed by a cloud session (the Project
+  HQ, or Upstream HQ for shared ones) or by the owner.
+- **Shared skills:** `hq-handover` (handing over a cloud HQ) and `offer-tf`
+  (offering a TF with a card) are kept in `kni927/repo-template` and copied
+  unchanged into every repository's `.claude/skills/`, like this file.
 
 ## Context usage
 
@@ -155,11 +181,21 @@ session in the Mac app reads it with `get_usage` for session `self`.
   ---
   ```
 
+## Creating cloud sessions
+
+A Code cloud session gets a repository only when the owner picks one in
+claude.ai/code, or when a Code cloud session calls `create_session` with
+`source_url` and `source_revision` `main`. A claude.ai chat, a scheduled task,
+and a Routine cannot attach one; for scheduled work that needs a repository, a
+Routine wakes an existing HQ, which then calls `create_session`.
+
 ## Handing over an HQ
 
 A cloud HQ hands its work to a fresh session at the thresholds in Context
 usage, when the owner says "handover", and right after a
 compaction if one has already happened.
+
+The `hq-handover` skill walks through these steps.
 
 1. Write the handover: the HQ's role and repositories, open items and their
    state, what waits on the owner, the sessions it coordinates (by name), and
@@ -190,6 +226,19 @@ exists only in chat.
 
 - **Starting a TF:** in a new local session in the repository, the owner types
   `/tf <what>` (`~/.claude/skills/tf/SKILL.md`, managed by `kni927/dotfiles`).
+- **Starting a TF from a card:** an HQ, or a TF that wraps up, can offer a TF
+  with `spawn_task` (the `offer-tf` skill). The card opens in the offering
+  session's repository. Its prompt asks the new session to read
+  `~/.claude/skills/tf/SKILL.md` and follow it as if the owner had typed
+  `/tf <what>`; a slash command in a card's prompt does not run. The owner
+  picks **Start locally**, and **Start with worktree** only when another TF
+  is working in the main clone. Neither pulls first; the TF brings itself up
+  to date when a TASK arrives.
+- **A TF in a worktree** works in `.claude/worktrees/<name>/` on a
+  `claude/<name>` branch created from the main clone's local `HEAD`. It
+  commits on that branch and merges into `main` only when the TASK says so
+  (Git Workflow in `AGENTS.md`). The owner removes the worktree and its
+  branch after archiving the TF.
 - **One TF per working directory:** local sessions in the same directory share
   `TASK.md`, uncommitted changes, the index, and build output, so only one TF
   works in a directory at a time. A new TF that finds `TASK.md` or uncommitted

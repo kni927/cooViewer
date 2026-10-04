@@ -186,6 +186,18 @@ Full procedural precedent: `docs/tasks/2026-07-26-02-release-v1.5.2.md`.
   touches app state. See
   `docs/tasks/2026-07-31-06-finder-open-reuses-window.md` for a case
   where this was caught before any real window/book was affected.
+- On-device checks use `tools/device_check.sh` (listed in
+  `.claude/settings.json` under `sandbox.excludedCommands`), run from the
+  repository root as `tools/device_check.sh <command>`, alone in its call
+  (no pipe, redirect, `&&` or `$(...)`, which would keep it sandboxed):
+  `status`, `prefs-backup` (saves the `jp.coo.cooViewer` preferences outside
+  the repository), `launch` (opens `build/cooViewer.app` by path), `quit`
+  (sends the quit Apple event to the build's pid only, never to the
+  Homebrew copy), `prefs-restore` (restores and verifies against the
+  backup) and `unregister` (`lsregister -u` for the build and the
+  intermediate product). Agents and their subagents may run these without
+  asking each time. The `device-check` and `build-app` skills give the
+  order of steps.
 - Do not launch a local build with computer use's `open_application`:
   it resolves the app by bundle ID and starts the Homebrew-managed
   `/Applications` copy instead. Launch the build by path
@@ -201,14 +213,18 @@ install/register cycles are risky.
 
 ### Main app only (no QuickLook/Thumbnail)
 
-1. `open build/cooViewer.app`
+1. `tools/device_check.sh prefs-backup` if the check may change
+   preferences, then `tools/device_check.sh launch` (or
+   `open build/cooViewer.app`).
 2. Exercise the app.
-3. Quit it (`Cmd+Q` or `kill`).
-4. `lsregister -u build/cooViewer.app` (outside the sandbox), and the same
-   for the intermediate products under `$BUILD_TMP` if they still exist.
-   Launching registers `build/cooViewer.app` with LaunchServices under the
-   production bundle IDs, and `xcodebuild` registers the intermediate
-   products too (`docs/KNOWN_ISSUES.md` #15).
+3. Quit it: `tools/device_check.sh quit`, `Cmd+Q`, or `kill`.
+4. `tools/device_check.sh prefs-restore` if step 1 saved a backup.
+5. `tools/device_check.sh unregister`, which runs `lsregister -u` for
+   `build/cooViewer.app` and for the intermediate product under
+   `$BUILD_TMP` if it still exists. Launching registers
+   `build/cooViewer.app` with LaunchServices under the production bundle
+   IDs, and `xcodebuild` registers the intermediate products too
+   (`docs/KNOWN_ISSUES.md` #15).
 
 Do not touch `/Applications` (the Homebrew-managed install) or `~/Applications`
 for this case.
@@ -321,6 +337,12 @@ path wasn't affected by an unrelated change.
   exclusions apply. Project-specific exclusions live in `.claude/settings.json`
   under `sandbox.excludedCommands`; list them under
   "Project-specific (cooViewer)".
+- An operation that tasks need outside the sandbox again and again (saving and
+  restoring preferences, unregistering an app, and the like) goes into a project
+  script listed in `sandbox.excludedCommands`, with its step under
+  "Project-specific (cooViewer)". The auto mode classifier then finds it in
+  `CLAUDE.md`, also when a subagent runs it; a step written only in `TASK.md` or
+  a task record is refused as a bypass.
 - Commands that must always be confirmed, even in auto mode (for example a release
   or upload script), go under `permissions.ask` in `.claude/settings.json`. Do not
   add `allow` rules there; they bypass the auto mode classifier.
