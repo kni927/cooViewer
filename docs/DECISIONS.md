@@ -1938,3 +1938,43 @@ The larger limits were not measured (the test Mac has 8 GB). Continuing on
 the open cursor for the next stored entry already existed; a counter
 (`cursorContinueCount`) and an engine test now show it (an in-order RAR5:
 one stream open, 119 continuations for 120 pages).
+
+## Solid RAR5 books are decoded ahead into a per-book disk cache (2026-10-04)
+
+**Decision:** When an app window opens a solid RAR5 book (the header index
+found it solid; solid RAR4 is refused, 7z is fully extracted at open, ZIP and
+non-solid RAR reopen cheaply), `COImageLoader` hands `CORarArchive` a
+directory inside its own temporary directory. A utility-QoS pass then
+decodes the stream once, on its own libarchive stream, and writes each entry
+to `<ordinal>` (written to `<ordinal>.tmp`, length checked against the
+header, then renamed). Entries the foreground cursor reads or passes are
+written through to the same cache. A read looks in `NSCache`, then the disk
+cache, then uses the cursor; a cursor read of an entry the pass is about to
+reach, or is writing, waits for it instead of decoding twice, and lifts the
+pass to the reader's priority while it waits. The pass yields to every
+foreground read and for 100 ms after it. The cache is bounded per book by
+min(2 GB, a tenth of the volume's free space at open); past the bound the
+pass ends and nothing more is stored. Closing the book (the loader's
+dealloc) stops the pass, waits for at most one 256 KB chunk, drains the
+writer and deletes the cache directory; caches still alive at exit are
+stopped and deleted from an `atexit` handler, which also removes the
+loader's directory if that leaves it empty. Nested loaders, archives inside
+folders, the QuickLook and Thumbnail extensions and the libarchive fallback
+index never get a cache.
+
+**Why:** Owner task 2026-10-04 (B3; survey C1 in
+`docs/cbr-performance-20261003.md`), and KNOWN_ISSUES #46: in a solid
+archive any page behind the cursor that is not in memory costs a decode
+from the start of the stream. Measured with `tools/cbr_bench/` on an 8 GB
+M1 against 7fd0149 (median of 3): on a 557 MB solid RAR5 book, after 30 s
+idle, jumps to the middle and the end went from about 2.6 s to 1–2 ms,
+stepping back 200/300 pages from 2.6/1.3 s to 1 ms, and a jump to a quarter
+right after open from 1.3 s to 1 ms; a 170 MB book from about 0.8 s to
+1–2 ms. Costs: one full decode per book at low priority (about 5.5 s of
+CPU for the 557 MB book), disk equal to the decoded size within the bound,
+read-through 6–12 % slower (13 → 14 ms a page), a jump to a not yet decoded
+page right after open 5–8 % slower, about 5 ms more at open, and up to
+about 0.1 s on the main thread when a fully cached large book is closed;
+peak memory went down, not up. The bound keeps an ordinary book whole
+(decoded JPEG pages are about the size of the archive) without filling a
+nearly full disk. A crash leaves the files in the temporary directory.

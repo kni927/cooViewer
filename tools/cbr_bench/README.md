@@ -33,15 +33,30 @@ If the change under test adds a source file the archive layer needs, name it
 in `EXTRA_SOURCES` (e.g. `EXTRA_SOURCES=CODecodeAheadCache.m`); a build
 whose tree lacks it simply leaves it out.
 
+### Decode-ahead
+
+When the archive responds to `-setDecodeAheadDirectory:` (a solid RAR5 in a
+build with B3), `bench.m` gives it a fresh directory under `$TMPDIR` inside
+the timed open, as `COImageLoader` does right after the open, and removes it
+at the end; `BENCH_DECODE_AHEAD=0` leaves it off. The pass opens a stream
+of its own, so stream opens count one more where it ran.
+
 ### Counters
 
 After the timed reads, `bench.m` reports under `counters` every integer or
 `BOOL` method with no arguments that the archive responds to, from its list
 (`prefetchCount`, `rewindCount`, `positionedOpenCount`, and names later work
 may add: `cursorContinueCount`, `prefetchSkippedCount`,
-`prefetchCancelledCount`, `prefetchAbortedCount`, `decodeAheadEntryCount`,
-`decodeAheadByteCount`) or named in `BENCH_COUNTERS` (comma or space
-separated). Methods are found with `respondsToSelector:`, so the harness
+`prefetchCancelledCount`, `prefetchAbortedCount`, and the decode-ahead ones from B3:
+`decodeAheadEntryCount` / `decodeAheadByteCount` (stored by the pass),
+`decodeAheadWriteThroughCount` (stored by the foreground cursor),
+`decodeAheadDiskHitCount`, `decodeAheadAwaitCount` (reads that waited for
+the pass or a write instead of decoding), `decodeAheadDiskByteCount` (disk
+used),
+`decodeAheadByteBound`, `decodeAheadPassMilliseconds` /
+`decodeAheadPassCPUMilliseconds` / `decodeAheadPassYieldMilliseconds` (set
+when the pass has ended) and `decodeAheadPassEnded`) or named in
+`BENCH_COUNTERS` (comma or space separated). Methods are found with `respondsToSelector:`, so the harness
 builds and runs against a ref that lacks them; the summary shows — there.
 Counters are read immediately after the last timed read, so a prefetch
 still running on the archive's read queue may not be counted yet.

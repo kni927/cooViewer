@@ -79,6 +79,13 @@ EOF
 python3 "$REPO_ROOT/tests/fixtures/make_rar4_fixture.py" \
     "$LARGE_SRC" "$GEN/test_rar4_large.cbr" >/dev/null
 
+# B3: a solid RAR5 whose entries (1 MB each) are larger than the reader's
+# 256 KB decode chunk, for decode-ahead
+if command -v rar >/dev/null 2>&1; then
+    rm -f "$GEN/test_rar5_solid_large.cbr"
+    (cd "$LARGE_SRC" && rar a -idq -s "$GEN/test_rar5_solid_large.cbr" 001.png 002.jpg 003.png 004.jpg)
+fi
+
 # link entries between pages (code review M6): a Unix symbolic link in the
 # hand-written RAR4 (header index, and libarchive fallback with Unicode
 # names), and a symbolic plus a hard link in RAR5 by rar when installed
@@ -148,7 +155,25 @@ clang -O2 \
     -Wl,-rpath,"$REPO_ROOT/vendor/lib" \
     -o "$OUT/test_coarchive"
 
-"$OUT/test_coarchive" "$GEN" "$SRC" "$RAR5_FINAL"
+EXIT_FILE="$OUT/decode_ahead_exit_dir.txt"
+rm -f "$EXIT_FILE"
+CO_TEST_DECODE_AHEAD_EXIT_FILE="$EXIT_FILE" "$OUT/test_coarchive" "$GEN" "$SRC" "$RAR5_FINAL"
+
+# B3: an archive still alive at exit() has its decode-ahead files removed
+if [ -f "$EXIT_FILE" ]; then
+    LEFT_DIR="$(cat "$EXIT_FILE")"
+    if [ -z "$LEFT_DIR" ] || [ -e "$LEFT_DIR" ]; then
+        echo "FAIL: decode-ahead directory left after exit: '$LEFT_DIR'" >&2
+        exit 1
+    fi
+    # the directory it was given, empty once the cache is gone, goes too
+    if [ -e "$(dirname "$LEFT_DIR")" ]; then
+        echo "FAIL: empty decode-ahead parent left after exit: $(dirname "$LEFT_DIR")" >&2
+        exit 1
+    fi
+    echo "decode-ahead directory and its empty parent removed at exit: ok"
+    rm -f "$EXIT_FILE"
+fi
 
 # book level: COImageLoader on top of the archive layer (nested archives).
 # The app's Info.plist is embedded so +[COImageLoader fileTypes], which reads

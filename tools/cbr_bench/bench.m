@@ -21,6 +21,11 @@
 //             (decode-ahead) to finish or make progress first
 // Prints one JSON object on stdout.
 //
+// Decode-ahead (B3): when the archive responds to -setDecodeAheadDirectory:,
+// it gets a fresh directory under $TMPDIR right after the page order, inside
+// the timed open (as COImageLoader sets it after the open), removed at the
+// end. BENCH_DECODE_AHEAD=0 leaves it off.
+//
 // Diagnostic counters: after the timed reads, every zero-argument integer
 // or BOOL method of the archive named in kCounterNames or in the
 // BENCH_COUNTERS environment variable (comma or space separated) that the
@@ -77,6 +82,10 @@ static NSString *const kCounterNames[] = {
     @"prefetchCount", @"rewindCount", @"positionedOpenCount",
     @"cursorContinueCount", @"prefetchSkippedCount", @"prefetchCancelledCount",
     @"prefetchAbortedCount", @"decodeAheadEntryCount", @"decodeAheadByteCount",
+    @"decodeAheadWriteThroughCount", @"decodeAheadDiskHitCount", @"decodeAheadAwaitCount",
+    @"decodeAheadDiskByteCount",
+    @"decodeAheadByteBound", @"decodeAheadPassMilliseconds", @"decodeAheadPassCPUMilliseconds",
+    @"decodeAheadPassYieldMilliseconds", @"decodeAheadPassEnded",
 };
 
 static NSString *jsonNumbers(NSArray *values)
@@ -158,6 +167,19 @@ int main(int argc, char **argv)
 #ifndef BENCH_XAD
         if ([archive respondsToSelector:@selector(setPrefetchPageOrder:)])
             [archive performSelector:@selector(setPrefetchPageOrder:) withObject:pages];
+        NSString *decodeAheadDir = nil;
+        const char *da = getenv("BENCH_DECODE_AHEAD");
+        if ((!da || strcmp(da, "0") != 0) &&
+            [archive respondsToSelector:@selector(setDecodeAheadDirectory:)]) {
+            const char *tmp = getenv("TMPDIR");
+            NSString *template = [[NSString stringWithUTF8String:tmp ? tmp : "/tmp"]
+                                  stringByAppendingPathComponent:@"cbr_bench_da.XXXXXX"];
+            char buffer[PATH_MAX];
+            if ([template getFileSystemRepresentation:buffer maxLength:sizeof(buffer)] && mkdtemp(buffer)) {
+                decodeAheadDir = [NSString stringWithUTF8String:buffer];
+                [archive performSelector:@selector(setDecodeAheadDirectory:) withObject:decodeAheadDir];
+            }
+        }
         unsigned long opensAtOpen = gStreamOpens;
 #endif
         double openMs = nowMs() - t0;
@@ -257,7 +279,11 @@ int main(int argc, char **argv)
             && vmCount >= TASK_VM_INFO_REV2_COUNT)
             printf("\"footprint_peak_bytes\":%lld,", (long long)vm.ledger_phys_footprint_peak);
         printf("\"latencies_ms\":%s}\n", [jsonNumbers(latencies) UTF8String]);
-        [archive release];
+        [archive release];	// stops a decode-ahead pass and removes its files
+#ifndef BENCH_XAD
+        if (decodeAheadDir)
+            [[NSFileManager defaultManager] removeItemAtPath:decodeAheadDir error:NULL];
+#endif
     }
     return 0;
 }

@@ -160,6 +160,24 @@ typedef enum {
 - (NSUInteger)prefetchCancelledCount;
 - (NSUInteger)prefetchSkippedCount;
 - (NSUInteger)prefetchAbortedCount;
+
+/* Decode-ahead into a disk cache (B3), opt-in. Only a solid RAR read through
+ * the header index (CORarArchive; solid RAR4 is refused at open, so in
+ * practice solid RAR5) can use it: there a page the forward cursor has passed
+ * can only be read again by decoding the stream from the start. Once a
+ * directory is set, a low-priority pass decodes the stream once on its own
+ * libarchive stream and stores every entry as a file in a directory it
+ * creates inside `directory`, and the foreground cursor stores what it
+ * decodes or walks past there too; reads then try the decoded-bytes NSCache,
+ * these files, and only then the cursor. The pass yields to foreground reads
+ * and stops at a byte bound (see CORarArchive.h). -stopDecodeAhead (also run
+ * by dealloc) stops the pass, waits for it and for pending writes, and
+ * removes the files; `directory` itself stays the caller's. The base class
+ * and COZipArchive cannot (-canDecodeAhead NO) and ignore the calls. Set the
+ * directory once, after the open, from the thread that owns the archive. */
+- (BOOL)canDecodeAhead;
+- (void)setDecodeAheadDirectory:(NSString *)directory;
+- (void)stopDecodeAhead;
 @end
 
 /* For the lazy readers' prefetch cancellation (B2); nothing else calls these.

@@ -8,6 +8,7 @@
 -(void)finishArchiveOpen;
 -(BOOL)checkArchiveContainer:(int)index;
 -(NSString *)uncompressEntry:(NSUInteger)index named:(NSString *)fileName duplicate:(BOOL)duplicate;
+-(NSString *)temporaryDirectory;
 -(BOOL)unlockEncryptedArchive;
 //-(BOOL)uncompressAllFileToTempDir;
 @end
@@ -114,6 +115,9 @@ static NSArray *_COImageLoader_archiveTypes=nil;
 
 - (void)dealloc
 {
+	/* B3: the decode-ahead pass and its writes end, and its files go, before
+	   the directory they are in is removed. */
+	[archiveContainer stopDecodeAhead];
 	if(tempDir) {
         [[NSFileManager defaultManager] removeItemAtURL:[NSURL fileURLWithPath:tempDir] error:nil];
 		[tempDir release];
@@ -449,6 +453,14 @@ static NSArray *_COImageLoader_archiveTypes=nil;
 	/* Back to the archive mode -content set before it deferred the read. */
 	mode = 2;
 	[self finishArchiveOpen];
+	/* B3: a solid RAR book a window opens decodes ahead into this loader's
+	   temporary directory (see COArchive.h). Nested archives, archives in a
+	   folder or saved search, and the QuickLook extensions do not take this
+	   path. */
+	if (mode == 2 && [archiveContainer canDecodeAhead]) {
+		NSString *dir = [self temporaryDirectory];
+		if (dir) [archiveContainer setDecodeAheadDirectory:dir];
+	}
 }
 
 - (void)cancelArchiveRead
@@ -801,6 +813,20 @@ static NSArray *_COImageLoader_archiveTypes=nil;
 {
 	if (!COIsContainedEntryPath(fileName)) return nil;
 	if (mode != 2) return nil;
+	if (![self temporaryDirectory]) return nil;
+
+	NSString *dir = duplicate
+		? [tempDir stringByAppendingPathComponent:[NSString stringWithFormat:@".dup-%lu", (unsigned long)index]]
+		: tempDir;
+	NSString *dest = [dir stringByAppendingPathComponent:fileName];
+	[self createDir:[dest stringByDeletingLastPathComponent]];
+	return [archiveContainer uncompress:(int)index as:dest] ? dest : nil;
+}
+
+/* This loader's temporary directory (nested archives, B3's decode-ahead),
+   created on first use; removed by dealloc. nil if it cannot be created. */
+- (NSString *)temporaryDirectory
+{
 	if (!tempDir) {
 		/* mkdtemp() rewrites its argument, so it needs a buffer of our own,
 		   not -fileSystemRepresentation's. */
@@ -811,12 +837,6 @@ static NSArray *_COImageLoader_archiveTypes=nil;
 		}
 		tempDir = [[[NSFileManager defaultManager] stringWithFileSystemRepresentation:buffer length:strlen(buffer)] retain];
 	}
-
-	NSString *dir = duplicate
-		? [tempDir stringByAppendingPathComponent:[NSString stringWithFormat:@".dup-%lu", (unsigned long)index]]
-		: tempDir;
-	NSString *dest = [dir stringByAppendingPathComponent:fileName];
-	[self createDir:[dest stringByDeletingLastPathComponent]];
-	return [archiveContainer uncompress:(int)index as:dest] ? dest : nil;
+	return tempDir;
 }
 @end

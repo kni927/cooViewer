@@ -292,6 +292,21 @@ static COArchive *COOpenLazyArchive(NSString *path, COArchiveProgress progress)
 	@synchronized(self) { return prefetchAbortedCount; }
 }
 
+/* B3: only CORarArchive decodes ahead (see COArchive.h). */
+- (BOOL)canDecodeAhead
+{
+	return NO;
+}
+
+- (void)setDecodeAheadDirectory:(NSString *)directory
+{
+	(void)directory;
+}
+
+- (void)stopDecodeAhead
+{
+}
+
 - (BOOL)uncompress:(int)index as:(NSString *)fileName
 {
 	if (index < 0 || index >= (int)[contentArray count]) return NO;

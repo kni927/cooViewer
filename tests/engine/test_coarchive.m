@@ -159,6 +159,65 @@ static NSData *readWhilePrefetchParked(COArchive *ar, dispatch_queue_t queue,
     return [result autorelease];
 }
 
+/* --- B3 decode-ahead test seams --- */
+static BOOL waitUntil(BOOL (^condition)(void), double seconds)
+{
+    for (int i = 0; i < (int)(seconds * 100); i++) {
+        if (condition()) return YES;
+        usleep(10000);
+    }
+    return condition();
+}
+
+static NSString *makeTempDir(NSString *tag)
+{
+    // $TMPDIR rather than NSTemporaryDirectory(): a sandboxed run (an agent
+    // session) can write only there (see test_imageloader.m)
+    const char *tmp = getenv("TMPDIR");
+    NSString *base = tmp ? [NSString stringWithUTF8String:tmp] : NSTemporaryDirectory();
+    NSString *template = [base stringByAppendingPathComponent:
+                          [NSString stringWithFormat:@"co-b3-%@.XXXXXX", tag]];
+    char buffer[PATH_MAX];
+    if (![template getFileSystemRepresentation:buffer maxLength:sizeof(buffer)] || !mkdtemp(buffer))
+        return nil;
+    return [[NSFileManager defaultManager] stringWithFileSystemRepresentation:buffer length:strlen(buffer)];
+}
+
+static void evictFromDataCache(CORarArchive *ar, CORarEntry *entry)
+{
+    NSCache *cache = ivarOf(ar, [CORarArchive class], "dataCache");
+    [cache removeObjectForKey:[NSNumber numberWithUnsignedInteger:entry->ordinal]];
+}
+
+/* Parks the decode-ahead pass at an ordinal until released. */
+static dispatch_semaphore_t passReached, passRelease;
+static NSUInteger passParkOrdinal;
+static BOOL passParkAfterClaim;	// park after the claim, not before the header
+static _Atomic int passParkArmed;
+static _Atomic int passHookCalls;
+static _Atomic long passHighestOrdinal;
+
+static void parkingPassHook(NSUInteger ordinal, BOOL afterClaim, BOOL claimed)
+{
+    (void)claimed;
+    if (!afterClaim) {
+        atomic_fetch_add(&passHookCalls, 1);
+        long seen = atomic_load(&passHighestOrdinal);
+        while ((long)ordinal > seen &&
+               !atomic_compare_exchange_weak(&passHighestOrdinal, &seen, (long)ordinal)) {}
+    }
+    if (ordinal != passParkOrdinal || afterClaim != passParkAfterClaim) return;
+    int armed = 1;
+    if (!atomic_compare_exchange_strong(&passParkArmed, &armed, 0)) return;
+    dispatch_semaphore_signal(passReached);
+    dispatch_semaphore_wait(passRelease, DISPATCH_TIME_FOREVER);
+}
+
+static NSArray *filesIn(NSString *dir)
+{
+    return [[NSFileManager defaultManager] contentsOfDirectoryAtPath:dir error:NULL];
+}
+
 static void testArchive(NSString *path, NSArray *names, NSArray *srcHashes)
 {
     // 7z/rar fixtures are optional (make_fixtures.sh skips them when
@@ -1112,6 +1171,378 @@ int main(int argc, char **argv)
                 }
             } else {
                 printf("corrupt_bitflip.cbr: SKIP (rar not installed)\n");
+            }
+        }
+
+        // --- B3: decode-ahead into a disk cache for solid RAR5. The large
+        // fixture's entries (1 MB each) are bigger than the 256 KB decode
+        // chunk; without rar, the small solid fixture stands in. ---
+        {
+            NSString *solidPath = [gen stringByAppendingPathComponent:@"test_rar5_solid_large.cbr"];
+            if (![[NSFileManager defaultManager] fileExistsAtPath:solidPath])
+                solidPath = [gen stringByAppendingPathComponent:@"test_solid.cbr"];
+            if (![[NSFileManager defaultManager] fileExistsAtPath:solidPath]) {
+                printf("decode-ahead: SKIP (no solid RAR5 fixture; rar not installed)\n");
+            } else {
+                NSString *fixture = [solidPath lastPathComponent];
+                // reference: a plain read, no decode-ahead
+                NSMutableDictionary *refHash = [NSMutableDictionary dictionary];
+                NSMutableDictionary *refLength = [NSMutableDictionary dictionary];
+                unsigned long long totalBytes = 0;
+                {
+                    COArchive *ref = [[[COArchive alloc] initWithPath:solidPath] autorelease];
+                    for (COArchiveEntry *e in [ref contents]) {
+                        NSData *d = [e data];
+                        [refHash setObject:sha256(d) forKey:[e path]];
+                        [refLength setObject:@([d length]) forKey:[e path]];
+                        totalBytes += [d length];
+                    }
+                }
+                NSUInteger n = [refHash count];
+
+                printf("decode-ahead: pass (%s)\n", [fixture UTF8String]);
+                {
+                    NSString *dir = makeTempDir(@"pass");
+                    CORarArchive *ar = (CORarArchive *)[[[COArchive alloc] initWithPath:solidPath] autorelease];
+                    check([ar isKindOfClass:[CORarArchive class]] && [ar canDecodeAhead],
+                          [NSString stringWithFormat:@"%@: solid RAR5 can decode ahead", fixture]);
+                    [ar setDecodeAheadDirectory:dir];
+                    NSString *cacheDir = [ar decodeAheadCacheDirectory];
+                    check(cacheDir && [[cacheDir stringByDeletingLastPathComponent] isEqualToString:dir],
+                          [NSString stringWithFormat:@"decode-ahead: directory %@ inside %@", cacheDir, dir]);
+                    BOOL ended = waitUntil(^BOOL{ return [ar decodeAheadPassEnded]; }, 20);
+                    check(ended, @"decode-ahead: the pass ended");
+                    check([ar decodeAheadEntryCount] == n && [ar decodeAheadByteCount] == totalBytes &&
+                          [ar decodeAheadDiskByteCount] == totalBytes,
+                          [NSString stringWithFormat:@"decode-ahead: pass stored %lu/%lu entries, %lu/%llu bytes",
+                           (unsigned long)[ar decodeAheadEntryCount], (unsigned long)n,
+                           (unsigned long)[ar decodeAheadByteCount], totalBytes]);
+                    NSArray *files = filesIn(cacheDir);
+                    check([files count] == n && ![[files componentsJoinedByString:@","] containsString:@".tmp"],
+                          [NSString stringWithFormat:@"decode-ahead: %lu files, no temporaries (%@)",
+                           (unsigned long)[files count], files]);
+                    // jumps and back-steps, last to first: all from disk, no cursor
+                    NSArray *entries = [ar contents];
+                    BOOL allMatch = YES;
+                    for (NSInteger i = (NSInteger)[entries count] - 1; i >= 0; i--) {
+                        COArchiveEntry *e = [entries objectAtIndex:(NSUInteger)i];
+                        if (![sha256([e data]) isEqualToString:[refHash objectForKey:[e path]]]) allMatch = NO;
+                    }
+                    check(allMatch, @"decode-ahead: every entry read from disk matches a plain read");
+                    check([ar rewindCount] == 0 && [ar decodeAheadDiskHitCount] == n,
+                          [NSString stringWithFormat:@"decode-ahead: reads after the pass: %lu rewinds, %lu disk hits",
+                           (unsigned long)[ar rewindCount], (unsigned long)[ar decodeAheadDiskHitCount]]);
+                    // a page the NSCache lost comes back from disk
+                    CORarEntry *first = [entries objectAtIndex:0];
+                    evictFromDataCache(ar, first);
+                    NSData *again = [first data];
+                    check([sha256(again) isEqualToString:[refHash objectForKey:[first path]]] &&
+                          [ar rewindCount] == 0 && [ar decodeAheadDiskHitCount] == n + 1,
+                          [NSString stringWithFormat:@"decode-ahead: evicted entry from disk (%lu rewinds, %lu hits)",
+                           (unsigned long)[ar rewindCount], (unsigned long)[ar decodeAheadDiskHitCount]]);
+                    [ar stopDecodeAhead];
+                    check(![[NSFileManager defaultManager] fileExistsAtPath:cacheDir] &&
+                          [[NSFileManager defaultManager] fileExistsAtPath:dir],
+                          @"decode-ahead: stop removes its own directory and nothing else");
+                    // after the stop, reads still work (through the cursor)
+                    evictFromDataCache(ar, first);
+                    check([sha256([first data]) isEqualToString:[refHash objectForKey:[first path]]] &&
+                          [ar rewindCount] == 1 && ![[NSFileManager defaultManager] fileExistsAtPath:cacheDir],
+                          @"decode-ahead: a read after the stop uses the cursor and writes nothing");
+                    [[NSFileManager defaultManager] removeItemAtPath:dir error:NULL];
+                }
+
+                printf("decode-ahead: write-through from the cursor (%s)\n", [fixture UTF8String]);
+                {
+                    NSString *dir = makeTempDir(@"wt");
+                    CORarDecodeAheadPassDisabledForTesting = YES;
+                    CORarArchive *ar = (CORarArchive *)[[[COArchive alloc] initWithPath:solidPath] autorelease];
+                    [ar setDecodeAheadDirectory:dir];
+                    CORarDecodeAheadPassDisabledForTesting = NO;
+                    NSArray *entries = [ar contents];
+                    CORarEntry *last = [entries lastObject];
+                    CORarEntry *first = [entries objectAtIndex:0];
+                    // the last entry: the cursor walks past all the others
+                    check([sha256([last data]) isEqualToString:[refHash objectForKey:[last path]]],
+                          @"write-through: last entry decodes");
+                    check(waitUntil(^BOOL{ return [ar decodeAheadWriteThroughCount] == n; }, 10),
+                          [NSString stringWithFormat:@"write-through: %lu/%lu entries stored (walked past and read)",
+                           (unsigned long)[ar decodeAheadWriteThroughCount], (unsigned long)n]);
+                    check([ar decodeAheadEntryCount] == 0, @"write-through: no pass ran");
+                    NSUInteger rewinds = [ar rewindCount];
+                    check([sha256([first data]) isEqualToString:[refHash objectForKey:[first path]]] &&
+                          [ar rewindCount] == rewinds && [ar decodeAheadDiskHitCount] == 1,
+                          [NSString stringWithFormat:@"write-through: a walked-past entry from disk, no rewind (%lu -> %lu)",
+                           (unsigned long)rewinds, (unsigned long)[ar rewindCount]]);
+                    // KNOWN_ISSUES #46: an entry the NSCache lost, behind the cursor
+                    evictFromDataCache(ar, last);
+                    check([sha256([last data]) isEqualToString:[refHash objectForKey:[last path]]] &&
+                          [ar rewindCount] == rewinds && [ar decodeAheadDiskHitCount] == 2,
+                          @"write-through: an evicted entry behind the cursor from disk, no rewind");
+                    [ar stopDecodeAhead];
+                    [[NSFileManager defaultManager] removeItemAtPath:dir error:NULL];
+                }
+
+                if (n >= 3) {
+                    printf("decode-ahead: stop and dealloc during the pass (%s)\n", [fixture UTF8String]);
+                    // -stopDecodeAhead while the pass is parked before ordinal 1
+                    NSString *dir = makeTempDir(@"stop");
+                    NSString *sentinel = [dir stringByAppendingPathComponent:@"keep.txt"];
+                    [@"keep" writeToFile:sentinel atomically:NO encoding:NSUTF8StringEncoding error:NULL];
+                    passReached = dispatch_semaphore_create(0);
+                    passRelease = dispatch_semaphore_create(0);
+                    passParkOrdinal = 1;
+                    atomic_store(&passParkArmed, 1);
+                    CORarDecodeAheadPassHookForTesting = parkingPassHook;
+                    CORarArchive *ar = (CORarArchive *)[[COArchive alloc] initWithPath:solidPath];
+                    [ar setDecodeAheadDirectory:dir];
+                    NSString *cacheDir = [[ar decodeAheadCacheDirectory] retain];
+                    BOOL parked = dispatch_semaphore_wait(passReached,
+                        dispatch_time(DISPATCH_TIME_NOW, 10 * NSEC_PER_SEC)) == 0;
+                    check(parked, @"stop: the pass reached ordinal 1");
+                    dispatch_group_t g = dispatch_group_create();
+                    dispatch_group_async(g, dispatch_get_global_queue(QOS_CLASS_USER_INITIATED, 0), ^{
+                        [ar stopDecodeAhead];
+                    });
+                    usleep(50000);
+                    check(dispatch_group_wait(g, DISPATCH_TIME_NOW) != 0,
+                          @"stop: waits for the running pass");
+                    dispatch_semaphore_signal(passRelease);
+                    check(dispatch_group_wait(g, dispatch_time(DISPATCH_TIME_NOW, 10 * NSEC_PER_SEC)) == 0,
+                          @"stop: returns once the pass has stopped");
+                    check([ar decodeAheadPassEnded] && [ar decodeAheadEntryCount] == 1,
+                          [NSString stringWithFormat:@"stop: the pass ended after %lu entries",
+                           (unsigned long)[ar decodeAheadEntryCount]]);
+                    check(![[NSFileManager defaultManager] fileExistsAtPath:cacheDir] &&
+                          [[NSFileManager defaultManager] fileExistsAtPath:sentinel],
+                          @"stop: its directory is gone, the caller's file is kept");
+                    int callsAfterStop = atomic_load(&passHookCalls);
+                    usleep(100000);
+                    check(atomic_load(&passHookCalls) == callsAfterStop, @"stop: no pass runs afterwards");
+                    [ar release];
+                    [cacheDir release];
+                    dispatch_release(g);
+                    dispatch_release(passReached);
+                    dispatch_release(passRelease);
+
+                    // dealloc (no explicit stop) while the pass is parked
+                    passReached = dispatch_semaphore_create(0);
+                    passRelease = dispatch_semaphore_create(0);
+                    passParkOrdinal = 2;
+                    atomic_store(&passParkArmed, 1);
+                    // __block: the block must not retain it (MRC), so the release
+                    // inside it is the last one and dealloc runs there
+                    __block CORarArchive *ar2 = (CORarArchive *)[[COArchive alloc] initWithPath:solidPath];
+                    [ar2 setDecodeAheadDirectory:dir];
+                    NSString *cacheDir2 = [[ar2 decodeAheadCacheDirectory] retain];
+                    parked = dispatch_semaphore_wait(passReached,
+                        dispatch_time(DISPATCH_TIME_NOW, 10 * NSEC_PER_SEC)) == 0;
+                    check(parked, @"dealloc: the pass reached ordinal 2");
+                    g = dispatch_group_create();
+                    dispatch_group_async(g, dispatch_get_global_queue(QOS_CLASS_USER_INITIATED, 0), ^{
+                        [ar2 release];
+                    });
+                    usleep(50000);
+                    dispatch_semaphore_signal(passRelease);
+                    check(dispatch_group_wait(g, dispatch_time(DISPATCH_TIME_NOW, 10 * NSEC_PER_SEC)) == 0,
+                          @"dealloc: returns once the pass has stopped");
+                    callsAfterStop = atomic_load(&passHookCalls);
+                    usleep(100000);
+                    check(atomic_load(&passHookCalls) == callsAfterStop &&
+                          ![[NSFileManager defaultManager] fileExistsAtPath:cacheDir2] &&
+                          [[NSFileManager defaultManager] fileExistsAtPath:sentinel],
+                          @"dealloc: no pass afterwards, its directory gone, the caller's file kept");
+                    CORarDecodeAheadPassHookForTesting = NULL;
+                    [cacheDir2 release];
+                    dispatch_release(g);
+                    dispatch_release(passReached);
+                    dispatch_release(passRelease);
+                    [[NSFileManager defaultManager] removeItemAtPath:dir error:NULL];
+                }
+
+                if (n >= 4) {
+                    // a read ahead of a running pass waits for it rather than
+                    // decoding the stream again from the start
+                    printf("decode-ahead: a read ahead of the pass waits for it (%s)\n", [fixture UTF8String]);
+                    NSString *dir = makeTempDir(@"await");
+                    passReached = dispatch_semaphore_create(0);
+                    passRelease = dispatch_semaphore_create(0);
+                    passParkOrdinal = 2;
+                    atomic_store(&passParkArmed, 1);
+                    CORarDecodeAheadPassHookForTesting = parkingPassHook;
+                    CORarArchive *ar = (CORarArchive *)[[[COArchive alloc] initWithPath:solidPath] autorelease];
+                    [ar setDecodeAheadDirectory:dir];
+                    BOOL parked = dispatch_semaphore_wait(passReached,
+                        dispatch_time(DISPATCH_TIME_NOW, 10 * NSEC_PER_SEC)) == 0;
+                    check(parked, @"await: the pass reached ordinal 2");
+                    CORarEntry *last = [[ar contents] lastObject];
+                    __block NSData *got = nil;
+                    dispatch_group_t g = dispatch_group_create();
+                    dispatch_group_async(g, dispatch_get_global_queue(QOS_CLASS_USER_INITIATED, 0), ^{
+                        got = [[last data] retain];
+                    });
+                    usleep(100000);
+                    check(dispatch_group_wait(g, DISPATCH_TIME_NOW) != 0,
+                          @"await: the read waits while the pass is held");
+                    dispatch_semaphore_signal(passRelease);
+                    check(dispatch_group_wait(g, dispatch_time(DISPATCH_TIME_NOW, 20 * NSEC_PER_SEC)) == 0,
+                          @"await: the read returns once the pass has stored it");
+                    CORarDecodeAheadPassHookForTesting = NULL;
+                    check([sha256(got) isEqualToString:[refHash objectForKey:[last path]]] &&
+                          [ar rewindCount] == 0 && [ar decodeAheadAwaitCount] == 1,
+                          [NSString stringWithFormat:@"await: served by the pass (%lu rewinds, %lu awaits)",
+                           (unsigned long)[ar rewindCount], (unsigned long)[ar decodeAheadAwaitCount]]);
+                    [got release];
+                    [ar stopDecodeAhead];
+                    dispatch_release(g);
+                    dispatch_release(passReached);
+                    dispatch_release(passRelease);
+                    [[NSFileManager defaultManager] removeItemAtPath:dir error:NULL];
+                }
+
+                if (n >= 4) {
+                    // Regression (review of B3): the cursor is already at the
+                    // entry the pass has claimed and is decoding (a nested
+                    // archive read through the cursor before the directory
+                    // was set does this). The read waits for the pass's
+                    // claim; it must demand the pass, which would otherwise
+                    // keep yielding to the waiting (busy) reader for ever.
+                    printf("decode-ahead: a read waiting for the pass's own claim (%s)\n", [fixture UTF8String]);
+                    NSString *dir = makeTempDir(@"claim");
+                    CORarArchive *ar = (CORarArchive *)[[[COArchive alloc] initWithPath:solidPath] autorelease];
+                    [ar disablePrefetch];	// keep the cursor exactly after entry 1
+                    NSArray *entries = [ar contents];
+                    CORarEntry *e1 = [entries objectAtIndex:1];
+                    CORarEntry *e2 = [entries objectAtIndex:2];
+                    check([sha256([e1 data]) isEqualToString:[refHash objectForKey:[e1 path]]],
+                          @"claim: entry 1 through the cursor before decode-ahead");
+                    passReached = dispatch_semaphore_create(0);
+                    passRelease = dispatch_semaphore_create(0);
+                    passParkOrdinal = 2;
+                    passParkAfterClaim = YES;
+                    atomic_store(&passParkArmed, 1);
+                    CORarDecodeAheadPassHookForTesting = parkingPassHook;
+                    [ar setDecodeAheadDirectory:dir];
+                    BOOL parked = dispatch_semaphore_wait(passReached,
+                        dispatch_time(DISPATCH_TIME_NOW, 10 * NSEC_PER_SEC)) == 0;
+                    check(parked, @"claim: the pass claimed entry 2 and is held");
+                    __block NSData *got = nil;
+                    dispatch_group_t g = dispatch_group_create();
+                    dispatch_group_async(g, dispatch_get_global_queue(QOS_CLASS_USER_INITIATED, 0), ^{
+                        got = [[e2 data] retain];
+                    });
+                    usleep(50000);
+                    dispatch_semaphore_signal(passRelease);
+                    BOOL finished = dispatch_group_wait(g, dispatch_time(DISPATCH_TIME_NOW, 10 * NSEC_PER_SEC)) == 0;
+                    check(finished, @"claim: the read of the pass's entry completes (no read/pass deadlock)");
+                    CORarDecodeAheadPassHookForTesting = NULL;
+                    passParkAfterClaim = NO;
+                    if (!finished) {
+                        [ar stopDecodeAhead];	// cancels the pass; the read then uses the cursor
+                        dispatch_group_wait(g, DISPATCH_TIME_FOREVER);
+                    }
+                    check([sha256(got) isEqualToString:[refHash objectForKey:[e2 path]]] &&
+                          [ar rewindCount] == 1 && [ar decodeAheadAwaitCount] == 1,
+                          [NSString stringWithFormat:@"claim: entry 2 from the pass (%lu rewinds, %lu awaits)",
+                           (unsigned long)[ar rewindCount], (unsigned long)[ar decodeAheadAwaitCount]]);
+                    [got release];
+                    [ar stopDecodeAhead];
+                    dispatch_release(g);
+                    dispatch_release(passReached);
+                    dispatch_release(passRelease);
+                    [[NSFileManager defaultManager] removeItemAtPath:dir error:NULL];
+                }
+
+                if (n >= 4) {
+                    // entries of unknown size are checked against the bound
+                    // when stored; one that does not fit ends the pass
+                    printf("decode-ahead: size bound, entries of unknown size (%s)\n", [fixture UTF8String]);
+                    NSString *dir = makeTempDir(@"bound-unknown");
+                    CORarArchive *ar = (CORarArchive *)[[[COArchive alloc] initWithPath:solidPath] autorelease];
+                    NSArray *entries = [ar contents];
+                    unsigned long long two = 0;
+                    for (NSUInteger i = 0; i < 2; i++)
+                        two += [[refLength objectForKey:[[entries objectAtIndex:i] path]] unsignedLongLongValue];
+                    for (CORarEntry *e in entries) e->hasExpectedSize = NO;
+                    unsigned long long bound = two + 1;
+                    CORarDecodeAheadByteBoundForTesting = bound;
+                    passParkOrdinal = NSNotFound;	// count only
+                    atomic_store(&passHighestOrdinal, -1);
+                    CORarDecodeAheadPassHookForTesting = parkingPassHook;
+                    [ar setDecodeAheadDirectory:dir];
+                    CORarDecodeAheadByteBoundForTesting = 0;
+                    check(waitUntil(^BOOL{ return [ar decodeAheadPassEnded]; }, 20), @"bound (unknown size): the pass ended");
+                    CORarDecodeAheadPassHookForTesting = NULL;
+                    check([ar decodeAheadEntryCount] == 2 && [ar decodeAheadDiskByteCount] <= bound &&
+                          atomic_load(&passHighestOrdinal) == 2,
+                          [NSString stringWithFormat:@"bound (unknown size): %lu entries, %lu bytes, bound %llu, "
+                           "last ordinal reached %ld (want 2: it stops at the first that does not fit)",
+                           (unsigned long)[ar decodeAheadEntryCount], (unsigned long)[ar decodeAheadDiskByteCount],
+                           bound, atomic_load(&passHighestOrdinal)]);
+                    [ar stopDecodeAhead];
+                    [[NSFileManager defaultManager] removeItemAtPath:dir error:NULL];
+                }
+
+                printf("decode-ahead: size bound (%s)\n", [fixture UTF8String]);
+                {
+                    // room for the first two entries in stream order only
+                    COArchive *probe = [[[COArchive alloc] initWithPath:solidPath] autorelease];
+                    NSArray *entries = [probe contents];
+                    unsigned long long two = 0;
+                    for (NSUInteger i = 0; i < 2 && i < [entries count]; i++)
+                        two += [[refLength objectForKey:[[entries objectAtIndex:i] path]] unsignedLongLongValue];
+                    unsigned long long bound = two + 1;
+                    NSString *dir = makeTempDir(@"bound");
+                    CORarDecodeAheadByteBoundForTesting = bound;
+                    CORarArchive *ar = (CORarArchive *)[[[COArchive alloc] initWithPath:solidPath] autorelease];
+                    [ar setDecodeAheadDirectory:dir];
+                    CORarDecodeAheadByteBoundForTesting = 0;
+                    check(waitUntil(^BOOL{ return [ar decodeAheadPassEnded]; }, 20), @"bound: the pass ended");
+                    check([ar decodeAheadByteBound] == bound && [ar decodeAheadDiskByteCount] <= bound &&
+                          [ar decodeAheadEntryCount] == 2,
+                          [NSString stringWithFormat:@"bound: %lu entries, %lu bytes on disk, bound %llu",
+                           (unsigned long)[ar decodeAheadEntryCount],
+                           (unsigned long)[ar decodeAheadDiskByteCount], bound]);
+                    // the rest still reads, through the cursor; nothing more is stored
+                    CORarEntry *last = [[ar contents] lastObject];
+                    check([sha256([last data]) isEqualToString:[refHash objectForKey:[last path]]] &&
+                          [ar rewindCount] == 1,
+                          @"bound: an entry past the bound reads through the cursor");
+                    usleep(100000);
+                    check([ar decodeAheadWriteThroughCount] == 0 && [ar decodeAheadDiskByteCount] <= bound &&
+                          [filesIn([ar decodeAheadCacheDirectory]) count] == 2,
+                          @"bound: write-through respects the bound too");
+                    [ar stopDecodeAhead];
+                    [[NSFileManager defaultManager] removeItemAtPath:dir error:NULL];
+                }
+
+                // the app quits without releasing its books: an archive still
+                // alive at exit() has its files removed by the atexit handler.
+                // run_tests.sh checks the directory after this process ends.
+                const char *exitFile = getenv("CO_TEST_DECODE_AHEAD_EXIT_FILE");
+                if (exitFile) {
+                    printf("decode-ahead: left alive until exit (checked by run_tests.sh)\n");
+                    NSString *dir = makeTempDir(@"exit");
+                    CORarArchive *leaked = (CORarArchive *)[[COArchive alloc] initWithPath:solidPath];	// never released
+                    [leaked setDecodeAheadDirectory:dir];
+                    check(waitUntil(^BOOL{ return [leaked decodeAheadDiskByteCount] > 0; }, 20),
+                          @"exit: the pass stored something before exit");
+                    NSString *cacheDir = [leaked decodeAheadCacheDirectory];
+                    NSError *error = nil;
+                    BOOL recorded = cacheDir && [cacheDir writeToFile:[NSString stringWithUTF8String:exitFile]
+                                                           atomically:NO encoding:NSUTF8StringEncoding error:&error];
+                    check(recorded, [NSString stringWithFormat:@"exit: directory %@ recorded for run_tests.sh (%@)",
+                                     cacheDir, error]);
+                }
+
+                printf("decode-ahead: not for non-solid RAR, 7z, ZIP\n");
+                for (NSString *f in @[ @"test.cbr", @"test.7z", @"test.zip" ]) {
+                    NSString *p = [gen stringByAppendingPathComponent:f];
+                    if (![[NSFileManager defaultManager] fileExistsAtPath:p]) continue;
+                    COArchive *other = [[[COArchive alloc] initWithPath:p] autorelease];
+                    check(![other canDecodeAhead],
+                          [NSString stringWithFormat:@"%@: must not decode ahead", f]);
+                }
             }
         }
 

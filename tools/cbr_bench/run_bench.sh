@@ -22,6 +22,7 @@
 #   SCENARIOS      default: "open seq paced jump back"; "idlejump" is opt-in
 #   BENCH_IDLE_MS  idlejump's wait after open (default 10000)
 #   BENCH_COUNTERS more archive counter method names to report (bench.m)
+#   BENCH_DECODE_AHEAD  0 leaves B3's decode-ahead off in builds that have it
 set -euo pipefail
 
 TOOL_DIR="$(cd "$(dirname "$0")" && pwd)"

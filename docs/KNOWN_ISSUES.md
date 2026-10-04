@@ -1923,7 +1923,7 @@ because it changes how far an existing binding moves.
 
 ---
 
-## 46. A solid book can stall for seconds per page under memory pressure, and the UI freezes meanwhile
+## 46. A solid book can stall for seconds per page under memory pressure, and the UI freezes meanwhile — PART 1 MITIGATED (2026-10-04)
 
 Found during the on-device check of B2 (task
 `docs/tasks/2026-10-04-03-cleanup-and-performance.md`, 2026-10-04) on an
@@ -1944,8 +1944,15 @@ regression; B2's own race that could throw away a solid cursor was found
 in the same investigation and fixed before B2 was committed.
 
 Two separate parts:
-- **Lost decoded pages** in solid archives. B3 of the same task (decode-ahead
-  into a disk cache) is the intended mitigation; see its result.
+- **Lost decoded pages** in solid archives — mitigated by B3 of the same
+  task: solid RAR5 books are decoded ahead into a per-book disk cache, and
+  pages the cursor passes are written through, so a page `NSCache` lost is
+  read from disk instead of decoding from the start (`docs/DECISIONS.md`,
+  "Solid RAR5 books are decoded ahead into a per-book disk cache"). On
+  device the same slideshow then ran without stalls and the menus stayed
+  usable, with the cache already filled; a slideshow over pages the pass
+  had not reached yet was not tried. Books past the cache bound (2 GB, or a
+  tenth of free space) still rewind for pages beyond it.
 - **Synchronous reads on the main thread.** When the page to show is not
   ready, `-lockedImageDisplay` reads it on the main thread (as it did
   before B2, after its lock barrier), so any read that needs a rewind

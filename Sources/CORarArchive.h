@@ -96,6 +96,67 @@
 //        rewind.
 //    The wanted entry's own prefetch is never cancelled; the read waits
 //    for it and then finds it in the cache.
+//  - Decode-ahead (B3, survey C1 in docs/cbr-performance-20261003.md;
+//    KNOWN_ISSUES #46): for a solid archive read through the header index,
+//    -setDecodeAheadDirectory: (COImageLoader, for the book a window opens)
+//    creates a directory of its own inside the given one and starts a pass
+//    on a serial queue of utility QoS. The pass opens its own libarchive
+//    stream (the foreground cursor is untouched), decodes every entry in
+//    stream order and writes each one counted in -contents to "<ordinal>"
+//    (streamed through "<ordinal>.tmp" and renamed, so a file under its
+//    final name is always complete; its length must match the header
+//    index's size). The foreground cursor writes through: the entry it
+//    reads, and every counted entry it walks past on the way (decoded
+//    instead of skipped — in a solid stream a skip decodes anyway), are
+//    handed to a serial writer queue of utility QoS. A read then tries
+//    the NSCache, then these files (on the calling thread, without the read
+//    queue), then the cursor; a page the NSCache lost is read back from
+//    disk instead of by rewinding. Which ordinals are on disk, being
+//    written, and the byte totals are guarded by one mutex.
+//    Yield: every read and prefetch that goes to the read queue counts
+//    itself busy for its duration; the pass checks before every header and
+//    every 256 KB chunk, and waits (in 5 ms steps) while anything is busy or
+//    until 100 ms after the last such read ended. It also ends as soon as
+//    every entry from its position on is on disk or being written (a
+//    read-through by the cursor has already stored them).
+//    No double decoding: before the cursor is used, a read waits for the
+//    entry when it is being written (the writer queue, or the pass), and
+//    when the running pass is at or before it and nearer to it than the
+//    cursor (no cursor, a cursor that would rewind, or one behind the
+//    pass). Without this the cursor would decode again what the pass has
+//    decoded, and a page the NSCache dropped just before its write-through
+//    finished would rewind the stream. While a read waits, the pass does not
+//    yield and its thread runs at user-initiated QoS
+//    (pthread_override_qos_class_start_np). A prefetch gives up the wait
+//    when it is cancelled (B2). The pass is then the decoder at the front
+//    of the stream; the cursor is used for entries the pass will not store
+//    (bound, decode error, stopped).
+//    Bound: min(2 GB, a tenth of the free space of the directory's volume
+//    when it is set) per open book. An entry that would pass it is not
+//    stored; the pass ends there. 2 GB holds every ordinary book (decoded
+//    size is about the archive size for JPEG pages; the 400-page generated
+//    book is 560 MB), and a tenth of free space keeps a nearly full disk
+//    from being filled by a cache.
+//    Stop: -stopDecodeAhead (COImageLoader's dealloc, before it removes its
+//    temporary directory, and this class's dealloc) cancels the pass,
+//    waits for it to return (it checks every chunk, so within one 256 KB
+//    decode), refuses further writes, waits for queued writes, and removes
+//    the directory it created. The pass and the writer retain only the
+//    cache object (CORarDiskCache), never the archive. The app quits
+//    without releasing its loaders, so every cache not yet stopped is also
+//    stopped, and its files removed, by an atexit() handler, which then also
+//    removes the directory it was given if that is left empty (the loader's
+//    temporary directory; one holding nested archives stays). A crash still
+//    leaves them in the per-user temporary directory.
+//    Any read that waits in -awaitOrdinal: while the pass runs demands the
+//    pass (no yielding, QoS override), also when it waits for the pass's
+//    own claim: the reader counts as busy, so a pass yielding to it would
+//    never finish that entry. The writer queue is user-initiated for the
+//    same reason (a read can wait for its writes).
+//    Not used for non-solid archives (direct positioning makes a jump
+//    cheap), for the libarchive fallback index (solidity unknown; a rewind
+//    over non-solid entries skips without decoding), for 7z (decoded into
+//    memory at open), or by the QuickLook extensions (never set).
 //  - Thread safety: a single struct archive* stream is not safe for
 //    concurrent use. The index pass runs synchronously, entirely on
 //    whichever single thread initializes the object, exactly like the
@@ -231,6 +292,11 @@ BOOL CORarPayloadMatchesExpectedMetadata(NSData *payload,
 	/* Reads that used the open cursor without opening a stream (readQueue
 	   only). */
 	NSUInteger cursorContinueCount;
+	/* B3: the header index found a solid archive. */
+	BOOL solidArchive;
+	/* B3: the decode-ahead disk cache (CORarDiskCache, private to
+	   CORarArchive.m), or nil. Set once; guarded by @synchronized(self). */
+	id diskCache;
 }
 - (BOOL)rarOpened;
 - (BOOL)usesDirectPositioning;
@@ -238,6 +304,24 @@ BOOL CORarPayloadMatchesExpectedMetadata(NSData *payload,
 - (NSUInteger)rewindCount;
 - (NSUInteger)positionedOpenCount;
 - (NSUInteger)cursorContinueCount;
+/* B3 diagnostics (0 without decode-ahead): entries and bytes the pass
+ * stored; entries the foreground cursor stored (write-through); reads served
+ * from disk; bytes on disk now; the bound; the pass's wall-clock, thread-CPU
+ * and yielding time in ms, set when it has ended; whether it has ended. */
+- (NSUInteger)decodeAheadEntryCount;
+- (NSUInteger)decodeAheadByteCount;
+- (NSUInteger)decodeAheadWriteThroughCount;
+- (NSUInteger)decodeAheadDiskHitCount;
+/* B3: reads served from disk after waiting for a write or for the pass. */
+- (NSUInteger)decodeAheadAwaitCount;
+- (NSUInteger)decodeAheadDiskByteCount;
+- (NSUInteger)decodeAheadByteBound;
+- (NSUInteger)decodeAheadPassMilliseconds;
+- (NSUInteger)decodeAheadPassCPUMilliseconds;
+- (NSUInteger)decodeAheadPassYieldMilliseconds;
+- (BOOL)decodeAheadPassEnded;
+/* The directory the cache files are in, or nil. */
+- (NSString *)decodeAheadCacheDirectory;
 /* internal, used by CORarEntry */
 - (NSData *)dataForEntry:(CORarEntry *)entry;
 @end
@@ -248,3 +332,17 @@ BOOL CORarPayloadMatchesExpectedMetadata(NSData *payload,
  * entry `ordinal`. NULL in the app. */
 typedef void (*CORarPrefetchCheckpointHook)(CORarArchive *archive, NSUInteger ordinal, BOOL decoding);
 extern CORarPrefetchCheckpointHook CORarPrefetchCheckpointHookForTesting;
+
+/* Tests only (tests/engine), NULL / 0 / NO in the app:
+ * - CORarDecodeAheadByteBoundForTesting: the bound in bytes instead of the
+ *   computed one, when non-zero;
+ * - CORarDecodeAheadPassDisabledForTesting: no pass is started, so only the
+ *   foreground cursor's write-through stores entries;
+ * - CORarDecodeAheadPassHookForTesting: called by the pass before each
+ *   header it reads, with the ordinal it is at (`afterClaim` NO), and again
+ *   for a counted entry once it has tried to claim it, before decoding it
+ *   (`afterClaim` YES; `claimed` says whether it will store it). */
+extern unsigned long long CORarDecodeAheadByteBoundForTesting;
+extern BOOL CORarDecodeAheadPassDisabledForTesting;
+typedef void (*CORarDecodeAheadPassHook)(NSUInteger ordinal, BOOL afterClaim, BOOL claimed);
+extern CORarDecodeAheadPassHook CORarDecodeAheadPassHookForTesting;

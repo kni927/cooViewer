@@ -6,6 +6,7 @@
 
 #import <Cocoa/Cocoa.h>
 #import "COImageLoader.h"
+#include <objc/runtime.h>
 
 // COImageLoader extracts nested archives under NSTemporaryDirectory(), which
 // is the per-user /var/folders/…/T even when $TMPDIR points elsewhere — and a
@@ -273,6 +274,40 @@ int main(int argc, char **argv)
                            name, i + 1, got, want]);
                 }
             }
+        }
+
+        // B3: a solid RAR5 book read the deferred way (the window's book)
+        // decodes ahead into the loader's temporary directory, which goes
+        // with the loader; a non-solid one creates no directory.
+        for (NSString *name in @[ @"test_solid.cbr", @"test.cbr" ]) {
+            NSString *path = [gen stringByAppendingPathComponent:name];
+            if (![[NSFileManager defaultManager] fileExistsAtPath:path]) continue;
+            BOOL solid = [name isEqualToString:@"test_solid.cbr"];
+            printf("%s (deferred read, decode-ahead %s)\n", [name UTF8String], solid ? "on" : "off");
+            NSString *tempDir = nil, *cacheDir = nil;
+            @autoreleasepool {
+                COImageLoader *loader = deferredLoaderFor(path, nil);
+                readOnWorkerThread(loader);
+                [loader finishArchiveRead];
+                id archive = object_getIvar(loader, class_getInstanceVariable([COImageLoader class], "archiveContainer"));
+                tempDir = [object_getIvar(loader, class_getInstanceVariable([COImageLoader class], "tempDir")) retain];
+                if ([archive respondsToSelector:@selector(decodeAheadCacheDirectory)])
+                    cacheDir = [[archive performSelector:@selector(decodeAheadCacheDirectory)] retain];
+                if (solid) {
+                    check(tempDir && cacheDir && [cacheDir hasPrefix:tempDir],
+                          [NSString stringWithFormat:@"%@: decode-ahead directory %@ in the loader's %@",
+                           name, cacheDir, tempDir]);
+                    check([loader itemCount] == 4 && pixelsWide([loader itemAtIndex:3]) > 0,
+                          [NSString stringWithFormat:@"%@: pages read with decode-ahead on", name]);
+                } else {
+                    check(!tempDir && !cacheDir,
+                          [NSString stringWithFormat:@"%@: no temporary directory for a non-solid book", name]);
+                }
+            }
+            check(!tempDir || ![[NSFileManager defaultManager] fileExistsAtPath:tempDir],
+                  [NSString stringWithFormat:@"%@: the loader's temporary directory is gone with it", name]);
+            [tempDir release];
+            [cacheDir release];
         }
 
         // A folder book is listed in the initializer as before: there is no
