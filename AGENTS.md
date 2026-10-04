@@ -1,4 +1,4 @@
-<!-- Template synced: repo-template@f7b68b3 on 2026-10-04. -->
+<!-- Template synced: repo-template@b01ba84 on 2026-10-04. -->
 # Project Instructions
 
 ## Project Origin

@@ -18,9 +18,10 @@ the `sync-projects` skill there.
   with `~/Projects/GitHub/pull-repos.command`. It sends each policy change to
   the Project HQs itself, without waiting to be asked.
 - **Project HQ** (cloud): plans one project and writes its TASKs. It is
-  created with `create_session` and the project's repository as `source_url`
-  (for example `https://github.com/kni927/cooViewer`), which also files it
-  under that repository in the claude.ai session list. It is archived once its
+  created with `create_session`, the project's repository as `source_url`
+  (for example `https://github.com/kni927/cooViewer`), and `main` as
+  `source_revision`; with both, claude.ai files it under that repository in
+  the session list (without `source_revision` it lands in Other). It is archived once its
   TFs are done, and may first be renamed with a version (`cooViewer v1.6.5 HQ`).
 - **TF**, task force (usually a local session on a Mac): receives a TASK from
   its Project HQ, carries it out, and reports back. A TF takes one TASK after
@@ -165,8 +166,8 @@ compaction if one has already happened.
    recent decisions with their commits. Leave out what the repositories
    already record and what the owner's personal preferences already say (how
    to address the owner, the language and tone of replies).
-2. Start the successor with `create_session` in the same environment and with
-   the same `source_url`, titled with the HQ's plain name and with the
+2. Start the successor with `create_session` in the same environment, with
+   the same `source_url` and `source_revision` `main`, titled with the HQ's plain name and with the
    handover as its initial prompt. `source_url` is the project's repository
    for a Project HQ, `https://github.com/kni927/dotfiles` for Upstream HQ
    (which then attaches `kni927/repo-template` with `add_repo`), and
