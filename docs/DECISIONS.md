@@ -250,9 +250,13 @@ libzip/CommonCrypto entry above.
   exists, so the encrypted-entry check is never reached — `-crypted` is
   **NO**, `-cryptoStatus` = `COArchiveCryptoNone`, zero entries, and only
   libarchive's error string distinguishes it from a corrupt archive.
-- Both end at `itemCount < 1`, so the open is aborted and the previous
+- Both end with no pages, so the open is aborted and the previous
   document is restored; the QuickLook/Thumbnail extensions return no cover
-  and Finder falls back to the default icon.
+  and Finder falls back to the default icon. Since 2026-10-04
+  (KNOWN_ISSUES #30) the app also says why: data-only encryption gets "The
+  archive is encrypted, and cooViewer cannot decrypt this kind of archive…",
+  header encryption, indistinguishable from damage, gets "The file could not
+  be read…".
 
 **How to apply:** Treat encrypted RAR as out of scope. `CORarArchive`
 inherits `COArchive`'s base `-setPassword:` (a no-op) and `-cryptoStatus`
@@ -1800,3 +1804,22 @@ thread works on the list only while no lookahead is alive" model instead of
 locking each of the ~130 accesses. Cost: `-lockedImageDisplay` now waits for
 a running lookahead to read both of its pages, as the keyboard next-page
 already did before calling it.
+
+## A book with no readable pages fails the open with an alert (2026-10-04)
+
+**Decision:** A book with nothing to show — an empty folder, an archive with
+no image entries, an archive that cannot be read, an encrypted RAR or 7z —
+fails the open with "Cannot open "<name>"." and a reason, through the same
+path and presentation as the solid RAR4 refusal: no window is left behind,
+an existing window keeps its book, Recent Books is not touched. A page that
+fails to decode stays a page and shows the `broken` image. A cancelled read
+or password prompt stays silent. The loader tells the cases apart
+(`-[COImageLoader pagesStatus]`); the window controller only maps a status to
+a sentence.
+
+**Why:** KNOWN_ISSUES #30 (owner task, 2026-10-04). The `empty.png` stand-in
+made such a book open as one blank page and land in Recent Books, with
+nothing said. The stand-in was never what a broken page showed, so removing
+it changes nothing for books with pages. An encryption the format cannot
+decrypt no longer ends the open as a cancel would (`mode` -1); it ends as a
+book with no pages, so it is reported instead of failing silently.

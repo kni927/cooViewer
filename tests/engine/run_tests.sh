@@ -82,6 +82,43 @@ if command -v rar >/dev/null 2>&1; then
     rm -rf "$LINKS_SRC"
 fi
 
+# books with no readable pages, and one with a single corrupt page
+# (KNOWN_ISSUES #30)
+NO_PAGES="$GEN/no_pages"
+rm -rf "$NO_PAGES" && mkdir -p "$NO_PAGES/empty_dir" "$NO_PAGES/text_only_dir" \
+    "$NO_PAGES/garbage_only_dir" "$NO_PAGES/corrupt_page_dir"
+python3 - "$NO_PAGES" "$SRC" <<'EOF'
+import pathlib, sys, zipfile
+out, src = pathlib.Path(sys.argv[1]), pathlib.Path(sys.argv[2])
+garbage = bytes((i * 37 + 11) % 256 for i in range(4096))   # no archive signature
+text = b"not a page\n"
+(out / "text_only_dir" / "readme.txt").write_bytes(text)
+with zipfile.ZipFile(out / "text_only.cbz", "w") as z:
+    z.writestr("readme.txt", text)
+with zipfile.ZipFile(out / "no_entries.cbz", "w"):
+    pass
+for name in ("garbage.cbz", "garbage.cbr", "garbage.7z", "garbage.pdf"):
+    (out / name).write_bytes(garbage)
+(out / "garbage_only_dir" / "garbage.cbz").write_bytes(garbage)
+pages = [("001.png", (src / "001.png").read_bytes()),
+         ("002.jpg", (src / "002.jpg").read_bytes()),
+         ("003.png", (src / "003.png").read_bytes()),
+         ("004.jpg", b"\xff\xd8\xff\xe0 truncated, not a JPEG")]
+for name, data in pages:
+    (out / "corrupt_page_dir" / name).write_bytes(data)
+with zipfile.ZipFile(out / "corrupt_page.cbz", "w") as z:
+    for name, data in pages:
+        z.writestr(name, data)
+EOF
+if command -v 7zz >/dev/null 2>&1; then
+    # data-only and header encryption; neither can be decrypted by libarchive
+    (cd "$SRC" && 7zz a -bso0 -bsp0 -pSECRET "$NO_PAGES/encrypted.7z" 001.png 002.jpg)
+    (cd "$SRC" && 7zz a -bso0 -bsp0 -pSECRET -mhe=on "$NO_PAGES/encrypted_headers.7z" 001.png 002.jpg)
+    # a password-protected ZIP that holds no image, opened by the deferred
+    # (window-modal) password path
+    (cd "$NO_PAGES/text_only_dir" && 7zz a -bso0 -bsp0 -tzip -pSECRET "$NO_PAGES/encrypted_text_only.cbz" readme.txt)
+fi
+
 clang -O2 \
     -I "$REPO_ROOT/vendor/include" \
     -I "$REPO_ROOT/Sources" \

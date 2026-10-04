@@ -103,6 +103,17 @@ payloads are a few synthetic bytes, so no licensing applies:
 The suite also copies `test.cbr` to `mislabeled_rar.cbz` and `test.7z` to
 `mislabeled_7z.cbr` at run time, next to the existing `mislabeled.cbr`.
 
+## Books with no readable pages
+
+`tests/engine/run_tests.sh` also writes `generated/no_pages/` for the
+`COImageLoader` harness (KNOWN_ISSUES #30): an empty folder, a folder and a
+`.cbz` holding only a text file, a folder holding only an unreadable `.cbz`,
+a `.cbz` with no entries, fixed non-archive bytes named `.cbz`, `.cbr`, `.7z`
+and `.pdf`, and a folder and a `.cbz` holding `001.png`–`003.png` from `src/`
+plus a corrupt `004.jpg`. When `7zz` is installed it adds a data-encrypted
+and a header-encrypted `.7z` and a password-protected `.cbz` holding only the
+text file (test password `SECRET`).
+
 ## Expected page order
 
 1. `001.png`

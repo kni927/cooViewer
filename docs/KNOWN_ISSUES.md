@@ -1211,7 +1211,40 @@ Also still open from the MW-5 follow-up: the bounded 6-allocation
 
 ---
 
-## 30. An empty or unreadable book opens as a one-page book, not as a failure
+## 30. ~~An empty or unreadable book opens as a one-page book, not as a failure~~ — FIXED (2026-10-04)
+
+**Fix (task `docs/tasks/2026-10-04-03-cleanup-and-performance.md`, C1).**
+The loader no longer adds `Resources/empty.png` as a stand-in page, so a book
+with nothing to list has zero pages. `-[COImageLoader pagesStatus]` says why:
+`NoImages` (an empty folder, an archive of other files), `Unreadable` (an
+archive that could not be read, a PDF that would not load),
+`EncryptionUnsupported` (encrypted RAR or 7z), or `NotOpened` (a cancelled
+read or password prompt, a refused solid RAR4, a path that is not a book).
+The guard in `-[BookWindowController openPageWithLoader:…]` (reached from
+`-openPage:last:`) now tests that status, so it is live again. Every status
+but `NotOpened` ends the open with "Cannot open "<name>"." and the reason —
+as a sheet on a window that stays on screen, otherwise as an
+application-modal alert, exactly as #39's refusal already did — before
+anything of the window's current book is torn down and before Recent Books
+is touched. A new window that was shown for the open is closed again (it
+appears briefly, because the window is ordered front before the read starts;
+see B1 of the same task); an existing window keeps its book; a cancel stays
+silent. A page that fails to decode is unchanged: it was never `empty.png`
+but the `broken` image from `-itemAtIndex:`. An empty or unreadable nested
+archive now contributes no pages instead of one `empty.png` page.
+
+Found during the on-device check and fixed with it (pre-existing since the
+window-modal password prompt): `windowClosed` was set on close and never
+cleared, but the registry reuses the last closed window. In that reused
+window every password completion took the discard path instead of Cancel's
+abandon, so the cancelled book's path stayed the window's current book (the
+close then recorded it in Recent Books with the previous book's page, and
+the previous book's position was lost), and a bookless window stayed on
+screen with its spinner. It is now `windowCloseCount`, compared with its
+value when the prompt was shown, and an abandoned open puts back every
+piece of the window's book identity.
+
+The original report follows.
 
 `-[COImageLoader initWithPath:displayPath:readSubFolder:controller:]` ends
 with:
@@ -1660,6 +1693,11 @@ matrix's menus). Still open:
   Do you want to follow?" in `Resources/{en,ja}.lproj/Localizable.strings`:
   no `NSLocalizedString` use was found. Other apparent orphans use key formats
   (`…**`) that make a full check more work than was done.
+- **`Resources/empty.png`** (added 2026-10-04). Its only use, the stand-in
+  page for a book with no pages, was removed by #30's fix. No source, nib or
+  `NSImage` name lookup refers to it any more; it is still a Resources build
+  phase member in `cooViewer.xcodeproj`. Proven unused by search, but not
+  removed because no task asked for dead-code removal.
 
 ---
 

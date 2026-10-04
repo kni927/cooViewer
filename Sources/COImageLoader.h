@@ -3,6 +3,27 @@
 #import "COPDFImageRep.h"
 #import "COArchive.h"	/* COArchiveCryptoStatus, for -tryPassword: */
 
+/* Whether a loader has pages, and if not, why (KNOWN_ISSUES #30). A page that
+ * fails to decode is still a page — -itemAtIndex: shows a placeholder for it —
+ * so only a book with nothing in it to list ever reports anything else. */
+typedef enum {
+	COImageLoaderHasPages = 0,
+	/* The open did not run to the end: the archive read was cancelled, a
+	 * password is still needed or was not given, the file is a refused solid
+	 * RAR4 (-isUnsupportedSolidRAR4), or the path is not a book at all. `mode`
+	 * is -1. Nothing for the host to report beyond what it already knows. */
+	COImageLoaderNotOpened,
+	/* Read without trouble, but nothing in it is an image: an empty folder,
+	 * an archive of other files, a saved search with no image results. */
+	COImageLoaderNoImages,
+	/* The archive or PDF could not be read at all (damaged, truncated, or not
+	 * what its extension says). */
+	COImageLoaderUnreadable,
+	/* Encrypted with something this format cannot decrypt (encrypted RAR or
+	 * 7z; docs/DECISIONS.md, "Encrypted RAR support: declined"). */
+	COImageLoaderEncryptionUnsupported
+} COImageLoaderPagesStatus;
+
 @interface COImageLoader : NSObject {
 	BOOL inTempDir;
 
@@ -89,8 +110,8 @@
 /* YES when this loader was opened with `deferPasswordPrompt` and the archive
  * turned out to be an encrypted one it can unlock, but no password has been
  * supplied yet. The loader holds nothing readable in that state — `mode` is
- * -1 and the only "page" is the placeholder every failed open gets — so the
- * host must ask -tryPassword: before treating it as a failed open. */
+ * -1 and it has no pages — so the host must ask -tryPassword: before treating
+ * it as a failed open. */
 - (BOOL)needsPassword;
 
 /* One password attempt. Returns COArchiveCryptoOK once the archive is open —
@@ -104,6 +125,12 @@
 /* The book is a solid RAR4 archive, refused at open (KNOWN_ISSUES #39):
  * `mode` is -1, as for any failed open, and the host can tell the user why. */
 - (BOOL)isUnsupportedSolidRAR4;
+
+/* Whether this book has anything to show (KNOWN_ISSUES #30). A loader with
+ * no pages has an -itemCount of 0; the host treats anything but
+ * COImageLoaderHasPages as a failed open, and reports the last three
+ * statuses to the user. */
+- (COImageLoaderPagesStatus)pagesStatus;
 /*
 - (NSStringEncoding)nameEncoding;
 - (void)setNameEncoding:(NSStringEncoding)enc;

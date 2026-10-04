@@ -87,6 +87,105 @@ int main(int argc, char **argv)
             }
         }
 
+        // --- KNOWN_ISSUES #30: a book with no readable pages has no pages
+        // (it used to get a stand-in page and open as a one-page book) and
+        // says why; a book with one corrupt page still has all its pages ---
+        {
+            NSString *dir = [gen stringByAppendingPathComponent:@"no_pages"];
+            struct { NSString *name; COImageLoaderPagesStatus want; BOOL optional; } cases[] = {
+                { @"empty_dir",             COImageLoaderNoImages,               NO },
+                { @"text_only_dir",         COImageLoaderNoImages,               NO },
+                { @"garbage_only_dir",      COImageLoaderNoImages,               NO },
+                { @"text_only.cbz",         COImageLoaderNoImages,               NO },
+                // an archive with no entries at all is reported by the
+                // archive layer ("no readable entries") exactly like one
+                // whose every entry is damaged
+                { @"no_entries.cbz",        COImageLoaderUnreadable,             NO },
+                { @"garbage.cbz",           COImageLoaderUnreadable,             NO },
+                { @"garbage.cbr",           COImageLoaderUnreadable,             NO },
+                { @"garbage.7z",            COImageLoaderUnreadable,             NO },
+                { @"garbage.pdf",           COImageLoaderUnreadable,             NO },
+                { @"encrypted.7z",          COImageLoaderEncryptionUnsupported,  YES },
+                { @"encrypted_headers.7z",  COImageLoaderUnreadable,             YES },
+            };
+            size_t i;
+            for (i = 0; i < sizeof(cases) / sizeof(cases[0]); i++) {
+                NSString *path = [dir stringByAppendingPathComponent:cases[i].name];
+                if (cases[i].optional && ![[NSFileManager defaultManager] fileExistsAtPath:path]) {
+                    printf("%s (skipped: not generated)\n", [cases[i].name UTF8String]);
+                    continue;
+                }
+                printf("%s (no readable pages)\n", [cases[i].name UTF8String]);
+                COImageLoader *loader = loaderFor(dir, cases[i].name);
+                check([loader itemCount] == 0,
+                      [NSString stringWithFormat:@"%@: no pages (got %d: %@)",
+                       cases[i].name, [loader itemCount], [loader pathArray]]);
+                check([loader mode] >= 0,
+                      [NSString stringWithFormat:@"%@: mode %d, not a failed open",
+                       cases[i].name, [loader mode]]);
+                check([loader pagesStatus] == cases[i].want,
+                      [NSString stringWithFormat:@"%@: status %d, want %d",
+                       cases[i].name, (int)[loader pagesStatus], (int)cases[i].want]);
+            }
+
+            // a path that is not there, and a refused solid RAR4: the open
+            // did not happen, which the host does not report as "no pages"
+            printf("missing path, solid RAR4 (not opened)\n");
+            COImageLoader *missing = loaderFor(dir, @"no_such_book.cbz");
+            check([missing itemCount] == 0 && [missing pagesStatus] == COImageLoaderNotOpened,
+                  [NSString stringWithFormat:@"missing: %d pages, status %d",
+                   [missing itemCount], (int)[missing pagesStatus]]);
+            COImageLoader *solid = loaderFor(gen, @"test_rar4_solid.cbr");
+            check([solid itemCount] == 0 && [solid pagesStatus] == COImageLoaderNotOpened &&
+                  [solid isUnsupportedSolidRAR4],
+                  [NSString stringWithFormat:@"solid RAR4: %d pages, status %d",
+                   [solid itemCount], (int)[solid pagesStatus]]);
+
+            // a password-protected ZIP with no image in it, through the
+            // host-driven password path: once the password is accepted it is
+            // a book with no images, not a failed open
+            NSString *encPath = [dir stringByAppendingPathComponent:@"encrypted_text_only.cbz"];
+            if ([[NSFileManager defaultManager] fileExistsAtPath:encPath]) {
+                printf("encrypted_text_only.cbz (password, then no readable pages)\n");
+                COImageLoader *loader = [[[COImageLoader alloc] initWithPath:encPath
+                                                                 displayPath:encPath
+                                                               readSubFolder:NO
+                                                                  controller:nil
+                                                         deferPasswordPrompt:YES] autorelease];
+                check([loader needsPassword] && [loader pagesStatus] == COImageLoaderNotOpened,
+                      [NSString stringWithFormat:@"encrypted_text_only: needs a password first (status %d)",
+                       (int)[loader pagesStatus]]);
+                check([loader tryPassword:@"wrong"] == COArchiveCryptoWrongPassword,
+                      @"encrypted_text_only: wrong password rejected");
+                check([loader tryPassword:@"SECRET"] == COArchiveCryptoOK,
+                      @"encrypted_text_only: password accepted");
+                check([loader itemCount] == 0 && [loader pagesStatus] == COImageLoaderNoImages,
+                      [NSString stringWithFormat:@"encrypted_text_only: %d pages, status %d",
+                       [loader itemCount], (int)[loader pagesStatus]]);
+            } else {
+                printf("encrypted_text_only.cbz (skipped: not generated)\n");
+            }
+
+            // one page that cannot be decoded is still a page
+            for (NSString *name in @[ @"corrupt_page_dir", @"corrupt_page.cbz" ]) {
+                printf("%s (one corrupt page)\n", [name UTF8String]);
+                COImageLoader *loader = loaderFor(dir, name);
+                check([loader itemCount] == 4 && [loader pagesStatus] == COImageLoaderHasPages,
+                      [NSString stringWithFormat:@"%@: 4 pages and HasPages (got %d, status %d)",
+                       name, [loader itemCount], (int)[loader pagesStatus]]);
+                if ([loader itemCount] == 4) {
+                    NSImage *good = [loader itemAtIndex:0];
+                    check([good isValid] && [[good representations] count] > 0,
+                          [NSString stringWithFormat:@"%@: page 1 decodes", name]);
+                    // the app shows its "broken" asset for such a page; this
+                    // harness has no asset catalog, so that resolves to nil
+                    NSImage *bad = [loader itemAtIndex:3];
+                    check(bad == nil,
+                          [NSString stringWithFormat:@"%@: page 4 does not decode", name]);
+                }
+            }
+        }
+
         if (failures == 0) {
             printf("\nALL PASS (%d checks)\n", checks);
             return 0;

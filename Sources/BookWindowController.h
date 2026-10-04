@@ -232,7 +232,8 @@
 	   cleared at every exit -openPage:last: can reach: the success tail of
 	   -openPageWithLoader:page:last:fromFileName:, -abandonOpenWithLoader:
 	   fromFileName:closeWindow: (the shared failure/cancel funnel), and
-	   -discardPendingOpen:fromFileName: (window closed mid-password-wait).
+	   -windowWillClose: (window closed mid-password-wait; the prompt's
+	   -discardPendingOpen:fromFileName: then only drops what it owns).
 	   Read through -isBookLoadInFlight. */
 	BOOL bookLoadInFlight;
 
@@ -251,11 +252,22 @@
 	   -isWaitingForUserInput. */
 	BOOL passwordOpenInFlight;
 
-	/* Set by -windowWillClose:. A password sheet's completion handler can run
-	   after its window has gone — AppKit dismisses sheets with their parent —
-	   and the re-ask a rejected password schedules can fire then too; both
-	   check this rather than acting on a torn-down window. */
-	BOOL windowClosed;
+	/* Counted up by -windowWillClose:. A password sheet's completion handler
+	   can run after its window has gone — AppKit dismisses sheets with their
+	   parent — and the re-ask a rejected password schedules can fire then
+	   too; both compare this with the value it had when their prompt went up
+	   rather than acting on a torn-down window.
+
+	   A count, not a flag: it used to be `BOOL windowClosed`, set on close and
+	   never cleared, so the window the registry keeps after its close (MW-7)
+	   read as "closed" for every later open into it. A password Cancel there
+	   took the closed-window path, which neither ordered the bookless window
+	   out nor stopped its spinner, and — on a window showing a book — left
+	   the cancelled book as currentBookPath, so closing the window recorded it
+	   in Recent Books with the old book's page. Comparing counts asks only
+	   "was this window closed while *this* prompt was up", which a reuse
+	   cannot disturb, and needs no reset that a late handler could race. */
+	unsigned int windowCloseCount;
 
 	/* MW-8 (Step-0 decision 5). A security-scoped NSURL bookmark for the
 	   book open in this window, made once when the book is opened rather

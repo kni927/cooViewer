@@ -427,3 +427,12 @@
 
 /* Solid RAR4 refused at open (KNOWN_ISSUES #39). */
 "This is a solid RAR4 archive, which cooViewer cannot read. A non-solid RAR or a ZIP (CBZ) of the same pages can be read." = "このファイルはソリッド形式の RAR4 アーカイブで、cooViewer では読み込めません。同じページをソリッドではない RAR か ZIP（CBZ）にまとめ直せば読み込めます。";
+
+/* A book with no readable pages (KNOWN_ISSUES #30). */
+"It contains no images that cooViewer can show." = "cooViewer で表示できる画像が含まれていません。";
+
+/* A book with no readable pages (KNOWN_ISSUES #30). */
+"The file could not be read. It may be damaged, or in a format cooViewer cannot read." = "ファイルを読み込めませんでした。ファイルが壊れているか、cooViewer で読み込めない形式の可能性があります。";
+
+/* A book with no readable pages (KNOWN_ISSUES #30). */
+"The archive is encrypted, and cooViewer cannot decrypt this kind of archive. Password-protected ZIP (CBZ) archives can be opened." = "このアーカイブは暗号化されていますが、cooViewer はこの種類のアーカイブを復号できません。パスワード付きの ZIP（CBZ）アーカイブは開けます。";

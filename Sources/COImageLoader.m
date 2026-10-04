@@ -90,10 +90,10 @@ static NSArray *_COImageLoader_archiveTypes=nil;
 		
 		[self content];
 	}
-	if ([self itemCount]==0) {
-		[contentPathArray addObject:[[NSBundle mainBundle] pathForResource:@"empty" ofType:@"png"]];
-	}
-    return self;	
+	/* A book with nothing in it to list keeps an empty page list; it used
+	   to get Resources/empty.png as a stand-in page, so it opened as a
+	   one-page book. -pagesStatus says why it is empty (KNOWN_ISSUES #30). */
+    return self;
 }
 
 - (id)initWithPath:(NSString *)path readSubFolder:(BOOL)boo controller:(id)ctr;
@@ -356,12 +356,27 @@ static NSArray *_COImageLoader_archiveTypes=nil;
 	return [archiveContainer refusedSolidRAR4];
 }
 
+- (COImageLoaderPagesStatus)pagesStatus
+{
+	if (mode < 0) return COImageLoaderNotOpened;
+	if ([self itemCount] > 0) return COImageLoaderHasPages;
+	if (mode == 2) {
+		if ([archiveContainer crypted] &&
+		    [archiveContainer cryptoStatus] == COArchiveCryptoUnsupported)
+			return COImageLoaderEncryptionUnsupported;
+		if (!archiveContainer ||
+		    ([archiveContainer lastError] && [[archiveContainer contents] count] == 0))
+			return COImageLoaderUnreadable;
+	}
+	if (mode == 4 && pdfRep == nil) return COImageLoaderUnreadable;
+	return COImageLoaderNoImages;
+}
+
 /* One attempt from the host's sheet (KNOWN_ISSUES #33). On success this
  * finishes the work -content would have done had the password been known at
- * init time: the container re-scans itself, the entries are enumerated by
- * -checkArchiveContainer:, and the placeholder page that every failed open
- * gets is dropped. On a wrong password nothing changes, so the host can
- * simply ask again. */
+ * init time: the container re-scans itself and the entries are enumerated by
+ * -checkArchiveContainer:. On a wrong password nothing changes, so the host
+ * can simply ask again. */
 - (COArchiveCryptoStatus)tryPassword:(NSString *)entered
 {
 	if (!needsPassword || entered == nil) {
@@ -384,15 +399,11 @@ static NSArray *_COImageLoader_archiveTypes=nil;
 	[old release];
 	needsPassword = NO;
 
-	/* -checkArchiveContainer: empties the three content collections itself, so
-	 * the placeholder inserted by the initializer goes with them. mode is put
-	 * back to the archive mode -content had set before the open failed. */
+	/* mode is put back to the archive mode -content had set before the open
+	 * failed. An archive that turns out to hold no images keeps it, so the
+	 * host reports it like any other book with no pages (KNOWN_ISSUES #30). */
 	mode = 2;
 	if (![self checkArchiveContainer:0]) {
-		mode = -1;
-	}
-	if ([self itemCount] == 0) {
-		[contentPathArray addObject:[[NSBundle mainBundle] pathForResource:@"empty" ofType:@"png"]];
 		mode = -1;
 	}
 	return COArchiveCryptoOK;
@@ -606,7 +617,12 @@ static NSArray *_COImageLoader_archiveTypes=nil;
 		// format reports Unsupported and fails closed exactly as before,
 		// as does a cancelled prompt.
 		if (![self unlockEncryptedArchive]) {
-			mode = -1;
+			/* A prompt that is pending, cancelled or cannot be shown ends
+			   the open. An encryption the format cannot decrypt does not:
+			   the archive is simply one with no readable pages, and
+			   -pagesStatus says why (KNOWN_ISSUES #30). */
+			if ([archiveContainer cryptoStatus] != COArchiveCryptoUnsupported)
+				mode = -1;
 			return NO;
 		}
 	}

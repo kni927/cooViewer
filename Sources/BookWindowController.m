@@ -902,6 +902,35 @@ static NSPoint gNextWindowCascadePoint;
    shown, reused by the next open, and — unlike a close — it cannot trip
    quit-on-last-close. A window that already had a book keeps showing it either
    way; nothing has been torn down at this point. */
+/* Undo what the open entry points (-setCurrentBookPathAndOldBookPath: and
+   -openPage:last:) did to the window's book identity before loading: the
+   pending book's path, name and alias are released, and a window that has a
+   book gets its own back from the "old book" slot. That slot is emptied in
+   the same step — it held the only reference, which now belongs to
+   currentBookPath — so the window is left exactly as it was before the open
+   started (a finished open leaves it nil), rather than with both ivars
+   naming one object. Nothing else of the window's state was touched before
+   the load, and nothing was written to Recent Books, LastPages or the
+   restorable bookmark: those happen only once a load has succeeded. */
+- (void)restoreBookIdentityAfterAbandonedOpen
+{
+	[currentBookPath release];
+	[currentBookName release];
+	[currentBookAlias release];
+	if ([self hasBookOpen]) {
+		currentBookPath = oldBookPath;
+		currentBookName = oldBookName;
+		currentBookAlias = oldBookAlias;
+		oldBookPath = nil;
+		oldBookName = nil;
+		oldBookAlias = nil;
+	} else {
+		currentBookPath = nil;
+		currentBookName = nil;
+		currentBookAlias = nil;
+	}
+}
+
 - (void)abandonOpenWithLoader:(COImageLoader *)newImageLoader
 				 fromFileName:(NSString *)fromFileName
 				  closeWindow:(BOOL)closeWindow
@@ -911,25 +940,14 @@ static NSPoint gNextWindowCascadePoint;
 	   ends here rather than at the success tail. */
 	bookLoadInFlight = NO;
 	[newImageLoader release];
+	[self restoreBookIdentityAfterAbandonedOpen];
 	if ([self hasBookOpen]) {
 		/*ウィンドウを開いているとき*/
-		[currentBookPath release];
-		[currentBookName release];
-		[currentBookAlias release];
-		currentBookPath = oldBookPath;
-		currentBookName = oldBookName;
-		currentBookAlias = oldBookAlias;
 		/* "Open from same folder" submenu is now refreshed lazily via
 		   menuNeedsUpdate: (see setSameFolderMenu:) — not eagerly here —
 		   to avoid hitting the parent folder (and triggering macOS folder
 		   access prompts) on every book open. */
 	} else {
-		[currentBookPath release];
-		[currentBookName release];
-		[currentBookAlias release];
-		currentBookPath = nil;
-		currentBookName = nil;
-		currentBookAlias = nil;
 		if (shownWithoutBook) {
 			/* v1.6.5: a window the user opened empty (File ▸ New Window)
 			   stays as it was, on screen and empty. Closing it would turn a
@@ -1359,19 +1377,34 @@ static NSString * const kBookViewModeKey = @"cooViewerBookViewMode";
 	[self openPageWithLoader:newImageLoader page:page last:last fromFileName:fromFileName];
 }
 
-/* KNOWN_ISSUES #39: a solid RAR4 book is refused at open instead of showing
-   one page and then broken ones, and — unlike other unreadable books, which
-   just fail — the user is told why. Called before -abandonOpenWithLoader:...,
+/* A book that cannot be opened at all, and why: a solid RAR4, refused at open
+   instead of showing one page and then broken ones (KNOWN_ISSUES #39), or a
+   book with no readable pages (#30). Called before -abandonOpenWithLoader:...,
    which may close this window. A window that stays on screen (it has a book,
    or is an empty File ▸ New Window) gets a sheet; otherwise the alert is
    application-modal and waits until this open has unwound, holding nothing
-   of this controller's. */
-- (void)reportUnsupportedSolidRAR4:(NSString *)name
+   of this controller's. A cancelled read or password prompt is not reported:
+   the user ended that open. */
+- (void)reportCannotOpenBook:(COImageLoader *)loader status:(COImageLoaderPagesStatus)status
 {
+	NSString *reason;
+	if ([loader isUnsupportedSolidRAR4]) {
+		reason = NSLocalizedString(@"This is a solid RAR4 archive, which cooViewer cannot read. A non-solid RAR or a ZIP (CBZ) of the same pages can be read.",@"");
+	} else if (status == COImageLoaderNoImages) {
+		reason = NSLocalizedString(@"It contains no images that cooViewer can show.",@"");
+	} else if (status == COImageLoaderUnreadable) {
+		reason = NSLocalizedString(@"The file could not be read. It may be damaged, or in a format cooViewer cannot read.",@"");
+	} else if (status == COImageLoaderEncryptionUnsupported) {
+		reason = NSLocalizedString(@"The archive is encrypted, and cooViewer cannot decrypt this kind of archive. Password-protected ZIP (CBZ) archives can be opened.",@"");
+	} else {
+		return;
+	}
+	NSString *name = [[loader displayPath] lastPathComponent];
+
 	NSAlert *alert = [[[NSAlert alloc] init] autorelease];
 	[alert setMessageText:[NSString stringWithFormat:
 		NSLocalizedString(@"Cannot open \"%@\".",@""), name ? name : @""]];
-	[alert setInformativeText:NSLocalizedString(@"This is a solid RAR4 archive, which cooViewer cannot read. A non-solid RAR or a ZIP (CBZ) of the same pages can be read.",@"")];
+	[alert setInformativeText:reason];
 	[alert addButtonWithTitle:NSLocalizedString(@"OK",@"")];
 
 	if ([self canPresentSheet] && ([self hasBookOpen] || shownWithoutBook)) {
@@ -1394,11 +1427,14 @@ static NSString * const kBookViewModeKey = @"cooViewerBookViewMode";
 			  fromFileName:(NSString *)fromFileName
 {
 	//NSLog(@"controller mode=%i count=%i",[newImageLoader mode],[newImageLoader itemCount]);
-	if (!newImageLoader || [newImageLoader mode] < 0 || [newImageLoader itemCount] < 1) {
+	COImageLoaderPagesStatus pagesStatus =
+		newImageLoader ? [newImageLoader pagesStatus] : COImageLoaderNotOpened;
+	if (pagesStatus != COImageLoaderHasPages) {
 		/*表示出来ない時は元に戻す*/
-		if ([newImageLoader isUnsupportedSolidRAR4]) {
-			[self reportUnsupportedSolidRAR4:[[newImageLoader displayPath] lastPathComponent]];
-		}
+		/* KNOWN_ISSUES #30: a book with no readable pages ends here, with an
+		   alert, before anything of the window's current book is torn down
+		   and before Recent Books is touched. */
+		[self reportCannotOpenBook:newImageLoader status:pagesStatus];
 		[self abandonOpenWithLoader:newImageLoader
 					   fromFileName:fromFileName
 						closeWindow:YES];
@@ -1938,9 +1974,13 @@ static NSString * const kBookViewModeKey = @"cooViewerBookViewMode";
 	   rejected password and the next sheet is covered too. */
 	passwordOpenInFlight = YES;
 
+	/* Whether this window is closed while the prompt is up — see
+	   `windowCloseCount` in the header for why this is not a flag. */
+	unsigned int closeCountAtPrompt = windowCloseCount;
+
 	[alert beginSheetModalForWindow:[self sheetParentWindow]
 				 completionHandler:^(NSModalResponse r) {
-		if (windowClosed) {
+		if (windowCloseCount != closeCountAtPrompt) {
 			/* AppKit dismisses a sheet when its parent window closes, so this
 			   handler can run for a window that no longer exists. */
 			[self discardPendingOpen:loader fromFileName:fromFileName];
@@ -1973,7 +2013,7 @@ static NSString * const kBookViewModeKey = @"cooViewerBookViewMode";
 			   stays YES across the gap, so a queued Finder open cannot be
 			   drained into it. */
 			dispatch_async(dispatch_get_main_queue(), ^{
-				if (windowClosed) {
+				if (windowCloseCount != closeCountAtPrompt) {
 					[self discardPendingOpen:loader fromFileName:fromFileName];
 					return;
 				}
@@ -2014,14 +2054,15 @@ static NSString * const kBookViewModeKey = @"cooViewerBookViewMode";
 }
 
 /* The window went away while its password prompt was in flight: drop what the
-   pending open owns and stop reporting it as waiting on the user. Deliberately
-   touches nothing else — -windowWillClose: has already torn the window down. */
+   pending open owns. Deliberately touches nothing else. -windowWillClose: has
+   already torn the window down, put its book identity back, stopped the
+   spinner and cleared passwordOpenInFlight/bookLoadInFlight — and by the time
+   this runs the registry may have reused the window for a newer open, whose
+   flags and spinner those now are. */
 - (void)discardPendingOpen:(COImageLoader *)loader fromFileName:(NSString *)fromFileName
 {
 	[loader release];
 	[fromFileName release];
-	passwordOpenInFlight = NO;
-	bookLoadInFlight = NO;
 }
 
 /* Whether this window has an open that is waiting on a person (its password
@@ -3673,15 +3714,31 @@ static const NSInteger kBookmarkMenuFixedItemCount = 3;
 											   object:nil];
 	[self releaseRestoredBookAccess];
 
-	/* KNOWN_ISSUES #33: same for a password prompt in flight. `windowClosed`
-	   stops both the sheet's own completion handler — which AppKit still calls
-	   when it dismisses a sheet along with its parent — and a queued re-ask
-	   from opening a book into a window that has gone. The flag has to be
-	   cleared as well: -[AppController settleLaunch] holds its deadline open
-	   for as long as any window is waiting on input, so leaving it set on a
-	   closed window would stall a queued Finder open indefinitely. */
-	windowClosed = YES;
+	/* KNOWN_ISSUES #33: same for a password prompt in flight. Counting the
+	   close stops both the sheet's own completion handler — which AppKit still
+	   calls when it dismisses a sheet along with its parent — and a queued
+	   re-ask from opening a book into a window that has gone. The flag has to
+	   be cleared as well: -[AppController settleLaunch] holds its deadline
+	   open for as long as any window is waiting on input, so leaving it set on
+	   a closed window would stall a queued Finder open indefinitely.
+
+	   Closing with the prompt still up ends that open as a Cancel would, so
+	   the window's book identity is put back first: currentBookPath still
+	   names the book waiting for its password, and the teardown below would
+	   otherwise record *that* book in Recent Books with the shown book's page.
+	   Tested on the sheet rather than on passwordOpenInFlight alone, which
+	   stays YES through the open that follows an accepted password — by then
+	   the identity is the new book's and must not be undone. (The window's
+	   close button and Cmd+W are blocked while a sheet is attached, and a quit
+	   cancels the prompt first, so this is a programmatic close only.) */
+	windowCloseCount++;
+	if (passwordOpenInFlight && [[self window] attachedSheet] != nil) {
+		[self restoreBookIdentityAfterAbandonedOpen];
+	}
 	passwordOpenInFlight = NO;
+	/* Whatever open this window was running is over; a window the registry
+	   keeps must not come back with its spinner still going. */
+	[progressIndicator stopAnimation:self];
 	/* v1.6.5: a closed window is hidden, so it is not "shown empty" any
 	   more; if the registry keeps it, it is reused like any hidden one. */
 	shownWithoutBook = NO;
