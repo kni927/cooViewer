@@ -132,6 +132,12 @@ waiting to be asked, not only what it was told to do.
   repository also goes to Upstream HQ; a TF sends its proposals with its
   report to its Project HQ.
 - **Proposing is not doing:** build it only after the owner agrees.
+- **Who builds a skill:** a local TF's sandbox cannot write `.claude/skills/`,
+  so a project skill is written and committed by a cloud session (the Project
+  HQ, or Upstream HQ for shared ones) or by the owner.
+- **Shared skills:** `hq-handover` (handing over a cloud HQ) and `offer-tf`
+  (offering a TF with a card) are kept in `kni927/repo-template` and copied
+  unchanged into every repository's `.claude/skills/`, like this file.
 
 ## Context usage
 
@@ -189,6 +195,8 @@ A cloud HQ hands its work to a fresh session at the thresholds in Context
 usage, when the owner says "handover", and right after a
 compaction if one has already happened.
 
+The `hq-handover` skill walks through these steps.
+
 1. Write the handover: the HQ's role and repositories, open items and their
    state, what waits on the owner, the sessions it coordinates (by name), and
    recent decisions with their commits. Leave out what the repositories
@@ -219,12 +227,13 @@ exists only in chat.
 - **Starting a TF:** in a new local session in the repository, the owner types
   `/tf <what>` (`~/.claude/skills/tf/SKILL.md`, managed by `kni927/dotfiles`).
 - **Starting a TF from a card:** an HQ, or a TF that wraps up, can offer a TF
-  with `spawn_task`. The card opens in the offering session's repository. Its
-  prompt asks the new session to read `~/.claude/skills/tf/SKILL.md` and
-  follow it as if the owner had typed `/tf <what>`; a slash command in a
-  card's prompt does not run. The owner picks **Start locally**, and **Start
-  with worktree** only when another TF is working in the main clone. Neither
-  pulls first; the TF brings itself up to date when a TASK arrives.
+  with `spawn_task` (the `offer-tf` skill). The card opens in the offering
+  session's repository. Its prompt asks the new session to read
+  `~/.claude/skills/tf/SKILL.md` and follow it as if the owner had typed
+  `/tf <what>`; a slash command in a card's prompt does not run. The owner
+  picks **Start locally**, and **Start with worktree** only when another TF
+  is working in the main clone. Neither pulls first; the TF brings itself up
+  to date when a TASK arrives.
 - **A TF in a worktree** works in `.claude/worktrees/<name>/` on a
   `claude/<name>` branch created from the main clone's local `HEAD`. It
   commits on that branch and merges into `main` only when the TASK says so

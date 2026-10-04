@@ -321,6 +321,12 @@ path wasn't affected by an unrelated change.
   exclusions apply. Project-specific exclusions live in `.claude/settings.json`
   under `sandbox.excludedCommands`; list them under
   "Project-specific (cooViewer)".
+- An operation that tasks need outside the sandbox again and again (saving and
+  restoring preferences, unregistering an app, and the like) goes into a project
+  script listed in `sandbox.excludedCommands`, with its step under
+  "Project-specific (cooViewer)". The auto mode classifier then finds it in
+  `CLAUDE.md`, also when a subagent runs it; a step written only in `TASK.md` or
+  a task record is refused as a bypass.
 - Commands that must always be confirmed, even in auto mode (for example a release
   or upload script), go under `permissions.ask` in `.claude/settings.json`. Do not
   add `allow` rules there; they bypass the auto mode classifier.
