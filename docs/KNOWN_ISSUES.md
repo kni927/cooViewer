@@ -357,7 +357,7 @@ diagnostic logging in place. `application:openFile:`
 - com.apple.quarantine属性の有無が一時的に再現性のある差分として特定され、
   quarantine属性を持つファイルへの切り替えが失敗する現象を確認したが、
   後の再検証(TASK.mdに基づく計6パターンの比較テスト)では再現しなくなった。
-- 並行して、`build/Deployment/`配下や~/Downloads、~/Dropbox配下に複数の
+- 並行して、`build/Deployment/`配下やホーム内の複数のフォルダに複数の
   cooViewer.appが存在し、QuickLook拡張がそのうち`/Applications`以外の
   ビルドから登録されていたことが判明(pluginkit -m で確認)。整理・
   pluginkit -e ignore/useでの操作、killall Finder / killall Dockを
@@ -813,7 +813,7 @@ doesn't leave test artifacts in the real profile — done for both
 
 **Resolving the Screen Recording gap** — also observed 2026-07-29, later the
 same day, in the same task doc: granting Screen Recording to the visible
-terminal app (Ghostty) was **not** sufficient — `screencapture` kept
+terminal app was **not** sufficient — `screencapture` kept
 failing until the OS put up its own consent prompt (a "Screen & System
 Audio Recording" window under the `System Settings` process, reachable via
 `System Events` as `window "Screen & System Audio Recording" of process
