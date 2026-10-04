@@ -102,7 +102,8 @@
 //    supplies its own raw bytes / UTF-8 names directly from the
 //    parsed headers — see CORarHeaderIndex.h.
 //  - Skipped entries match COArchive: directories, zero-byte
-//    entries, AppleDouble ("._*") sidecars; encrypted entries set
+//    entries, AppleDouble ("._*") sidecars, and symbolic and hard
+//    links (CORarEntryCounts, shared with the cursor); encrypted entries set
 //    -crypted = YES and are skipped (unrar decryption was never
 //    supported, consistent with v1.4.0).
 //  - Error model: corrupt entries are detected at read time (-data

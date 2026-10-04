@@ -100,6 +100,10 @@ NSData *COExtractCoverImageData(NSString *path)
 	}];
 
 	COArchiveEntry *cover = [imageEntries objectAtIndex:0];
+	/* Only the cover is wanted: without this, reading it would queue a
+	   read of the next entry that keeps decoding after the extension has
+	   its answer (code review L3). */
+	[archive disablePrefetch];
 	NSData *data = [[[cover data] retain] autorelease];
 	[archive release];
 	return data;

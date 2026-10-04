@@ -264,6 +264,16 @@ static COArchive *COOpenLazyArchive(NSString *path, COArchiveProgress progress)
 {
 }
 
+- (void)disablePrefetch
+{
+	@synchronized(self) { prefetchDisabled = YES; }
+}
+
+- (NSUInteger)prefetchCount
+{
+	@synchronized(self) { return prefetchCount; }
+}
+
 - (BOOL)uncompress:(int)index as:(NSString *)fileName
 {
 	if (index < 0 || index >= (int)[contentArray count]) return NO;

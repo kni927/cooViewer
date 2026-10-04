@@ -5,7 +5,7 @@
 @interface COImageLoader(private)
 -(void)content;
 -(BOOL)checkArchiveContainer:(int)index;
--(BOOL)uncompressToTempDir:(NSString*)file;
+-(NSString *)uncompressEntry:(NSUInteger)index named:(NSString *)fileName duplicate:(BOOL)duplicate;
 -(BOOL)unlockEncryptedArchive;
 //-(BOOL)uncompressAllFileToTempDir;
 @end
@@ -83,6 +83,8 @@ static NSArray *_COImageLoader_archiveTypes=nil;
 		password = nil;
 		contentPathArray = [[NSMutableArray alloc] init];
 		contentPathDic = [[NSMutableDictionary alloc] init];
+		entryIndicesByRawName = [[NSMutableDictionary alloc] init];
+		duplicatePagePaths = nil;
 		rawContentPathArray = [[NSMutableArray alloc] init];
 		pdfRep = nil;
 		
@@ -114,6 +116,8 @@ static NSArray *_COImageLoader_archiveTypes=nil;
 	if(subArchiveContainer)[subArchiveContainer release];
 	if(contentPathArray)[contentPathArray release];
 	if(contentPathDic)[contentPathDic release];
+	[entryIndicesByRawName release];
+	[duplicatePagePaths release];
 	if(filterArray)[filterArray release];
 	if(password)[password release];
 	if(pdfRep)[pdfRep release];
@@ -180,15 +184,34 @@ static NSArray *_COImageLoader_archiveTypes=nil;
 }
 #pragma mark -
 
+/* How many pages before `index` have the same path: 0 unless the path is
+   one of an archive's repeated entry names (code review L4). */
+- (NSUInteger)occurrenceOfPageAtIndex:(int)index
+{
+	NSString *page = [contentPathArray objectAtIndex:index];
+	if (![duplicatePagePaths containsObject:page]) return 0;
+	NSUInteger occurrence = 0;
+	int i;
+	for (i = 0; i < index; i++) {
+		if ([[contentPathArray objectAtIndex:i] isEqualToString:page]) occurrence++;
+	}
+	return occurrence;
+}
+
 - (id)itemAtIndex:(int)index
 {
+	NSUInteger occurrence = [self occurrenceOfPageAtIndex:index];
 	if ([inArchiveArray count] > 0) {
 		NSString *fileName = [contentPathArray objectAtIndex:index];
 		int i;
 		for (i=0; i<[inArchiveArray count]; i++) {
 			COImageLoader *inLoader = [inArchiveArray objectAtIndex:i];
-			if ([[inLoader pathArray] indexOfObject:fileName] != NSNotFound) {
-				return [inLoader itemAtIndex:(int)[[inLoader pathArray] indexOfObject:fileName]];
+			NSArray *inPages = [inLoader pathArray];
+			NSUInteger at = [inPages indexOfObject:fileName];
+			while (at != NSNotFound) {
+				if (occurrence == 0) return [inLoader itemAtIndex:(int)at];
+				occurrence--;
+				at = [inPages indexOfObject:fileName inRange:NSMakeRange(at + 1, [inPages count] - at - 1)];
 			}
 		}
 	}
@@ -200,8 +223,10 @@ static NSArray *_COImageLoader_archiveTypes=nil;
 		
 		NSData *data = nil;
 		NSImage *image = nil;
-		if ([rawContentPathArray indexOfObject:rawName] != NSNotFound) {
-			data =[[items objectAtIndex:[rawContentPathArray indexOfObject:rawName]] data];
+		NSArray *sameName = rawName ? [entryIndicesByRawName objectForKey:rawName] : nil;
+		if (occurrence < [sameName count]) {
+			NSUInteger itemIndex = [[sameName objectAtIndex:occurrence] unsignedIntegerValue];
+			if (itemIndex < [items count]) data = [[items objectAtIndex:itemIndex] data];
 		}
 		
 		if(data && [data length]>0){
@@ -592,15 +617,25 @@ static NSArray *_COImageLoader_archiveTypes=nil;
 	[rawContentPathArray removeAllObjects];
 	[contentPathArray removeAllObjects];
 	[contentPathDic removeAllObjects];
+	[entryIndicesByRawName removeAllObjects];
 
 	NSMutableArray *pathArray = [NSMutableArray array];
 	NSArray *items=[archiveContainer contents];
 	NSEnumerator *enu = [items objectEnumerator];
 	id object;
+	NSUInteger itemIndex = 0;
 	while (object = [enu nextObject]) {
+		NSUInteger thisIndex = itemIndex++;
 		NSString *path = [object path];
 		if (path) {
 			[rawContentPathArray addObject:path];
+			NSMutableArray *sameName = [entryIndicesByRawName objectForKey:path];
+			BOOL repeatedName = (sameName != nil);
+			if (!sameName) {
+				sameName = [NSMutableArray array];
+				[entryIndicesByRawName setObject:sameName forKey:path];
+			}
+			[sameName addObject:[NSNumber numberWithUnsignedInteger:thisIndex]];
 			if([[COImageLoader fileTypes] containsObject:[[path pathExtension] lowercaseString]]){
 				/* Nested archives are written to disk under their entry name;
 				   one that would land outside tempDir is skipped. */
@@ -609,11 +644,12 @@ static NSArray *_COImageLoader_archiveTypes=nil;
 				   entry, a full disk) is skipped like an unreadable page;
 				   it used to abandon every other page of the book (code
 				   review L2). */
-				if (![self uncompressToTempDir:path]) {
+				NSString *extracted = [self uncompressEntry:thisIndex named:path duplicate:repeatedName];
+				if (!extracted) {
 					NSLog(@"COImageLoader: %@: skipping unreadable nested archive %@", filePath, path);
 					continue;
 				}
-				COImageLoader *inLoader = [[[COImageLoader alloc] initWithPath:[tempDir stringByAppendingPathComponent:path]
+				COImageLoader *inLoader = [[[COImageLoader alloc] initWithPath:extracted
 																   displayPath:[displayPath stringByAppendingPathComponent:path]
 																 readSubFolder:NO
 																	controller:controller] autorelease];
@@ -632,23 +668,31 @@ static NSArray *_COImageLoader_archiveTypes=nil;
 	[contentPathArray sortUsingSelector:@selector(finderCompareS:)];
 	//NSLog(@"%@",contentPathDic);
 
+	NSCountedSet *pageCounts = [[[NSCountedSet alloc] initWithArray:contentPathArray] autorelease];
+	NSMutableSet *repeated = [NSMutableSet set];
+	for (NSString *page in pageCounts) {
+		if ([pageCounts countForObject:page] > 1) [repeated addObject:page];
+	}
+	[duplicatePagePaths release];
+	duplicatePagePaths = [repeated count] > 0 ? [repeated copy] : nil;
+
 	/* B2: the archive's own pages in the order they are shown, so a lazy
 	   reader prefetches the next page rather than the next entry in
-	   archive order. Resolved the way -itemAtIndex: does (first entry with
-	   that raw name); pages from nested archives have no entry here. */
-	NSMutableDictionary *firstIndexByRawName = [NSMutableDictionary dictionary];
-	NSUInteger rawIndex;
-	for (rawIndex = 0; rawIndex < [rawContentPathArray count]; rawIndex++) {
-		NSString *rawName = [rawContentPathArray objectAtIndex:rawIndex];
-		if (![firstIndexByRawName objectForKey:rawName])
-			[firstIndexByRawName setObject:[NSNumber numberWithUnsignedInteger:rawIndex] forKey:rawName];
-	}
+	   archive order. Resolved the way -itemAtIndex: does (the n-th page of
+	   a name is the n-th entry with that raw name); pages from nested
+	   archives have no entry here. */
+	NSMutableDictionary *usedByRawName = [NSMutableDictionary dictionary];
 	NSMutableArray *pageOrder = [NSMutableArray array];
 	for (NSString *page in contentPathArray) {
 		NSString *rawName = [contentPathDic objectForKey:page];
-		NSNumber *itemIndex = rawName ? [firstIndexByRawName objectForKey:rawName] : nil;
-		if (itemIndex && [itemIndex unsignedIntegerValue] < [items count])
-			[pageOrder addObject:[items objectAtIndex:[itemIndex unsignedIntegerValue]]];
+		if (!rawName) continue;
+		NSUInteger used = [[usedByRawName objectForKey:rawName] unsignedIntegerValue];
+		[usedByRawName setObject:[NSNumber numberWithUnsignedInteger:used + 1] forKey:rawName];
+		NSArray *sameName = [entryIndicesByRawName objectForKey:rawName];
+		if (used < [sameName count]) {
+			NSUInteger entryIndex = [[sameName objectAtIndex:used] unsignedIntegerValue];
+			if (entryIndex < [items count]) [pageOrder addObject:[items objectAtIndex:entryIndex]];
+		}
 	}
 	[archiveContainer setPrefetchPageOrder:pageOrder];
 	return YES;
@@ -665,29 +709,30 @@ static NSArray *_COImageLoader_archiveTypes=nil;
 	}
 }
 
-- (BOOL)uncompressToTempDir:(NSString*)fileName
+/* Writes archive entry `index` (a nested archive named `fileName`) under
+   tempDir and returns the path written, or nil. A later entry with a name
+   already used gets a directory of its own instead of overwriting the
+   first one's file (code review L4). */
+- (NSString *)uncompressEntry:(NSUInteger)index named:(NSString *)fileName duplicate:(BOOL)duplicate
 {
-	if (!COIsContainedEntryPath(fileName)) return NO;
+	if (!COIsContainedEntryPath(fileName)) return nil;
+	if (mode != 2) return nil;
 	if (!tempDir) {
 		/* mkdtemp() rewrites its argument, so it needs a buffer of our own,
 		   not -fileSystemRepresentation's. */
 		char buffer[PATH_MAX];
 		NSString *template = [NSTemporaryDirectory() stringByAppendingPathComponent:@"cooViewer.XXXXXX"];
 		if (![template getFileSystemRepresentation:buffer maxLength:sizeof(buffer)] || mkdtemp(buffer) == NULL) {
-			return NO;
+			return nil;
 		}
 		tempDir = [[[NSFileManager defaultManager] stringWithFileSystemRepresentation:buffer length:strlen(buffer)] retain];
 	}
-	
-	if ([rawContentPathArray indexOfObject:fileName] != NSNotFound) {
-		[self createDir:[[tempDir stringByAppendingPathComponent:fileName] stringByDeletingLastPathComponent]];
-		
-		if (mode == 2) {
-			return [archiveContainer uncompress:(int)[rawContentPathArray indexOfObject:fileName] as:[tempDir stringByAppendingPathComponent:fileName]];
-		}
-	} else {
-		//NSLog(@"notFound");
-	}
-	return YES;
+
+	NSString *dir = duplicate
+		? [tempDir stringByAppendingPathComponent:[NSString stringWithFormat:@".dup-%lu", (unsigned long)index]]
+		: tempDir;
+	NSString *dest = [dir stringByAppendingPathComponent:fileName];
+	[self createDir:[dest stringByDeletingLastPathComponent]];
+	return [archiveContainer uncompress:(int)index as:dest] ? dest : nil;
 }
 @end

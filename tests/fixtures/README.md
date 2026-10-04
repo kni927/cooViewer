@@ -52,6 +52,14 @@ cooViewer refuses solid RAR4 by its archive-header flag
 (`docs/KNOWN_ISSUES.md` #39). Both are also written by
 `tests/engine/run_tests.sh`.
 
+`test_rar4_links.cbr`, `test_rar4_links_unicode.cbr` and (when `rar` is
+installed) `test_rar5_links.cbr` hold the four pages with link entries
+between them: a Unix symbolic link `001_link.png` after `001.png` (RAR4,
+hand-written by `make_rar4_fixture.py --symlink`), and in RAR5 also a hard
+link `003_hard.png` to `003.png` (`rar a -ol -oh`). Links are not pages
+(`docs/KNOWN_ISSUES.md` #41, M6). All three are written by
+`tests/engine/run_tests.sh`.
+
 `test_rar4_unordered.cbr`, `test_rar4_unordered_unicode.cbr` and (when `rar`
 is installed) `test_rar5_unordered.cbr` are non-solid archives stored as
 003, 001, 004, 002, so stored order is not page order. They exercise direct
@@ -87,6 +95,10 @@ payloads are a few synthetic bytes, so no licensing applies:
 - `broken_nested.cbz` — two pages, a readable nested archive, and a nested
   archive whose stored bytes fail their CRC check (read by the
   `COImageLoader` harness, `tests/engine/test_imageloader.m`).
+- `dup_names.cbz` — repeated entry names: `001.png` twice (the images of
+  `001.png` and `003.png`), `002.jpg`, and a nested `inner.zip` twice, each
+  with a `p.jpg` (the images of `004.jpg` and `002.jpg`). Made from `src/`
+  (read by the `COImageLoader` harness).
 
 The suite also copies `test.cbr` to `mislabeled_rar.cbz` and `test.7z` to
 `mislabeled_7z.cbr` at run time, next to the existing `mislabeled.cbr`.

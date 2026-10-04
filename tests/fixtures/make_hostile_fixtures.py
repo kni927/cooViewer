@@ -15,6 +15,12 @@ is involved:
   extracted.
 - rar4_huge_size.cbr: a RAR4 file header with LHD_LARGE whose 64-bit packed
   size runs far past the end of the file.
+
+Given the source-image directory as a second argument, it also writes
+dup_names.cbz, whose repeated entry names need real, distinguishable images:
+
+- dup_names.cbz: "001.png" twice (001.png, then 003.png), "002.jpg", and a
+  nested "inner.zip" twice, each holding a "p.jpg" (004.jpg, then 002.jpg).
 """
 
 from __future__ import annotations
@@ -23,6 +29,7 @@ import io
 import pathlib
 import struct
 import sys
+import warnings
 import zipfile
 import zlib
 
@@ -71,6 +78,26 @@ def write_broken_nested(path: pathlib.Path) -> None:
     path.write_bytes(bytes(data))
 
 
+def write_dup_names(path: pathlib.Path, src: pathlib.Path) -> None:
+    def image(name: str) -> bytes:
+        return (src / name).read_bytes()
+
+    def nested(page: str) -> bytes:
+        inner = io.BytesIO()
+        with zipfile.ZipFile(inner, "w") as z:
+            z.writestr("p.jpg", image(page))
+        return inner.getvalue()
+
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")        # zipfile warns on duplicate names
+        with zipfile.ZipFile(path, "w") as z:
+            z.writestr("001.png", image("001.png"))
+            z.writestr("001.png", image("003.png"))
+            z.writestr("002.jpg", image("002.jpg"))
+            z.writestr("inner.zip", nested("004.jpg"))
+            z.writestr("inner.zip", nested("002.jpg"))
+
+
 def rar4_block(htype: int, flags: int, body: bytes) -> bytes:
     rest = struct.pack("<BHH", htype, flags, 7 + len(body)) + body
     return struct.pack("<H", zlib.crc32(rest) & 0xFFFF) + rest
@@ -97,6 +124,8 @@ def main() -> None:
     write_dotdot(out / "dotdot.cbz")
     write_broken_nested(out / "broken_nested.cbz")
     write_rar4_huge_size(out / "rar4_huge_size.cbr")
+    if len(sys.argv) > 2:
+        write_dup_names(out / "dup_names.cbz", pathlib.Path(sys.argv[2]))
 
 
 if __name__ == "__main__":

@@ -365,12 +365,6 @@ static struct archive *CORarOpenPositionedStream(NSString *filePath,
 	return a;
 }
 
-/* Structural qualification shared by the index pass and the cursor
- * fast-forward: directories, zero-byte entries, and AppleDouble
- * ("._*") sidecars are never counted toward the stream ordinal, so
- * both passes must agree on exactly which headers count. Encrypted
- * entries are handled by the caller (only the index pass needs to
- * set -crypted). */
 static BOOL CORarEntryIsAppleDouble(struct archive_entry *entry)
 {
 	const char *u8 = archive_entry_pathname_utf8(entry);
@@ -380,6 +374,27 @@ static BOOL CORarEntryIsAppleDouble(struct archive_entry *entry)
 	const char *base = strrchr(nm, '/');
 	base = base ? base + 1 : nm;
 	return strncmp(base, "._", 2) == 0;
+}
+
+/* Structural qualification shared by the libarchive index pass and the
+ * cursor: directories, zero-byte entries, symbolic and hard links (RAR5
+ * redirection records, RAR4 Unix links), encrypted entries and
+ * AppleDouble ("._*") sidecars are never counted toward the stream
+ * ordinal. CORarHeaderIndex applies the same rules to the raw headers, so
+ * every pass agrees on exactly which headers count. Links used to be
+ * counted by one pass and not the other, shifting every later page or
+ * leaving an empty one (code review M6): libarchive leaves a RAR5 link's
+ * size unset and gives a RAR4 link size 0. The index pass tests
+ * encryption itself first, because it has to set -crypted. */
+static BOOL CORarEntryCounts(struct archive_entry *entry)
+{
+	if (archive_entry_filetype(entry) == AE_IFDIR) return NO;
+	if (archive_entry_filetype(entry) == AE_IFLNK) return NO;
+	if (archive_entry_hardlink(entry) != NULL) return NO;
+	if (archive_entry_size_is_set(entry) && archive_entry_size(entry) == 0) return NO;
+	if (archive_entry_is_encrypted(entry)) return NO;
+	if (CORarEntryIsAppleDouble(entry)) return NO;
+	return YES;
 }
 
 - (void)indexArchiveViaLibarchiveWithProgress:(COArchiveProgress)progress
@@ -411,20 +426,16 @@ static BOOL CORarEntryIsAppleDouble(struct archive_entry *entry)
 			lastError = [[NSString alloc] initWithFormat:@"%s", e ? e : "read error"];
 			break;
 		}
-		if (archive_entry_filetype(entry) == AE_IFDIR) continue;
-		if (archive_entry_size_is_set(entry) && archive_entry_size(entry) == 0) continue;
-		if (archive_entry_is_encrypted(entry)) {
+		if (archive_entry_filetype(entry) != AE_IFDIR &&
+		    !(archive_entry_size_is_set(entry) && archive_entry_size(entry) == 0) &&
+		    archive_entry_is_encrypted(entry))
 			crypted = YES;
-			continue;
-		}
-		if (CORarEntryIsAppleDouble(entry)) {
-			archive_read_data_skip(a);
-			continue;
-		}
+		BOOL counts = CORarEntryCounts(entry);
 
-		// this entry counts: skip its data (cheap) rather than
-		// decoding it, and record its stream position
+		// skip the data (cheap) rather than decoding it; an entry that
+		// counts records its stream position
 		archive_read_data_skip(a);
+		if (!counts) continue;
 
 		const char *raw = archive_entry_pathname(entry);
 		const char *u8 = archive_entry_pathname_utf8(entry);
@@ -568,8 +579,12 @@ static BOOL CORarEntryIsAppleDouble(struct archive_entry *entry)
 		}
 	}
 
-	while (cursorNext < ordinal) {
-		struct archive_entry *entry;
+	// Walk to entry #ordinal. Headers that do not count (links, sidecars,
+	// …) are skipped on the way *and* just before it: a cursor continued
+	// from the previous page, or one positioned on a header, may still
+	// have such a header in front of the page (code review M6).
+	struct archive_entry *entry;
+	for (;;) {
 		int r = archive_read_next_header(cursor, &entry);
 		if (r == ARCHIVE_EOF || r < ARCHIVE_WARN) {
 			NSLog(@"CORarArchive: stream ended before entry #%lu in %@",
@@ -577,28 +592,21 @@ static BOOL CORarEntryIsAppleDouble(struct archive_entry *entry)
 			[self invalidateCursor];
 			return nil;
 		}
-		if (archive_entry_filetype(entry) == AE_IFDIR) continue;
-		if (archive_entry_size_is_set(entry) && archive_entry_size(entry) == 0) continue;
-		if (archive_entry_is_encrypted(entry)) continue;
-		if (CORarEntryIsAppleDouble(entry)) {
-			archive_read_data_skip(cursor);
-			continue;
-		}
+		BOOL counts = CORarEntryCounts(entry);
+		if (counts && cursorNext == ordinal) break;
 		archive_read_data_skip(cursor);
-		cursorNext++;
+		if (counts) cursorNext++;
 	}
-
-	struct archive_entry *entry;
-	int r = archive_read_next_header(cursor, &entry);
-	if (r == ARCHIVE_EOF || r < ARCHIVE_WARN) {
-		NSLog(@"CORarArchive: entry #%lu missing from stream in %@",
-		      (unsigned long)ordinal, filePath);
+	// The header index knows each entry's size; a header that disagrees
+	// means the passes counted differently, and its data would be shown
+	// as some other page. Fail closed instead.
+	if (requestedEntry->hasExpectedSize && archive_entry_size_is_set(entry) &&
+	    (unsigned long long)archive_entry_size(entry) != requestedEntry->expectedSize) {
+		NSLog(@"CORarArchive: entry #%lu (%@) in %@ landed on a header of another size",
+		      (unsigned long)ordinal, [requestedEntry path], filePath);
 		[self invalidateCursor];
 		return nil;
 	}
-	// entry #ordinal is always structurally qualifying by construction
-	// (the index pass only ever recorded qualifying entries), so no
-	// re-check is needed here.
 
 	NSMutableData *payload = [NSMutableData data];
 	BOOL entryOK = YES;
@@ -674,6 +682,7 @@ static BOOL CORarEntryIsAppleDouble(struct archive_entry *entry)
 	CORarEntry *next = nil;
 	BOOL hasPageOrder = NO;
 	@synchronized(self) {
+		if (prefetchDisabled) return;
 		if (nextPageByOrdinal) {
 			hasPageOrder = YES;
 			next = [[[nextPageByOrdinal objectForKey:
@@ -685,6 +694,7 @@ static BOOL CORarEntryIsAppleDouble(struct archive_entry *entry)
 	if (!next) return;
 	NSNumber *key = [NSNumber numberWithUnsignedInteger:next->ordinal];
 	if ([dataCache objectForKey:key]) return;
+	@synchronized(self) { prefetchCount++; }
 	dispatch_async(readQueue, ^{	// block retains self until it runs
 		if ([dataCache objectForKey:key]) return;
 		NSData *d = [self readEntryOnQueue:next];

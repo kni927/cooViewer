@@ -17,6 +17,13 @@
 	NSMutableArray *contentPathArray;
 	NSMutableArray *rawContentPathArray;
 	NSMutableDictionary *contentPathDic;
+	/* Archive books: raw entry name -> indices of every entry with that
+	 * name, in archive order; and the page paths that occur more than once
+	 * (nil when none do). An archive can hold several entries of one name;
+	 * the n-th page of a repeated name is the n-th such entry, not the
+	 * first one again (code review L4). */
+	NSMutableDictionary *entryIndicesByRawName;
+	NSSet *duplicatePagePaths;
 
 	id archiveContainer;
 	id subArchiveContainer;

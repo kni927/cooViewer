@@ -410,6 +410,51 @@ int main(int argc, char **argv)
             }
         }
 
+        // --- L3: -disablePrefetch stops the read-ahead a read schedules
+        // (the QuickLook cover extractor reads one entry and lets go) ---
+        for (NSString *f in @[ @"test.cbz", @"test.cbr", @"test_rar4.cbr" ]) {
+            NSString *p = [gen stringByAppendingPathComponent:f];
+            if (![[NSFileManager defaultManager] fileExistsAtPath:p]) continue;
+            printf("%s prefetch switch\n", [f UTF8String]);
+            COArchive *normal = [[[COArchive alloc] initWithPath:p] autorelease];
+            COArchive *single = [COArchive lazyArchiveWithPath:p];
+            if ([normal itemCount] < 2 || [single itemCount] < 2) {
+                check(NO, [NSString stringWithFormat:@"%@: expected several entries", f]);
+                continue;
+            }
+            [[[normal contents] objectAtIndex:0] data];
+            check([normal prefetchCount] > 0,
+                  [NSString stringWithFormat:@"%@: a read schedules a prefetch", f]);
+            [single disablePrefetch];
+            NSData *d = [[[single contents] objectAtIndex:0] data];
+            check([d length] > 0, [NSString stringWithFormat:@"%@: entry read with prefetch off", f]);
+            check([single prefetchCount] == 0,
+                  [NSString stringWithFormat:@"%@: no prefetch after -disablePrefetch (%lu)", f,
+                   (unsigned long)[single prefetchCount]]);
+        }
+
+        // --- M6: link entries between pages are not pages, and do not
+        // shift the pages after them. Each page is read in order (the
+        // cursor continues from the previous page across the link), then
+        // backwards. The RAR4 and RAR5 header-indexed ones use direct
+        // positioning; the Unicode RAR4 takes the libarchive fallback. ---
+        for (NSString *f in @[ @"test_rar4_links.cbr", @"test_rar4_links_unicode.cbr",
+                               @"test_rar5_links.cbr" ]) {
+            NSString *p = [gen stringByAppendingPathComponent:f];
+            testArchive(p, asciiNames, srcHashes);
+            if (![[NSFileManager defaultManager] fileExistsAtPath:p]) continue;
+            COArchive *ar = [[[COArchive alloc] initWithPath:p] autorelease];
+            if (![ar isKindOfClass:[CORarArchive class]] || [ar itemCount] != 4) continue;
+            check([(CORarArchive *)ar usesDirectPositioning] == ![f containsString:@"unicode"],
+                  [NSString stringWithFormat:@"%@: unexpected positioning mode", f]);
+            int k;
+            for (k = 3; k >= 0; k--) {
+                COArchiveEntry *e = [[ar contents] objectAtIndex:k];
+                check([sha256([e data]) isEqualToString:[srcHashes objectAtIndex:k]],
+                      [NSString stringWithFormat:@"%@: backwards sha mismatch for page %d", f, k + 1]);
+            }
+        }
+
         // --- the RAR5 trailing-error recovery (KNOWN_ISSUES #37) on the
         // direct-positioning path, twice: the second read follows the
         // cursor invalidation the recovery does. ---

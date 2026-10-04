@@ -65,7 +65,8 @@ def archive_header_block(solid: bool = False) -> bytes:
     return struct.pack("<H", head_crc(rest)) + rest
 
 
-def file_header_block(name: str, data: bytes, flags: int = 0x0000) -> bytes:
+def file_header_block(name: str, data: bytes, flags: int = 0x0000,
+                      attrs: int = 0o100644) -> bytes:
     # With LHD_UNICODE and no NUL byte in it, the name field is UTF-8
     # (RAR technote); otherwise it must be ASCII here.
     namebytes = name.encode("utf-8" if flags & LHD_UNICODE else "ascii")
@@ -80,7 +81,7 @@ def file_header_block(name: str, data: bytes, flags: int = 0x0000) -> bytes:
         20,  # UNP_VER (2.0)
         0x30,  # METHOD (store, no compression)
         len(namebytes),  # NAME_SIZE
-        0o100644,  # FILE_ATTR
+        attrs,  # FILE_ATTR (Unix mode; 0o120777 is a symbolic link)
     ) + namebytes
     headsize = 7 + len(packsize) + len(payload)
     rest = typeflags + struct.pack("<H", headsize) + packsize + payload
@@ -94,7 +95,7 @@ def end_header_block() -> bytes:
 
 def create_archive(source_dir: pathlib.Path, output_path: pathlib.Path,
                    solid: bool = False, unicode_names: bool = False,
-                   order: tuple[int, ...] | None = None) -> None:
+                   order: tuple[int, ...] | None = None, symlink: bool = False) -> None:
     """solid sets MHD_SOLID in the archive header and LHD_SOLID on every
     file after the first, as rar -s does; the data stays STORE, so only the
     flags make it a solid archive (cooViewer refuses solid RAR4 by the
@@ -102,7 +103,9 @@ def create_archive(source_dir: pathlib.Path, output_path: pathlib.Path,
     which makes CORarHeaderIndex decline and the libarchive fallback run.
     order stores the files in that order (1-based FIXTURES indices), so
     stored order differs from page order, as rar does for non-solid
-    archives made from APFS directory order."""
+    archives made from APFS directory order. symlink adds a Unix symbolic
+    link "001_link.png" -> "001.png" after the first stored file, as rar -ol
+    stores one: its data is the target path."""
     output_path.parent.mkdir(parents=True, exist_ok=True)
 
     blocks = [RAR4_SIGNATURE, archive_header_block(solid)]
@@ -118,6 +121,9 @@ def create_archive(source_dir: pathlib.Path, output_path: pathlib.Path,
         if unicode_names:
             flags |= LHD_UNICODE
         blocks.append(file_header_block(fixture.archive_name, data, flags))
+        if symlink and i == 0:
+            blocks.append(file_header_block("001_link.png", b"001.png", flags & LHD_UNICODE,
+                                            attrs=0o120777))
     blocks.append(end_header_block())
 
     output_path.write_bytes(b"".join(blocks))
@@ -132,13 +138,16 @@ def parse_args() -> argparse.Namespace:
                         help="Store names as LHD_UNICODE (UTF-8 form)")
     parser.add_argument("--order", type=lambda v: tuple(int(n) for n in v.split(",")),
                         help="Stored order as 1-based source indices, e.g. 3,1,4,2")
+    parser.add_argument("--symlink", action="store_true",
+                        help="Add a Unix symbolic link entry after the first file")
     return parser.parse_args()
 
 
 def main() -> None:
     args = parse_args()
     create_archive(source_dir=args.source_dir.resolve(), output_path=args.output.resolve(),
-                   solid=args.solid, unicode_names=args.unicode_names, order=args.order)
+                   solid=args.solid, unicode_names=args.unicode_names, order=args.order,
+                   symlink=args.symlink)
     print(f"Created: {args.output}")
 
 

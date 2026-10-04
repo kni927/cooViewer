@@ -9,6 +9,8 @@
  *                    -lastError, no readable entries, no crash/garbage
  *   - correct password: -cryptoStatus = OK, the entry appears and its
  *                    -data matches the known payload
+ *   - 3000 other wrong passwords: none is accepted, including those that
+ *                    pass traditional PKWARE's one-byte check (M9)
  * and that a non-encrypted archive is read exactly as before
  *   - -crypted = NO, -cryptoStatus = None, entry present, -data matches.
  *
@@ -93,6 +95,20 @@ static void testEncrypted(NSString *dir, NSString *name, const char *label) {
 	}
 	snprintf(msg, sizeof msg, "%s: lastError nil after correct pw", label);
 	check([z lastError] == nil, msg);
+
+	// 4. M9: many wrong passwords. Traditional PKWARE's one-byte check
+	//    lets about 2 in 256 through to the data; none of them may be
+	//    taken for the password (the decrypted data fails its CRC).
+	int accepted = 0;
+	for (int i = 0; i < 3000; i++) {
+		[z setPassword:[NSString stringWithFormat:@"wrong-%d", i]];
+		if ([z cryptoStatus] != COArchiveCryptoWrongPassword) accepted++;
+	}
+	snprintf(msg, sizeof msg, "%s: 3000 wrong passwords all rejected (%d accepted)", label, accepted);
+	check(accepted == 0, msg);
+	[z setPassword:[NSString stringWithUTF8String:kTestPassword]];
+	snprintf(msg, sizeof msg, "%s: status OK again after the wrong ones", label);
+	check([z cryptoStatus] == COArchiveCryptoOK && [z itemCount] == 1, msg);
 
 	[z release];
 	[pool drain];

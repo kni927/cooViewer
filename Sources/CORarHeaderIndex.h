@@ -69,7 +69,8 @@
 //  - Per-entry filtering mirrors COArchive/CORarArchive's existing
 //    policy exactly, so entry ordinals line up with what the
 //    libarchive-based cursor pass will independently derive when
-//    decoding a specific page: directories, zero-byte entries, and
+//    decoding a specific page: directories, zero-byte entries, links
+//    (RAR5 redirection records, RAR4 Unix symbolic links) and
 //    AppleDouble ("._*") sidecars are excluded; per-entry encrypted
 //    files are excluded and reported via outCrypted.
 //  - RAR5 names are UTF-8 by spec (validated on read); RAR4 names

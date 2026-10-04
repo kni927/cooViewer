@@ -40,8 +40,9 @@ open(sys.argv[2], "wb").write(bytes(data))
 EOF
 fi
 
-# hostile-metadata fixtures (long names, "../" nested archive, oversized RAR4)
-python3 "$REPO_ROOT/tests/fixtures/make_hostile_fixtures.py" "$GEN"
+# hostile-metadata fixtures (long names, "../" nested archive, oversized RAR4,
+# unreadable and repeated nested archives, repeated entry names)
+python3 "$REPO_ROOT/tests/fixtures/make_hostile_fixtures.py" "$GEN" "$SRC"
 
 # solid RAR4, refused at open (KNOWN_ISSUES #39); the Unicode-named one
 # takes the libarchive fallback path rather than the header index
@@ -60,6 +61,25 @@ python3 "$REPO_ROOT/tests/fixtures/make_rar4_fixture.py" --order 3,1,4,2 --unico
 if command -v rar >/dev/null 2>&1; then
     rm -f "$GEN/test_rar5_unordered.cbr"
     (cd "$SRC" && rar a -idq "$GEN/test_rar5_unordered.cbr" 003.png 001.png 004.jpg 002.jpg)
+fi
+
+# link entries between pages (code review M6): a Unix symbolic link in the
+# hand-written RAR4 (header index, and libarchive fallback with Unicode
+# names), and a symbolic plus a hard link in RAR5 by rar when installed
+python3 "$REPO_ROOT/tests/fixtures/make_rar4_fixture.py" --symlink \
+    "$SRC" "$GEN/test_rar4_links.cbr" >/dev/null
+python3 "$REPO_ROOT/tests/fixtures/make_rar4_fixture.py" --symlink --unicode-names \
+    "$SRC" "$GEN/test_rar4_links_unicode.cbr" >/dev/null
+if command -v rar >/dev/null 2>&1; then
+    LINKS_SRC="$GEN/rar5_links_src"
+    rm -rf "$LINKS_SRC" && mkdir "$LINKS_SRC"
+    cp "$SRC"/00?.* "$LINKS_SRC/"
+    ln -s 001.png "$LINKS_SRC/001_link.png"
+    ln "$LINKS_SRC/003.png" "$LINKS_SRC/003_hard.png"
+    rm -f "$GEN/test_rar5_links.cbr"
+    (cd "$LINKS_SRC" && rar a -idq -ol -oh "$GEN/test_rar5_links.cbr" \
+        001.png 001_link.png 002.jpg 003.png 003_hard.png 004.jpg)
+    rm -rf "$LINKS_SRC"
 fi
 
 clang -O2 \

@@ -200,6 +200,7 @@ static NSMutableArray *ParseRAR5(FILE *f, off_t fileSize, BOOL *outCrypted, BOOL
 			if (flags & 0x0018) { *outUnsupported = YES; return nil; }
 
 			BOOL entryEncrypted = NO;
+			BOOL entryRedirected = NO;
 			if (extrasize > 0) {
 				off_t pos = ftello(f);
 				off_t guard = 0;
@@ -210,6 +211,7 @@ static NSMutableArray *ParseRAR5(FILE *f, off_t fileSize, BOOL *outCrypted, BOOL
 					recStart = ftello(f);
 					if (!ReadVInt(f, &recType)) break;
 					if (recType == 0x01) entryEncrypted = YES;	// file encryption record
+					if (recType == 0x05) entryRedirected = YES;	// symlink, junction, hard link, file copy
 					if (recSize == 0) break;
 					if (fseeko(f, recStart + (off_t)recSize, SEEK_SET) != 0) break;
 					pos = ftello(f);
@@ -218,6 +220,10 @@ static NSMutableArray *ParseRAR5(FILE *f, off_t fileSize, BOOL *outCrypted, BOOL
 
 			if (isDirectory) {
 				// no entry
+			} else if (entryRedirected) {
+				// a link has no data of its own (a hard link even carries
+				// its target's size); libarchive does not count it either
+				// (code review M6)
 			} else if (entryEncrypted) {
 				*outCrypted = YES;
 			} else if (uncompsize == 0 && !unknownSize) {
@@ -260,6 +266,8 @@ static const uint8_t kRAR4Sig[7] = {'R','a','r','!',0x1a,0x07,0x00};
 #define LHD_DIRECTORY    0x00e0
 
 #define RARFLAG_LONG_BLOCK 0x8000
+
+#define RAR4_OS_UNIX 3
 
 #define RAR4_BLOCK_ARCHIVE 0x73
 #define RAR4_BLOCK_FILE    0x74
@@ -350,9 +358,15 @@ static NSMutableArray *ParseRAR4(FILE *f, off_t fileSize, BOOL *outCrypted, BOOL
 			BOOL isDirectory = ((flags & LHD_WINDOWMASK) == LHD_DIRECTORY) ||
 			                   (version == 15 && os == 0 && (attrs & 0x10));
 			BOOL isEncrypted = (flags & LHD_PASSWORD) != 0;
+			// a Unix symbolic link stores its target as its data;
+			// libarchive gives it size 0 and does not count it
+			// (code review M6)
+			BOOL isSymlink = (os == RAR4_OS_UNIX && (attrs & 0xF000) == 0xA000);
 			if (flags & LHD_SOLID) layout->solid = YES;
 
 			if (isDirectory) {
+				// no entry
+			} else if (isSymlink) {
 				// no entry
 			} else if (isEncrypted) {
 				*outCrypted = YES;

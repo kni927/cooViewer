@@ -1683,11 +1683,14 @@ refuse while it is loading or waiting on a password), M4 (next/previous
 folder refreshes the submenu for its own book first; the check mark follows
 the current book), M11 (`-goToPar:` clamps to the last page), M12 (empty key
 strings), L2 (an unreadable nested archive is skipped), L5 (the last-spread
-lookahead never starts below page 0).
+lookahead never starts below page 0), M6 (RAR symbolic and hard links are
+not pages in any pass; the cursor skips them up to the page it lands on and
+checks the landed size), L4 (repeated entry names, also of nested archives,
+are separate pages), M9 (the data errors a wrong key causes in the ZipCrypto
+or AES validation entry count as a wrong password), L3 (the QuickLook cover
+read disables prefetch).
 
-**Still open:** M5, M6, M8–M10, L3, L4, L8, L11. The most visible is the RAR
-link miscount (M6, reproduced: pages shift after a symlink in RAR5
-archives).
+**Still open:** M5, M8, M10, L8, L11.
 
 ---
 

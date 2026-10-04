@@ -81,6 +81,8 @@ typedef enum {
 	BOOL crypted;
 	BOOL cancelled;
 	BOOL refusedSolidRAR4;
+	BOOL prefetchDisabled;
+	NSUInteger prefetchCount;	// prefetches scheduled (lazy readers)
 }
 - (id)initWithPath:(NSString *)path;
 - (id)initWithPath:(NSString *)path progress:(COArchiveProgress)progress;
@@ -118,6 +120,15 @@ typedef enum {
  * reader's prefetch; the base implementation ignores it, and so does
  * COZipArchive. CORarArchive prefetches the next page by it (B2). */
 - (void)setPrefetchPageOrder:(NSArray *)entries;
+
+/* No read-ahead from now on: reading an entry no longer schedules a read
+ * of the next one. For a caller that needs one entry and then lets the
+ * archive go — the QuickLook extensions' cover — where a prefetch would
+ * keep decoding after the result has been returned (code review L3).
+ * -prefetchCount says how many prefetches the lazy readers scheduled
+ * (for tests). */
+- (void)disablePrefetch;
+- (NSUInteger)prefetchCount;
 @end
 
 /* YES when an entry path, appended to a directory, stays inside it: not

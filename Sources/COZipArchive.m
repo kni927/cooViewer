@@ -226,12 +226,39 @@
 	}
 }
 
+/* Errors a wrong key leaves in the decrypted stream of the validation
+ * entry. Traditional PKWARE checks the key with one header byte, which
+ * about 2 wrong passwords in 256 pass; the garbage they decrypt then fails
+ * the CRC, the decompressor or the length check. WinZip AES reports its
+ * authentication code mismatch as a CRC error too. These used to count as
+ * "not a password problem", so such a password opened the book with every
+ * page broken and no new prompt (code review M9). The cost: a correct
+ * password on an archive whose first encrypted entry is itself damaged is
+ * now reported as wrong; the prompt's Cancel is the way out. Read errors
+ * stay outside this list. */
+static BOOL COZipErrorMeansWrongPassword(int ze)
+{
+	switch (ze) {
+		case ZIP_ER_WRONGPASSWD:
+		case ZIP_ER_NOPASSWD:
+		case ZIP_ER_CRC:
+		case ZIP_ER_ZLIB:
+		case ZIP_ER_COMPRESSED_DATA:
+		case ZIP_ER_INCONS:
+		case ZIP_ER_DATA_LENGTH:
+			return YES;
+		default:
+			return NO;
+	}
+}
+
 /* Test-read one encrypted entry to tell a correct password from a wrong
- * one. Traditional PKWARE rejects at open; WinZip AES fails its HMAC only
- * once the whole stream (plus EOF) is read, so the entry is read in full.
- * A non-password failure (e.g. a corrupt stream) is reported as OK here so
- * the normal read-time path handles it; only a genuine password error
- * downgrades to COArchiveCryptoWrongPassword. */
+ * one. Traditional PKWARE rejects most wrong passwords at open; WinZip AES
+ * fails its HMAC only once the whole stream (plus EOF) is read, so the
+ * entry is read in full, and the data errors a wrong key causes count as a
+ * wrong password (see COZipErrorMeansWrongPassword). Any other failure
+ * (e.g. a read error) is reported as OK here so the normal read-time path
+ * handles it. */
 - (COArchiveCryptoStatus)validatePasswordForIndex:(zip_uint64_t)index size:(unsigned long long)size
 {
 	zip_file_t *zf = zip_fopen_index(za, index, 0);
@@ -249,7 +276,7 @@
 		zip_int64_t n = zip_fread(zf, buf, want);
 		if (n < 0) {
 			int ze = zip_error_code_zip(zip_file_get_error(zf));
-			if (ze == ZIP_ER_WRONGPASSWD || ze == ZIP_ER_NOPASSWD)
+			if (COZipErrorMeansWrongPassword(ze))
 				result = COArchiveCryptoWrongPassword;
 			break;
 		}
@@ -261,9 +288,9 @@
 		char tail;
 		if (zip_fread(zf, &tail, 1) != 0) {
 			int ze = zip_error_code_zip(zip_file_get_error(zf));
-			if (ze == ZIP_ER_WRONGPASSWD || ze == ZIP_ER_NOPASSWD)
+			if (COZipErrorMeansWrongPassword(ze))
 				result = COArchiveCryptoWrongPassword;
-			// otherwise a CRC/corruption error: leave OK, read-time handles it
+			// otherwise a read error: leave OK, read-time handles it
 		}
 	}
 	zip_fclose(zf);
@@ -348,6 +375,7 @@
 
 - (void)prefetchAfterOrdinal:(NSUInteger)ordinal
 {
+	@synchronized(self) { if (prefetchDisabled) return; }
 	if (ordinal + 1 >= [contentArray count]) return;
 	COZipEntry *next = [contentArray objectAtIndex:ordinal + 1];
 	NSNumber *key = [NSNumber numberWithUnsignedLongLong:next->zipIndex];
@@ -355,6 +383,7 @@
 	zip_uint64_t idx = next->zipIndex;
 	unsigned long long sz = next->size;
 	if (sz > CO_ZIP_MAX_PREFETCH_SIZE) return;
+	@synchronized(self) { prefetchCount++; }
 	dispatch_async(readQueue, ^{	// block retains self until it runs
 		if ([dataCache objectForKey:key]) return;
 		NSData *d = [self readEntryOnQueue:idx size:sz];

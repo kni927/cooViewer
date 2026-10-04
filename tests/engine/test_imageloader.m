@@ -64,6 +64,29 @@ int main(int argc, char **argv)
                   @"broken_nested: the unreadable nested archive adds no page");
         }
 
+        // --- L4: repeated entry names are separate pages, each with its
+        // own entry's image (they all used to show the first one), also
+        // for repeated nested archives. The source images differ in width:
+        // 001.png 2000, 002.jpg 1200, 003.png 1600, 004.jpg 800 ---
+        printf("dup_names.cbz\n");
+        {
+            COImageLoader *loader = loaderFor(gen, @"dup_names.cbz");
+            int want[] = { 2000, 1600, 1200, 800, 1200 };
+            check([loader itemCount] == 5,
+                  [NSString stringWithFormat:@"dup_names: 5 pages (got %d: %@)",
+                   [loader itemCount], [loader pathArray]]);
+            if ([loader itemCount] == 5) {
+                int i;
+                for (i = 0; i < 5; i++) {
+                    NSImage *image = [loader itemAtIndex:i];
+                    NSImageRep *rep = [[image representations] firstObject];
+                    check([rep pixelsWide] == want[i],
+                          [NSString stringWithFormat:@"dup_names: page %d (%@) is %ld px wide, want %d",
+                           i + 1, [[loader pathArray] objectAtIndex:i], (long)[rep pixelsWide], want[i]]);
+                }
+            }
+        }
+
         if (failures == 0) {
             printf("\nALL PASS (%d checks)\n", checks);
             return 0;
