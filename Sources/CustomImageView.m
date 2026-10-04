@@ -1467,10 +1467,6 @@ NSTimeInterval elapsed=0;
         drawRect2=NSMakeRect(x,center2,widthValue2,heightValue2);
     }
     
-    [infodic setObject:[NSString stringWithFormat:@"%i",(int)[image1 size].width] forKey:@"widthValue01"];
-    [infodic setObject:[NSString stringWithFormat:@"%i",(int)[image2 size].width] forKey:@"widthValue02"];
-    [infodic setObject:[NSString stringWithFormat:@"%i",(int)[image1 size].height] forKey:@"heightValue01"];
-    [infodic setObject:[NSString stringWithFormat:@"%i",(int)[image2 size].height] forKey:@"heightValue02"];
     [infodic setObject:NSStringFromRect(drawRect1) forKey:@"drawRect1"];
     [infodic setObject:NSStringFromRect(drawRect2) forKey:@"drawRect2"];
     [infodic setObject:NSStringFromRect(fullscreenRect) forKey:@"fullscreenRect"];
@@ -1479,10 +1475,6 @@ NSTimeInterval elapsed=0;
 - (void)drawImages:(NSImage*)image1 and:(NSImage*)image2
 {
     NSDictionary *infodic = [self getDrawImagesInfo:image1 and:image2];
-    int widthValue01 = [[infodic objectForKey:@"widthValue01"] intValue];
-    int widthValue02 = [[infodic objectForKey:@"widthValue02"] intValue];
-    int heightValue01 = [[infodic objectForKey:@"heightValue01"] intValue];
-    int heightValue02 = [[infodic objectForKey:@"heightValue02"] intValue];
     NSRect drawRect1 = NSRectFromString([infodic objectForKey:@"drawRect1"]);
     NSRect drawRect2 = NSRectFromString([infodic objectForKey:@"drawRect2"]);
 	
@@ -1509,11 +1501,17 @@ NSTimeInterval elapsed=0;
 		default:
 			break;
 	}
+	/* The whole page is the source, in its own (point) coordinates, as on
+	   the single-page path. The spread used to pass the size truncated to
+	   whole points, so a page with a fractional size (a 595.28 pt PDF page,
+	   a high-DPI scan with IgnoreImageDpi off) lost up to 1 pt at its right
+	   and top edges (code review M10). Still one drawInRect:fromRect: per
+	   page, straight into the view: no resampling step is added. */
 	[image2 drawInRect:drawRect2
-			  fromRect:NSMakeRect(0,0,widthValue02,heightValue02)
+			  fromRect:NSMakeRect(0,0,[image2 size].width,[image2 size].height)
 			 operation:NSCompositeSourceOver fraction:1.0];
 	[image1 drawInRect:drawRect1
-			  fromRect:NSMakeRect(0,0,widthValue01,heightValue01)
+			  fromRect:NSMakeRect(0,0,[image1 size].width,[image1 size].height)
 			 operation:NSCompositeSourceOver fraction:1.0];
 	
 	if (rotateMode!=0) {

@@ -1663,7 +1663,7 @@ matrix's menus). Still open:
 
 ---
 
-## 41. Open defects from the 2026-10-03 code review
+## 41. ~~Open defects from the 2026-10-03 code review~~ — FIXED (2026-10-04)
 
 `docs/code-review-20261003.md` lists every finding with location, trigger,
 severity and fix size.
@@ -1693,9 +1693,15 @@ generation-tagged detaches, a lock for `cacheArray`; `docs/DECISIONS.md`
 2026-10-04), L8 (indexed loops for the legacy key/mouse array migration),
 L11 (bookmark icons removed backwards; the text and page-bar shadow radius
 starts at 1.0 when the colour has no white equivalent; a negative
-`ImageCache` counts as 0; the 256 KB archive read buffers are on the heap).
+`ImageCache` counts as 0; the 256 KB archive read buffers are on the heap),
+M10 (the spread draws each page from its whole, unrounded size; still one
+`drawInRect:fromRect:` per page — verified with `tools/spread_diff.py`: an
+integral-size spread is byte-identical, a 350 dpi spread gains exactly its
+right and top edge pixels). On macOS 26 `NSPDFImageRep` reports PDF page
+sizes rounded up to whole points, so PDF books were not affected there.
 
-**Still open:** M10.
+Nothing from the review is open any more. The proposed follow-ups that were
+not defects (performance, C1 decode-ahead) are tracked in their own reports.
 
 ---
 
