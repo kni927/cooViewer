@@ -155,6 +155,14 @@ session in the Mac app reads it with `get_usage` for session `self`.
   ---
   ```
 
+## Creating cloud sessions
+
+A Code cloud session gets a repository only when the owner picks one in
+claude.ai/code, or when a Code cloud session calls `create_session` with
+`source_url` and `source_revision` `main`. A claude.ai chat, a scheduled task,
+and a Routine cannot attach one; for scheduled work that needs a repository, a
+Routine wakes an existing HQ, which then calls `create_session`.
+
 ## Handing over an HQ
 
 A cloud HQ hands its work to a fresh session at the thresholds in Context
