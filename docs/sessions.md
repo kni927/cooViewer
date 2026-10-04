@@ -114,7 +114,9 @@ reads its own usage with `get_session` without an ID (`context_usage`); a local
 session in the Mac app reads it with `get_usage` for session `self`.
 
 - **Checking:** every session, HQ or TF, checks its usage at natural breaks
-  and before starting a step that would not fit.
+  and before starting a step that would not fit. It does not report its usage
+  in ordinary replies; it reports only when it hands over or wraps up, in the
+  ready-to-archive block.
 - **Two thirds:** once usage passes two thirds of the maximum, a cloud HQ
   hands over (below) and a local TF wraps up (see Local sessions), without
   waiting for the owner. The owner may also say "handover" or "wrap up" at any
