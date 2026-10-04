@@ -1727,7 +1727,7 @@ overlay is drawn in its own child window; nothing in the render path changes.
 ## Resolution has its own Preferences section; `ResolutionDisplay` stays the stored state (2026-10-04)
 
 **Decision:** Preferences ▸ Appearance has a Resolution box (Show, In page
-number, font, Set position…) beside Page Number, replacing the three-way
+number, font, Set position…) below Page Number, replacing the three-way
 pop-up. `ResolutionDisplay` (0 Off / 1 In page number / 2 Separate bar)
 stays the stored state, so existing profiles need no migration; the two
 checkboxes are a view of it, and `ResolutionInPageNumber` only remembers the
@@ -1738,8 +1738,9 @@ number. Unset, each falls back to the page number's, and in the page
 number's corner the bar is laid out beside the page number as before — so an
 existing profile shows exactly what it showed. Colors and auto-hide follow
 the page number. The font, its Select button and Set position are disabled
-unless the separate bar is in use. The Preferences window is 76 pt wider to
-fit the box.
+unless the separate bar is in use. The Appearance tab is 82 pt taller than
+the other tabs to fit the box (the window is sized per tab in
+`-tabView:willSelectTabViewItem:`).
 
 **Why:** Owner request (2026-10-04). A separate corner and size need their
 own keys; keeping `ResolutionDisplay` avoids a second migration on top of the

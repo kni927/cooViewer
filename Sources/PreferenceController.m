@@ -616,7 +616,11 @@ static const int DIALOG_CANCEL	= 129;
 	 */
 	newFrame.size.width = 484; 
 	[preferences setFrame:newFrame display:NO];
+	preferencesBaseHeight = newFrame.size.height;
 }
+/* See -tabView:willSelectTabViewItem:. */
+static const CGFloat kAppearanceExtraHeight = 82;
+
 #pragma mark Table Delegate:
 
 
@@ -1800,10 +1804,22 @@ static const int DIALOG_CANCEL	= 129;
 	}*/
 	
 	if ([[tabViewItem label] isEqualToString:NSLocalizedString(@"Input",@"")] == YES) {
-		newFrame.size.width = 633; 
+		newFrame.size.width = 633;
 	} else {
 		newFrame.size.width = 484; 
 	}
+	/* Appearance is taller than the other tabs by the Resolution box below
+	   Page Number. Every control in that tab keeps its distance from the top
+	   (flexibleMinY), so in MainMenu.xib, which has one height for all tabs,
+	   the controls below the box sit up to kAppearanceExtraHeight lower than
+	   the tab's bottom edge and come into view when the window grows here.
+	   The top edge of the window stays put. */
+	CGFloat height = preferencesBaseHeight;
+	if ([[tabViewItem label] isEqualToString:NSLocalizedString(@"Appearance",@"")] == YES) {
+		height += kAppearanceExtraHeight;
+	}
+	newFrame.origin.y = NSMaxY(oldFrame) - height;
+	newFrame.size.height = height;
 	if (NSEqualRects(newFrame,oldFrame)) {
 		return;
 	}

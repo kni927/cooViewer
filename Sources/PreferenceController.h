@@ -110,6 +110,9 @@ enum {
     IBOutlet id resolutionFontTextField;
     IBOutlet id resolutionFontButton;
     IBOutlet id resolutionPositionButton;
+    /* The Preferences window's height in the nib; the Appearance tab is
+       taller (-tabView:willSelectTabViewItem:). */
+    CGFloat preferencesBaseHeight;
 	
     IBOutlet id accessorySettingPanel;
     IBOutlet id accessorySettingView;
