@@ -89,10 +89,7 @@ static BOOL IsWindowMouseAction(int action)
 			[imageView drawPageMover:-1];
 			return;
 		} else {
-			threadStop = YES;
-			[lock lock];
-			[lock unlock];
-			threadStop = NO;
+			[self stopLookahead];
 			[[self window] performClose:self];
 			return;
 		}
@@ -182,8 +179,7 @@ static BOOL IsWindowMouseAction(int action)
 			switch (action) {
 				case 0:
 					//nextpage
-					[lock lock];
-					[lock unlock];
+					[self waitForLookahead];
 					[self imageDisplay];
 					break;
 					
@@ -199,13 +195,11 @@ static BOOL IsWindowMouseAction(int action)
 					
 				case 2:
 					//halfnext
-					[lock lock];
-					[lock unlock];
+					[self waitForLookahead];
 					if (nowPage < [completeMutableArray count]) {
 						if (secondImage){
 							nowPage--;
-							[lock lock];
-							[lock unlock];
+							[self waitForLookahead];
 							[imageMutableArray insertObject:[self loadImage:nowPage] atIndex:0];
 							//[imageMutableArray insertObject:secondImage atIndex:0];
 						}
@@ -217,8 +211,7 @@ static BOOL IsWindowMouseAction(int action)
 					
 				case 3:
 					//halfprev
-					[lock lock];
-					[lock unlock];
+					[self waitForLookahead];
 					[self halfprevPage];
 					break;
 					
@@ -235,10 +228,7 @@ static BOOL IsWindowMouseAction(int action)
 					//toppage
 					if (secondImage) {
 						if (nowPage > 2) {
-							threadStop = YES;
-							[lock lock];
-							[lock unlock];
-							threadStop = NO;
+							[self stopLookahead];
 							[imageMutableArray removeAllObjects];
 							nowPage = 0;
 							[self lookahead];
@@ -246,10 +236,7 @@ static BOOL IsWindowMouseAction(int action)
 						}
 					} else {
 						if (nowPage > 1) {
-							threadStop = YES;
-							[lock lock];
-							[lock unlock];
-							threadStop = NO;
+							[self stopLookahead];
 							[imageMutableArray removeAllObjects];
 							nowPage = 0;
 							[self lookahead];
@@ -262,16 +249,14 @@ static BOOL IsWindowMouseAction(int action)
 					
 				case 6:
 					//nextbookmark
-					[lock lock];
-					[lock unlock];
+					[self waitForLookahead];
 					[self nextBookmark];
 					break;
 					
 					
 				case 7:
 					//prevbookmark
-					[lock lock];
-					[lock unlock];
+					[self waitForLookahead];
 					[self backBookmark];	
 					break;
 					
@@ -279,8 +264,7 @@ static BOOL IsWindowMouseAction(int action)
 					
 				case 8:
 					//nextfolder
-					[lock lock];
-					[lock unlock];
+					[self waitForLookahead];
 					[self nextFolder];
 					break;
 					
@@ -288,8 +272,7 @@ static BOOL IsWindowMouseAction(int action)
 					
 				case 9:
 					//prevfolder
-					[lock lock];
-					[lock unlock];
+					[self waitForLookahead];
 					[self backFolder];
 					break;
 					
@@ -305,8 +288,7 @@ static BOOL IsWindowMouseAction(int action)
 					
 				case 11:
 					//switchSingle
-					[lock lock];
-					[lock unlock];
+					[self waitForLookahead];
 					[self switchSingle:nil];
 					break;
 					
@@ -324,10 +306,7 @@ static BOOL IsWindowMouseAction(int action)
 					
 				case 13:
 					//skip
-					threadStop = YES;
-					[lock lock];
-					[lock unlock];
-					threadStop = NO;
+					[self stopLookahead];
 					[imageMutableArray removeAllObjects];
 					int skipI = [[dic objectForKey:@"value"] intValue];
 					skipI -= 2;
@@ -357,10 +336,7 @@ static BOOL IsWindowMouseAction(int action)
 					
 				case 14:
 					//backskip
-					threadStop = YES;
-					[lock lock];
-					[lock unlock];
-					threadStop = NO;
+					[self stopLookahead];
 					[imageMutableArray removeAllObjects];
 					int bskipI = [[dic objectForKey:@"value"] intValue];
 					bskipI += 2;
@@ -448,8 +424,7 @@ static BOOL IsWindowMouseAction(int action)
 					
 				case 19:
 					//changeReadMode 
-					[lock lock];
-					[lock unlock];
+					[self waitForLookahead];
 					if (readMode == 0) {
 						[self changeReadMode:1];
 					} else if (readMode == 1) {
@@ -480,8 +455,7 @@ static BOOL IsWindowMouseAction(int action)
 							[imageView drawPageMover:-1];
 							break;
 						} else {
-							[lock lock];
-							[lock unlock];
+							[self waitForLookahead];
 							int tempPageNum = [imageView tempPageNum];
 							tempPageNum--;
 							[self goTo:tempPageNum array:nil];
@@ -547,8 +521,7 @@ static BOOL IsWindowMouseAction(int action)
 				case 27:
 					//PageDown + NextPage
 					if ([imageView next] == YES) {
-						[lock lock];
-						[lock unlock];
+						[self waitForLookahead];
 						[self imageDisplay];
 					}
 					break;
@@ -700,10 +673,7 @@ static BOOL IsWindowMouseAction(int action)
 					break;
 				case 46:
 					//close
-					threadStop = YES;
-					[lock lock];
-					[lock unlock];
-					threadStop = NO;
+					[self stopLookahead];
 					[[self window] performClose:self];
 					break;
 				case 47:
@@ -1026,8 +996,7 @@ static BOOL IsWindowMouseAction(int action)
 				case 0:
 					//next/prevpage
 					if (left) {
-						[lock lock];
-						[lock unlock];
+						[self waitForLookahead];
 						[self imageDisplay];
 					} else {
 						//[lock lock];
@@ -1037,8 +1006,7 @@ static BOOL IsWindowMouseAction(int action)
 						break;
 				case 1:
 					//halfnext/prevpage
-					[lock lock];
-					[lock unlock];
+					[self waitForLookahead];
 					if (left) {
 						if (nowPage < [completeMutableArray count]) {
 							if (secondImage){
@@ -1056,10 +1024,7 @@ static BOOL IsWindowMouseAction(int action)
 					//lastpage/toppage
 					if (left) {
 						if (nowPage < [completeMutableArray count]) {
-							threadStop = YES;
-							[lock lock];
-							[lock unlock];
-							threadStop = NO;
+							[self stopLookahead];
 							[imageMutableArray removeAllObjects];
 							nowPage = (int)[completeMutableArray count];
 							if (readMode > 1) {
@@ -1083,10 +1048,7 @@ static BOOL IsWindowMouseAction(int action)
 					} else {
 						if (secondImage) {
 							if (nowPage > 2) {
-								threadStop = YES;
-								[lock lock];
-								[lock unlock];
-								threadStop = NO;
+								[self stopLookahead];
 								[imageMutableArray removeAllObjects];
 								nowPage = 0;
 								[self lookahead];
@@ -1094,10 +1056,7 @@ static BOOL IsWindowMouseAction(int action)
 							}
 						} else {
 							if (nowPage > 1) {
-								threadStop = YES;
-								[lock lock];
-								[lock unlock];
-								threadStop = NO;
+								[self stopLookahead];
 								[imageMutableArray removeAllObjects];
 								nowPage = 0;
 								[self lookahead];
@@ -1108,8 +1067,7 @@ static BOOL IsWindowMouseAction(int action)
 					break;
 				case 3:
 					//next/prevbookmark
-					[lock lock];
-					[lock unlock];
+					[self waitForLookahead];
 					if (left) {
 						[self nextBookmark];
 					} else {
@@ -1118,8 +1076,7 @@ static BOOL IsWindowMouseAction(int action)
 						break;
 				case 4:
 					//next/prevfolder
-					[lock lock];
-					[lock unlock];
+					[self waitForLookahead];
 					if (left) {
 						[self nextFolder];
 					} else {
@@ -1129,10 +1086,7 @@ static BOOL IsWindowMouseAction(int action)
 				case 5:
 					//skip/backskip
 					if (left) {
-						threadStop = YES;
-						[lock lock];
-						[lock unlock];
-						threadStop = NO;
+						[self stopLookahead];
 						[imageMutableArray removeAllObjects];
 						int skipI = [[dic objectForKey:@"value"] intValue];
 						skipI -= 2;
@@ -1152,10 +1106,7 @@ static BOOL IsWindowMouseAction(int action)
 						}
 						[self imageDisplay];
 					} else {
-						threadStop = YES;
-						[lock lock];
-						[lock unlock];
-						threadStop = NO;
+						[self stopLookahead];
 						[imageMutableArray removeAllObjects];
 						int bskipI = [[dic objectForKey:@"value"] intValue];
 						bskipI += 2;
@@ -1168,8 +1119,7 @@ static BOOL IsWindowMouseAction(int action)
 					}
 				case 6:
 					//nextpage
-					[lock lock];
-					[lock unlock];
+					[self waitForLookahead];
 					[self imageDisplay];
 					break;
 				case 7:
@@ -1180,8 +1130,7 @@ static BOOL IsWindowMouseAction(int action)
 					break;
 				case 8:
 					//halfnext
-					[lock lock];
-					[lock unlock];
+					[self waitForLookahead];
 					if (nowPage < [completeMutableArray count]) {
 						if (secondImage){
 							nowPage--;
@@ -1193,8 +1142,7 @@ static BOOL IsWindowMouseAction(int action)
 					break;
 				case 9:
 					//halfprev
-					[lock lock];
-					[lock unlock];
+					[self waitForLookahead];
 					[self halfprevPage];
 					break;
 				case 10:
@@ -1205,10 +1153,7 @@ static BOOL IsWindowMouseAction(int action)
 					//toppage
 					if (secondImage) {
 						if (nowPage > 2) {
-							threadStop = YES;
-							[lock lock];
-							[lock unlock];
-							threadStop = NO;
+							[self stopLookahead];
 							[imageMutableArray removeAllObjects];
 							nowPage = 0;
 							[self lookahead];
@@ -1216,10 +1161,7 @@ static BOOL IsWindowMouseAction(int action)
 						}
 					} else {
 						if (nowPage > 1) {
-							threadStop = YES;
-							[lock lock];
-							[lock unlock];
-							threadStop = NO;
+							[self stopLookahead];
 							[imageMutableArray removeAllObjects];
 							nowPage = 0;
 							[self lookahead];
@@ -1230,26 +1172,22 @@ static BOOL IsWindowMouseAction(int action)
 					break;
 				case 12:
 					//nextbookmark	
-					[lock lock];
-					[lock unlock];
+					[self waitForLookahead];
 					[self nextBookmark];
 					break;
 				case 13:
 					//prevbookmark
-					[lock lock];
-					[lock unlock];
+					[self waitForLookahead];
 					[self backBookmark];		
 					break;
 				case 14:
 					//nextfolder	
-					[lock lock];
-					[lock unlock];
+					[self waitForLookahead];
 					[self nextFolder];
 					break;
 				case 15:
 					//prevfolder
-					[lock lock];
-					[lock unlock];
+					[self waitForLookahead];
 					[self backFolder];
 					break;
 				case 16:
@@ -1261,8 +1199,7 @@ static BOOL IsWindowMouseAction(int action)
 					break;
 				case 17:
 					//switchSingle
-					[lock lock];
-					[lock unlock];
+					[self waitForLookahead];
 					[self switchSingle:nil];
 					
 					break;
@@ -1275,10 +1212,7 @@ static BOOL IsWindowMouseAction(int action)
 					break;
 				case 19:
 					//skip
-					threadStop = YES;
-					[lock lock];
-					[lock unlock];
-					threadStop = NO;
+					[self stopLookahead];
 					[imageMutableArray removeAllObjects];
 					int skipI = [[dic objectForKey:@"value"] intValue];
 					skipI -= 2;
@@ -1303,10 +1237,7 @@ static BOOL IsWindowMouseAction(int action)
 					break;
 				case 20:
 					//backskip
-					threadStop = YES;
-					[lock lock];
-					[lock unlock];
-					threadStop = NO;
+					[self stopLookahead];
 					[imageMutableArray removeAllObjects];
 					int bskipI = [[dic objectForKey:@"value"] intValue];
 					bskipI += 2;
@@ -1376,8 +1307,7 @@ static BOOL IsWindowMouseAction(int action)
 					break;
 				case 25:
 					//changeReadMode 
-					[lock lock];
-					[lock unlock];
+					[self waitForLookahead];
 					if (readMode == 0) {
 						[self changeReadMode:1];
 					} else if (readMode == 1) {
@@ -1472,8 +1402,7 @@ static BOOL IsWindowMouseAction(int action)
 				case 34:
 					//PageDown + NextPage
 					if ([imageView next] == YES) {
-						[lock lock];
-						[lock unlock];
+						[self waitForLookahead];
 						[self imageDisplay];
 					}
 					break;
@@ -1508,8 +1437,7 @@ static BOOL IsWindowMouseAction(int action)
 					//PageUp/Down + Prev/NextPage
 					if (left) {
 						if ([imageView next] == YES) {
-							[lock lock];
-							[lock unlock];
+							[self waitForLookahead];
 							[self imageDisplay];
 						}
 					} else {
@@ -1666,10 +1594,7 @@ static BOOL IsWindowMouseAction(int action)
 					break;	
 				case 57:
 					//close
-					threadStop = YES;
-					[lock lock];
-					[lock unlock];
-					threadStop = NO;
+					[self stopLookahead];
 					[[self window] performClose:self];
 					break;	
 				case 58:
@@ -1724,8 +1649,7 @@ static BOOL IsWindowMouseAction(int action)
 		timer = nil;
 		timerSwitch=NO;
 	}
-	[lock lock];
-	[lock unlock];
+	[self waitForLookahead];
 	if ([[sender title] isEqualToString:NSLocalizedString(@"Add Bookmark", @"")]){
 		[self addBookmark];
 	} else if ([[sender title] isEqualToString:NSLocalizedString(@"Remove Bookmark", @"")]){
@@ -2014,6 +1938,9 @@ static BOOL IsWindowMouseAction(int action)
 	if (readMode == mode) {
 		return;
 	}
+	/* No lookahead may be adding pages while the list changes below
+	   (code review M5). */
+	[self waitForLookahead];
 	readMode = mode;
 	
 	if (secondImage){
@@ -2048,6 +1975,8 @@ static BOOL IsWindowMouseAction(int action)
 }
 - (void)setSortMode:(int)mode page:(int)p
 {
+	/* Re-sorting the page list a lookahead reads from (code review M5). */
+	[self stopLookahead];
 	//if (sortMode != mode) {
 	sortMode = mode;
 	[completeMutableArray sortUsingSelector:@selector(finderCompareS:)];
@@ -2092,35 +2021,30 @@ static BOOL IsWindowMouseAction(int action)
 
 - (void)prevPage
 {
+	/* No lookahead may be adding pages while the list changes below
+	   (code review M5). */
+	[self waitForLookahead];
 	if (readMode > 1) {
 		if (nowPage < 2) {
 			if (loopCheck == 0) {
-				threadStop = YES;
-				[lock lock];
-				[lock unlock];
-				threadStop = NO;
+				[self stopLookahead];
 				[imageMutableArray removeAllObjects];
 				nowPage = (int)[completeMutableArray count];
 				nowPage --;
 				[self lookahead];
 			} else if (loopCheck == 1) {
-				[lock lock];
-				[lock unlock];
+				[self waitForLookahead];
 				[self backFolder];
 				return;
 			} else if (loopCheck == 2) {
-				[lock lock];
-				[lock unlock];
+				[self waitForLookahead];
 				[self backFolderLast];
 				return;
 			} else {
 				return;
 			}
 		} else {
-			threadStop = YES;
-			[lock lock];
-			[lock unlock];
-			threadStop = NO;
+			[self stopLookahead];
 			[imageMutableArray removeAllObjects];
 			nowPage -= 2;
 			[self lookahead];
@@ -2130,10 +2054,7 @@ static BOOL IsWindowMouseAction(int action)
 		if (!secondImage) {
 			if (nowPage < 2) {
 				if (loopCheck == 0) {
-					threadStop = YES;
-					[lock lock];
-					[lock unlock];
-					threadStop = NO;
+					[self stopLookahead];
 					[imageMutableArray removeAllObjects];
 					nowPage = [self lastSpreadStartPage];
 					[self lookahead];
@@ -2149,21 +2070,18 @@ static BOOL IsWindowMouseAction(int action)
 					[self imageDisplay];
 					return;
 				} else if (loopCheck == 1) {
-					[lock lock];
-					[lock unlock];
+					[self waitForLookahead];
 					[self backFolder];
 					return;
 				} else if (loopCheck == 2) {
-					[lock lock];
-					[lock unlock];
+					[self waitForLookahead];
 					[self backFolderLast];
 					return;
 				} else {
 					return;
 				}
 			} else if (nowPage == 2) {
-				[lock lock];
-				[lock unlock];
+				[self waitForLookahead];
 				nowPage = 0;
 				[imageMutableArray insertObject:[self loadImage:nowPage] atIndex:0];
 				//[imageMutableArray insertObject:[imageView image] atIndex:1];
@@ -2172,10 +2090,7 @@ static BOOL IsWindowMouseAction(int action)
 				[imageMutableArray insertObject:[self loadImage:nowPage-1] atIndex:1];
 				nowPage -= 2;
 			} else if (nowPage > 2) {
-				threadStop = YES;
-				[lock lock];
-				[lock unlock];
-				threadStop = NO;
+				[self stopLookahead];
 				[imageMutableArray removeAllObjects];
 				nowPage -= 3;
 				[self lookahead];
@@ -2199,10 +2114,7 @@ static BOOL IsWindowMouseAction(int action)
 		} else {
 			if (nowPage < 3) {
 				if (loopCheck == 0) {
-					threadStop = YES;
-					[lock lock];
-					[lock unlock];
-					threadStop = NO;
+					[self stopLookahead];
 					[imageMutableArray removeAllObjects];
 					nowPage = [self lastSpreadStartPage];
 					[self lookahead];
@@ -2218,23 +2130,18 @@ static BOOL IsWindowMouseAction(int action)
 					[self imageDisplay];
 					return;
 				} else if (loopCheck == 1) {
-					[lock lock];
-					[lock unlock];
+					[self waitForLookahead];
 					[self backFolder];
 					return;
 				} else if (loopCheck == 2) {
-					[lock lock];
-					[lock unlock];
+					[self waitForLookahead];
 					[self backFolderLast];
 					return;
 				} else {
 					return;
 				}
 			} else if (nowPage < 4) {
-				threadStop = YES;
-				[lock lock];
-				[lock unlock];
-				threadStop = NO;
+				[self stopLookahead];
 				[imageMutableArray removeAllObjects];
 				nowPage -= 3;
 				[imageMutableArray addObject:[self loadImage:nowPage]];
@@ -2249,10 +2156,7 @@ static BOOL IsWindowMouseAction(int action)
 				[self imageDisplay];
 				return;
 			} else if (nowPage > 3) {
-				threadStop = YES;
-				[lock lock];
-				[lock unlock];
-				threadStop = NO;
+				[self stopLookahead];
 				[imageMutableArray removeAllObjects];
 				nowPage -= 4;
 				[self lookahead];
@@ -2282,6 +2186,9 @@ static BOOL IsWindowMouseAction(int action)
 
 - (void)halfprevPage
 {
+	/* No lookahead may be adding pages while the list changes below
+	   (code review M5). */
+	[self waitForLookahead];
 	if (readMode > 1) {
 		if (nowPage <2) {
 			if (loopCheck == 0) {
@@ -2401,6 +2308,9 @@ static BOOL IsWindowMouseAction(int action)
 
 -(void)goToLast
 {
+	/* No lookahead may be adding pages while the list changes below
+	   (code review M5). */
+	[self stopLookahead];
 	if (nowPage < [completeMutableArray count]) {
 		[imageMutableArray removeAllObjects];
 		nowPage = (int)[completeMutableArray count];
@@ -2425,6 +2335,9 @@ static BOOL IsWindowMouseAction(int action)
 }
 -(void)goToFirst
 {
+	/* No lookahead may be adding pages while the list changes below
+	   (code review M5). */
+	[self stopLookahead];
 	[imageMutableArray removeAllObjects];
 	nowPage = 0;
 	[self lookahead];
@@ -2443,6 +2356,9 @@ static BOOL IsWindowMouseAction(int action)
 
 -(void)nextBookmark
 {
+	/* No lookahead may be adding pages while the list changes below
+	   (code review M5). */
+	[self waitForLookahead];
 	NSMutableArray *oldArray = [NSMutableArray array];
 	int i;
 	for (i = 0; i < [bookmarkArray count]; i++) {
@@ -2479,6 +2395,9 @@ static BOOL IsWindowMouseAction(int action)
 
 -(void)backBookmark
 {
+	/* No lookahead may be adding pages while the list changes below
+	   (code review M5). */
+	[self waitForLookahead];
 	NSMutableArray *oldArray = [NSMutableArray array];
 	int i;
 	for (i = 0; i < [bookmarkArray count]; i++) {
@@ -2564,16 +2483,14 @@ static BOOL IsWindowMouseAction(int action)
 
 - (void)nextSubFolder
 {
-	[lock lock];
-	[lock unlock];
+	[self waitForLookahead];
 	int nextNow = [imageLoader nextFolder:nowPage];
 	[self goTo:nextNow array:nil];
 }
 
 - (void)prevSubFolder
 {
-	[lock lock];
-	[lock unlock];
+	[self waitForLookahead];
 	int prevNow;
 	if (secondImage) {
 		prevNow = [imageLoader prevFolder:nowPage-1];
@@ -2656,6 +2573,9 @@ static BOOL IsWindowMouseAction(int action)
 
 - (void)goTo:(int)page array:(NSArray*)array
 {
+	/* No lookahead may be adding pages while the list changes below
+	   (code review M5). */
+	[self stopLookahead];
 	//[completeMutableArray autorelease];
 	if (array == nil) {
 		//[completeMutableArray retain];
@@ -2713,10 +2633,7 @@ static BOOL IsWindowMouseAction(int action)
 - (void)goToPar:(float)par
 {
 	if (![self hasBookOpen]) return;
-	threadStop = YES;
-	[lock lock];
-	[lock unlock];
-	threadStop = NO;
+	[self stopLookahead];
 	
 	float temp = (int)[completeMutableArray count]*par;
 	int page = (int)temp;
@@ -2739,6 +2656,10 @@ static BOOL IsWindowMouseAction(int action)
 - (IBAction)switchSingle:(id)sender
 {
 	if (![self hasBookOpen]) return;
+	/* The pages a lookahead added are moved below; wait for it to finish
+	   (not stop it: the spread branch needs the next page) (code review
+	   M5). */
+	[self waitForLookahead];
 	NSString *string;
 	if (secondImage) {
 		[imageMutableArray insertObject:secondImage atIndex:0];
@@ -2763,11 +2684,9 @@ static BOOL IsWindowMouseAction(int action)
 		string = [NSString stringWithFormat:@"%i",nowPage];
 		[marksArray addObject:string];
 		
-		if (readMode > 1) {
-			[NSThread detachNewThreadSelector:@selector(lookahead) toTarget:self withObject:nil];
-		} else {
-			[NSThread detachNewThreadSelector:@selector(lookaheadAndCompose) toTarget:self withObject:nil];
-		}
+		/* Counted and generation-tagged like every other detach; these two
+		   used to bypass -joinLookaheadThreads (code review M5). */
+		[self detachLookaheadComposing:(readMode <= 1)];
 	} else {
 		if (nowPage == [completeMutableArray count]) {
 			if ([self isSmallImage:firstImage page:nowPage]) {
@@ -2822,11 +2741,9 @@ static BOOL IsWindowMouseAction(int action)
 		}
 		string = [NSString stringWithFormat:@"%i-%i",nowPage-1,nowPage];
 		[marksArray addObject:string];
-		if (readMode > 1) {
-			[NSThread detachNewThreadSelector:@selector(lookahead) toTarget:self withObject:nil];
-		} else {
-			[NSThread detachNewThreadSelector:@selector(lookaheadAndCompose) toTarget:self withObject:nil];
-		}
+		/* Counted and generation-tagged like every other detach; these two
+		   used to bypass -joinLookaheadThreads (code review M5). */
+		[self detachLookaheadComposing:(readMode <= 1)];
 	}
 	[self setPageTextField];
 	
@@ -2869,8 +2786,7 @@ static BOOL IsWindowMouseAction(int action)
 
 -(void)doSlideshow
 {
-	[lock lock];
-	[lock unlock];
+	[self waitForLookahead];
 	[self imageDisplay];
 }
 

@@ -169,6 +169,7 @@
 	[archiveProgressSheet release];
 
 	[lock release];
+	[cacheLock release];
 
 	[super dealloc];
 }
@@ -230,6 +231,7 @@ static NSPoint gNextWindowCascadePoint;
 	wheelDownTimer = nil;
 	
 	lock = [[NSLock allocWithZone:NULL] init];
+	cacheLock = [[NSLock alloc] init];
 	//lock = [[NSConditionLock allocWithZone:NULL] initWithCondition:0];
 	//composeLock = [[NSLock allocWithZone:NULL] init];
 	
@@ -2055,19 +2057,48 @@ static NSString * const kBookViewModeKey = @"cooViewerBookViewMode";
 	return [thumController loadImage:index];
 }
 
+/* cacheArray is shared by the lookahead threads and the main thread
+   (thumbnail panel, page-bar bubble), so every operation on it goes
+   through these, under cacheLock (code review M8). */
+- (NSImage *)cachedImageNamed:(NSString *)name
+{
+	NSImage *found = nil;
+	[cacheLock lock];
+	int i;
+	for (i=0; i<[cacheArray count]; i++) {
+		id object = [cacheArray objectAtIndex:i];
+		if ([name isEqualToString:[object objectForKey:@"name"]]) {
+			[[object retain] autorelease];
+			[cacheArray addObject:object];
+			[cacheArray removeObjectAtIndex:i];
+			found = [[[object objectForKey:@"image"] retain] autorelease];
+			break;
+		}
+	}
+	[cacheLock unlock];
+	return found;
+}
+
+- (void)cacheImage:(NSImage *)image named:(NSString *)name
+{
+	if (!image || !name) return;
+	[cacheLock lock];
+	[cacheArray addObject:[NSDictionary dictionaryWithObjectsAndKeys:name,@"name",image,@"image",nil]];
+	[cacheLock unlock];
+}
+
+- (void)trimImageCache
+{
+	[cacheLock lock];
+	while ([cacheArray count] > cacheSize+4) [cacheArray removeObjectAtIndex:0];
+	[cacheLock unlock];
+}
+
 - (NSImage*)loadImage:(int)index
 {
 	if (cacheSize != 0) {
-		int i;
-		id object;
-		for (i=0; i<[cacheArray count]; i++) {
-			object = [cacheArray objectAtIndex:i];
-			if ([[completeMutableArray objectAtIndex:index] isEqualToString:[object objectForKey:@"name"]]) {
-				[cacheArray addObject:object];
-				[cacheArray removeObjectAtIndex:i];
-				return [object objectForKey:@"image"];
-			}
-		}
+		NSImage *cached = [self cachedImageNamed:[completeMutableArray objectAtIndex:index]];
+		if (cached) return cached;
 	}
 	if ([imageView image]) {
 		if (secondImage) {
@@ -2075,7 +2106,7 @@ static NSString * const kBookViewModeKey = @"cooViewerBookViewMode";
 			temp--;
 			if (index == temp) {
 				if (cacheSize != 0) {
-					[cacheArray addObject:[NSDictionary dictionaryWithObjectsAndKeys:[completeMutableArray objectAtIndex:index],@"name",secondImage,@"image",nil]];
+					[self cacheImage:secondImage named:[completeMutableArray objectAtIndex:index]];
 				}
 				//NSLog(@"return2 %@",[completeMutableArray objectAtIndex:index]);
 				return secondImage;
@@ -2083,7 +2114,7 @@ static NSString * const kBookViewModeKey = @"cooViewerBookViewMode";
 			temp--;
 			if (index == temp) {
 				if (cacheSize != 0) {
-					[cacheArray addObject:[NSDictionary dictionaryWithObjectsAndKeys:[completeMutableArray objectAtIndex:index],@"name",firstImage,@"image",nil]];
+					[self cacheImage:firstImage named:[completeMutableArray objectAtIndex:index]];
 				}
 				//NSLog(@"return2 %@",[completeMutableArray objectAtIndex:index]);
 				return firstImage;
@@ -2093,7 +2124,7 @@ static NSString * const kBookViewModeKey = @"cooViewerBookViewMode";
 			temp--;
 			if (index == temp) {
 				if (cacheSize != 0) {
-					[cacheArray addObject:[NSDictionary dictionaryWithObjectsAndKeys:[completeMutableArray objectAtIndex:index],@"name",firstImage,@"image",nil]];
+					[self cacheImage:firstImage named:[completeMutableArray objectAtIndex:index]];
 				}
 				//NSLog(@"return2 %@",[completeMutableArray objectAtIndex:index]);
 				return firstImage;
@@ -2119,10 +2150,10 @@ static NSString * const kBookViewModeKey = @"cooViewerBookViewMode";
 	}
      */
 	if (cacheSize != 0) {
-		[cacheArray addObject:[NSDictionary dictionaryWithObjectsAndKeys:[completeMutableArray objectAtIndex:index],@"name",image,@"image",nil]];
+		[self cacheImage:image named:[completeMutableArray objectAtIndex:index]];
 		//NSLog(@"load %@",[completeMutableArray objectAtIndex:index]);
 	}
-	while ([cacheArray count] > cacheSize+4) [cacheArray removeObjectAtIndex:0]; 
+	[self trimImageCache];
 	return image;
 }
 
@@ -2131,25 +2162,74 @@ static NSString * const kBookViewModeKey = @"cooViewerBookViewMode";
    -lockedImageDisplay), where nothing needs counting because they cannot
    outlive their caller; only a *detached* run does. The count is incremented
    before the detach, not here, so a thread that has not been scheduled yet is
-   already accounted for.
+   already accounted for. The argument is the generation the thread was
+   detached in (see `lookaheadGeneration`).
 
    Each gets its own autorelease pool: the existing bodies create one only
    after taking `lock`, so anything autoreleased while blocked on it would
    otherwise have no pool. */
--(void)lookaheadThread
+-(void)lookaheadThread:(NSNumber *)generation
 {
 	NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];
-	[self lookahead];
+	[self lookaheadForGeneration:[generation unsignedIntValue] compose:NO];
 	atomic_fetch_sub(&pendingLookaheadCount, 1);
 	[pool release];
 }
 
--(void)lookaheadAndComposeThread
+-(void)lookaheadAndComposeThread:(NSNumber *)generation
 {
 	NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];
-	[self lookaheadAndCompose];
+	[self lookaheadForGeneration:[generation unsignedIntValue] compose:YES];
 	atomic_fetch_sub(&pendingLookaheadCount, 1);
 	[pool release];
+}
+
+- (void)detachLookaheadComposing:(BOOL)compose
+{
+	NSNumber *generation = [NSNumber numberWithUnsignedInt:atomic_load(&lookaheadGeneration)];
+	atomic_fetch_add(&pendingLookaheadCount, 1);
+	[NSThread detachNewThreadSelector:(compose ? @selector(lookaheadAndComposeThread:)
+	                                           : @selector(lookaheadThread:))
+	                         toTarget:self withObject:generation];
+}
+
+/* Waits (bounded) until no detached lookahead is left, then takes `lock`
+   once, as the old barrier did: a lookahead that is mid-page holds it.
+   The wait is bounded on purpose. -loadImage: can reach an archive read, and
+   a read that ends up on the main thread's modal progress path would
+   deadlock an unbounded wait. When it times out, the generation moves on,
+   so a thread still queued behind `lock` returns without touching anything
+   when it gets there. Returns whether the wait timed out. */
+- (BOOL)waitForDetachedLookahead
+{
+	BOOL timedOut = NO;
+	NSDate *deadline = [NSDate dateWithTimeIntervalSinceNow:2.0];
+	while (atomic_load(&pendingLookaheadCount) > 0) {
+		if ([deadline timeIntervalSinceNow] <= 0) {
+			timedOut = YES;
+			atomic_fetch_add(&lookaheadGeneration, 1);
+			break;
+		}
+		[NSThread sleepUntilDate:[NSDate dateWithTimeIntervalSinceNow:0.001]];
+	}
+	[lock lock];
+	[lock unlock];
+	return timedOut;
+}
+
+- (void)waitForLookahead
+{
+	[self waitForDetachedLookahead];
+}
+
+/* `threadStop` asks a running lookahead to stop at its next page boundary.
+   A thread that saw the flag has already cleared it; clear it for the case
+   where none did. */
+- (void)stopLookahead
+{
+	threadStop = YES;
+	[self waitForDetachedLookahead];
+	threadStop = NO;
 }
 
 /* Called before either place that tears a book down: -windowWillClose: and
@@ -2157,36 +2237,46 @@ static NSString * const kBookViewModeKey = @"cooViewerBookViewMode";
    imageLoader and empty imageMutableArray / cacheArray, which is exactly
    what a lookahead thread is writing into.
 
-   `threadStop` asks a running lookahead to stop at its next page boundary;
-   the wait then covers the case `threadStop` cannot reach — a thread that
-   was detached but has not entered the body yet.
-
-   The wait is bounded on purpose. -loadImage: can reach an archive read, and
-   a read that ends up on the main thread's modal progress path would
-   deadlock an unbounded wait; timing out just leaves the pre-existing
-   behaviour, in which the thread is harmless because
-   +detachNewThreadSelector:toTarget: retains this object for its duration. */
+   -stopLookahead covers a running thread and one that was detached but has
+   not entered the body yet. The generation moves on in any case: a thread
+   still waiting for `lock` after a timed-out wait would otherwise read the
+   released imageLoader, or the next book's (code review M5).
+   +detachNewThreadSelector:toTarget: retains this object for the thread's
+   duration, so the controller itself stays valid. */
 - (void)joinLookaheadThreads
 {
-	threadStop = YES;
-	NSDate *deadline = [NSDate dateWithTimeIntervalSinceNow:2.0];
-	while (atomic_load(&pendingLookaheadCount) > 0 && [deadline timeIntervalSinceNow] > 0) {
-		[NSThread sleepUntilDate:[NSDate dateWithTimeIntervalSinceNow:0.001]];
-	}
-	/* A thread that saw the flag has already cleared it; clear it for the
-	   case where none did, since this window controller may open another
-	   book (it does, when it is the last one and survives its close). */
-	threadStop = NO;
-
-	/* Final barrier, and what -windowWillClose: did on its own before this
-	   method existed: a lookahead that is mid-page holds `lock`. */
-	[lock lock];
-	[lock unlock];
+	[self stopLookahead];
+	atomic_fetch_add(&lookaheadGeneration, 1);
 }
 
 -(void)lookahead
 {
+	[self lookaheadForGeneration:atomic_load(&lookaheadGeneration) compose:NO];
+}
+
+-(void)lookaheadAndCompose
+{
+	[self lookaheadForGeneration:atomic_load(&lookaheadGeneration) compose:YES];
+}
+
+/* A detached run from an earlier generation: the main thread stopped
+   waiting for it and has moved on. */
+- (BOOL)lookaheadGenerationEnded:(unsigned int)generation
+{
+	return generation != atomic_load(&lookaheadGeneration);
+}
+
+-(void)lookaheadForGeneration:(unsigned int)generation compose:(BOOL)compose
+{
+	if (compose) {
+		[self composeLookaheadForGeneration:generation];
+		return;
+	}
 	[lock lock];
+	if ([self lookaheadGenerationEnded:generation]) {
+		[lock unlock];
+		return;
+	}
 	threadCount++;
 	NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];
 	
@@ -2195,7 +2285,7 @@ static NSString * const kBookViewModeKey = @"cooViewerBookViewMode";
 	
 	if (i < [completeMutableArray count]) {
 		while([imageMutableArray count] < 2) {
-			if (threadStop) {
+			if (threadStop || [self lookaheadGenerationEnded:generation]) {
 				threadStop = NO;
 				threadCount--;
 				[lock unlock];
@@ -2219,9 +2309,13 @@ static NSString * const kBookViewModeKey = @"cooViewerBookViewMode";
 	[pool release];
 }
 
--(void)lookaheadAndCompose
+-(void)composeLookaheadForGeneration:(unsigned int)generation
 {
 	[lock lock];
+	if ([self lookaheadGenerationEnded:generation]) {
+		[lock unlock];
+		return;
+	}
 	threadCount++;
 	NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];
 	
@@ -2231,7 +2325,7 @@ static NSString * const kBookViewModeKey = @"cooViewerBookViewMode";
 	
 	if (i < [completeMutableArray count]) {
 		 while([imageMutableArray count] < 2) {
-			 if (threadStop) {
+			 if (threadStop || [self lookaheadGenerationEnded:generation]) {
 				 threadCount--;
 				 threadStop = NO;
 				 [lock unlock];
@@ -2348,6 +2442,12 @@ static NSString * const kBookViewModeKey = @"cooViewerBookViewMode";
 	   below read as "end of book". With LoopCheck 0 that rewinds and calls
 	   this method again, without bound. */
 	if ([completeMutableArray count] == 0) return;
+	/* The display reads and removes the pages the last lookahead added;
+	   it must not do so while that lookahead is still adding them, which
+	   the `while ... count` polls below alone did not prevent (code review
+	   M5). Every keyboard next-page already waited like this before
+	   calling here. */
+	[self waitForLookahead];
 	if (readMode > 1) {
 		if (nowPage == [completeMutableArray count]) {
 			if (loopCheck == 0) {
@@ -2366,7 +2466,10 @@ static NSString * const kBookViewModeKey = @"cooViewerBookViewMode";
 				}
 			}
 		} else if (nowPage < [completeMutableArray count]) {
-			while ([imageMutableArray count] == 0) [NSThread sleepUntilDate:[NSDate dateWithTimeIntervalSinceNow:0.0001]];
+			/* No lookahead is running any more (waited for above), so an
+			   empty list will not fill by itself: read the page here. */
+			if ([imageMutableArray count] == 0) [self lookahead];
+			if ([imageMutableArray count] == 0) return;
 			//[self isSmallImage:[imageMutableArray objectAtIndex:0] page:nowPage+1];
 			[imageView setImage:nil];
 			[firstImage release];
@@ -2381,21 +2484,24 @@ static NSString * const kBookViewModeKey = @"cooViewerBookViewMode";
 			[imageView setImage:firstImage];
 			//[imageView setImage:[imageMutableArray objectAtIndex:0]];
 			[imageMutableArray removeObjectAtIndex:0];
-			atomic_fetch_add(&pendingLookaheadCount, 1);
-			[NSThread detachNewThreadSelector:@selector(lookaheadThread) toTarget:self withObject:nil];
+			[self detachLookaheadComposing:NO];
 		}
 	} else {
 		if (nowPage < [completeMutableArray count]) {			
+			/* As above: nothing will fill the list behind this point. */
+			if ([imageMutableArray count] == 0) [self lookaheadAndCompose];
+			if ([imageMutableArray count] == 0) return;
 			[imageView setImage:nil];
 			[firstImage release];
 			firstImage = nil;
 			[secondImage release];
 			secondImage = nil;
-			while ([imageMutableArray count] == 0) [NSThread sleepUntilDate:[NSDate dateWithTimeIntervalSinceNow:0.0001]];
 			
 			if ([self isSmallImage:[imageMutableArray objectAtIndex:0] page:nowPage+1] == YES) {
-				if (nowPage+1 != [completeMutableArray count] && threadCount > 0) {
-					while ([imageMutableArray count] == 1) [NSThread sleepUntilDate:[NSDate dateWithTimeIntervalSinceNow:0.001]];
+				/* The second page of a possible spread; this used to wait
+				   for a still-running lookahead to add it. */
+				if (nowPage+1 != [completeMutableArray count] && [imageMutableArray count] == 1) {
+					[self lookaheadAndCompose];
 				}
 				if ([imageMutableArray count] > 1) {
 					if ([self isSmallImage:[imageMutableArray objectAtIndex:1] page:nowPage+2] == YES) {
@@ -2431,8 +2537,7 @@ static NSString * const kBookViewModeKey = @"cooViewerBookViewMode";
 				//[imageView setImage:[imageMutableArray objectAtIndex:0]];
 				[imageMutableArray removeObjectAtIndex:0];
 			}
-			atomic_fetch_add(&pendingLookaheadCount, 1);
-			[NSThread detachNewThreadSelector:@selector(lookaheadAndComposeThread) toTarget:self withObject:nil];
+			[self detachLookaheadComposing:YES];
 		} else if (nowPage == [completeMutableArray count]) {
 			if (loopCheck == 0) {
 				nowPage = 0;
@@ -2468,6 +2573,9 @@ static NSString * const kBookViewModeKey = @"cooViewerBookViewMode";
 
 - (void)setPreferences
 {
+	/* Below, the page and cache lists are changed and re-sorted on the main
+	   thread; no lookahead may be adding to them meanwhile (code review M5). */
+	[self waitForLookahead];
 	[keyArray release];
 	[keyArrayMode2 release];
 	[keyArrayMode3 release];
@@ -2529,7 +2637,7 @@ static NSString * const kBookViewModeKey = @"cooViewerBookViewMode";
 	
 	/*cache*/
 	cacheSize = (int)[defaults integerForKey:@"ImageCache"];
-	while ([cacheArray count] > cacheSize+4) [cacheArray removeObjectAtIndex:0];
+	[self trimImageCache];
 	[thumController setmaxCacheCount:(int)[defaults integerForKey:@"ThumbnailCache"]];
 	
 	[fullImagePanel setFitMode:[defaults boolForKey:@"FitOriginal"]];
@@ -3303,6 +3411,9 @@ static const NSInteger kBookmarkMenuFixedItemCount = 3;
 	//BookmarkMenuItem's action
 	//NSLog(@"%d",[sender tag]);
 	[imageView setPageString:[NSString stringWithFormat:@"%@",[sender title]]];
+	/* No lookahead may be adding pages while the list changes below
+	   (code review M5). */
+	[self stopLookahead];
 	nowPage = [[sender representedObject] intValue] - 1;
 	[imageMutableArray removeAllObjects];
 	[self lookahead];

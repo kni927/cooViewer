@@ -1688,9 +1688,11 @@ not pages in any pass; the cursor skips them up to the page it lands on and
 checks the landed size), L4 (repeated entry names, also of nested archives,
 are separate pages), M9 (the data errors a wrong key causes in the ZipCrypto
 or AES validation entry count as a wrong password), L3 (the QuickLook cover
-read disables prefetch).
+read disables prefetch), M5 and M8 (one lookahead barrier, counted and
+generation-tagged detaches, a lock for `cacheArray`; `docs/DECISIONS.md`
+2026-10-04).
 
-**Still open:** M5, M8, M10, L8, L11.
+**Still open:** M10, L8, L11.
 
 ---
 

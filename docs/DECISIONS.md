@@ -931,6 +931,8 @@ driven from the main thread; a timeout degrades to the pre-existing
 behaviour, which is safe only because
 `+detachNewThreadSelector:toTarget:` retains the target for the thread's
 duration.
+Superseded in part on 2026-10-04: see "Lookahead threads: one barrier,
+generation-tagged detaches" below.
 
 ---
 
@@ -1770,3 +1772,31 @@ and walked the archive from the start for every page behind the cursor,
 `tools/cbr_bench/`: read-through no slower than v1.3.7 on every generated
 archive, page turns at reading pace served from the prefetch. Decode side
 only; no resampling step.
+
+## Lookahead threads: one barrier, generation-tagged detaches (2026-10-04)
+
+**Decision:** The main thread changes `imageMutableArray` (the pages a
+lookahead reads ahead into) only after `-waitForLookahead` (wait for every
+detached lookahead to finish) or `-stopLookahead` (ask it to stop at the next
+page, then wait). Both wait on `pendingLookaheadCount`, which counts a thread
+from its detach, and then take `lock` once, as the old
+`[lock lock]; [lock unlock];` barrier did. They replace every ad-hoc barrier
+in the input code, run at the top of `-lockedImageDisplay`, the navigation
+methods that had none, `-switchSingle:`, `-setSortMode:page:` and
+`-setPreferences`. Every detach goes through `-detachLookaheadComposing:`,
+which counts the thread and passes it the current `lookaheadGeneration`;
+the generation moves on when a wait times out (2 s) and on every book
+teardown, and a thread whose generation has ended returns without touching
+anything. `cacheArray` has its own lock (`cacheLock`), held only around the
+array operations, because `-loadImage:` runs on the main thread (thumbnail
+panel, page-bar bubble) while a lookahead runs. The lookahead still holds
+`lock` for its whole run; no finer locking was introduced.
+
+**Why:** Code review M5/M8 (`docs/code-review-20261003.md`). The old
+barrier did not see a thread that was detached but had not taken `lock`
+yet, `-switchSingle:` detached uncounted threads, and several paths changed
+the list with no barrier at all. One barrier keeps the existing "the main
+thread works on the list only while no lookahead is alive" model instead of
+locking each of the ~130 accesses. Cost: `-lockedImageDisplay` now waits for
+a running lookahead to read both of its pages, as the keyboard next-page
+already did before calling it.

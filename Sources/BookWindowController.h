@@ -33,6 +33,17 @@
 	   not incremented it yet. Written from both the main thread and the
 	   lookahead threads. */
 	_Atomic int pendingLookaheadCount;
+	/* Bumped whenever the main thread gives up waiting for lookahead
+	   threads (and on every book teardown). A thread is detached with the
+	   value current at that moment and returns without touching anything
+	   once it no longer matches, so a straggler cannot write into arrays
+	   the main thread has moved on with (code review M5). */
+	_Atomic unsigned int lookaheadGeneration;
+	/* Guards cacheArray: -loadImage: runs on lookahead threads and, for the
+	   thumbnail panel and the page-bar bubble, on the main thread at the
+	   same time (code review M8). Held only around the array operations,
+	   never while decoding. */
+	NSLock *cacheLock;
 	//NSMutableArray *recentItems;
 	//NSMutableDictionary *bookSettings;
 	
@@ -410,6 +421,16 @@
    book can be torn down without one still writing into imageMutableArray /
    cacheArray or reading imageLoader. Bounded — see the .m. */
 - (void)joinLookaheadThreads;
+/* The barrier before the main thread touches imageMutableArray: waits for
+   every detached lookahead to finish (-waitForLookahead), or asks running
+   ones to stop at their next page first (-stopLookahead). Replaces the old
+   `[lock lock]; [lock unlock];` barrier, which did not see a thread that
+   was detached but had not taken `lock` yet. */
+- (void)waitForLookahead;
+- (void)stopLookahead;
+/* Starts a lookahead on its own thread, counted and tagged with the
+   current generation. Every detach goes through here. */
+- (void)detachLookaheadComposing:(BOOL)compose;
 
 
 - (BOOL)isSmallImage:(NSImage *)image page:(int)page;
