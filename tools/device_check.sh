@@ -13,6 +13,7 @@
 #   quit           send the quit Apple event to the build copy only
 #   prefs-restore  put the saved preferences back and verify them
 #   unregister     lsregister -u the build and the intermediate products
+#   diag [secs]    CPU/memory/state of the build; with secs, also `sample` it
 #
 # The real (Homebrew) copy in /Applications shares the bundle id and the
 # preferences domain; nothing here launches, quits or unregisters it.
@@ -154,8 +155,17 @@ cmd_unregister() {
     [ -z "$(build_pids)" ] || die "quit the build copy first (tools/device_check.sh quit)"
     local p
     for p in "$APP" "$BUILD_TMP/sym/Deployment/cooViewer.app"; do
-        if [ -d "$p" ]; then
-            "$LSREGISTER" -u "$p" && echo "unregistered $p"
+        [ -d "$p" ] || continue
+        # -10814 (kLSApplicationNotFoundErr) only means it was not registered
+        local err rc=0
+        err="$("$LSREGISTER" -u "$p" 2>&1)" || rc=$?
+        if [ "$rc" -eq 0 ] && [ -z "$err" ]; then
+            echo "unregistered $p"
+        elif printf '%s' "$err" | grep -q -- '-10814'; then
+            echo "not registered: $p"
+        else
+            printf '%s\n' "$err" >&2
+            [ "$rc" -eq 0 ] && echo "unregistered $p (with the warning above)"
         fi
     done
     local left
@@ -168,6 +178,25 @@ cmd_unregister() {
     echo "no build or intermediate product left registered"
 }
 
+# CPU, memory and state of the build, and optionally a call-graph sample
+# (ps and sample are refused inside the sandbox; this needs no bypass).
+cmd_diag() {
+    local pid
+    pid="$(build_pids)"
+    [ -n "$pid" ] || { echo "the build copy is not running"; return 0; }
+    ps -o pid=,%cpu=,%mem=,rss=,etime=,state= -p "$pid" |
+        awk '{ printf "pid %s  cpu %s%%  mem %s%%  rss %d MB  elapsed %s  state %s\n", $1, $2, $3, $4/1024, $5, $6 }'
+    local secs="${1:-}"
+    [ -n "$secs" ] || return 0
+    case "$secs" in *[!0-9]*) die "diag: seconds must be a number" ;; esac
+    mkdir -p "$STATE_DIR"
+    local out="$STATE_DIR/sample-$(date +%Y%m%d-%H%M%S).txt"
+    sample "$pid" "$secs" -file "$out" >/dev/null 2>&1 || die "sample failed"
+    echo "sample written to $out"
+    # the main thread's heaviest frames, enough to see what blocks the UI
+    awk '/^Call graph:/{f=1} f && /Thread_.*main-thread/{m=1} m{print; if (++n >= 40) exit}' "$out"
+}
+
 case "${1:-}" in
     status)        cmd_status ;;
     prefs-backup)  cmd_prefs_backup ;;
@@ -175,5 +204,6 @@ case "${1:-}" in
     quit)          cmd_quit ;;
     prefs-restore) cmd_prefs_restore ;;
     unregister)    cmd_unregister ;;
-    *) sed -n '2,17p' "$0" | sed 's/^# \{0,1\}//'; exit 2 ;;
+    diag)          cmd_diag "${2:-}" ;;
+    *) sed -n '2,18p' "$0" | sed 's/^# \{0,1\}//'; exit 2 ;;
 esac
