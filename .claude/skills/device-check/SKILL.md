@@ -42,14 +42,20 @@ do nothing.
    - A keystroke expected to change nothing needs proof it was delivered.
    - If computer use stops with "user interrupt" although the owner did
      nothing (seen 2026-10-04, cause unknown), continue with background
-     means and record it.
+     means and record it. The single-app `app_*` tools kept working when
+     the full-screen tools and `app_batch` did not.
+   - When the app looks stuck or slow, `tools/device_check.sh diag` shows
+     its CPU, memory and state, and `tools/device_check.sh diag 3` also
+     samples it for 3 s and prints the main thread's call graph. Use these
+     instead of `ps`, `top` or `sample`, which the sandbox refuses.
 
 ## After (always, even when a step failed)
 
 7. `tools/device_check.sh quit`: sends the quit Apple event to the build's
    pid only (this is also the AppleEvent-quit test). If it reports the
-   build still running, a sheet or modal holds it: report that, then
-   dismiss it or `kill <pid>`.
+   build still running, a sheet or modal holds it or its main thread is
+   busy: run `diag 3` to see which, report it, then dismiss the sheet,
+   wait, or `kill <pid>`.
 8. `tools/device_check.sh prefs-restore`: waits for the last writes,
    restores and verifies against the backup. A difference is reported, not
    ignored.

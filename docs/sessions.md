@@ -189,6 +189,22 @@ claude.ai/code, or when a Code cloud session calls `create_session` with
 and a Routine cannot attach one; for scheduled work that needs a repository, a
 Routine wakes an existing HQ, which then calls `create_session`.
 
+The owner's cloud sessions run in one of two environments. Look up an
+environment's ID by name with `list_environments`; do not write IDs into
+repository files.
+
+| Environment | Network | Used for |
+|---|---|---|
+| `Trusted` | Trusted | HQs (Central, Upstream, each Project HQ), TFs in the cloud, and other work that manages repositories |
+| `Full` | Full | Everyday sessions: research, fetching from the Web, trying tools. Repository `kni927/HQ`; no secrets (environment variables or API keys) |
+
+- **HQs and TFs:** an HQ runs in `Trusted`, so `create_session` without
+  `environment_id` inherits it. Pass `Trusted`'s ID when the calling session
+  might run elsewhere.
+- **Everyday sessions:** when the owner asks for one, look up `Full`'s ID with
+  `list_environments` and pass it as `environment_id`, with `source_url`
+  `https://github.com/kni927/HQ` and `source_revision` `main`.
+
 ## Handing over an HQ
 
 A cloud HQ hands its work to a fresh session at the thresholds in Context
