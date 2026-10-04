@@ -1198,3 +1198,15 @@ rejected, lookahead threads share one barrier, and spread pages with a
 fractional point size keep their right and top edges (still one resampling
 step). Engine suite 359 checks plus a new COImageLoader harness. See
 `docs/tasks/2026-10-04-02-review-remainder.md`.
+
+### Cleanup and performance (2026-10-04, unreleased)
+
+A book with no readable pages now fails with an alert instead of opening as
+one blank page (#30), quitting works with the All Bookmarks browser open
+(#20), and an inactive launch routes Finder books to the topmost window.
+KNOWN_ISSUES numbering is unique again (#43, #44). Loading a book no longer
+blocks the other windows, and a quit during a load cancels it (#33). Jumps
+no longer wait behind unwanted prefetches (non-solid RAR5 27 → 14 ms), and
+solid RAR5 books are decoded ahead into a per-book disk cache (jumps and
+back-steps 2.6 s → 1–2 ms on a 557 MB book). Engine suite 504 + 101 checks.
+See `docs/tasks/2026-10-04-03-cleanup-and-performance.md`.
