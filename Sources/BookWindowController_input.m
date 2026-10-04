@@ -1117,6 +1117,7 @@ static BOOL IsWindowMouseAction(int action)
 						[self lookahead];
 						[self imageDisplay];
 					}
+					break;
 				case 6:
 					//nextpage
 					/* No waitForLookahead: -lockedImageDisplay waits for the pages it shows (B2). */

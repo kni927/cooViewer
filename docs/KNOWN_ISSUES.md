@@ -1909,7 +1909,16 @@ left to a future task.
 
 ---
 
-## 45. A mouse "skip"/"back skip" action also turns one more page
+## 45. ~~A mouse "skip"/"back skip" action also turns one more page~~ — FIXED (2026-10-05)
+
+**Fix (task `docs/tasks/2026-10-05-01-skip-fallthrough-and-async-page-read.md`,
+P1).** `case 5` now ends with `break`. Every other case of that switch, and
+the key-action switch, was checked by reading and with clang's
+`-Wimplicit-fallthrough` (one warning before, none after); none falls
+through. Not yet confirmed on device: the background test tooling could not
+assign a mouse binding.
+
+The original report follows.
 
 Found by reading during task `docs/tasks/2026-10-04-03-cleanup-and-performance.md`
 (B2), present at least since the start of that task: in
