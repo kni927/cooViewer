@@ -1,0 +1,7 @@
+{
+  "sandbox": {
+    "excludedCommands": [
+      "tools/device_check.sh *"
+    ]
+  }
+}
