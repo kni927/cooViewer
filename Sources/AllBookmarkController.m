@@ -7,6 +7,8 @@
 
 static const int DIALOG_OK		= 128;
 static const int DIALOG_CANCEL	= 129;
+/* KNOWN_ISSUES #20 case 1: the session was ended by a quit. Saved like OK. */
+static const int DIALOG_QUIT	= 130;
 
 /* The book window controller, reached through the application delegate.
    MW-5 keeps exactly one; MW-6 makes this "the front window". */
@@ -109,7 +111,11 @@ static const int DIALOG_CANCEL	= 129;
 
 
 	[defaults setObject:[self splitViewPosition:allBookmarkSplitView] forKey:@"AllBookmarkSplitPotision"];
-	if(result == DIALOG_OK) {
+	/* A quit saves exactly as OK does (KNOWN_ISSUES #20 case 1): the browser
+	   has no close button, so "closing it first" means OK or Cancel, and only
+	   OK keeps anything. Treating the quit as OK is what guarantees it loses
+	   nothing the user could have kept by closing the browser first. */
+	if(result == DIALOG_OK || result == DIALOG_QUIT) {
 		[defaults setObject:allBookmark forKey:@"BookSettings"];
 		[defaults synchronize];
 		[allBookmark release];
@@ -118,15 +124,78 @@ static const int DIALOG_CANCEL	= 129;
 		bookNameArray = nil;
 		[[self controller] strongSetBookmark];
 		return;
-	} else if(result == DIALOG_CANCEL) {
+	} else {
+		/* Cancel, or any other way the session ended: discard the edits.
+		   The copies are released on every path — the unexpected-code
+		   branch used to return with them still retained. */
 		[allBookmark release];
 		allBookmark = nil;
 		[bookNameArray release];
 		bookNameArray = nil;
-        return;
-    } else {
 		return;
 	}
+}
+
+- (BOOL)isRunningModal
+{
+	return allBookmarkPanel != nil && [NSApp modalWindow] == allBookmarkPanel;
+}
+
+/* -stopModalWithCode: only takes effect once the modal loop finishes
+   dispatching an event. From Cmd+Q or the Quit menu item this is called while
+   one is being dispatched; the AppleEvent quit may instead arrive outside any
+   event, so an empty application-defined event is posted to make the loop
+   look at the stop request at once rather than at the user's next input. The
+   extra event is harmless when the loop has already stopped: the main loop
+   receives it and nothing handles it.
+
+   An in-progress cell edit is committed first, as ending the edit (Return
+   or Tab) before pressing OK would, so a name or page being typed when the
+   quit arrives is kept rather than dropped. */
+- (BOOL)endModalForTermination
+{
+	if (![self isRunningModal]) {
+		return NO;
+	}
+	if (![allBookmarkPanel makeFirstResponder:allBookmarkPanel]) {
+		[allBookmarkPanel endEditingFor:nil];
+	}
+	[NSApp stopModalWithCode:DIALOG_QUIT];
+	NSEvent *wake = [NSEvent otherEventWithType:NSEventTypeApplicationDefined
+									   location:NSZeroPoint
+								  modifierFlags:0
+									  timestamp:0
+								   windowNumber:0
+										context:nil
+										subtype:0
+										  data1:0
+										  data2:0];
+	[NSApp postEvent:wake atStart:NO];
+	return YES;
+}
+
+/* KNOWN_ISSUES #20 case 1, the Option-alternate "Quit and Close All Windows"
+   (or "Quit and Keep Windows"). AppKit adds that item itself, next to the Quit
+   item it finds by its -terminate: action, and gives it no target. A
+   nil-targeted action is looked up through the key window's responder chain
+   — which ends at the window's delegate, this object — and then the main
+   window's; the application object (where -terminate: lives) is consulted
+   last, and while a window runs application-modal AppKit skips that last step
+   for actions the modal session blocks, -terminate: among them. It never asks
+   -[COApplication worksWhenModal] — that only lets explicitly targeted items
+   through, like the nib's Quit item, which targets the application — so with
+   the browser up the alternate had no target and stayed disabled.
+
+   Answering -terminate: here puts a target for it inside the browser's own
+   chain, which a modal session never blocks. The browser is only ever on
+   screen as the modal window, so this is reached only during its session; it
+   hands the quit to the same funnel as Cmd+Q — -[COApplication terminate:],
+   which ends this session as DIALOG_QUIT (saving as OK does) and then quits —
+   and passes the menu item through, because AppKit tells "close all windows"
+   from "keep windows" by which item sent the -terminate:. */
+- (IBAction)terminate:(id)sender
+{
+	[NSApp terminate:sender];
 }
 
 - (void)keyDownAll:(NSEvent *)theEvent

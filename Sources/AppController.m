@@ -191,16 +191,34 @@ static NSString * const kLaunchRequestKindHelper = @"helper-url";
 	return dismissedAny;
 }
 
+- (BOOL)endAllBookmarksModalForTermination
+{
+	return [(AllBookmarkController *)allBookmarkController endModalForTermination];
+}
+
+- (BOOL)isAllBookmarksBrowserModal
+{
+	return [(AllBookmarkController *)allBookmarkController isRunningModal];
+}
+
 /* The AppleEvent quit — `osascript -e 'quit app "cooViewer"'`, the Dock menu's
    Quit, and the quit every application is sent at logout — needs its own hook
    even with -[COApplication terminate:] in place. Measured: with a password
    prompt up, Cmd+Q and the Quit menu item reach -terminate: (and so are fixed
    by the override), while the AppleEvent route does not — AppKit's own handler
    for it declines earlier. Taking the prompts down here and then calling
-   -terminate: puts that route back on the same footing. */
+   -terminate: puts that route back on the same footing.
+
+   KNOWN_ISSUES #20 case 1: the All Bookmarks browser's modal session is ended
+   here as well. The -terminate: below is performed in the default run-loop
+   mode, which -runModalForWindow: does not run, so with the session left up
+   the quit would wait until the user closed the browser. Ending it first lets
+   the browser save and return, and the deferred -terminate: fires on the very
+   next pass. */
 - (void)handleQuitAppleEvent:(NSAppleEventDescriptor *)event
               withReplyEvent:(NSAppleEventDescriptor *)replyEvent
 {
+	[self endAllBookmarksModalForTermination];
 	[self cancelPasswordPrompts];
 	[NSApp performSelector:@selector(terminate:) withObject:self afterDelay:0.0];
 }

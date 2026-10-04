@@ -39,6 +39,20 @@
 
 - (void)editAllBookmark:(NSMutableArray *)array;
 
+/* KNOWN_ISSUES #20 case 1. Whether the browser is the window AppKit is
+   currently running modally — the one state in which a quit has to end the
+   browser's session before it can proceed. */
+- (BOOL)isRunningModal;
+/* Ends the browser's modal session so that a quit can proceed, keeping its
+   edits exactly as OK does. Returns YES when there was a session to end; the
+   caller then has to let -runModalForWindow: return (one run-loop pass)
+   before terminating. */
+- (BOOL)endModalForTermination;
+/* Forwards to -[NSApp terminate:]. The target AppKit finds for the
+   nil-targeted "Quit and Close All Windows" alternate while the browser is
+   modal; see the .m. */
+- (IBAction)terminate:(id)sender;
+
 - (IBAction)ok:(id)sender;
 - (IBAction)cancel:(id)sender;
 - (IBAction)addNewBookmark:(id)sender;

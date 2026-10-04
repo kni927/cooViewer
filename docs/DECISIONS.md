@@ -1231,8 +1231,9 @@ project owner to sanction rather than invented here.
 
 **Two properties of the browser worth knowing, both pre-existing.** It runs
 application-modal (`-runModalForWindow:`), so book windows cannot be operated
-while it is up, and a quit request during it is dropped exactly as it is during
-the password prompt. And it lists what has been *persisted* to `BookSettings`,
+while it is up, and a quit request during it was dropped exactly as it was
+during the password prompt (since 2026-10-04 a quit ends the browser, saving
+its edits as OK does, and proceeds — KNOWN_ISSUES #20 case 1). And it lists what has been *persisted* to `BookSettings`,
 so a book whose window is still open — its bookmarks not yet written back —
 does not appear until that window closes.
 
@@ -1287,6 +1288,16 @@ because the task asked what they do):
   loading half, still pending). Cmd+Q is swallowed by that session; the
   AppleEvent quit works immediately, because the handler above runs inside the
   modal run loop. The rest belongs with the deferred background-loading work.
+
+*Updated 2026-10-04 (KNOWN_ISSUES #20).* The All Bookmarks browser, the third
+modal path, is no longer "decided not to fix": `COApplication` gained
+`-worksWhenModal` (YES only while the browser is the modal window, so Quit
+stays enabled there and nowhere else), `-terminate:` and the AppleEvent
+handler end the browser's session first and re-enter one pass later, the
+browser saves as on OK, and the panel's delegate answers the nil-targeted
+"Quit and Close All Windows" by forwarding `terminate:`. The nested-archive
+prompt keeps its deferral, and the progress sheet is left to #33's loading
+half.
 
 ## Unretained back-references are dropped in `-windowWillClose:`, and never with KVC (2026-07-30)
 

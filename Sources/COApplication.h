@@ -13,6 +13,11 @@
  * alternative — retargeting the Quit menu item at the delegate — was tried and
  * rejected: it works, but it also loses the "Quit and Close All Windows"
  * alternate item AppKit generates for a menu item bound to -terminate:.
+ *
+ * KNOWN_ISSUES #20 case 1 uses the same funnel for the All Bookmarks browser,
+ * which runs application-modal: -terminate: ends its session (saving as OK
+ * does) before quitting, and -worksWhenModal / -validateMenuItem: keep the
+ * Quit item enabled during that one session — see the .m.
  */
 
 #import <Cocoa/Cocoa.h>

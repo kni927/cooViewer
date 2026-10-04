@@ -138,6 +138,15 @@ extern NSString * const CooViewerBookWindowRestorationIdentifier;
  * before AppKit's -terminate: runs: AppKit refuses to terminate while a sheet
  * is attached, and never reaches -applicationShouldTerminate:. */
 - (BOOL)cancelPasswordPrompts;
+/* KNOWN_ISSUES #20 case 1. Ends the All Bookmarks browser's application-modal
+ * session, saving its edits as OK does, and answers whether there was one.
+ * Called from -[COApplication terminate:] and the AppleEvent quit handler; a
+ * YES means -runModalForWindow: still has to return before the quit can run. */
+- (BOOL)endAllBookmarksModalForTermination;
+/* Whether the All Bookmarks browser is the window being run modally. Read by
+ * -[COApplication worksWhenModal] so that the Quit menu item (and Cmd+Q)
+ * stays enabled during that one modal session only. */
+- (BOOL)isAllBookmarksBrowserModal;
 - (IBAction)clearRecent:(id)sender;
 
 /* MW-5: the Preferences window's OK/Cancel. Moved off BookWindowController

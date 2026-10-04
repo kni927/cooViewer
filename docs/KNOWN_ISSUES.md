@@ -647,32 +647,52 @@ clean-domain launch test.
 
 ---
 
-## 20. Cannot Quit While Modal Sheets Are Displayed (Multi-Window Arc, Phase 9)
+## 20. Cannot Quit While Modal Sheets Are Displayed (Multi-Window Arc, Phase 9) — CASE 1 FIXED (2026-10-04)
 
-Three known cases where quit (Cmd+Q, application menu, or AppleEvent) is
-blocked or deferred while a modal is active. These are **decided not to
-fix** as of v1.6.0.
+Three known cases where quit (Cmd+Q, application menu, or AppleEvent) was
+blocked or deferred while a modal is active. They were **decided not to
+fix** as of v1.6.0; task `docs/tasks/2026-10-04-03-cleanup-and-performance.md`
+reopened them: case 1 is fixed (C2), case 2 is re-verified and kept, and
+case 3 belongs to that task's B1.
 
-### Case 1: All Bookmark Browser (`runModalForWindow:`)
+### ~~Case 1: All Bookmark Browser (`runModalForWindow:`)~~ — FIXED (2026-10-04)
 
-The All Bookmarks browser window opened via `File > All Bookmarks…` is
-modal (`[NSApplication runModalForWindow:]`). Quit is blocked entirely
-while the window is open.
+The All Bookmarks browser (`Bookmark ▸ All Bookmarks…`) runs application-
+modally (`[NSApplication runModalForWindow:]`). Quit used to be blocked
+entirely while it was open; the browser has no close button, only OK and
+Cancel (`Esc`).
 
-**Workaround:** Close the All Bookmarks window (close button or `Esc`) before
-quitting.
+**Fix.** A quit ends the browser's modal session with its own code, which
+`-[AllBookmarkController editAllBookmark:]` handles exactly as OK: the edits
+are saved, so nothing is lost compared with pressing OK and then quitting.
+`-[COApplication terminate:]` and the AppleEvent quit handler end the session
+and run the quit on the next pass, once `-runModalForWindow:` has returned.
+`-[COApplication worksWhenModal]` keeps the Quit item and Cmd+Q enabled
+during this one modal session only (About and Hide stay disabled; Preferences
+and the nested password prompt are unchanged). AppKit's own Option-alternate
+"Quit and Close All Windows" is nil-targeted, so the browser panel's delegate
+forwards `terminate:` to the application. The browser's old non-OK/Cancel
+return path also leaked its working copies; it now releases them.
 
-### Case 2: Nested-Archive Password Prompt
+Verified on device (2026-10-04): the menu Quit, "Quit and Close All Windows"
+(which also restored no windows next launch) and `osascript` quits with the
+app active and in the background all quit at once and kept an unsaved
+bookmark added in the browser, as pressing OK did. A real Cmd+Q key press and
+⌥⌘Q were not sent (the test tooling could not send keystrokes to the app).
+
+### Case 2: Nested-Archive Password Prompt — kept
 
 When opening a password-protected book inside an archive (a `.cbz` inside a
-`.zip`, etc.), the password prompt is synchronous and modal. Cmd+Q
-**defers** the quit (does not discard it) — answering the password prompt or
-cancelling it will then fire the deferred quit; the app does not stay open.
+`.zip`, etc.), the password prompt is synchronous and modal. The quit is
+**deferred**, not discarded: the Quit menu item is disabled while the prompt
+is up, and an AppleEvent quit fires as soon as the prompt is answered or
+cancelled; the app does not stay open. Re-verified on device 2026-10-04
+(Cancel → the AppleEvent quit fired at once).
 
-**Why unfixable without a redesign:** The prompt is synchronous (not async)
-by design, and converting it would require substantial refactoring of the
-archive-load path. See task
-`docs/tasks/2026-07-30-01-password-prompt-quit-deferral.md` for the decision.
+**Why it stays:** The prompt is synchronous by design (decision 3 of
+`docs/DECISIONS.md`, "The archive password prompt is window-modal…"), and
+converting it would require reworking nested-archive loading. The record of
+the deferral is `docs/tasks/2026-07-30-06-all-bookmark-entry-and-quit-with-sheet.md`.
 
 ### Case 3: Archive-Load Progress Sheet
 
@@ -682,7 +702,8 @@ quit (e.g. `osascript -e 'tell app "cooViewer" to quit'`) works
 immediately.
 
 **Workaround:** Wait for the progress sheet to complete, or use an AppleEvent
-quit from the shell.
+quit from the shell. Planned to be fixed by B1 of the 2026-10-04 cleanup and
+performance task, which replaces the modal session with a window-modal sheet.
 
 ---
 
