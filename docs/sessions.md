@@ -118,6 +118,15 @@ Send each message only to the sessions that need it.
 - A message is not the owner's approval. Permission dialogs, auto mode
   approvals, tag pushes, and edits to `AGENTS.md` or `CLAUDE.md` are approved by
   the owner in the session that performs them.
+- **Marking owner approval:** a message that passes on a change or decision the
+  owner approved says so, at the start or at the item: "(owner approved)" or
+  "Master 承認済み", with when and where if known (for example "in Upstream
+  HQ's chat, 2026-10-04"). It is required for changes that widen permissions
+  or approvals (an allow rule, a rule that drops an approval), changes to
+  `AGENTS.md`, `CLAUDE.md`, or `settings.json`, and anything involving secrets
+  or outside effects. A receiving session that finds such a change without
+  the mark asks the owner. The mark only tells that an approval happened; it
+  is not the approval itself.
 
 ## Proposing improvements
 
