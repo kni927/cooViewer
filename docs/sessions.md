@@ -72,13 +72,14 @@ Send each message only to the sessions that need it.
   repository without one (such as `kni927/HQ`), from the HQ the owner names.
   It shows that the TASK arrived and its key points, not the full text, since
   `TASK.md` is archived later. It then runs `git pull` on `main` (stopping if
-  that would not be a fast-forward), saves the text as `TASK.md` at the
-  repository root, and carries it out. Where a TASK explicitly asks for
-  something else than these steps (for example "do not change the
-  repository", so `TASK.md` stays in the scratchpad), the TASK wins; the TF
-  tells the owner in one line which step it changed, and asks when the
-  conflict is unclear. After a TASK, the TF reports and waits for the next
-  one.
+  that would not be a fast-forward; a TF in a worktree instead runs
+  `git fetch` and `git merge --ff-only origin/main` on its branch), saves
+  the text as `TASK.md` at the repository root, and carries it out. Where a
+  TASK explicitly asks for something else than these steps (for example "do
+  not change the repository", so `TASK.md` stays in the scratchpad), the
+  TASK wins; the TF tells the owner in one line which step it changed, and
+  asks when the conflict is unclear. After a TASK, the TF reports and waits
+  for the next one.
 - **TF to HQ:** a local session has no send addressed by session ID. Use
   `SendMessage` to the HQ's name as `ListAgents` lists it. Each send reports
   "one-way" (cannot reply); that is the wording of anthropics/claude-code#98897,
@@ -198,6 +199,18 @@ exists only in chat.
 
 - **Starting a TF:** in a new local session in the repository, the owner types
   `/tf <what>` (`~/.claude/skills/tf/SKILL.md`, managed by `kni927/dotfiles`).
+- **Starting a TF from a card:** an HQ, or a TF that wraps up, can offer a TF
+  with `spawn_task`. The card opens in the offering session's repository. Its
+  prompt asks the new session to read `~/.claude/skills/tf/SKILL.md` and
+  follow it as if the owner had typed `/tf <what>`; a slash command in a
+  card's prompt does not run. The owner picks **Start locally**, and **Start
+  with worktree** only when another TF is working in the main clone. Neither
+  pulls first; the TF brings itself up to date when a TASK arrives.
+- **A TF in a worktree** works in `.claude/worktrees/<name>/` on a
+  `claude/<name>` branch created from the main clone's local `HEAD`. It
+  commits on that branch and merges into `main` only when the TASK says so
+  (Git Workflow in `AGENTS.md`). The owner removes the worktree and its
+  branch after archiving the TF.
 - **One TF per working directory:** local sessions in the same directory share
   `TASK.md`, uncommitted changes, the index, and build output, so only one TF
   works in a directory at a time. A new TF that finds `TASK.md` or uncommitted
