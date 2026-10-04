@@ -253,15 +253,37 @@
 
 	if ([panel runModal] != NSOKButton) return;
 
-	NSString *destPath = [[panel URL] path];
+	NSURL *destURL = [panel URL];
+	NSString *destPath = [destURL path];
 
 	if (srcPath && [[NSFileManager defaultManager] fileExistsAtPath:srcPath]) {
 		// Original file on disk — copy as-is (preserves format including WebP, etc.)
-		if ([[NSFileManager defaultManager] fileExistsAtPath:destPath]) {
-			[[NSFileManager defaultManager] removeItemAtPath:destPath error:nil];
-		}
+		NSFileManager *fm = [NSFileManager defaultManager];
+		NSURL *srcURL = [NSURL fileURLWithPath:srcPath];
+		id srcID = nil, destID = nil;
+		[srcURL getResourceValue:&srcID forKey:NSURLFileResourceIdentifierKey error:nil];
+		[destURL getResourceValue:&destID forKey:NSURLFileResourceIdentifierKey error:nil];
+		// Saving a page onto its own source file: it is already there. Replacing
+		// it would delete the original before the copy (M1).
+		if (srcID && destID && [srcID isEqual:destID]) return;
+
 		NSError *error = nil;
-		if (![[NSFileManager defaultManager] copyItemAtPath:srcPath toPath:destPath error:&error]) {
+		BOOL ok;
+		if ([fm fileExistsAtPath:destPath]) {
+			// Copy next to the destination first and swap it in, so a failed
+			// copy leaves the existing file untouched.
+			NSURL *tmpDir = [fm URLForDirectory:NSItemReplacementDirectory inDomain:NSUserDomainMask
+							appropriateForURL:destURL create:YES error:&error];
+			NSURL *tmpURL = [tmpDir URLByAppendingPathComponent:[destPath lastPathComponent]];
+			ok = tmpDir
+				&& [fm copyItemAtURL:srcURL toURL:tmpURL error:&error]
+				&& [fm replaceItemAtURL:destURL withItemAtURL:tmpURL backupItemName:nil
+								options:0 resultingItemURL:NULL error:&error];
+			if (tmpDir) [fm removeItemAtURL:tmpDir error:nil];
+		} else {
+			ok = [fm copyItemAtURL:srcURL toURL:destURL error:&error];
+		}
+		if (!ok) {
 			NSAlert *alert = [[[NSAlert alloc] init] autorelease];
 			[alert setMessageText:@"Error"];
 			[alert setInformativeText:[error localizedDescription]];

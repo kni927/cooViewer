@@ -76,3 +76,24 @@ clang -O2 \
     -o "$OUT/test_coarchive"
 
 "$OUT/test_coarchive" "$GEN" "$SRC" "$RAR5_FINAL"
+
+# book level: COImageLoader on top of the archive layer (nested archives).
+# The app's Info.plist is embedded so +[COImageLoader fileTypes], which reads
+# CFBundleDocumentTypes from the main bundle, knows the archive extensions.
+clang -O2 -Wno-deprecated-declarations -Wno-unused-value \
+    -I "$REPO_ROOT/vendor/include" \
+    -I "$REPO_ROOT/Sources" \
+    "$ENGINE_DIR/test_imageloader.m" "$REPO_ROOT/Sources/COImageLoader.m" \
+    "$REPO_ROOT/Sources/COPDFImage.m" "$REPO_ROOT/Sources/COPDFImageRep.m" \
+    "$REPO_ROOT/Sources/COArchive.m" "$REPO_ROOT/Sources/COZipArchive.m" \
+    "$REPO_ROOT/Sources/CORarArchive.m" "$REPO_ROOT/Sources/CORarHeaderIndex.m" \
+    "$REPO_ROOT/Sources/NSString_Compare.m" \
+    "$REPO_ROOT/vendor/lib/libarchive.13.dylib" \
+    "$REPO_ROOT/vendor/lib/libuchardet.0.dylib" \
+    "$REPO_ROOT/vendor/lib/libzip.5.dylib" \
+    -framework Cocoa -framework Quartz -framework CoreServices \
+    -Wl,-rpath,"$REPO_ROOT/vendor/lib" \
+    -Wl,-sectcreate,__TEXT,__info_plist,"$REPO_ROOT/Resources/Info.plist" \
+    -o "$OUT/test_imageloader"
+
+"$OUT/test_imageloader" "$GEN"

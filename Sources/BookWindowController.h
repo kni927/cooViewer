@@ -436,6 +436,7 @@
 - (void)setBookmarkMenu;
 - (void)setSameFolderMenu;
 - (void)setSameFolderMenu:(BOOL)force;
+- (NSMenu *)refreshSameFolderMenu;
 - (void)setOpenRecentMenu;
 
 
@@ -580,6 +581,7 @@
 - (void)prevPage;
 - (void)halfprevPage;
 - (void)goToLast;
+- (int)lastSpreadStartPage;
 - (void)goToFirst;
 - (void)changeReadMode:(int)mode;
 - (void)setSortMode:(int)mode page:(int)p;

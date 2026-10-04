@@ -791,8 +791,27 @@ static NSPoint gNextWindowCascadePoint;
  }
 
 #pragma mark openFromAny
+/* M3 (code review 2026-10-03): the window-level open entry points (File ▸
+   Open, Open the Last Page, Open Recent, Open from Same Folder and its
+   next/previous-folder keys, the All Bookmark browser's Open) refuse while
+   this window is still loading a book or waiting on its password sheet. By
+   then currentBookPath and the "old book" already belong to the pending open,
+   so a second open would save the old book's page under the pending book's
+   path, leak the saved old book, and let the stale sheet later install its
+   book under the new title. AppController's Finder/drop gate keeps such a
+   window out of routing for the same reason; these are the direct paths. */
+- (BOOL)refuseOpenWhileBusy
+{
+	if (bookLoadInFlight || passwordOpenInFlight) {
+		NSBeep();
+		return YES;
+	}
+	return NO;
+}
+
 - (IBAction)openTheLastPage:(id)sender
 {
+	if ([self refuseOpenWhileBusy]) return;
 	if ([imageView image]) {
 		int page;
 		if ([defaults arrayForKey:@"RecentItems"]) {
@@ -834,6 +853,7 @@ static NSPoint gNextWindowCascadePoint;
 
 -(IBAction)open:(id)sender
 {
+	if ([self refuseOpenWhileBusy]) return;
 	if (timerSwitch) {
 		[timer invalidate];
 		timer = nil;
@@ -925,6 +945,7 @@ static NSPoint gNextWindowCascadePoint;
    the choice of *which* window opens the book is an app-level one. */
 -(void)openBookAtPath:(NSString *)path
 {
+	if ([self refuseOpenWhileBusy]) return;
 	if (timerSwitch) {
 		[timer invalidate];
 		timer = nil;
@@ -1240,14 +1261,16 @@ static NSString * const kBookViewModeKey = @"cooViewerBookViewMode";
 
 -(void)openFromSameDir:(id)sender last:(BOOL)isLast
 {
+	if ([self refuseOpenWhileBusy]) return;
 	[self setCurrentBookPathAndOldBookPath:[sender representedObject]];
-	
+
 	[self openPage:0 last:isLast];
 }
 
 
 -(void)openFromOpenRecent:(id)sender
-{	
+{
+	if ([self refuseOpenWhileBusy]) return;
 	[self setCurrentBookPathAndOldBookPath:[self pathFromAliasData:[[sender representedObject] objectForKey:@"alias"]]];
 	
 	[self openPage:[[[sender representedObject] objectForKey:@"page"] intValue] last:NO];
@@ -3060,9 +3083,9 @@ static const NSInteger kBookmarkMenuFixedItemCount = 3;
 		[lastSameFolderMenuUpdate release];
 		lastSameFolderMenuUpdate = [[NSDate date] retain];
 	} else {
-		if (oldBookPath==nil) {
-			return;
-		}
+		/* Same folder, items kept: move the check mark to the current book.
+		   This used to return early unless oldBookPath was set, which it
+		   never is once an open has finished (code review M4). */
 		NSEnumerator *enumerator = [[menu itemArray] objectEnumerator];
 		id object;
 		int setStateCount = 0;
@@ -3737,19 +3760,34 @@ static const NSInteger kBookmarkMenuFixedItemCount = 3;
 - (void)menuNeedsUpdate:(NSMenu *)menu
 {
 	if (menu == [[appController openSameFolderMenuItem] submenu]) {
-		/* Both of these touch the parent folder of the current book
-		   (contentsOfDirectoryAtPath: / attributesOfItemAtPath:). Doing this
-		   only when the user is about to open this submenu — rather than on
-		   every book open or app activation — keeps macOS folder-access
-		   permission prompts limited to actual use of the feature. */
-		[self checkCurrentFolderUpdated];
-		/* MW-6 item 3: force the rebuild if the submenu was last built for a
-		   different window. Without it -setSameFolderMenu: would keep the
-		   other window's items whenever both books sit in the same folder,
-		   and those items are targeted at that window. */
-		[self setSameFolderMenu:sameFolderMenuNeedsRebuild];
-		sameFolderMenuNeedsRebuild = NO;
+		[self refreshSameFolderMenu];
 	}
+}
+
+/* Both of these touch the parent folder of the current book
+   (contentsOfDirectoryAtPath: / attributesOfItemAtPath:). Doing this only
+   when the user is about to open this submenu, or asks for the next or
+   previous book in the folder — rather than on every book open or app
+   activation — keeps macOS folder-access permission prompts limited to
+   actual use of the feature (#5b). */
+- (NSMenu *)refreshSameFolderMenu
+{
+	NSMenu *menu = [[appController openSameFolderMenuItem] submenu];
+	/* Code review M4: the next/previous-folder keys can arrive before this
+	   window has become the submenu's delegate (or after another window took
+	   it over); claim it the same way -windowDidBecomeMain: does. */
+	if ([menu delegate] != self) {
+		[menu setDelegate:self];
+		sameFolderMenuNeedsRebuild = YES;
+	}
+	[self checkCurrentFolderUpdated];
+	/* MW-6 item 3: force the rebuild if the submenu was last built for a
+	   different window. Without it -setSameFolderMenu: would keep the
+	   other window's items whenever both books sit in the same folder,
+	   and those items are targeted at that window. */
+	[self setSameFolderMenu:sameFolderMenuNeedsRebuild];
+	sameFolderMenuNeedsRebuild = NO;
+	return menu;
 }
 
 

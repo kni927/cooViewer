@@ -605,8 +605,13 @@ static NSArray *_COImageLoader_archiveTypes=nil;
 				/* Nested archives are written to disk under their entry name;
 				   one that would land outside tempDir is skipped. */
 				if (!COIsContainedEntryPath(path)) continue;
+				/* One nested archive that cannot be written out (a damaged
+				   entry, a full disk) is skipped like an unreadable page;
+				   it used to abandon every other page of the book (code
+				   review L2). */
 				if (![self uncompressToTempDir:path]) {
-					return NO;
+					NSLog(@"COImageLoader: %@: skipping unreadable nested archive %@", filePath, path);
+					continue;
 				}
 				COImageLoader *inLoader = [[[COImageLoader alloc] initWithPath:[tempDir stringByAppendingPathComponent:path]
 																   displayPath:[displayPath stringByAppendingPathComponent:path]

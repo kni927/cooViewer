@@ -2430,6 +2430,8 @@ static const CGFloat kAppearanceExtraHeight = 82;
 {
 	NSString *keyName;
 	NSString *characters = [sender charactersIgnoringModifiers];
+	/* A dead key has no characters and cannot be bound (code review M12). */
+	if ([characters length] == 0) return;
     unichar character = [characters characterAtIndex: 0];
 	if (character == NSLeftArrowFunctionKey) {
 		keyName = @"left arrow";

@@ -58,7 +58,10 @@ static BOOL IsWindowMouseAction(int action)
 }
 
 - (void)keyAction:(NSEvent*)sender
-{	
+{
+	/* A dead key (or an input-method keystroke) has no characters; there is
+	   nothing to look up (code review M12). */
+	if ([[sender charactersIgnoringModifiers] length] == 0) return;
 	BOOL slideshow = NO;
 	if (timerSwitch) {
 		[timer invalidate];
@@ -151,7 +154,7 @@ static BOOL IsWindowMouseAction(int action)
 	}
 	id dic;
 	while (dic = [enu nextObject]) {
-		if (character == [[dic objectForKey:@"key"] characterAtIndex:0] && cMod == [[dic objectForKey:@"modifier"] intValue]){
+		if ([[dic objectForKey:@"key"] length] > 0 && character == [[dic objectForKey:@"key"] characterAtIndex:0] && cMod == [[dic objectForKey:@"modifier"] intValue]){
 			int action = [[dic objectForKey:@"action"] intValue];
 			if ([[dic objectForKey:@"switchAction"] boolValue] == YES && [self readFromLeft]) {
 				switch (action) {
@@ -333,8 +336,7 @@ static BOOL IsWindowMouseAction(int action)
 					}
 						nowPage += skipI;
 					if (nowPage >= [completeMutableArray count]) {
-						nowPage = (int)[completeMutableArray count];
-						nowPage -= 2;
+						nowPage = [self lastSpreadStartPage];
 					}
 						[self lookahead];
 					if ([imageMutableArray count] > 1) {
@@ -1064,14 +1066,16 @@ static BOOL IsWindowMouseAction(int action)
 								nowPage--;
 								[self lookahead];
 							} else {
-								nowPage -= 2;
+								nowPage = [self lastSpreadStartPage];
 								[self lookahead];
-								if ([self isSmallImage:[imageMutableArray objectAtIndex:0] page:nowPage+1] == NO) {
-									[imageMutableArray removeObjectAtIndex:0];
-									nowPage++;
-								} else if ([self isSmallImage:[imageMutableArray objectAtIndex:1] page:nowPage+2] == NO) {
-									[imageMutableArray removeObjectAtIndex:0];
-									nowPage++;
+								if ([imageMutableArray count] > 1) {
+									if ([self isSmallImage:[imageMutableArray objectAtIndex:0] page:nowPage+1] == NO) {
+										[imageMutableArray removeObjectAtIndex:0];
+										nowPage++;
+									} else if ([self isSmallImage:[imageMutableArray objectAtIndex:1] page:nowPage+2] == NO) {
+										[imageMutableArray removeObjectAtIndex:0];
+										nowPage++;
+									}
 								}
 							}
 							[self imageDisplay];
@@ -1134,8 +1138,7 @@ static BOOL IsWindowMouseAction(int action)
 						skipI -= 2;
 						nowPage += skipI;
 						if (nowPage >= [completeMutableArray count]) {
-							nowPage = (int)[completeMutableArray count];
-							nowPage -= 2;
+							nowPage = [self lastSpreadStartPage];
 						}
 						[self lookahead];
 						if ([imageMutableArray count] > 1) {
@@ -1281,8 +1284,7 @@ static BOOL IsWindowMouseAction(int action)
 					skipI -= 2;
 					nowPage += skipI;
 					if (nowPage >= [completeMutableArray count]) {
-						nowPage = (int)[completeMutableArray count];
-						nowPage -= 2;
+						nowPage = [self lastSpreadStartPage];
 					}
 						[self lookahead];
 					if ([imageMutableArray count] > 1) {
@@ -2133,15 +2135,16 @@ static BOOL IsWindowMouseAction(int action)
 					[lock unlock];
 					threadStop = NO;
 					[imageMutableArray removeAllObjects];
-					nowPage = (int)[completeMutableArray count];
-					nowPage -= 2;
+					nowPage = [self lastSpreadStartPage];
 					[self lookahead];
-					if ([self isSmallImage:[imageMutableArray objectAtIndex:0] page:nowPage+1] == NO) {
-						[imageMutableArray removeObjectAtIndex:0];
-						nowPage++;
-					} else if ([self isSmallImage:[imageMutableArray objectAtIndex:1] page:nowPage+2] == NO) {
-						[imageMutableArray removeObjectAtIndex:0];
-						nowPage++;
+					if ([imageMutableArray count] > 1) {
+						if ([self isSmallImage:[imageMutableArray objectAtIndex:0] page:nowPage+1] == NO) {
+							[imageMutableArray removeObjectAtIndex:0];
+							nowPage++;
+						} else if ([self isSmallImage:[imageMutableArray objectAtIndex:1] page:nowPage+2] == NO) {
+							[imageMutableArray removeObjectAtIndex:0];
+							nowPage++;
+						}
 					}
 					[self imageDisplay];
 					return;
@@ -2201,15 +2204,16 @@ static BOOL IsWindowMouseAction(int action)
 					[lock unlock];
 					threadStop = NO;
 					[imageMutableArray removeAllObjects];
-					nowPage = (int)[completeMutableArray count];
-					nowPage -= 2;
+					nowPage = [self lastSpreadStartPage];
 					[self lookahead];
-					if ([self isSmallImage:[imageMutableArray objectAtIndex:0] page:nowPage+1] == NO) {
-						[imageMutableArray removeObjectAtIndex:0];
-						nowPage++;
-					} else if ([self isSmallImage:[imageMutableArray objectAtIndex:1] page:nowPage+2] == NO) {
-						[imageMutableArray removeObjectAtIndex:0];
-						nowPage++;
+					if ([imageMutableArray count] > 1) {
+						if ([self isSmallImage:[imageMutableArray objectAtIndex:0] page:nowPage+1] == NO) {
+							[imageMutableArray removeObjectAtIndex:0];
+							nowPage++;
+						} else if ([self isSmallImage:[imageMutableArray objectAtIndex:1] page:nowPage+2] == NO) {
+							[imageMutableArray removeObjectAtIndex:0];
+							nowPage++;
+						}
 					}
 					[self imageDisplay];
 					return;
@@ -2348,15 +2352,16 @@ static BOOL IsWindowMouseAction(int action)
 			if (nowPage < 3) {
 				if (loopCheck == 0) {
 					[imageMutableArray removeAllObjects];
-					nowPage = (int)[completeMutableArray count];
-					nowPage -= 2;
+					nowPage = [self lastSpreadStartPage];
 					[self lookahead];
-					if ([self isSmallImage:[imageMutableArray objectAtIndex:0] page:nowPage+1] == NO) {
-						[imageMutableArray removeObjectAtIndex:0];
-						nowPage++;
-					} else if ([self isSmallImage:[imageMutableArray objectAtIndex:1] page:nowPage+2] == NO) {
-						[imageMutableArray removeObjectAtIndex:0];
-						nowPage++;
+					if ([imageMutableArray count] > 1) {
+						if ([self isSmallImage:[imageMutableArray objectAtIndex:0] page:nowPage+1] == NO) {
+							[imageMutableArray removeObjectAtIndex:0];
+							nowPage++;
+						} else if ([self isSmallImage:[imageMutableArray objectAtIndex:1] page:nowPage+2] == NO) {
+							[imageMutableArray removeObjectAtIndex:0];
+							nowPage++;
+						}
 					}
 				} else if (loopCheck == 1) {
 					[self backFolder];
@@ -2383,6 +2388,17 @@ static BOOL IsWindowMouseAction(int action)
 	}
 }
 
+/* Where a lookahead for the book's last spread starts: two pages before the
+   end, so the spread check can decide between one and two pages. A one-page
+   book has no page before its last; count-2 would be -1 and the lookahead
+   would read page -1 (code review L5). Callers test for two loaded pages
+   before looking at the second. */
+-(int)lastSpreadStartPage
+{
+	int page = (int)[completeMutableArray count] - 2;
+	return page < 0 ? 0 : page;
+}
+
 -(void)goToLast
 {
 	if (nowPage < [completeMutableArray count]) {
@@ -2392,14 +2408,16 @@ static BOOL IsWindowMouseAction(int action)
 			nowPage--;
 			[self lookahead];
 		} else {
-			nowPage -= 2;
+			nowPage = [self lastSpreadStartPage];
 			[self lookahead];
-			if ([self isSmallImage:[imageMutableArray objectAtIndex:0] page:nowPage+1] == NO) {
-				[imageMutableArray removeObjectAtIndex:0];
-				nowPage++;
-			} else if ([self isSmallImage:[imageMutableArray objectAtIndex:1] page:nowPage+2] == NO) {
-				[imageMutableArray removeObjectAtIndex:0];
-				nowPage++;
+			if ([imageMutableArray count] > 1) {
+				if ([self isSmallImage:[imageMutableArray objectAtIndex:0] page:nowPage+1] == NO) {
+					[imageMutableArray removeObjectAtIndex:0];
+					nowPage++;
+				} else if ([self isSmallImage:[imageMutableArray objectAtIndex:1] page:nowPage+2] == NO) {
+					[imageMutableArray removeObjectAtIndex:0];
+					nowPage++;
+				}
 			}
 		}
 		[self imageDisplay];
@@ -2496,76 +2514,52 @@ static BOOL IsWindowMouseAction(int action)
 	}
 }
 
+/* The "Open from same folder" item after (or before) the current book's,
+   skipping disabled items and wrapping at the ends, with the check mark
+   moved onto it; nil when the current book is not in the list. The submenu
+   is built lazily (#5b), so it is refreshed for this window's book first —
+   walking it as it stood could find nothing, or another folder's items
+   targeted at another window (code review M4). */
+-(id)sameFolderItemStepping:(BOOL)forward
+{
+	NSArray *items = [[self refreshSameFolderMenu] itemArray];
+	if ([items count] == 0) return nil;
+	NSEnumerator *enumerator = forward ? [items objectEnumerator] : [items reverseObjectEnumerator];
+	id object;
+	while (object = [enumerator nextObject]) {
+		if ([object state] == NSOnState){
+			[object setState:NSOffState];
+			while (object = [enumerator nextObject]) {
+				if ([object isEnabled]) {
+					break;
+				}
+			}
+			if (!object) {
+				object = forward ? [items objectAtIndex:0] : [items lastObject];
+			}
+			[object setState:NSOnState];
+			return object;
+		}
+	}
+	return nil;
+}
+
 -(void)nextFolder
 {
-	if ([[[[appController openSameFolderMenuItem] submenu] itemArray] count] > 0) {
-		NSEnumerator *enumerator = [[[[appController openSameFolderMenuItem] submenu] itemArray] objectEnumerator];
-		id object;
-		while (object = [enumerator nextObject]) {
-			if ([object state] == NSOnState){
-				[object setState:NSOffState];
-				while (object = [enumerator nextObject]) {
-					if ([object isEnabled]) {
-						break;
-					}
-				}
-				if (!object) {
-					object = [[[[appController openSameFolderMenuItem] submenu] itemArray] objectAtIndex:0];
-				}
-				[object setState:NSOnState];
-				break;
-			}
-		}
-		[self openFromSameDir:object];
-	}
+	id object = [self sameFolderItemStepping:YES];
+	if (object) [self openFromSameDir:object];
 }
 
 -(void)backFolder
 {
-	if ([[[[appController openSameFolderMenuItem] submenu] itemArray] count] > 0) {
-		NSEnumerator *enumerator = [[[[appController openSameFolderMenuItem] submenu] itemArray] reverseObjectEnumerator];
-		id object;
-		while (object = [enumerator nextObject]) {
-			if ([object state] == NSOnState){
-				[object setState:NSOffState];
-				while (object = [enumerator nextObject]) {
-					if ([object isEnabled]) {
-						break;
-					}
-				}				
-				if (!object) {
-					object = [[[[appController openSameFolderMenuItem] submenu] itemArray] lastObject];
-				}
-				[object setState:NSOnState];
-				break;
-			}
-		}
-		[self openFromSameDir:object];
-	}
+	id object = [self sameFolderItemStepping:NO];
+	if (object) [self openFromSameDir:object];
 }
 
 -(void)backFolderLast
 {
-	if ([[[[appController openSameFolderMenuItem] submenu] itemArray] count] > 0) {
-		NSEnumerator *enumerator = [[[[appController openSameFolderMenuItem] submenu] itemArray] reverseObjectEnumerator];
-		id object;
-		while (object = [enumerator nextObject]) {
-			if ([object state] == NSOnState){
-				[object setState:NSOffState];
-				while (object = [enumerator nextObject]) {
-					if ([object isEnabled]) {
-						break;
-					}
-				}				
-				if (!object) {
-					object = [[[[appController openSameFolderMenuItem] submenu] itemArray] lastObject];
-				}
-				[object setState:NSOnState];
-				break;
-			}
-		}
-		[self openFromSameDir:object last:YES];
-	}
+	id object = [self sameFolderItemStepping:NO];
+	if (object) [self openFromSameDir:object last:YES];
 }
 
 - (void)nextSubFolder
@@ -2729,6 +2723,12 @@ static BOOL IsWindowMouseAction(int action)
 	nowPage = page;
 	if (nowPage < 0) {
 		nowPage = 0;
+	} else if (nowPage >= [completeMutableArray count]) {
+		/* par can reach 1 or more: a page-bar click in its last 2 px (outside
+		   the inset rect the fraction is measured on), or a 100% go-to.
+		   nowPage == count is "past the end" to -lockedImageDisplay, which
+		   would wrap or open the next book (code review M11). */
+		nowPage = (int)[completeMutableArray count]-1;
 	}
 	[imageMutableArray removeAllObjects];
 	[self lookahead];

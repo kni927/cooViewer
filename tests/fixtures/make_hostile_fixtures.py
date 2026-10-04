@@ -10,6 +10,9 @@ is involved:
   longer than the 1024-unit buffers -finderCompareS: once copied into.
 - dotdot.cbz: a page plus a nested archive named "../../escape.zip", whose
   name points outside any directory it is joined to.
+- broken_nested.cbz: two pages, a readable nested archive, and a nested
+  archive whose stored bytes fail their CRC check, so it cannot be
+  extracted.
 - rar4_huge_size.cbr: a RAR4 file header with LHD_LARGE whose 64-bit packed
   size runs far past the end of the file.
 """
@@ -48,6 +51,26 @@ def write_dotdot(path: pathlib.Path) -> None:
         z.writestr("../../escape.zip", inner.getvalue())
 
 
+def write_broken_nested(path: pathlib.Path) -> None:
+    good = io.BytesIO()
+    with zipfile.ZipFile(good, "w") as z:
+        z.writestr("inner.jpg", PAGE)
+    broken = io.BytesIO()
+    with zipfile.ZipFile(broken, "w") as z:
+        z.writestr("lost.jpg", PAGE + b"BROKEN-NESTED-MARKER")
+    with zipfile.ZipFile(path, "w") as z:      # stored: the bytes stay findable
+        z.writestr("001.jpg", PAGE + b"1")
+        z.writestr("broken.zip", broken.getvalue())
+        z.writestr("good.zip", good.getvalue())
+        z.writestr("002.jpg", PAGE + b"2")
+    # flip one byte inside broken.zip's stored data, so that entry fails its
+    # CRC check when it is extracted while every other entry stays intact
+    data = bytearray(path.read_bytes())
+    at = data.index(b"BROKEN-NESTED-MARKER")
+    data[at] ^= 0xFF
+    path.write_bytes(bytes(data))
+
+
 def rar4_block(htype: int, flags: int, body: bytes) -> bytes:
     rest = struct.pack("<BHH", htype, flags, 7 + len(body)) + body
     return struct.pack("<H", zlib.crc32(rest) & 0xFFFF) + rest
@@ -72,6 +95,7 @@ def main() -> None:
     out.mkdir(parents=True, exist_ok=True)
     write_long_name(out / "long_name.cbz")
     write_dotdot(out / "dotdot.cbz")
+    write_broken_nested(out / "broken_nested.cbz")
     write_rar4_huge_size(out / "rar4_huge_size.cbr")
 
 

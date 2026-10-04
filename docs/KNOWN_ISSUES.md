@@ -1676,9 +1676,18 @@ page-bar bubble), H2 (`-finderCompareS:` stack overflow), H3 with L10
 double release), H5 (freed slideshow timer) — and M2, M7, L1, L6 (filters
 per window), L7, L9.
 
-**Still open:** M1, M3–M6, M8–M12, L2–L5, L8, L11. The most visible are the
-RAR link miscount (M6, reproduced: pages shift after a symlink in RAR5
-archives) and Save Image… onto its own source deleting the original (M1).
+**Fixed 2026-10-04** (task `docs/tasks/2026-10-04-02-review-remainder.md`):
+M1 (Save Image… onto its own source is a no-op; replacing another file goes
+through a copy and `replaceItemAtURL:`), M3 (the window's open entry points
+refuse while it is loading or waiting on a password), M4 (next/previous
+folder refreshes the submenu for its own book first; the check mark follows
+the current book), M11 (`-goToPar:` clamps to the last page), M12 (empty key
+strings), L2 (an unreadable nested archive is skipped), L5 (the last-spread
+lookahead never starts below page 0).
+
+**Still open:** M5, M6, M8–M10, L3, L4, L8, L11. The most visible is the RAR
+link miscount (M6, reproduced: pages shift after a symlink in RAR5
+archives).
 
 ---
 

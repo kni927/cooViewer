@@ -17,8 +17,7 @@
 - (void)keyDown:(NSEvent *)theEvent
 {
 	NSString *string = [theEvent characters];
-    unichar character = [string characterAtIndex: 0];
-	if (character == NSDeleteCharacter) {
+	if ([string length] > 0 && [string characterAtIndex: 0] == NSDeleteCharacter) {
 		[target performSelector:selector withObject:theEvent];
 		return;
 	} else {

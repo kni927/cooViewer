@@ -1229,7 +1229,7 @@
 	NSEnumerator *enu = [keyArray objectEnumerator];
 	id dic;
 	while (dic = [enu nextObject]) {
-		if (character == [[dic objectForKey:@"key"] characterAtIndex:0] && cMod == [[dic objectForKey:@"modifier"] intValue]){
+		if ([[dic objectForKey:@"key"] length] > 0 && character == [[dic objectForKey:@"key"] characterAtIndex:0] && cMod == [[dic objectForKey:@"modifier"] intValue]){
 			int action = [[dic objectForKey:@"action"] intValue];
 			if ([[dic objectForKey:@"switchAction"] boolValue] == YES && [controller readFromLeft]) {
 				switch (action) {
@@ -1296,6 +1296,8 @@
 -(void)action:(NSEvent*)event
 {
 	NSString *string = [event charactersIgnoringModifiers];
+	/* Dead keys have no characters (code review M12). */
+	if ([string length] == 0) return;
     unichar character = [string characterAtIndex: 0];
 	
 
@@ -1339,7 +1341,7 @@
 		//18:showThumbnail 46:close
 
 		while (dic = [enu nextObject]) {
-			if (character == [[dic objectForKey:@"key"] characterAtIndex:0] && cMod == [[dic objectForKey:@"modifier"] intValue]){
+			if ([[dic objectForKey:@"key"] length] > 0 && character == [[dic objectForKey:@"key"] characterAtIndex:0] && cMod == [[dic objectForKey:@"modifier"] intValue]){
 				int action = [[dic objectForKey:@"action"] intValue];
 				if ([[dic objectForKey:@"switchAction"] boolValue] == YES && [controller readFromLeft]) {
 					switch (action) {

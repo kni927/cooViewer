@@ -36,6 +36,8 @@
 {
 	id view = [[[[self contentView] subviews] objectAtIndex:0] documentView];
 	NSString *characters = [event charactersIgnoringModifiers];
+	/* Dead keys have no characters (code review M12). */
+	if ([characters length] == 0) return;
     unichar character = [characters characterAtIndex: 0];
 	unsigned short  key=[event keyCode];
 	if (key ==  0x7e){
@@ -122,7 +124,7 @@
 		if (control) cMod += 4;
 		
 		while (dic = [enu nextObject]) {
-			if (character == [[dic objectForKey:@"key"] characterAtIndex:0] && cMod == [[dic objectForKey:@"modifier"] intValue]){
+			if ([[dic objectForKey:@"key"] length] > 0 && character == [[dic objectForKey:@"key"] characterAtIndex:0] && cMod == [[dic objectForKey:@"modifier"] intValue]){
 				int action = [[dic objectForKey:@"action"] intValue];
 				switch (action) {
 					case 0:
