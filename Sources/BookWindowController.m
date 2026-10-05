@@ -7,6 +7,7 @@
 #import "FullImagePanel.h"
 #import "FilterPanelController.h"	/* per-window filters (code review L6) */
 #import "RemoteControl.h"	/* kRemoteButton* constants used by the 1.2b14 migration block below */
+#include <os/log.h>
 
 @implementation BookWindowController
 /* MW-5: DIALOG_OK/DIALOG_CANCEL went to AppController with -sheetOk:/
@@ -115,10 +116,16 @@
    the same name); released anyway, as -release on nil costs nothing.
 
    The three timers are scheduled with target:self, so the run loop retains
-   this object until they fire and -dealloc cannot run while one is pending
-   — the slideshow timer in particular repeats, so it would keep the window
-   controller alive for ever. -windowWillClose: already invalidates it;
-   these calls are what makes that guaranteed rather than incidental. */
+   this object until they fire and -dealloc cannot run while one is pending.
+   The slideshow timer is one-shot since KNOWN_ISSUES #46 (each commit
+   schedules the next slide) but is rescheduled for as long as the slideshow
+   runs, so it would still keep the window controller alive.
+   -windowWillClose: already invalidates it; these calls are what makes that
+   guaranteed rather than incidental.
+
+   KNOWN_ISSUES #46: a display request's lane delivery and its spinner
+   perform also retain this object until they have run, so neither can be
+   pending here; their state is released all the same. */
 - (void)dealloc
 {
 	[[NSNotificationCenter defaultCenter] removeObserver:self];
@@ -170,7 +177,13 @@
 
 	[lock release];
 	[cacheLock release];
-	[decodeLock release];
+
+	[bookLane cancel];
+	[bookLane release];
+	[displayAfterBlock release];
+	[readyPageImages release];
+	[displayIndicatorDueToken release];
+	[deferredDisplayAfterBlock release];
 
 	[super dealloc];
 }
@@ -233,7 +246,8 @@ static NSPoint gNextWindowCascadePoint;
 	
 	lock = [[NSLock allocWithZone:NULL] init];
 	cacheLock = [[NSLock alloc] init];
-	decodeLock = [[NSLock alloc] init];
+	/* The decodeLock is per book now and lives in the book's read lane
+	   (KNOWN_ISSUES #46). */
 	//lock = [[NSConditionLock allocWithZone:NULL] initWithCondition:0];
 	//composeLock = [[NSLock allocWithZone:NULL] init];
 	
@@ -972,6 +986,15 @@ static NSPoint gNextWindowCascadePoint;
 	[fromFileName release];
 	[progressIndicator stopAnimation:self];
 	//[imageView displayRect:rect];
+	/* KNOWN_ISSUES #46: a slideshow waiting for this open (it went to the next
+	   or previous book, and its next slide is scheduled only once that book's
+	   first display commits) would otherwise never go on. It stops, as it
+	   does at the end of a book with no next one. */
+	if (timerSwitch && timer == nil) {
+		timerSwitch = NO;
+		[appController dontSleepTimerStop];
+		[imageView setSlideshow:NO];
+	}
 }
 
 /* MW-7: what -open: does once the path is known, without the panel. Used by
@@ -1104,8 +1127,9 @@ static NSString * const kBookViewModeKey = @"cooViewerBookViewMode";
 	/* `nowPage` is the page *after* the last one displayed, so a spread on
 	   pages n and n+1 leaves it at n+2 — the same conversion
 	   -windowWillClose: and -openPage:last: apply before writing a page
-	   number into RecentItems/LastPages. */
-	int page = nowPage - (secondImage ? 2 : 1);
+	   number into RecentItems/LastPages. While a book's first page has not
+	   arrived yet, nowPage is the page being opened (-firstShownPageIndex). */
+	int page = [self firstShownPageIndex];
 	return (page < 0) ? 0 : page;
 }
 
@@ -1339,7 +1363,10 @@ static NSString * const kBookViewModeKey = @"cooViewerBookViewMode";
 
 	[progressIndicator startAnimation:self];
 	[progressIndicator displayIfNeeded];
-	
+	/* The spinner belongs to this open now: a display request of the current
+	   book that commits meanwhile must not turn it off (KNOWN_ISSUES #46). */
+	displayIndicatorShown = NO;
+
     /*
 	[imageView lockFocus];
 	NSRect rect = [[[self window] contentView] convertRect:[progressIndicator frame] toView:imageView];
@@ -1527,19 +1554,22 @@ static NSString * const kBookViewModeKey = @"cooViewerBookViewMode";
 		//なことに注意する事！
 
 		/* The previous book is about to be torn down — its imageLoader
-		   released and its page arrays emptied. Anything the outgoing book
-		   left reading ahead has to be finished with them first. */
-		[self joinLookaheadThreads];
+		   released and its page arrays emptied. Its display request and
+		   re-sort are dropped, and whatever it left reading ahead is
+		   abandoned: an abandoned lookahead publishes nothing and holds its
+		   own references to the loader, the controller and the old book's
+		   decodeLock, so nothing waits for it (KNOWN_ISSUES #46). */
+		[self resetDisplayRequests];
+		[self abandonLookahead];
+		[bookLane cancel];
+		[bookLane release];
+		bookLane = nil;
 
 		/*clear cache*/
 		[cacheArray removeAllObjects];
 		if (oldBookPath != nil) {
 			/*historyの処理*/
-			if (secondImage) {
-				nowPage -= 2;
-			} else {
-				nowPage--;
-			}
+			nowPage = [self firstShownPageIndex];
 			[appController recordClosingBookSettings:oldBookPath
 												  name:oldBookName
 												 alias:oldBookAlias
@@ -1650,6 +1680,11 @@ static NSString * const kBookViewModeKey = @"cooViewerBookViewMode";
 	
 	imageLoader = newImageLoader;
 	completeMutableArray = [[imageLoader pathArray] retain];
+	/* KNOWN_ISSUES #46: the book's read lane, before anything can ask for a
+	   page — the sort below already takes its decodeLock. */
+	[bookLane cancel];
+	[bookLane release];
+	bookLane = [[COBookReadLane alloc] initWithLoader:imageLoader];
 	
 	sortMode = 0;
 	if ([currentBookSetting objectForKey:@"sortMode"]) {
@@ -1667,36 +1702,18 @@ static NSString * const kBookViewModeKey = @"cooViewerBookViewMode";
 		page = (int)[completeMutableArray indexOfObject:fromFileName];
 		[fromFileName release];
 	}
-	if (last) {
-		int temp = (int)[completeMutableArray count];
-		temp--;
-		if ([completeMutableArray count] > 1) {
-			temp--;
-			[imageMutableArray addObject:[self loadImage:temp]];
-			temp++;
-			[imageMutableArray addObject:[self loadImage:temp]];
-			if ([self isSmallImage:[imageMutableArray objectAtIndex:0] page:temp] == NO){
-				[imageMutableArray removeObjectAtIndex:0];
-				temp++;
-			}
-			temp--;
-		} else {
-			[imageMutableArray addObject:[self loadImage:temp]];
-		}
-		nowPage = temp;
-	} else {
-		if (page >= [completeMutableArray count]) {
-			page = 0;
-		}
-		nowPage = page;
-		if ([completeMutableArray count] > page) {
-			[imageMutableArray addObject:[self loadImage:page]];
-			page++;
-			if ([completeMutableArray count] > page) {
-				[imageMutableArray addObject:[self loadImage:page]];
-			}
-		}
+	/* KNOWN_ISSUES #46: the first pages are no longer read here, on the main
+	   thread. The first display is a display request below (the open's
+	   "last" body, or a go-to), and until it commits nowPage is the page
+	   being opened, which is what a close or a restoration in the meantime
+	   records (-firstShownPageIndex). */
+	if (!last && (page < 0 || page >= (int)[completeMutableArray count])) {
+		/* A page past the end opens the book at its start, as before; a file
+		   that is not in the list (NSNotFound) no longer reads page -1. */
+		page = 0;
 	}
+	[imageMutableArray removeAllObjects];
+	nowPage = last ? [self lastSpreadStartPage] : page;
 	readMode = (int)[defaults integerForKey:@"ReadMode"];
 	[marksArray removeAllObjects];
 	
@@ -1726,7 +1743,8 @@ static NSString * const kBookViewModeKey = @"cooViewerBookViewMode";
 	[thumController setmaxCacheCount:(int)[defaults integerForKey:@"ThumbnailCache"]];
 	
 	
-	[progressIndicator stopAnimation:self];
+	/* The spinner is stopped below, once the first display has been
+	   requested (KNOWN_ISSUES #46). */
 	//[imageView displayRect:rect];
 	/* MW-6 item 4: the load succeeded, so this window now has a book. Set
 	   before the display pass, since -imageDisplay is what used to make the
@@ -1749,18 +1767,43 @@ static NSString * const kBookViewModeKey = @"cooViewerBookViewMode";
 	shownWithoutBook = NO;
 	[[self window] setRestorable:YES];
 	[self viewSet];
-	[self imageDisplay];
-	
-	if ([thumController isVisible]||[defaults boolForKey:@"ShowThumbnailWhenOpen"]) {
-		if (secondImage) {
-			int temp = nowPage;
-			temp--;
-			[thumController showThumbnail:temp];
-		} else {
-			[thumController showThumbnail:nowPage];
+
+	/* KNOWN_ISSUES #46: a new book has no current page until its first
+	   display commits. The previous book's pages stay on screen until then —
+	   for a book whose first pages are quick to read, a moment — but are no
+	   longer this window's shown pages (shownPagesStale, -hasShownPage). A
+	   slow book blanks the view after 0.2 s and shows the spinner until its
+	   first pages arrive. */
+	shownPagesStale = (firstImage != nil);
+
+	BOOL showThumbnail = ([thumController isVisible]||[defaults boolForKey:@"ShowThumbnailWhenOpen"]);
+	[self requestDisplay:(last ? CODisplayOpenLast : CODisplayGoTo)
+				argument:page
+				   after:^{
+		if (showThumbnail) {
+			if (secondImage) {
+				int temp = nowPage;
+				temp--;
+				[thumController showThumbnail:temp];
+			} else {
+				[thumController showThumbnail:nowPage];
+			}
 		}
+	}];
+	/* The open's spinner: off now if the first display has committed;
+	   otherwise it stays on and the request turns it off when it commits or
+	   is dropped. */
+	if (displayRequestPending) {
+		displayIndicatorShown = YES;
+		if (shownPagesStale) {
+			[self performSelector:@selector(blankStaleShownPages)
+					   withObject:nil
+					   afterDelay:0.2
+						  inModes:[NSArray arrayWithObject:NSRunLoopCommonModes]];
+		}
+	} else {
+		[progressIndicator stopAnimation:self];
 	}
-	
 }
 /* Archive open progress (COArchive extracts everything up front).
  *
@@ -2481,13 +2524,60 @@ static void COPerformOpenStep(void (^block)(void))
 	[cacheLock unlock];
 }
 
+/* KNOWN_ISSUES #46: whether the image cache already holds a page, without
+   touching its order. */
+- (BOOL)isImageCachedNamed:(NSString *)name
+{
+	BOOL found = NO;
+	[cacheLock lock];
+	for (NSDictionary *object in cacheArray) {
+		if ([name isEqualToString:[object objectForKey:@"name"]]) {
+			found = YES;
+			break;
+		}
+	}
+	[cacheLock unlock];
+	return found;
+}
+
+/* A page a display request's body reads. KNOWN_ISSUES #46: while a body runs,
+   every page it reads was put in readyPageImages before it started; reaching
+   the loader from a body means the planner missed one. That is logged as a
+   fault and the page is read here, synchronously, as it used to be, so the
+   display stays correct. */
+- (NSImage *)readyImageAtIndex:(int)index
+{
+	return readyPageImages ? [readyPageImages objectForKey:[NSNumber numberWithInt:index]] : nil;
+}
+
+- (void)reportUnplannedReadAtIndex:(int)index
+{
+	if (committingDisplay) {
+		os_log_fault(OS_LOG_DEFAULT, "cooViewer: display body read unplanned page %d (action %d) on the main thread",
+					 index, pendingDisplayAction);
+	}
+}
+
 - (NSImage*)loadImage:(int)index
 {
+	NSImage *ready = [self readyImageAtIndex:index];
+	if (ready) {
+		/* As the shortcuts below, the page goes into the image cache. */
+		if (cacheSize != 0) {
+			NSString *name = [completeMutableArray objectAtIndex:index];
+			if (![self isImageCachedNamed:name]) [self cacheImage:ready named:name];
+			[self trimImageCache];
+		}
+		return ready;
+	}
 	if (cacheSize != 0) {
 		NSImage *cached = [self cachedImageNamed:[completeMutableArray objectAtIndex:index]];
 		if (cached) return cached;
 	}
-	if ([imageView image]) {
+	/* The pages on screen — this book's only: after a book switch the
+	   previous book's are still up for a moment (KNOWN_ISSUES #46), and must
+	   not be returned, or cached, as this book's pages. */
+	if ([imageView image] && [self hasShownPage]) {
 		if (secondImage) {
 			int temp = nowPage;
 			temp--;
@@ -2519,6 +2609,7 @@ static void COPerformOpenStep(void (^block)(void))
 		}
 	}
 	
+	[self reportUnplannedReadAtIndex:index];
 	NSImage *image = [imageLoader itemAtIndex:index];	
     /*
 	NSImageRep*	rep;
@@ -2561,11 +2652,16 @@ static void COPerformOpenStep(void (^block)(void))
 	unsigned int generation = atomic_load(&lookaheadGeneration);
 	atomic_fetch_add(&pendingLookaheadCount, 1);
 	__block BookWindowController *controller = [self retain];
+	/* KNOWN_ISSUES #46: the decodeLock is the book's, taken from its lane
+	   now, at the detach — a book switch releases the lane while an
+	   abandoned lookahead of the old book may still be decoding under it. */
+	__block NSLock *bookDecodeLock = [[bookLane decodeLock] retain];
 	[NSThread detachNewThreadWithBlock:^{
 		NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];
-		[controller lookaheadForGeneration:generation pages:2 detached:YES];
+		[controller lookaheadForGeneration:generation pages:2 detached:YES decodeLock:bookDecodeLock];
 		[pool release];
 		dispatch_async(dispatch_get_main_queue(), ^{
+			[bookDecodeLock release];
 			[controller release];
 		});
 	}];
@@ -2583,76 +2679,26 @@ static void COPerformOpenStep(void (^block)(void))
 	[lock unlock];
 }
 
-/* Waits (bounded) until no lookahead of the current generation is left.
-   The wait is bounded on purpose. A decode can reach an archive read, and a
-   read that ends up on the main thread's modal progress path would deadlock
-   an unbounded wait. When it times out, the generation is abandoned, so a
-   thread still running returns without touching anything. Returns whether
-   the wait timed out. */
-- (BOOL)waitForCurrentLookahead
-{
-	NSDate *deadline = [NSDate dateWithTimeIntervalSinceNow:2.0];
-	while (atomic_load(&pendingLookaheadCount) > 0) {
-		if ([deadline timeIntervalSinceNow] <= 0) {
-			[self abandonLookahead];
-			return YES;
-		}
-		[NSThread sleepUntilDate:[NSDate dateWithTimeIntervalSinceNow:0.001]];
-	}
-	return NO;
-}
+/* KNOWN_ISSUES #46: the main thread no longer waits for a lookahead.
+   -waitForLookahead, -stopLookahead and -joinLookaheadThreads (bounded waits,
+   then decodeLock once) are gone: every display request abandons the
+   lookahead instead (-abandonLookahead), every page a display body reads is
+   on hand before it runs (readyPageImages), a book teardown abandons and
+   cancels the book's lane, and the one caller that needs no thread inside
+   the loader — a re-sort — takes the lane's decodeLock with -tryLock and
+   otherwise waits on the lane, not on the main thread
+   (-setSortMode:page:). */
 
-/* The barrier: no current lookahead left, then decodeLock once, as the old
-   barrier took `lock` once — an abandoned lookahead may still be decoding a
-   page, and after this returns none is (one waiting for decodeLock sees its
-   generation has ended and does not start). */
-- (BOOL)waitForDetachedLookahead
-{
-	BOOL timedOut = [self waitForCurrentLookahead];
-	[decodeLock lock];
-	[decodeLock unlock];
-	return timedOut;
-}
-
-- (void)waitForLookahead
-{
-	[self waitForDetachedLookahead];
-}
-
-/* `threadStop` asks a running lookahead to stop at its next page boundary.
-   A thread that saw the flag has already cleared it; clear it for the case
-   where none did. */
-- (void)stopLookahead
-{
-	threadStop = YES;
-	[self waitForDetachedLookahead];
-	threadStop = NO;
-}
-
-/* Called before either place that tears a book down: -windowWillClose: and
-   -openPage:last:'s replacement of the previous book. Both release
-   imageLoader and empty imageMutableArray / cacheArray, which is exactly
-   what a lookahead thread is writing into.
-
-   -stopLookahead covers a running thread and one that was detached but has
-   not entered the body yet. The generation moves on in any case: a thread
-   that has not reached its first check yet would otherwise read the
-   released imageLoader, or the next book's (code review M5). A lookahead
-   holds its own references to this controller and to the loader it reads
-   (see -detachLookaheadComposing: and -lookaheadForGeneration:...). */
-- (void)joinLookaheadThreads
-{
-	[self stopLookahead];
-	[self abandonLookahead];
-}
-
-/* Main-thread reads into the list, up to `pages` pages. Not counted: they
-   cannot outlive their caller. Like the old body, which took `lock` for its
-   whole run, they first let a running lookahead finish. */
+/* Main-thread reads into the list, up to `pages` pages, from display bodies
+   only. Not counted: they cannot outlive their caller. KNOWN_ISSUES #46: the
+   pages come from readyPageImages, so nothing is decoded here; a lookahead
+   still running is abandoned rather than waited for (none should be: a
+   request abandons it before it plans, and none is detached while one is
+   pending). */
 -(void)lookaheadPages:(NSUInteger)pages
 {
-	[self waitForCurrentLookahead];
-	[self lookaheadForGeneration:atomic_load(&lookaheadGeneration) pages:pages detached:NO];
+	[self abandonLookahead];
+	[self lookaheadForGeneration:atomic_load(&lookaheadGeneration) pages:pages detached:NO decodeLock:nil];
 }
 
 -(void)lookahead
@@ -2673,11 +2719,12 @@ static void COPerformOpenStep(void (^block)(void))
 }
 
 /* Reads pages into imageMutableArray until it holds `pages`, the book ends,
-   the generation ends or -stopLookahead asks it to stop (B2).
+   the generation ends or `threadStop` asks it to stop (B2; nothing sets
+   it since KNOWN_ISSUES #46 — a lookahead is abandoned instead).
 
    nowPage, imageMutableArray, the page name and the image cache are read
    and written under `lock`; the decode itself, the slow part on a slow
-   book, runs outside it. So -lockedImageDisplay can take the first page as
+   book, runs outside it. So -showPagesFromList can take the first page as
    soon as it is in the list instead of waiting for the run to read the
    second as well. A page is added only while the run's generation is
    current and the list still ends right before it (nowPage + count is the
@@ -2688,13 +2735,16 @@ static void COPerformOpenStep(void (^block)(void))
    for nowPage-1 and nowPage-2, the pages on screen, and never applies to a
    lookahead, so the image is the same object -loadImage: would return.
 
-   A detached run holds decodeLock while it decodes, keeps its own reference
-   to the loader (a book teardown may release the controller's while it
-   decodes) and gives it back on the main thread, and decrements
-   pendingLookaheadCount only while its generation is current
-   (-abandonLookahead has zeroed it otherwise). Lock order: `lock`, then
-   cacheLock; decodeLock is never held with either. */
--(void)lookaheadForGeneration:(unsigned int)generation pages:(NSUInteger)pages detached:(BOOL)detached
+   A detached run holds the book's decodeLock (`bookDecodeLock`, captured at
+   the detach) while it decodes, keeps its own reference to the loader (a
+   book teardown may release the controller's while it decodes) and gives it
+   back on the main thread, and decrements pendingLookaheadCount only while
+   its generation is current (-abandonLookahead has zeroed it otherwise).
+   Lock order: `lock`, then cacheLock; decodeLock is never held with either.
+
+   A main-thread run (`detached` NO, a display body's) takes its pages from
+   readyPageImages first (KNOWN_ISSUES #46) and decodes nothing. */
+-(void)lookaheadForGeneration:(unsigned int)generation pages:(NSUInteger)pages detached:(BOOL)detached decodeLock:(NSLock *)bookDecodeLock
 {
 	COImageLoader *loader = nil;
 	BOOL entered = NO;
@@ -2724,7 +2774,8 @@ static void COPerformOpenStep(void (^block)(void))
 			index = nowPage + (int)[imageMutableArray count];
 			if ([imageMutableArray count] < pages && index < [completeMutableArray count]) {
 				name = [[completeMutableArray objectAtIndex:index] retain];
-				if (cacheSize != 0) image = [[self cachedImageNamed:name] retain];
+				if (!detached) image = [[self readyImageAtIndex:index] retain];
+				if (!image && cacheSize != 0) image = [[self cachedImageNamed:name] retain];
 				more = YES;
 			} else if (nowPage > [completeMutableArray count]) {
 				nowPage = (int)[completeMutableArray count];
@@ -2733,13 +2784,14 @@ static void COPerformOpenStep(void (^block)(void))
 		[lock unlock];
 
 		if (more && !image) {
-			if (detached) [decodeLock lock];
+			if (detached) [bookDecodeLock lock];
 			/* Abandoned while it waited for decodeLock: nothing to read for. */
 			if (![self lookaheadGenerationEnded:generation]) {
+				if (!detached) [self reportUnplannedReadAtIndex:index];
 				image = [[loader itemAtIndex:index] retain];
 				decoded = YES;
 			}
-			if (detached) [decodeLock unlock];
+			if (detached) [bookDecodeLock unlock];
 		}
 
 		if (image) {
@@ -2777,45 +2829,6 @@ static void COPerformOpenStep(void (^block)(void))
 	} else {
 		[loader release];
 	}
-}
-
-/* B2: -lockedImageDisplay waits only for the pages this turn shows, then
-   abandons the lookahead that is still reading further ahead (the page it is
-   decoding is not lost: the archive readers cache decoded entries, and the
-   next lookahead, which waits for decodeLock, finds it there). One page, or
-   two in a spread when the first is small and not the last. Returns as soon
-   as the list has them, when no current lookahead is left to add them, or
-   after 2 s, the bound -waitForLookahead has; the caller reads what is
-   missing itself. */
-- (NSUInteger)waitForLookaheadPages:(NSUInteger)pages until:(NSDate *)deadline
-{
-	for (;;) {
-		[lock lock];
-		NSUInteger count = [imageMutableArray count];
-		BOOL running = atomic_load(&pendingLookaheadCount) > 0;
-		[lock unlock];
-		if (count >= pages || !running || [deadline timeIntervalSinceNow] <= 0) {
-			return count;
-		}
-		[NSThread sleepUntilDate:[NSDate dateWithTimeIntervalSinceNow:0.001]];
-	}
-}
-
-- (void)waitForDisplayedPages
-{
-	NSDate *deadline = [NSDate dateWithTimeIntervalSinceNow:2.0];
-	NSUInteger count = [self waitForLookaheadPages:1 until:deadline];
-	int total = (int)[completeMutableArray count];
-	if (readMode <= 1 && count > 0 && nowPage < total && nowPage+1 != total) {
-		NSImage *first;
-		[lock lock];
-		first = [[[imageMutableArray objectAtIndex:0] retain] autorelease];
-		[lock unlock];
-		if ([self isSmallImage:first page:nowPage+1]) {
-			[self waitForLookaheadPages:2 until:deadline];
-		}
-	}
-	[self abandonLookahead];
 }
 
 #pragma mark image
@@ -2865,54 +2878,26 @@ static void COPerformOpenStep(void (^block)(void))
 
 #pragma mark display
 
--(void)imageDisplay
-{
-	/*
-	NSTimeInterval start,stop,elapsed;
-	start=[NSDate timeIntervalSinceReferenceDate];
-	*/
-	//[lock lock];
-	//[lock unlock];
-	//[window disableFlushWindow];
-	
-	NSDisableScreenUpdates();
-    [self lockedImageDisplay];
-    NSEnableScreenUpdates();
-
-	/* MW-8: the page this window would come back to has changed. This is the
-	   only way into -lockedImageDisplay from outside, so it is the one place
-	   a page turn has to be reported from. AppKit coalesces the invalidation
-	   and re-encodes once, at the end of the run loop pass. */
-	[[self window] invalidateRestorableState];
-
-	//[window enableFlushWindow];
-	//[window flushWindowIfNeeded];
-	
-	/*
-	stop=[NSDate timeIntervalSinceReferenceDate];
-	elapsed=stop-start;
-	NSLog(@"%f",elapsed);
-	 */
-}
-
--(void)lockedImageDisplay
+/* KNOWN_ISSUES #46: was -lockedImageDisplay, reached through -imageDisplay
+   (which bracketed it with NSDisableScreenUpdates and invalidated the
+   restorable state — the commit of a display request does both now). It no
+   longer waits for a lookahead to add the pages it shows: it runs only as a
+   display request's body, after the request has abandoned the lookahead and
+   gathered every page it reads (readyPageImages), so the reads below never
+   reach the loader. */
+-(void)showPagesFromList
 {
 	/* No pages (a bookless ⌘N window, or one left empty by a cancelled
 	   password prompt): nowPage 0 equals the count 0, which the branches
 	   below read as "end of book". With LoopCheck 0 that rewinds and calls
 	   this method again, without bound. */
 	if ([completeMutableArray count] == 0) return;
-	/* The display reads and removes the pages the last lookahead added;
-	   it must not do so while that lookahead is still adding them (code
-	   review M5). It waits for the pages it shows, not for the whole
-	   lookahead, then abandons it (B2; see -waitForDisplayedPages). */
-	[self waitForDisplayedPages];
 	if (readMode > 1) {
 		if (nowPage == [completeMutableArray count]) {
 			if (loopCheck == 0) {
 				nowPage = 0;
 				[self lookahead];
-				[self lockedImageDisplay];
+				[self showPagesFromList];
 			} else if (loopCheck == 1) {
 				[self nextFolder];
 			} else if (loopCheck == 2) {
@@ -2925,9 +2910,9 @@ static void COPerformOpenStep(void (^block)(void))
 				}
 			}
 		} else if (nowPage < [completeMutableArray count]) {
-			/* No lookahead adds to the list any more (abandoned above), so
-			   an empty list will not fill by itself: read the page here, and
-			   only that one. */
+			/* No lookahead adds to the list any more (the request abandoned
+			   it), so an empty list will not fill by itself: take the page
+			   here, and only that one. */
 			if ([imageMutableArray count] == 0) [self lookaheadPages:1];
 			if ([imageMutableArray count] == 0) return;
 			//[self isSmallImage:[imageMutableArray objectAtIndex:0] page:nowPage+1];
@@ -3003,7 +2988,7 @@ static void COPerformOpenStep(void (^block)(void))
 			if (loopCheck == 0) {
 				nowPage = 0;
 				[self lookaheadAndCompose];
-				[self lockedImageDisplay];
+				[self showPagesFromList];
 			} else if (loopCheck == 1) {
 				[self nextFolder];
 				return;
@@ -3034,9 +3019,10 @@ static void COPerformOpenStep(void (^block)(void))
 
 - (void)setPreferences
 {
-	/* Below, the page and cache lists are changed and re-sorted on the main
-	   thread; no lookahead may be adding to them meanwhile (code review M5). */
-	[self waitForLookahead];
+	/* KNOWN_ISSUES #46: no wait for the lookahead here any more. The page
+	   list is changed below only through a display request (the spread
+	   setting's re-layout) or -setSortMode:page:, each of which keeps the
+	   lookahead out on its own. */
 	[keyArray release];
 	[keyArrayMode2 release];
 	[keyArrayMode3 release];
@@ -3150,27 +3136,19 @@ static void COPerformOpenStep(void (^block)(void))
 	}
 	if (singleSetting != [defaults integerForKey:@"SingleSetting"]) {
 		singleSetting = (int)[defaults integerForKey:@"SingleSetting"];
-		/* The sort-mode change above may have shown a page and detached a
-		   lookahead; let it publish before the list is changed below. */
-		[self waitForLookahead];
-		if ([imageView image]) {
+		/* The shown pages are laid out again when the new setting pairs them
+		   differently. KNOWN_ISSUES #46: as a display request (the re-layout
+		   body, -redisplayShownPagesBody), which a request already pending
+		   makes unnecessary — it lays out with the new setting anyway. */
+		if ([imageView image] && [self hasShownPage]) {
+			BOOL relayout;
 			if (secondImage) {
-				if (![self isSmallImage:firstImage page:nowPage-2] || ![self isSmallImage:secondImage page:nowPage-1]) {
-					[imageMutableArray insertObject:secondImage atIndex:0];
-					[imageMutableArray insertObject:firstImage atIndex:0];
-					[secondImage release];
-					secondImage = nil;
-					[firstImage release];
-					firstImage = nil;
-					nowPage-=2;
-					[self imageDisplay];
-				}
+				relayout = (![self isSmallImage:firstImage page:nowPage-2] || ![self isSmallImage:secondImage page:nowPage-1]);
 			} else {
-				if ([self isSmallImage:firstImage page:nowPage-1]) {
-					[imageMutableArray insertObject:firstImage atIndex:0];
-					nowPage--;
-					[self imageDisplay];
-				}
+				relayout = [self isSmallImage:firstImage page:nowPage-1];
+			}
+			if (relayout) {
+				[self requestDisplay:CODisplayRedisplay argument:0 after:nil];
 			}
 		}
 	}
@@ -3187,7 +3165,7 @@ static void COPerformOpenStep(void (^block)(void))
 			} else {
 				[imageView setImage:firstImage];
 			}
-			[self lookaheadAndCompose];
+			[self restartLookaheadUnlessPending];
 		}
 	} else if (maxEnlargement != [defaults integerForKey:@"MaxEnlargement"]) {
 		maxEnlargement = (int)[defaults integerForKey:@"MaxEnlargement"];
@@ -3197,7 +3175,7 @@ static void COPerformOpenStep(void (^block)(void))
 			} else {
 				[imageView setImage:firstImage];
 			}
-			[self lookaheadAndCompose];
+			[self restartLookaheadUnlessPending];
 		}
 	}
 	
@@ -3874,15 +3852,11 @@ static const NSInteger kBookmarkMenuFixedItemCount = 3;
 {
 	//BookmarkMenuItem's action
 	//NSLog(@"%d",[sender tag]);
+	if (![self hasBookOpen]) return;
 	[imageView setPageString:[NSString stringWithFormat:@"%@",[sender title]]];
-	/* No lookahead may be adding pages while the list changes below
-	   (code review M5). */
-	[self stopLookahead];
-	nowPage = [[sender representedObject] intValue] - 1;
-	[imageMutableArray removeAllObjects];
-	[self lookahead];
-	[self imageDisplay];
-
+	/* KNOWN_ISSUES #46: a go-to request (it used to read the bookmarked page
+	   and the next one on the main thread first). */
+	[self goTo:[[sender representedObject] intValue] - 1 array:nil];
 }
 
 
@@ -4182,11 +4156,26 @@ static const NSInteger kBookmarkMenuFixedItemCount = 3;
 	   window is closed is not going to finish opening. */
 	[self openDidEnd];
 
-	/* Was a bare [lock lock]/[lock unlock] pair, which waits only for a
-	   lookahead that is already *inside* the body. A thread detached a
-	   moment earlier and still blocked on that same lock would sail past it
-	   and go on writing into the arrays torn down below. */
-	[self joinLookaheadThreads];
+	/* KNOWN_ISSUES #46: the display request in flight, a re-sort waiting for
+	   the lane and the request held back behind it are dropped: their lane
+	   deliveries, which still hold this object, see the close count move and
+	   the lane cancelled, and do nothing. The spinner perform goes too.
+
+	   The lookahead is abandoned rather than waited for (it used to be
+	   -joinLookaheadThreads, a bounded wait). An abandoned thread publishes
+	   nothing into the arrays torn down below — it checks its generation
+	   under `lock` before touching them — and keeps its own references to
+	   the loader, this controller and the book's decodeLock until it ends. */
+	[self resetDisplayRequests];
+	[self abandonLookahead];
+	/* The previous book's pages, still up after a book switch, go before
+	   anything below reads "the shown page": the page recorded for the
+	   book being opened is then the one it was opening (nowPage), not one
+	   derived from the other book's spread. */
+	[NSObject cancelPreviousPerformRequestsWithTarget:self
+											 selector:@selector(blankStaleShownPages)
+											   object:nil];
+	[self blankStaleShownPages];
 	/* MW-6 item 4: tear the book down only if there is one. This used to test
 	   [[self window] isVisible], which is YES for the whole of -windowWillClose:
 	   even when the window is being closed by -openPage:last: after a failed
@@ -4212,11 +4201,7 @@ static const NSInteger kBookmarkMenuFixedItemCount = 3;
 		}
 		if (currentBookPath != nil) {
 			/*historyの処理*/
-			if (secondImage) {
-				nowPage -= 2;
-			} else {
-				nowPage--;
-			}
+			nowPage = [self firstShownPageIndex];
 			[appController recordBookSettingsOnWindowClose:currentBookPath
 													   name:currentBookName
 													  alias:currentBookAlias
@@ -4257,6 +4242,9 @@ static const NSInteger kBookmarkMenuFixedItemCount = 3;
 			[imageLoader release];
 			imageLoader = nil;
 		}
+		[bookLane cancel];
+		[bookLane release];
+		bookLane = nil;
 		/* MW-8: there is no book here to restore any more. */
 		[currentBookBookmark release];
 		currentBookBookmark = nil;
@@ -4483,6 +4471,9 @@ static const NSInteger kBookmarkMenuFixedItemCount = 3;
 
 -(NSString*)currentImagePath
 {
+	/* Nothing on screen yet (KNOWN_ISSUES #46): nowPage is the page being
+	   opened, not one after a shown page. */
+	if (![self hasShownPage]) return nil;
 	if (nowPage > 0 && nowPage <= (int)[completeMutableArray count]) {
 		return [completeMutableArray objectAtIndex:nowPage - 1];
 	}
@@ -4496,6 +4487,7 @@ static const NSInteger kBookmarkMenuFixedItemCount = 3;
 
 -(NSDictionary*)imageInfoForClickPoint:(NSPoint)windowPoint
 {
+	if (![self hasShownPage]) return nil;	/* see -currentImagePath */
 	if (nowPage <= 0 || nowPage > (int)[completeMutableArray count]) return nil;
 	if (!secondImage) {
 		NSString *path = [completeMutableArray objectAtIndex:nowPage - 1];
@@ -4785,6 +4777,582 @@ static const NSInteger kBookmarkMenuFixedItemCount = 3;
 		}
 	}
 	
+}
+
+@end
+
+#pragma mark -
+#pragma mark display requests (KNOWN_ISSUES #46)
+
+/* No page is read on the main thread. A navigation action is a display
+   request: the pages its body will read are planned from what is on screen
+   (CODisplayPlanFor), taken from what is on hand — the read-ahead list, the
+   pages on screen, the image cache — and the missing ones are read on the
+   book's lane (COBookReadLane). When they have arrived, the main-thread
+   completion runs the action's legacy body ("commits") with every page it
+   reads in readyPageImages, so the body never reaches the loader. A request
+   whose pages are all on hand commits at once, as a page turn always has.
+
+   While a request is pending, what is on screen does not change: nowPage,
+   imageMutableArray, firstImage and secondImage still describe the shown
+   pages, and everything that works on "the current page" works on those. A
+   new request supersedes it (the same action again is dropped, so repeated
+   steps during a wait collapse into one), a book switch, a close or a quit
+   cancels it, and its lane delivery then does nothing: the lane drops a
+   delivery whose token has moved on, and the completion below checks the
+   token, the lane, the close count and that the book is still open before it
+   touches anything. The delivery block retains this controller and the lane
+   until it has run, so it never messages a deallocated window controller.
+
+   Render path (CLAUDE.md): unchanged. The bodies hand the decoded images to
+   the view through -setImage:/-composeImage exactly as before; only the
+   moment they run has moved. */
+@implementation BookWindowController (DisplayRequest)
+
+- (BOOL)hasShownPage
+{
+	return firstImage != nil && !shownPagesStale;
+}
+
+- (int)firstShownPageIndex
+{
+	if (![self hasShownPage]) return nowPage;
+	return nowPage - (secondImage ? 2 : 1);
+}
+
+/* The previous book's pages, still up after a book switch whose first
+   display is taking longer than 0.2 s, leave the screen. */
+- (void)blankStaleShownPages
+{
+	if (!shownPagesStale) return;
+	shownPagesStale = NO;
+	[imageView setImage:nil];
+	[firstImage release];
+	firstImage = nil;
+	[secondImage release];
+	secondImage = nil;
+}
+
+- (CODisplayState)displayState
+{
+	BOOL shown = [self hasShownPage];
+	CODisplayState state;
+	state.nowPage = nowPage;
+	state.count = (int)[completeMutableArray count];
+	state.shown = shown;
+	state.spreadShown = (shown && secondImage != nil);
+	state.singleMode = (readMode > 1);
+	state.loopCheck = loopCheck;
+	return state;
+}
+
+/* A page the pending request's body reads, from what is on hand — never
+   decoded here. Found pages are kept in readyPageImages, which also keeps them
+   alive if the image cache trims them before the body runs. */
+- (NSImage *)gatherPage:(int)index
+{
+	if (index < 0 || index >= (int)[completeMutableArray count]) return nil;
+	NSNumber *key = [NSNumber numberWithInt:index];
+	NSImage *image = [readyPageImages objectForKey:key];
+	if (image) return image;
+	[lock lock];
+	if (index >= nowPage && index - nowPage < (int)[imageMutableArray count]) {
+		image = [[[imageMutableArray objectAtIndex:index - nowPage] retain] autorelease];
+	}
+	[lock unlock];
+	if (!image && [self hasShownPage]) {
+		if (secondImage) {
+			if (index == nowPage-2) image = firstImage;
+			else if (index == nowPage-1) image = secondImage;
+		} else if (index == nowPage-1) {
+			image = firstImage;
+		}
+	}
+	if (!image && cacheSize != 0) {
+		image = [self cachedImageNamed:[completeMutableArray objectAtIndex:index]];
+	}
+	if (image) [readyPageImages setObject:image forKey:key];
+	return image;
+}
+
+- (void)requestDisplay:(CODisplayAction)action argument:(int)argument after:(void (^)(void))after
+{
+	/* (A book switch has no lane between the old book's teardown and the new
+	   book's loader; nothing can ask for a display then.) */
+	if (![self hasBookOpen] || !bookLane) return;
+	/* A re-layout of the shown pages is not needed when another display is
+	   on its way: that one lays out with the new settings anyway. */
+	if (action == CODisplayRedisplay
+		&& (displayRequestPending || ((sortPending || committingDisplay) && deferredDisplayValid))) {
+		return;
+	}
+	/* Nothing on screen to step from: the book's first page has not arrived.
+	   Dropped here, before it could be held back below and take the place of
+	   a held-back jump or first display. */
+	if (CODisplayActionIsRelative(action) && ![self hasShownPage]) return;
+	/* Held back while a re-sort waits for the loader to be free, and while a
+	   body runs (a request from inside one runs after it). Latest wins, except
+	   that a step never replaces a held-back jump (-deferDisplayRequest:...). */
+	if (sortPending || committingDisplay) {
+		[self deferDisplayRequest:action argument:argument after:after];
+		return;
+	}
+	/* The same step again while it waits: one step, not two. */
+	if (displayRequestPending && pendingDisplayAction == action && pendingDisplayArgument == argument) return;
+
+	[self dropPendingDisplayRequestKeepingIndicator:YES];
+	[self abandonLookahead];
+
+	CODisplayPlan plan = CODisplayPlanFor(action, [self displayState], argument);
+	if (plan.kind != CODisplayPlanShow) {
+		[self stopDisplayWaitIndicator];
+		switch (plan.kind) {
+			case CODisplayPlanNextBook:
+				[self nextFolder];
+				break;
+			case CODisplayPlanPrevBook:
+				[self backFolder];
+				break;
+			case CODisplayPlanPrevBookLast:
+				[self backFolderLast];
+				break;
+			default:
+				break;
+		}
+		/* A slideshow continues from the next book's first display (its
+		   commit reschedules), not during its asynchronous open; an open that
+		   fails or is cancelled stops it (-abandonOpenWithLoader:...). */
+		if (!bookLoadInFlight) [self rescheduleSlideshowIfNeeded];
+		return;
+	}
+
+	displayRequestPending = YES;
+	pendingDisplayAction = action;
+	pendingDisplayArgument = argument;
+	displayRequestRounds = 0;
+	displayAfterBlock = [after copy];
+	readyPageImages = [[NSMutableDictionary alloc] init];
+	displayRequestToken = [bookLane beginRequest];
+	displayRequestCloseCount = windowCloseCount;
+	[self proceedWithDisplayRequest];
+}
+
+/* Plans the pending request again from the shown state (which has not
+   changed, unless a setting the plan depends on has), gathers its pages, and
+   either commits or asks the lane for the missing ones. In spread mode the
+   second page of a spread is asked for only once the first is known to be
+   small (B2: no second page decoded unless it is shown), which can take a
+   second round on the lane. */
+- (void)proceedWithDisplayRequest
+{
+	CODisplayPlan plan = CODisplayPlanFor((CODisplayAction)pendingDisplayAction, [self displayState], pendingDisplayArgument);
+	if (plan.kind != CODisplayPlanShow) {
+		[self cancelDisplayRequest];
+		[self rescheduleSlideshowIfNeeded];
+		return;
+	}
+	NSMutableArray *missing = [NSMutableArray array];
+	int i;
+	for (i = 0; i < plan.pageCount; i++) {
+		if (![self gatherPage:plan.pages[i]]) {
+			[missing addObject:[NSNumber numberWithInt:plan.pages[i]]];
+		}
+	}
+	if (plan.probe >= 0) {
+		NSImage *probeImage = [self gatherPage:plan.probe];
+		if (probeImage && [self isSmallImage:probeImage page:plan.probe+1]) {
+			if (![self gatherPage:plan.probe+1]) {
+				[missing addObject:[NSNumber numberWithInt:plan.probe+1]];
+			}
+		}
+	}
+	/* The round limit only matters if the loader keeps returning nothing for
+	   a page; the body then reads it itself (and the planner fault is
+	   logged), as it always has. */
+	if ([missing count] == 0 || displayRequestRounds >= 3) {
+		[self commitDisplayRequest];
+		return;
+	}
+	COBookReadLane *lane = bookLane;
+	unsigned int token = displayRequestToken;
+	unsigned int closeCount = displayRequestCloseCount;
+	[lane readPages:missing token:token completion:^(NSDictionary *images) {
+		[self displayPages:images arrivedForToken:token lane:lane closeCount:closeCount];
+	}];
+	[self scheduleDisplayWaitIndicator];
+}
+
+- (void)displayPages:(NSDictionary *)images
+	 arrivedForToken:(unsigned int)token
+				lane:(COBookReadLane *)lane
+		  closeCount:(unsigned int)closeCount
+{
+	if (!displayRequestPending
+		|| token != displayRequestToken
+		|| lane != bookLane
+		|| token != [lane currentToken]
+		|| windowCloseCount != closeCount
+		|| ![self hasBookOpen]) {
+		return;
+	}
+	int count = (int)[completeMutableArray count];
+	for (NSNumber *key in images) {
+		id image = [images objectForKey:key];
+		int index = [key intValue];
+		if (image == [NSNull null]) {
+			/* The loader returned nothing for the page (its -itemAtIndex:
+			   answers an unreadable page with the "broken" image, so this is
+			   a loader that could not even do that). It is answered all the
+			   same, with that image, rather than asked for again — and never
+			   read again on the main thread by the body. Not cached. */
+			[readyPageImages setObject:[self unreadablePageImage] forKey:key];
+			continue;
+		}
+		[readyPageImages setObject:image forKey:key];
+		/* As a lookahead does with a page it decoded. */
+		if (cacheSize != 0 && index < count) {
+			[self cacheImage:image named:[completeMutableArray objectAtIndex:index]];
+		}
+	}
+	[self trimImageCache];
+	displayRequestRounds++;
+	[self proceedWithDisplayRequest];
+}
+
+/* What a page the lane got nothing for is shown as: the image
+   -[COImageLoader itemAtIndex:] answers an unreadable page with, or an empty
+   one if even that is missing. */
+- (NSImage *)unreadablePageImage
+{
+	NSImage *image = [NSImage imageNamed:@"broken"];
+	if (!image) image = [[[NSImage alloc] initWithSize:NSMakeSize(1, 1)] autorelease];
+	return image;
+}
+
+- (void)runDisplayBody:(CODisplayAction)action argument:(int)argument
+{
+	switch (action) {
+		case CODisplayNext:			[self showPagesFromList]; break;
+		case CODisplayPrev:			[self prevPageBody]; break;
+		case CODisplayHalfNext:		[self halfNextPageBody]; break;
+		case CODisplayHalfPrev:		[self halfprevPageBody]; break;
+		case CODisplayLast:			[self goToLastBody]; break;
+		case CODisplayTop:
+		case CODisplayFirst:		[self goToFirstBody]; break;
+		case CODisplayGoTo:			[self goToPageBody:argument]; break;
+		case CODisplaySkip:			[self skipPagesBody:argument]; break;
+		case CODisplayBackSkip:		[self backSkipPagesBody:argument]; break;
+		case CODisplaySwitchSingle:	[self switchSingleBody]; break;
+		case CODisplayRedisplay:	[self redisplayShownPagesBody]; break;
+		case CODisplayOpenLast:		[self openLastBody]; break;
+		default: break;
+	}
+}
+
+/* What -imageDisplay used to do around -lockedImageDisplay, now around any
+   body: screen updates off while it swaps the pages, and the restorable state
+   invalidated afterwards (MW-8: the page this window would come back to has
+   changed; AppKit coalesces it). */
+- (void)commitDisplayRequest
+{
+	CODisplayAction action = (CODisplayAction)pendingDisplayAction;
+	int argument = pendingDisplayArgument;
+	void (^after)(void) = displayAfterBlock;	/* owned from here */
+	displayAfterBlock = nil;
+	displayRequestPending = NO;
+	[self stopDisplayWaitIndicator];
+	[self abandonLookahead];
+
+	NSDisableScreenUpdates();
+	if (shownPagesStale) {
+		/* The previous book's pages go now, replaced in this same update. */
+		[NSObject cancelPreviousPerformRequestsWithTarget:self
+												 selector:@selector(blankStaleShownPages)
+												   object:nil];
+		[self blankStaleShownPages];
+	}
+	committingDisplay = YES;
+	[self runDisplayBody:action argument:argument];
+	committingDisplay = NO;
+	[readyPageImages release];
+	readyPageImages = nil;
+	NSEnableScreenUpdates();
+	[[self window] invalidateRestorableState];
+
+	if (after) {
+		after();
+		[after release];
+	}
+	[self rescheduleSlideshowIfNeeded];
+	[self issueDeferredDisplayRequest];
+}
+
+- (void)dropPendingDisplayRequestKeepingIndicator:(BOOL)keepIndicator
+{
+	if (displayRequestPending) {
+		displayRequestPending = NO;
+		/* Its lane job stops before its next page and delivers nothing. */
+		[bookLane cancel];
+	}
+	[displayAfterBlock release];
+	displayAfterBlock = nil;
+	[readyPageImages release];
+	readyPageImages = nil;
+	if (keepIndicator) {
+		[self cancelDisplayWaitIndicatorPerform];
+	} else {
+		[self stopDisplayWaitIndicator];
+	}
+}
+
+- (void)cancelDisplayRequest
+{
+	[self dropPendingDisplayRequestKeepingIndicator:NO];
+}
+
+/* Everything of the current book's display flow: the pending request, a
+   re-sort waiting for the lane, the request held back behind it. For a book
+   switch, a close and a quit. */
+- (void)resetDisplayRequests
+{
+	[self dropPendingDisplayRequestKeepingIndicator:NO];
+	sortPending = NO;
+	deferredDisplayValid = NO;
+	[deferredDisplayAfterBlock release];
+	deferredDisplayAfterBlock = nil;
+	[self stopDisplayWaitIndicator];
+}
+
+/* The quit may still be cancelled (a logout another application refuses),
+   so nothing is lost here: the pending request's lane job is dropped — no
+   delivery after this — and the request is held back and issued again on a
+   later pass, which a quit that goes ahead never reaches. A re-sort waiting
+   for the lane is left as it is (dropping it would leave sortMode not
+   matching the page order), and a slide waiting for its page is
+   rescheduled. */
+- (BOOL)cancelDisplayRequestForTermination
+{
+	if (displayRequestPending) {
+		[self deferDisplayRequest:(CODisplayAction)pendingDisplayAction
+						 argument:pendingDisplayArgument
+							after:displayAfterBlock];
+		[self dropPendingDisplayRequestKeepingIndicator:NO];
+		if (!sortPending) {
+			[self performSelector:@selector(issueDeferredDisplayRequest) withObject:nil afterDelay:0.0];
+		}
+	}
+	[self rescheduleSlideshowIfNeeded];
+	return NO;
+}
+
+- (void)deferDisplayRequest:(CODisplayAction)action argument:(int)argument after:(void (^)(void))after
+{
+	/* A step from the shown pages does not replace a jump or a book's first
+	   display held back before it: the jump would be lost, and the step,
+	   planned from pages that are about to change (or are not there yet),
+	   means nothing without it. */
+	if (deferredDisplayValid
+		&& CODisplayActionIsRelative(action)
+		&& !CODisplayActionIsRelative((CODisplayAction)deferredDisplayAction)) {
+		return;
+	}
+	void (^copied)(void) = [after copy];
+	[deferredDisplayAfterBlock release];
+	deferredDisplayAfterBlock = copied;
+	deferredDisplayAction = action;
+	deferredDisplayArgument = argument;
+	deferredDisplayValid = YES;
+}
+
+- (void)issueDeferredDisplayRequest
+{
+	if (!deferredDisplayValid || sortPending || committingDisplay) return;
+	CODisplayAction action = (CODisplayAction)deferredDisplayAction;
+	int argument = deferredDisplayArgument;
+	void (^after)(void) = deferredDisplayAfterBlock;	/* owned from here */
+	deferredDisplayAfterBlock = nil;
+	deferredDisplayValid = NO;
+	[self requestDisplay:action argument:argument after:after];
+	[after release];
+}
+
+#pragma mark waiting feedback
+
+/* The existing spinner, after 0.2 s, for a request still waiting then. Never
+   a placeholder: what is on screen stays as it is. */
+- (void)scheduleDisplayWaitIndicator
+{
+	if (displayIndicatorShown || displayIndicatorDueToken) return;
+	displayIndicatorDueToken = [[NSNumber alloc] initWithUnsignedInt:displayRequestToken];
+	[self performSelector:@selector(displayWaitIndicatorDue:)
+			   withObject:displayIndicatorDueToken
+			   afterDelay:0.2
+				  inModes:[NSArray arrayWithObject:NSRunLoopCommonModes]];
+}
+
+- (void)displayWaitIndicatorDue:(NSNumber *)dueToken
+{
+	if (dueToken == displayIndicatorDueToken) {
+		[displayIndicatorDueToken release];
+		displayIndicatorDueToken = nil;
+	}
+	if (!displayRequestPending || [dueToken unsignedIntValue] != displayRequestToken
+		|| displayIndicatorShown || bookLoadInFlight) {
+		/* (an open in flight owns the spinner) */
+		return;
+	}
+	displayIndicatorShown = YES;
+	[progressIndicator startAnimation:self];
+}
+
+- (void)cancelDisplayWaitIndicatorPerform
+{
+	if (displayIndicatorDueToken) {
+		[NSObject cancelPreviousPerformRequestsWithTarget:self
+												 selector:@selector(displayWaitIndicatorDue:)
+												   object:displayIndicatorDueToken];
+		[displayIndicatorDueToken release];
+		displayIndicatorDueToken = nil;
+	}
+}
+
+- (void)stopDisplayWaitIndicator
+{
+	[self cancelDisplayWaitIndicatorPerform];
+	if (displayIndicatorShown) {
+		displayIndicatorShown = NO;
+		[progressIndicator stopAnimation:self];
+	}
+}
+
+#pragma mark slideshow and lookahead
+
+/* The slideshow timer is one-shot: each commit schedules the next slide, so
+   a slide that has to wait for its page delays the ones after it instead of
+   piling up requests (-doSlideshow). */
+- (void)rescheduleSlideshowIfNeeded
+{
+	if (timerSwitch && timer == nil && !displayRequestPending && !bookLoadInFlight && [self hasBookOpen]) {
+		timer = [NSTimer scheduledTimerWithTimeInterval:sliderValue
+												 target:self
+											   selector:@selector(doSlideshow)
+											   userInfo:NULL
+												repeats:NO];
+	}
+}
+
+/* Restarts reading ahead after a preference change re-showed the page
+   (formerly a main-thread two-page lookahead). Not while a request is
+   pending: only committed bodies detach a lookahead. */
+- (void)restartLookaheadUnlessPending
+{
+	if (displayRequestPending || committingDisplay || sortPending) return;
+	[self abandonLookahead];
+	[self detachLookaheadComposing:YES];
+}
+
+#pragma mark re-sort
+
+/* -setSortMode:page: re-sorts completeMutableArray, which is the loader's own
+   page list: no thread may be inside the loader meanwhile. The lane's
+   decodeLock is held by every background decode of the book, so holding it
+   is that guarantee. Got at once → sort now. Otherwise the sort waits for a
+   barrier on the lane, and display requests are held back meanwhile (the last
+   one is issued after the sort). A pending request is dropped: its pages are
+   indexes into the old order; one with no go-to after the sort to replace it
+   is held back and planned again afterwards. */
+- (void)sortPagesWhenLoaderIsFree:(int)mode page:(int)p
+{
+	[self abandonLookahead];
+	if (displayRequestPending && p < 0 && !deferredDisplayValid) {
+		[self deferDisplayRequest:(CODisplayAction)pendingDisplayAction
+						 argument:pendingDisplayArgument
+							after:displayAfterBlock];
+	}
+	[self dropPendingDisplayRequestKeepingIndicator:(p >= 0 || deferredDisplayValid)];
+	pendingSortMode = mode;
+	pendingSortPage = p;
+	sortPending = YES;
+	[self tryPendingSort];
+}
+
+- (void)tryPendingSort
+{
+	if (!sortPending) return;
+	NSLock *bookDecodeLock = [bookLane decodeLock];
+	if (bookDecodeLock && ![bookDecodeLock tryLock]) {
+		COBookReadLane *lane = bookLane;
+		unsigned int token = [lane beginRequest];
+		unsigned int closeCount = windowCloseCount;
+		[lane barrierWithToken:token completion:^{
+			if (lane != bookLane || windowCloseCount != closeCount || ![self hasBookOpen]) return;
+			[self tryPendingSort];
+		}];
+		return;
+	}
+	sortPending = NO;
+	int page = pendingSortPage;
+	[self sortPageList:pendingSortMode remember:(page > -1)];
+	[bookDecodeLock unlock];
+	if (page >= 0) {
+		/* A step held back during the sort would be planned from the pages
+		   still on screen and supersede this go-to; the go-to wins. A jump
+		   held back is newer than the sort's go-to and replaces it. */
+		if (deferredDisplayValid && CODisplayActionIsRelative((CODisplayAction)deferredDisplayAction)) {
+			deferredDisplayValid = NO;
+			[deferredDisplayAfterBlock release];
+			deferredDisplayAfterBlock = nil;
+		}
+		[self goTo:page array:nil];
+	}
+	[self issueDeferredDisplayRequest];
+}
+
+#pragma mark bodies kept in this file
+
+/* The shown pages laid out again (a read-mode change, or a spread setting
+   that pairs them differently): they go back to the front of the list and
+   are shown from it. Was the tail of -changeReadMode: and of the
+   SingleSetting branch of -setPreferences. */
+- (void)redisplayShownPagesBody
+{
+	if (![self hasShownPage]) return;
+	if (secondImage) {
+		nowPage -= 2;
+		[imageMutableArray insertObject:secondImage atIndex:0];
+		[imageMutableArray insertObject:firstImage atIndex:0];
+	} else if (firstImage) {
+		nowPage--;
+		[imageMutableArray insertObject:firstImage atIndex:0];
+	} else {
+		return;
+	}
+	[self showPagesFromList];
+}
+
+/* A book's first display on its last page: the last two pages, the first of
+   them dropped unless it is small. Was the `last` branch of
+   -openPageWithLoader:..., which read them on the main thread. */
+- (void)openLastBody
+{
+	[imageMutableArray removeAllObjects];
+	int temp = (int)[completeMutableArray count];
+	temp--;
+	if ([completeMutableArray count] > 1) {
+		temp--;
+		[imageMutableArray addObject:[self loadImage:temp]];
+		temp++;
+		[imageMutableArray addObject:[self loadImage:temp]];
+		if ([self isSmallImage:[imageMutableArray objectAtIndex:0] page:temp] == NO){
+			[imageMutableArray removeObjectAtIndex:0];
+			temp++;
+		}
+		temp--;
+	} else {
+		[imageMutableArray addObject:[self loadImage:temp]];
+	}
+	nowPage = temp;
+	[self showPagesFromList];
 }
 
 @end

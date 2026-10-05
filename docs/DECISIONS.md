@@ -1851,6 +1851,13 @@ archives and folders serialize or do not share state, but a PDF book's
 shared `COPDFImageRep` page state was already raced by main-thread drawing
 and is now raced slightly more often.
 
+*Updated 2026-10-05 (#46).* The waits themselves are gone:
+`-waitForLookahead`, `-stopLookahead`, `-joinLookaheadThreads` and
+`-waitForDisplayedPages` were removed. Every display request abandons the
+running lookahead; the book's `decodeLock` now belongs to its
+`COBookReadLane`, and a lookahead captures it at detach. See "Pages that
+are not ready are decoded off the main thread…" (2026-10-05).
+
 ## A book with no readable pages fails the open with an alert (2026-10-04)
 
 **Decision:** A book with nothing to show — an empty folder, an archive with
@@ -1978,3 +1985,45 @@ about 0.1 s on the main thread when a fully cached large book is closed;
 peak memory went down, not up. The bound keeps an ordinary book whole
 (decoded JPEG pages are about the size of the archive) without filling a
 nearly full disk. A crash leaves the files in the temporary directory.
+
+## Pages that are not ready are decoded off the main thread and the display is replayed (2026-10-05)
+
+**Decision:** Every navigation entry point (page turns, half steps, skips,
+first/last, jumps, bookmarks, slideshow, read-mode and single/spread changes,
+a book's first display) goes through `-requestDisplay:argument:after:`. A
+pure planner (`CODisplayPlanFor`, in `Sources/COBookReadLane.m`) names the
+pages the unchanged legacy body of that action will read, plus a "probe"
+page whose size decides whether a spread needs the next one. Pages already
+on hand (the lookahead's list, the shown pages, the image cache) are
+collected; if all are there the body runs at once, exactly as before.
+Otherwise the book's `COBookReadLane` (one serial queue per book, owning the
+book's `decodeLock`, with a token) decodes the missing pages and the body is
+replayed from a main-thread completion with those pages ready, so both
+pages of a spread are handed to `-setImages:` together. `nowPage`, the page
+list and the shown images change only when a body commits. A newer request
+supersedes a pending one (a repeated relative step during a wait is one
+step; a jump replaces anything); the slideshow's timer is one-shot and is
+rescheduled only after a slide commits; the spinner appears after 0.2 s;
+close, quit, book switch and re-sort drop pending results by token, and a
+re-sort waits for the lane through `tryLock` or a lane barrier. On a book
+switch the old pages stay up, marked stale, until the new first page
+commits, and are blanked after 0.2 s if it is slow. A page the lane cannot
+read shows the existing "broken" image without a second read on the main
+thread. A body that still reaches the loader logs a fault and reads
+synchronously as a fallback. The compiled-out switch `COVIEWER_REPRO_46`
+(decoded cache 8 MB, no decode-ahead) stays in `COArchive.m` and
+`COImageLoader.m` to reproduce slow solid reads on demand.
+
+**Why:** KNOWN_ISSUES #46 (owner task 2026-10-05, P2; design approved in
+chat, option A): a page read on the main thread froze the window for the
+whole decode, 6–7 s per back step in a large solid RAR5 once its pages had
+left the cache. Replaying the legacy bodies keeps every page-pairing rule
+as it was instead of rewriting them. Behaviour changes the owner accepted:
+repeated steps during one wait collapse into one; a slow book switch may
+blank the view (implemented as keeping the old pages until the new one is
+ready, blanking only after 0.2 s); a page that arrives while a menu is
+being tracked appears when the menu closes (completions run in the default
+and modal-panel modes). Not done (residue): the thumbnail panel and the
+page-bar bubble still read on the main thread; a decode in flight cannot be
+cancelled. The render path is unchanged: only when `-setImages:` is called
+moved, and each page is still drawn by one `drawInRect:`.

@@ -193,6 +193,11 @@ static NSString * const kLaunchRequestKindHelper = @"helper-url";
 		if ([aController cancelArchiveLoadForTermination]) {
 			dismissedAny = YES;
 		}
+		/* KNOWN_ISSUES #46: a page read in flight on a book's lane delivers
+		   nothing after this (it has no sheet to take down). */
+		if ([aController cancelDisplayRequestForTermination]) {
+			dismissedAny = YES;
+		}
 	}
 	return dismissedAny;
 }

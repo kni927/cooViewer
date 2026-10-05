@@ -182,6 +182,7 @@ clang -O2 -Wno-deprecated-declarations -Wno-unused-value \
     -I "$REPO_ROOT/vendor/include" \
     -I "$REPO_ROOT/Sources" \
     "$ENGINE_DIR/test_imageloader.m" "$REPO_ROOT/Sources/COImageLoader.m" \
+    "$REPO_ROOT/Sources/COBookReadLane.m" \
     "$REPO_ROOT/Sources/COPDFImage.m" "$REPO_ROOT/Sources/COPDFImageRep.m" \
     "$REPO_ROOT/Sources/COArchive.m" "$REPO_ROOT/Sources/COZipArchive.m" \
     "$REPO_ROOT/Sources/CORarArchive.m" "$REPO_ROOT/Sources/CORarHeaderIndex.m" \

@@ -1915,8 +1915,9 @@ left to a future task.
 P1).** `case 5` now ends with `break`. Every other case of that switch, and
 the key-action switch, was checked by reading and with clang's
 `-Wimplicit-fallthrough` (one warning before, none after); none falls
-through. Not yet confirmed on device: the background test tooling could not
-assign a mouse binding.
+through. Verified on device (2026-10-05) with a plain click temporarily
+bound to Skip/BackSkip, value 10: each click moved exactly 10 pages once,
+forward and back, with no extra page turn.
 
 The original report follows.
 
@@ -1932,7 +1933,28 @@ because it changes how far an existing binding moves.
 
 ---
 
-## 46. A solid book can stall for seconds per page under memory pressure, and the UI freezes meanwhile — PART 1 MITIGATED (2026-10-04)
+## 46. ~~A solid book can stall for seconds per page under memory pressure, and the UI freezes meanwhile~~ — FIXED (2026-10-05; part 1 mitigated 2026-10-04)
+
+**Part 2 fixed (task `docs/tasks/2026-10-05-01-skip-fallthrough-and-async-page-read.md`,
+P2).** No page read runs on the main thread any more: a page that is not
+ready is decoded on the book's `COBookReadLane` and shown from a main-thread
+completion if it is still wanted (`docs/DECISIONS.md`, "Pages that are not
+ready are decoded off the main thread and the display is replayed"). The
+stall itself (a solid page decoded again from the start) still takes as
+long as it takes, but the window stays responsive meanwhile. Reproduced
+before the fix with the compiled-out switch `COVIEWER_REPRO_46` (decoded
+cache 8 MB, no decode-ahead; build with
+`GCC_PREPROCESSOR_DEFINITIONS=COVIEWER_REPRO_46=1`): each back step on a
+300-page solid RAR5 froze the main thread 6–7 s in `prevPage` → main-thread
+lookahead → `-[CORarArchive dataForEntry:]` → `archive_read_data_skip`, with
+the menus dead. After the fix, with the same switch: the main thread waited
+in its run loop during each 5–10 s step while the lane decoded, menus
+answered, jumps during a wait landed on their target, spreads appeared
+whole, and close, quit, book switch and re-sort during a wait worked.
+Remaining synchronous (residue): the thumbnail panel and the page-bar
+bubble still decode on the main thread, and an in-flight decode cannot be
+cancelled, so a jump during a rewind lands after the current page finishes.
+
 
 Found during the on-device check of B2 (task
 `docs/tasks/2026-10-04-03-cleanup-and-performance.md`, 2026-10-04) on an

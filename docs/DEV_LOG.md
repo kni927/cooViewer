@@ -1210,3 +1210,12 @@ no longer wait behind unwanted prefetches (non-solid RAR5 27 → 14 ms), and
 solid RAR5 books are decoded ahead into a per-book disk cache (jumps and
 back-steps 2.6 s → 1–2 ms on a 557 MB book). Engine suite 504 + 101 checks.
 See `docs/tasks/2026-10-04-03-cleanup-and-performance.md`.
+
+### Mouse skip fix and no page reads on the main thread (2026-10-05, unreleased)
+
+The mouse skip action no longer turns one extra page (#45). A page that is
+not ready is decoded off the main thread and shown when it arrives, so a
+large solid book that has to decode again from the start no longer freezes
+the window: menus, other windows, quit and jumps keep working (#46).
+Engine suite 504 + 169 checks. See
+`docs/tasks/2026-10-05-01-skip-fallthrough-and-async-page-read.md`.

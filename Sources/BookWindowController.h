@@ -8,6 +8,7 @@
 #import "NSString_Compare.h"
 
 #import "COImageLoader.h"
+#import "COBookReadLane.h"
 
 @class AppController;
 
@@ -27,26 +28,65 @@
 	int threadCount;
 	/* Lookahead threads of the current generation that have been *detached*
 	   and not yet returned, including one that has not reached -lookahead
-	   yet. This is the one -joinLookaheadThreads waits on: `threadCount`
-	   cannot answer "is it safe to tear the book down", because a thread
-	   blocked on `lock` has not incremented it yet. Incremented on the main
-	   thread at the detach; a thread decrements it under `lock`, and only
-	   while its generation is still current; -abandonLookahead zeroes it
-	   when it ends the generation. */
+	   yet. Incremented on the main thread at the detach; a thread decrements
+	   it under `lock`, and only while its generation is still current;
+	   -abandonLookahead zeroes it when it ends the generation. Since
+	   KNOWN_ISSUES #46 nothing waits on it any more: the main thread never
+	   waits for a lookahead, it abandons it. */
 	_Atomic int pendingLookaheadCount;
 	/* Bumped whenever the main thread gives up on the running lookahead
-	   threads: a wait that timed out, -abandonLookahead (a page turn that
-	   has its pages, a jump), and every book teardown. Always bumped under
-	   `lock`. A thread is detached with the value current at that moment and
-	   returns without touching anything once it no longer matches, so a
-	   straggler cannot write into arrays the main thread has moved on with
-	   (code review M5). */
+	   threads: -abandonLookahead (every display request, a jump, every book
+	   teardown). Always bumped under `lock`. A thread is detached with the
+	   value current at that moment and returns without touching anything once
+	   it no longer matches, so a straggler cannot write into arrays the main
+	   thread has moved on with (code review M5). */
 	_Atomic unsigned int lookaheadGeneration;
-	/* Held by a detached lookahead while it decodes a page, which it does
-	   outside `lock` (B2). -waitForLookahead and -stopLookahead take it once
-	   at the end, as they used to take `lock`, so after either returns no
-	   lookahead — current or abandoned — is still inside the loader. */
-	NSLock *decodeLock;
+	/* KNOWN_ISSUES #46: the open book's read lane. It holds the loader, the
+	   book's decodeLock (held by every background decode of the book — lane
+	   jobs and detached lookaheads, which capture it at the detach) and the
+	   token of the display request in flight. Created when a book opens,
+	   cancelled and released when it is torn down. */
+	COBookReadLane *bookLane;
+
+	/* KNOWN_ISSUES #46: the display request in flight. A page turn whose pages
+	   are not all on hand is not shown at once: the missing pages are read on
+	   the lane, and the action's body runs ("commits") when they have arrived,
+	   from -proceedWithDisplayRequest. Until then nowPage, imageMutableArray,
+	   firstImage and secondImage still describe what is on screen. All of this
+	   is main-thread state. */
+	BOOL displayRequestPending;
+	unsigned int displayRequestToken;	/* the lane token of the request */
+	unsigned int displayRequestCloseCount;	/* windowCloseCount when it began */
+	int pendingDisplayAction;	/* a CODisplayAction */
+	int pendingDisplayArgument;
+	int displayRequestRounds;	/* lane deliveries so far */
+	id displayAfterBlock;	/* copied; run after the commit */
+	/* index -> NSImage: every page the request's body will read, taken from
+	   the list, the pages on screen, the image cache or the lane. Alive from
+	   the request until its commit; -loadImage: and the main-thread lookahead
+	   read from it first. */
+	NSMutableDictionary *readyPageImages;
+	/* YES while the body of a request runs. */
+	BOOL committingDisplay;
+	/* YES while firstImage/secondImage are still the previous book's pages,
+	   left on screen from a book switch until the new book's first display
+	   commits (or for at most 0.2 s, -blankStaleShownPages). They are not
+	   "what is shown" for the new book: -hasShownPage answers NO. */
+	BOOL shownPagesStale;
+	/* The spinner is on for a display request (or was handed over from the
+	   open, see -openPageWithLoader:...), and the request turns it off. */
+	BOOL displayIndicatorShown;
+	NSNumber *displayIndicatorDueToken;
+	/* A re-sort waiting for the lane and the lookahead to leave the loader
+	   (-setSortMode:page:), and the one display request held back meanwhile
+	   (also used for a request made while a body runs). Latest wins. */
+	BOOL sortPending;
+	int pendingSortMode;
+	int pendingSortPage;
+	BOOL deferredDisplayValid;
+	int deferredDisplayAction;
+	int deferredDisplayArgument;
+	id deferredDisplayAfterBlock;
 	/* Guards cacheArray: -loadImage: runs on lookahead threads and, for the
 	   thumbnail panel and the page-bar bubble, on the main thread at the
 	   same time (code review M8). Held only around the array operations,
@@ -500,23 +540,12 @@
 - (NSImage*)loadImage:(int)index;
 - (void)lookahead;
 - (void)lookaheadAndCompose;
-/* Waits for every detached lookahead thread of this window to return, so a
-   book can be torn down without one still writing into imageMutableArray /
-   cacheArray or reading imageLoader. Bounded — see the .m. */
-- (void)joinLookaheadThreads;
-/* The barrier before the main thread touches imageMutableArray: waits for
-   every detached lookahead to finish (-waitForLookahead), or asks running
-   ones to stop at their next page first (-stopLookahead). Replaces the old
-   `[lock lock]; [lock unlock];` barrier, which did not see a thread that
-   was detached but had not taken `lock` yet. */
-- (void)waitForLookahead;
-- (void)stopLookahead;
 /* Ends the current lookahead generation without waiting: a running
    lookahead finishes the page it is decoding, publishes nothing and
-   returns. For a jump, which changes only nowPage and imageMutableArray
-   and so need not wait for a page it is about to throw away. Not a
-   substitute for -stopLookahead before anything that changes the loader's
-   page list (a re-sort): an abandoned lookahead may still be reading it. */
+   returns. Every display request starts with it, and so does every book
+   teardown. Not enough on its own before anything that changes the loader's
+   page list (a re-sort): an abandoned lookahead may still be decoding, which
+   -setSortMode:page: rules out with the lane's decodeLock. */
 - (void)abandonLookahead;
 /* Starts a lookahead on its own thread, counted and tagged with the
    current generation. Every detach goes through here. */
@@ -527,8 +556,10 @@
 - (void)composeImage;
 
 
-- (void)imageDisplay;
-- (void)lockedImageDisplay;
+/* The body of the next-page action (formerly -lockedImageDisplay): shows the
+   next page or spread from imageMutableArray. Runs only inside a display
+   request's commit, where every page it reads is in readyPageImages. */
+- (void)showPagesFromList;
 
 
 - (void)setPreferences;
@@ -728,6 +759,66 @@
 
 - (void)nextOriginal;
 - (void)prevOriginal;
+
+/* KNOWN_ISSUES #46: the navigation entry points request a display; the
+   bodies below are the legacy code of each, run at the request's commit. */
+- (void)nextPage;
+- (void)halfNextPage;
+- (void)goToTop;
+- (void)skipPages:(int)value;
+- (void)backSkipPages:(int)value;
+
+- (void)prevPageBody;
+- (void)halfprevPageBody;
+- (void)halfNextPageBody;
+- (void)goToLastBody;
+- (void)goToFirstBody;
+- (void)goToPageBody:(int)page;
+- (void)skipPagesBody:(int)value;
+- (void)backSkipPagesBody:(int)value;
+- (void)switchSingleBody;
+/* The re-sort itself, once no thread is inside the loader. */
+- (void)sortPageList:(int)mode remember:(BOOL)remember;
+- (void)doSlideshow;
+@end
+
+/* KNOWN_ISSUES #46: display requests — no page is read on the main thread. */
+@interface BookWindowController (DisplayRequest)
+/* Asks for `action` to be shown. The pages its body reads are taken from what
+   is on hand; the missing ones are read on the book's lane, and the body runs
+   from the main-thread completion if the request is still the current one. A
+   new request supersedes a pending one (the same action again is dropped);
+   `after` runs after the body, and not at all if the request is superseded or
+   cancelled. Ignored without a book; relative actions are ignored while no
+   page is on screen. */
+- (void)requestDisplay:(CODisplayAction)action argument:(int)argument after:(void (^)(void))after;
+/* Drops the pending request, if any: its lane job stops and delivers nothing,
+   its `after` is released unrun, the spinner it started goes off. */
+- (void)cancelDisplayRequest;
+/* For a quit (-[AppController cancelPendingOpensForTermination]): the
+   pending request's lane job delivers nothing after this; the request is
+   issued again on a later pass in case the quit is cancelled. Never has a
+   sheet to take down, so always answers NO. */
+- (BOOL)cancelDisplayRequestForTermination;
+/* The index of the first page on screen, or — while nothing is (a book whose
+   first page has not arrived yet) — nowPage, the page being opened. What
+   RecentItems/LastPages and window restoration record. */
+- (int)firstShownPageIndex;
+/* Whether a page of this book is on screen: NO without a book, while its
+   first page has not arrived, and while the previous book's pages are still
+   up after a book switch. What relative actions and "the current page"
+   actions (trash, bookmarks, Show in Finder, original size) require. */
+- (BOOL)hasShownPage;
+
+/* Internal to the display flow (BookWindowController.m and _input.m). */
+- (void)resetDisplayRequests;
+- (void)rescheduleSlideshowIfNeeded;
+- (void)restartLookaheadUnlessPending;
+- (void)sortPagesWhenLoaderIsFree:(int)mode page:(int)p;
+- (void)redisplayShownPagesBody;
+- (void)openLastBody;
+- (void)blankStaleShownPages;
+- (void)issueDeferredDisplayRequest;
 @end
 
 @interface BookWindowController(private)

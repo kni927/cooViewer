@@ -457,10 +457,13 @@ static NSArray *_COImageLoader_archiveTypes=nil;
 	   temporary directory (see COArchive.h). Nested archives, archives in a
 	   folder or saved search, and the QuickLook extensions do not take this
 	   path. */
+	/* KNOWN_ISSUES #46 reproduction switch (TASK 2026-10-05); compiled out unless COVIEWER_REPRO_46 is defined. */
+#ifndef COVIEWER_REPRO_46
 	if (mode == 2 && [archiveContainer canDecodeAhead]) {
 		NSString *dir = [self temporaryDirectory];
 		if (dir) [archiveContainer setDecodeAheadDirectory:dir];
 	}
+#endif
 }
 
 - (void)cancelArchiveRead

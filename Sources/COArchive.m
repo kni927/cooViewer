@@ -15,6 +15,10 @@
 #include <uchardet.h>
 #include <locale.h>
 #include <sys/stat.h>
+#ifdef COVIEWER_REPRO_46
+/* KNOWN_ISSUES #46 reproduction switch (TASK 2026-10-05); compiled out unless COVIEWER_REPRO_46 is defined. */
+#include <os/log.h>
+#endif
 
 @implementation COArchiveEntry
 
@@ -548,6 +552,16 @@ uint64_t COArchiveDecodedCacheLimitForPhysicalMemory(uint64_t physicalMemory)
 
 NSUInteger COArchiveDecodedCacheLimit(void)
 {
+#ifdef COVIEWER_REPRO_46
+	/* KNOWN_ISSUES #46 reproduction switch (TASK 2026-10-05); compiled out unless COVIEWER_REPRO_46 is defined. */
+	static dispatch_once_t repro46Once;
+	dispatch_once(&repro46Once, ^{
+		os_log(os_log_create("jp.coo.cooViewer", "Repro46"),
+			   "COVIEWER_REPRO_46 repro switch active: decoded cache 8 MB, no decode-ahead");
+	});
+	return 8 * 1024 * 1024;
+#else
 	return (NSUInteger)COArchiveDecodedCacheLimitForPhysicalMemory(
 		[[NSProcessInfo processInfo] physicalMemory]);
+#endif
 }
