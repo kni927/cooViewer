@@ -38,10 +38,16 @@ instead (`/tf`, step 8).
    - `prompt`: the handover.
    If auto mode refuses the call, tell the owner and keep working until it
    is resolved.
-5. **Tell the others** with `send_message`, giving the successor's name and
+5. **Move this session's Routines.** With `list_triggers`, find the Routines
+   bound to this session (`persistent_session_id` is this session, or they
+   resume it). Create each again with `create_trigger`: same name, schedule,
+   and prompt, and `persistent_session_id` set to the successor. Then delete
+   the old one with `delete_trigger`. Routines that start a fresh session on
+   each firing need no change.
+6. **Tell the others** with `send_message`, giving the successor's name and
    session ID: upstream (Central HQ; when Central HQ itself hands over,
    Upstream HQ) and downstream (the Project HQs or TFs it coordinates).
-6. **Mark this session done.** Rename it with `set_session_title` to
+7. **Mark this session done.** Rename it with `set_session_title` to
    `✅ <name> (handover YYYY-MM-DD)`, using the owner's local date. End the
    reply with the ready-to-archive block from `docs/sessions.md`, stop taking
    work, and forward anything that still arrives to the successor.

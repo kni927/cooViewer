@@ -10,8 +10,10 @@ the `sync-projects` skill there.
 
 - **Central HQ** (cloud): oversees every session. Keeps track of what is open
   from `list_sessions`, relays between projects, receives reports that lost
-  their recipient, and tells the owner about items that have stalled. Does not
-  implement.
+  their recipient, and tells the owner about items that have stalled. Each
+  morning a Routine wakes it to look for local sessions left disconnected from
+  Remote Control (see Local sessions on the Mac, Lifetime) and to ask the
+  owner in its chat to run `/rc` in them. Does not implement.
 - **Upstream HQ** (cloud): policy shared by all repositories. Changes
   `kni927/dotfiles` and `kni927/repo-template` and carries the changes to the
   projects with the `sync-projects` skill. It is also the HQ of
@@ -267,10 +269,15 @@ The `hq-handover` skill walks through these steps.
    and Central HQ can attach repositories after a handover. If auto mode stops
    `create_session` or the successor needs that approval, tell the owner and
    keep working until it is resolved.
-3. Tell the successor's name upstream (Central HQ; when Central HQ itself
+3. Move the Routines that wake this session (`list_triggers`, those bound to
+   its session ID) to the successor: create each again with the same name,
+   schedule, and prompt and `persistent_session_id` set to the successor,
+   then delete the old one. A Routine is bound to one session and cannot be
+   rebound. Central HQ has at least the morning reconnect check.
+4. Tell the successor's name upstream (Central HQ; when Central HQ itself
    hands over, Upstream HQ) and downstream (the Project HQs or TFs it
    coordinates).
-4. Rename itself `✅ <name> (handover YYYY-MM-DD)` with `set_session_title`,
+5. Rename itself `✅ <name> (handover YYYY-MM-DD)` with `set_session_title`,
    using the owner's local date, show the ready-to-archive block, and stop
    taking work. The owner archives it.
 
