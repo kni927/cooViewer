@@ -2027,3 +2027,28 @@ and modal-panel modes). Not done (residue): the thumbnail panel and the
 page-bar bubble still read on the main thread; a decode in flight cannot be
 cancelled. The render path is unchanged: only when `-setImages:` is called
 moved, and each page is still drawn by one `drawInRect:`.
+
+## On-device checks change preferences and QuickLook registrations only through `tools/device_check.sh` (2026-10-06)
+
+**Decision:** test preferences are written with `tools/device_check.sh
+prefs-set` / `prefs-delete`, and the QuickLook / Thumbnail procedure
+registers and unregisters through `ql-register` / `ql-unregister`. The
+script fixes the preferences domain to `jp.coo.cooViewer`, refuses to write
+without a `prefs-backup`, and keeps the one-pass rule of KNOWN_ISSUES #15
+(`ql-register` refuses if `~/Applications/cooViewer.app` exists;
+`ql-unregister` deletes only a bundle whose identifier is
+`jp.coo.cooViewer`). `.claude/settings.json` is unchanged: the script was
+already excluded from the sandbox.
+
+**Why:** the permission log (dotfiles, "Log Claude Code permission dialogs
+with hooks") showed 115 sandbox-bypass dialogs from cooViewer sessions on
+2026-10-02 to 10-05, and after `device_check.sh` arrived the remaining ones
+were `defaults write` / `defaults export <file>` for test preferences and
+the QuickLook registration steps. The owner chose (2026-10-06, cooViewer
+HQ chat) option (a) of the dotfiles TF's proposal, subcommands in the
+script, over (b), domain-scoped `defaults write` exclusions in
+`.claude/settings.json`: with (a) no exclusion can reach another app's
+preferences, and the classifier is not the only guard. Listing
+(`pluginkit -m`, `lsregister -dump`, `defaults read`) needs no script; the
+global sandbox settings in dotfiles (37f125a) cover it.
+

@@ -149,7 +149,10 @@ Full procedural precedent: `docs/tasks/2026-07-26-02-release-v1.5.2.md`.
   substitution in the same call as `xcodebuild` takes that call out of
   the sandbox exclusions. Copying into `build/` works inside the
   sandbox; removing `$BUILD_TMP` does not (the sandbox cannot write
-  there), and neither do `pluginkit` or `lsregister`. The QuickLook
+  there). Registering or unregistering with `pluginkit` or `lsregister`
+  does not work inside the sandbox either (use `tools/device_check.sh`
+  below); listing with `pluginkit -m` (globally excluded) and
+  `lsregister -dump` does. The QuickLook
   extensions (`cooViewerThumbnail`, `cooViewerPreview`) are embedded in
   `cooViewer.app/Contents/PlugIns/` — do not copy the standalone `.appex`
   products into `build/`. The project no longer sets `SYMROOT`, so with a
@@ -194,9 +197,15 @@ Full procedural precedent: `docs/tasks/2026-07-26-02-release-v1.5.2.md`.
   the repository), `launch` (opens `build/cooViewer.app` by path), `quit`
   (sends the quit Apple event to the build's pid only, never to the
   Homebrew copy), `prefs-restore` (restores and verifies against the
-  backup) and `unregister` (`lsregister -u` for the build and the
-  intermediate product). Agents and their subagents may run these without
-  asking each time. The `device-check` and `build-app` skills give the
+  backup), `unregister` (`lsregister -u` for the build and the
+  intermediate product), `diag [secs]` (CPU, memory and state of the
+  build, optionally a `sample`), `prefs-set <key> <value>` and
+  `prefs-delete <key>` (change one `jp.coo.cooViewer` key for a test; the
+  domain is fixed in the script and a backup must exist), and
+  `ql-register` / `ql-unregister` (the QuickLook procedure below). Agents
+  and their subagents may run these without asking each time. Use them
+  instead of calling `defaults write`, `lsregister` or `pluginkit -a/-r`
+  directly. The `device-check` and `build-app` skills give the
   order of steps.
 - Do not launch a local build with computer use's `open_application`:
   it resolves the app by bundle ID and starts the Homebrew-managed
@@ -233,15 +242,16 @@ for this case.
 
 Perform steps 1-6 in a single session, without repeating installs.
 
-1. Copy `build/cooViewer.app` to `~/Applications/` (never `/Applications`).
-2. `lsregister -f ~/Applications/cooViewer.app`
-3. `pluginkit -a` to register the Preview and Thumbnail extensions
-   explicitly.
+1-3. `tools/device_check.sh ql-register`: copies `build/cooViewer.app` to
+   `~/Applications/` (never `/Applications`), runs
+   `lsregister -f ~/Applications/cooViewer.app`, and `pluginkit -a` for the
+   Preview and Thumbnail extensions. It refuses if the copy already exists.
 4. Confirm which bundle's extension Finder actually resolved — LaunchServices
     deduplicates by bundle ID, so if `/Applications` (the Homebrew build)
     is also registered, it may take priority over the `~/Applications` test
-    build even after `lsregister -f`. Check with `pluginkit -m | grep
-    coo.cooViewer` (or equivalent) before relying on the result. If the
+    build even after `lsregister -f`. `ql-register` ends by listing each
+    extension with `pluginkit -m -v -i <id>`; read the path there before
+    relying on the result. If the
     Homebrew build is being resolved instead, this step is not exercising
     the new binary — report it rather than treating the check as passed.
 5. Verify via Finder directly — Icon/List view for thumbnails, Space bar for
@@ -251,8 +261,9 @@ Perform steps 1-6 in a single session, without repeating installs.
    and switch to Finder rather than retrying.
 6. Complete all checks needed before cleanup — do not do a partial check,
    clean up, then come back for more in the same session.
-7. Clean up: `pluginkit -r` to unregister the extensions, then delete
-   `~/Applications/cooViewer.app`. Do **not** delete any `defaults` keys or
+7. Clean up: `tools/device_check.sh ql-unregister` (`pluginkit -r` for the
+   extensions, `lsregister -u`, then deletes `~/Applications/cooViewer.app`).
+   Do **not** delete any `defaults` keys or
    `NSUserDefaults` entries — only remove the app bundle and QuickLook
    registrations.
 

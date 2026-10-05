@@ -14,6 +14,14 @@
 #   prefs-restore  put the saved preferences back and verify them
 #   unregister     lsregister -u the build and the intermediate products
 #   diag [secs]    CPU/memory/state of the build; with secs, also `sample` it
+#   prefs-set <key> <defaults write value...>
+#                  write one jp.coo.cooViewer key for a test (needs a backup)
+#   prefs-delete <key>
+#                  delete one jp.coo.cooViewer key for a test (needs a backup)
+#   ql-register    copy the build to ~/Applications and register it and its
+#                  QuickLook extensions (CLAUDE.md, QuickLook steps 1-4)
+#   ql-unregister  unregister those extensions and that copy, then delete it
+#                  (CLAUDE.md, QuickLook step 7)
 #
 # The real (Homebrew) copy in /Applications shares the bundle id and the
 # preferences domain; nothing here launches, quits or unregisters it.
@@ -28,6 +36,8 @@ STATE_DIR="${TMP_ROOT}cooViewer-device-check"
 BACKUP="$STATE_DIR/prefs-backup.plist"
 ABSENT_MARK="$STATE_DIR/prefs-absent"
 BUILD_TMP="${TMP_ROOT}cooViewer-build"
+QL_APP="$HOME/Applications/cooViewer.app"
+PLUGINKIT="/usr/bin/pluginkit"
 LSREGISTER="/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister"
 
 die() { echo "device_check: $*" >&2; exit 1; }
@@ -197,6 +207,87 @@ cmd_diag() {
     awk '/^Call graph:/{f=1} f && /Thread_.*main-thread/{m=1} m{print; if (++n >= 40) exit}' "$out"
 }
 
+# Test preferences. The domain is fixed here, so these cannot touch another
+# app's preferences; a backup must exist so prefs-restore can undo them.
+require_backup() {
+    [ -f "$BACKUP" ] || [ -f "$ABSENT_MARK" ] ||
+        die "no preferences backup; run tools/device_check.sh prefs-backup first"
+}
+
+valid_key() {
+    case "$1" in
+        ""|-*|*[!A-Za-z0-9._-]*) die "invalid key: '$1'" ;;
+    esac
+}
+
+cmd_prefs_set() {
+    local key="${1:-}"
+    valid_key "$key"
+    shift
+    [ "$#" -gt 0 ] || die "prefs-set: give the value as defaults write takes it, e.g. -int 3 or -array -int 10 -int 0"
+    require_backup
+    defaults write "$DOMAIN" "$key" "$@"
+    echo "set $DOMAIN $key:"
+    defaults read "$DOMAIN" "$key"
+}
+
+cmd_prefs_delete() {
+    local key="${1:-}"
+    valid_key "$key"
+    require_backup
+    if defaults delete "$DOMAIN" "$key" 2>/dev/null; then
+        echo "deleted $DOMAIN $key"
+    else
+        echo "$DOMAIN has no key $key"
+    fi
+}
+
+# QuickLook / Thumbnail extensions, one pass (docs/KNOWN_ISSUES.md #15):
+# ql-register once, check in Finder, ql-unregister once.
+ql_appexes() {
+    local dir="$1/Contents/PlugIns" ex
+    [ -d "$dir" ] || return 0
+    for ex in "$dir"/*.appex; do
+        [ -d "$ex" ] && echo "$ex"
+    done
+    return 0
+}
+
+bundle_id() {
+    plutil -extract CFBundleIdentifier raw -o - "$1/Contents/Info.plist"
+}
+
+cmd_ql_register() {
+    [ -d "$APP" ] || die "no build at $APP"
+    [ ! -e "$QL_APP" ] || die "$QL_APP already exists; run ql-unregister first (one pass only, KNOWN_ISSUES #15)"
+    mkdir -p "$HOME/Applications"
+    ditto "$APP" "$QL_APP"
+    "$LSREGISTER" -f "$QL_APP"
+    echo "registered $QL_APP"
+    local ex id
+    while read -r ex; do
+        "$PLUGINKIT" -a "$ex"
+        echo "added extension $(bundle_id "$ex")"
+    done < <(ql_appexes "$QL_APP")
+    echo "which copy each extension resolves to (must be $QL_APP, not /Applications):"
+    while read -r ex; do
+        id="$(bundle_id "$ex")"
+        "$PLUGINKIT" -m -v -i "$id" || echo "  $id: not listed"
+    done < <(ql_appexes "$QL_APP")
+}
+
+cmd_ql_unregister() {
+    [ -d "$QL_APP" ] || { echo "no $QL_APP; nothing to unregister"; return 0; }
+    [ "$(bundle_id "$QL_APP")" = "$DOMAIN" ] || die "$QL_APP is not a cooViewer bundle; left untouched"
+    local ex
+    while read -r ex; do
+        "$PLUGINKIT" -r "$ex" && echo "removed extension $(bundle_id "$ex")"
+    done < <(ql_appexes "$QL_APP")
+    "$LSREGISTER" -u "$QL_APP" 2>/dev/null || true
+    rm -rf "$QL_APP"
+    echo "deleted $QL_APP"
+}
+
 case "${1:-}" in
     status)        cmd_status ;;
     prefs-backup)  cmd_prefs_backup ;;
@@ -205,5 +296,9 @@ case "${1:-}" in
     prefs-restore) cmd_prefs_restore ;;
     unregister)    cmd_unregister ;;
     diag)          cmd_diag "${2:-}" ;;
-    *) sed -n '2,18p' "$0" | sed 's/^# \{0,1\}//'; exit 2 ;;
+    prefs-set)     shift; cmd_prefs_set "$@" ;;
+    prefs-delete)  cmd_prefs_delete "${2:-}" ;;
+    ql-register)   cmd_ql_register ;;
+    ql-unregister) cmd_ql_unregister ;;
+    *) sed -n '2,27p' "$0" | sed 's/^# \{0,1\}//'; exit 2 ;;
 esac

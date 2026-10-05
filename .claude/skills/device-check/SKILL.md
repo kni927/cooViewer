@@ -25,7 +25,13 @@ do nothing.
    quit, script or change it.
 4. `tools/device_check.sh prefs-backup` if the check may change
    preferences (window frames count). It refuses to overwrite an earlier
-   backup; restore that one first.
+   backup; restore that one first. To set up a test preference, use
+   `tools/device_check.sh prefs-set <key> <value as defaults write takes it>`
+   (for example `prefs-set ReadMode -int 1`) and
+   `tools/device_check.sh prefs-delete <key>`, never `defaults write`
+   directly: the script fixes the domain to `jp.coo.cooViewer` and needs
+   the backup, so `prefs-restore` undoes it. Reading needs no script:
+   `defaults read jp.coo.cooViewer <key>` works in the sandbox.
 5. `tools/device_check.sh launch`. It opens the build by path and prints
    its pid. Never use computer use `open_application` (it starts the
    `/Applications` copy). A screenshot right after launch can be black.
@@ -63,3 +69,15 @@ do nothing.
    and the intermediate product and confirms none is left registered.
 10. Record in the task's Verification what passed, what could not be
     driven, and that preferences were restored and verified.
+
+## QuickLook / Thumbnail extensions
+
+Follow `CLAUDE.md` ("QuickLook / Thumbnail extensions") in one pass:
+
+1. `tools/device_check.sh ql-register` once. Read the extension paths it
+   lists at the end: they must be under `~/Applications`, not
+   `/Applications`; otherwise report that the Homebrew copy is resolved.
+2. Check in Finder (Icon/List view, Space bar). Finish every check first.
+3. `tools/device_check.sh ql-unregister` once. Do not register again in
+   the same session; if Finder misbehaves, stop and report (KNOWN_ISSUES
+   #15).
