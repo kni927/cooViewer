@@ -292,10 +292,16 @@ exists only in chat.
   (another repository, a second clone, or a worktree) may run at the same time,
   but still take turns with what the Mac has only once: the installed app and
   its preferences, simulators and devices, signing, and releases.
-- **Lifetime:** quitting the Claude app archived the local sessions connected
-  through Remote Control, and restarting the app did not bring them back.
-  Computer-use app access is granted per session, so a long-lived TF asks for
-  it once.
+- **Lifetime:** after the Claude app restarts (by hand, an automatic update,
+  or a Mac restart), local sessions stay in the app's list but are
+  disconnected from Remote Control. Running `/rc` in the session, or sending
+  it any message in the app, reconnects it within seconds under the same
+  session ID. Messages sent from the cloud meanwhile are not delivered until
+  it reconnects; the cloud cannot wake it. An automatic update may restart
+  the app unattended (for example at night), so a TF stays unreachable from
+  its HQ until the owner runs `/rc` in it (anthropics/claude-code#93288,
+  #98711). Computer-use app access is granted per session, so a long-lived TF
+  asks for it once.
 - **Archiving:** the Web and the Mac app can disagree about a local session's
   state (see `docs/AGENT_PARITY.md` in `kni927/dotfiles`). The owner archives
   local sessions from the Mac app's sidebar. HQs do not archive local sessions
