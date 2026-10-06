@@ -1219,3 +1219,17 @@ large solid book that has to decode again from the start no longer freezes
 the window: menus, other windows, quit and jumps keep working (#46).
 Engine suite 504 + 169 checks. See
 `docs/tasks/2026-10-05-01-skip-fallthrough-and-async-page-read.md`.
+
+### v1.6.7 released (2026-10-06)
+
+Released from `7bd15ef`: CI run `37463335896` signed, notarized, stapled and
+published the auto-hide fix, the Resolution preferences, faster RAR reading
+(direct positioning, prefetch cancellation, solid RAR5 decode-ahead), page
+reads off the main thread, non-blocking book loads, the empty-book message,
+quitting with the All Bookmarks browser open, the mouse skip fix and the
+code-review fixes; Homebrew tap commit `08aa5fc`. The installed release passed
+Gatekeeper and signature checks, CBZ, non-solid and solid RAR5 paging and
+jumps, the empty/unreadable book messages, the Resolution section, quitting
+from the All Bookmarks browser, spreads, Quick Look and thumbnails (both
+extensions attributed to `/Applications`). See
+`docs/tasks/2026-10-06-02-release-v1.6.7.md`.
