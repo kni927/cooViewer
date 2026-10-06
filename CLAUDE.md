@@ -213,7 +213,7 @@ Full procedural precedent: `docs/tasks/2026-07-26-02-release-v1.5.2.md`.
   order of steps.
 - Commands that the global or project settings already run outside the
   sandbox (`tools/device_check.sh`, `tools/update_tap.sh`, `xcodebuild`,
-  `pluginkit -m`, `ps`, `top`, `pgrep`, `sysctl`, `sample`, `log show`)
+  `pluginkit -m`, `codesign -dvv`, `ps`, `top`, `pgrep`, `sysctl`, `sample`, `log show`)
   are run alone in their call, as written: no pipe, `;`, `&&`,
   redirect or `$(...)`, and never with `dangerouslyDisableSandbox`. A
   pipe or chain keeps the whole call sandboxed and then fails; read the
