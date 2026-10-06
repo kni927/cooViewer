@@ -22,6 +22,9 @@
 #                  QuickLook extensions (CLAUDE.md, QuickLook steps 1-4)
 #   ql-unregister  unregister those extensions and that copy, then delete it
 #                  (CLAUDE.md, QuickLook step 7)
+#   capture [x,y,w,h]
+#                  screenshot (whole screen, or that rectangle in points) to
+#                  a new file outside the repository; prints its path
 #
 # The real (Homebrew) copy in /Applications shares the bundle id and the
 # preferences domain; nothing here launches, quits or unregisters it.
@@ -288,6 +291,22 @@ cmd_ql_unregister() {
     echo "deleted $QL_APP"
 }
 
+# Screen capture for checks and spread comparisons (CLAUDE.md, "Spread
+# Capture & Comparison Methodology"). Output always goes to $STATE_DIR.
+# Screen Recording must be granted to the process that runs this.
+cmd_capture() {
+    local rect="${1:-}" args=(-x)
+    if [ -n "$rect" ]; then
+        [[ "$rect" =~ ^[0-9]+,[0-9]+,[0-9]+,[0-9]+$ ]] || die "capture: rectangle must be x,y,w,h"
+        args+=(-R "$rect")
+    fi
+    mkdir -p "$STATE_DIR"
+    local out="$STATE_DIR/capture-$(date +%Y%m%d-%H%M%S)-$$.png"
+    screencapture "${args[@]}" "$out" || die "screencapture failed (Screen Recording permission?)"
+    [ -s "$out" ] || die "screencapture wrote nothing (Screen Recording permission?)"
+    echo "$out"
+}
+
 case "${1:-}" in
     status)        cmd_status ;;
     prefs-backup)  cmd_prefs_backup ;;
@@ -300,5 +319,6 @@ case "${1:-}" in
     prefs-delete)  cmd_prefs_delete "${2:-}" ;;
     ql-register)   cmd_ql_register ;;
     ql-unregister) cmd_ql_unregister ;;
-    *) sed -n '2,27p' "$0" | sed 's/^# \{0,1\}//'; exit 2 ;;
+    capture)       cmd_capture "${2:-}" ;;
+    *) sed -n '2,30p' "$0" | sed 's/^# \{0,1\}//'; exit 2 ;;
 esac

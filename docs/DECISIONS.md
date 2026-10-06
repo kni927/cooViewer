@@ -2052,3 +2052,22 @@ preferences, and the classifier is not the only guard. Listing
 (`pluginkit -m`, `lsregister -dump`, `defaults read`) needs no script; the
 global sandbox settings in dotfiles (37f125a) cover it.
 
+
+## Screenshots and the tap update also go through project scripts (2026-10-06)
+
+**Decision:** `tools/device_check.sh capture [x,y,w,h]` takes screenshots
+into a new file outside the repository, and `tools/update_tap.sh
+<version>` updates `Casks/cooviewer.rb` in the tap checkout (download,
+sha256, rewrite, diff, local commit; never a push). Both run outside the
+sandbox through `sandbox.excludedCommands`. `CLAUDE.md` now says that
+commands already excluded (globally or here) are run alone, without pipes
+or chains and without `dangerouslyDisableSandbox`, and that `$BUILD_TMP` is
+not removed after a build.
+
+**Why:** Upstream HQ's weekly permission-log report (2026-10-06) counted
+about 35 bypasses that came only from piping or chaining excluded commands
+or from adding `dangerouslyDisableSandbox` to them, removals of
+`/var/folders/...` build directories, about 10 for the tap update and 7 for
+`screencapture`. The owner approved items 3 to 6 of that report in the
+cooViewer HQ chat on 2026-10-06. The tap push stays a separate, visible
+step.

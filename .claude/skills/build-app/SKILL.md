@@ -45,4 +45,5 @@ context.
    After the task's on-device checks (or at once if there are none), run
    `tools/device_check.sh unregister` (see the `device-check` skill).
 
-Removing `<BUILD_TMP>` does not work inside the sandbox and is not needed.
+Do not remove `<BUILD_TMP>`: it is outside the repository, the next build
+reuses it, and removing it needs a sandbox bypass.

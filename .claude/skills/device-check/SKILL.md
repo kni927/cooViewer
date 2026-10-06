@@ -46,6 +46,9 @@ do nothing.
    - A password field uses secure input: synthetic key events do not reach
      it. Say so instead of reporting the step as passed.
    - A keystroke expected to change nothing needs proof it was delivered.
+   - Screenshots: `tools/device_check.sh capture` (or `capture x,y,w,h`
+     for a region) writes a new PNG outside the repository and prints its
+     path; use it instead of calling `screencapture` directly.
    - If computer use stops with "user interrupt" although the owner did
      nothing (seen 2026-10-04, cause unknown), continue with background
      means and record it. The single-app `app_*` tools kept working when

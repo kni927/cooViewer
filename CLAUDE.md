@@ -103,7 +103,9 @@ report — secret *names* are visible in Settings even though values are not.
   (ad-hoc signing, clearing quarantine, disabling checks) — none of these
   substitute for a passing notarization.
 - After the release exists, update the Homebrew tap formula (`kni927/tap`,
-  `cooviewer`): version, URL, sha256 — then confirm a fresh install
+  `cooviewer`): version, URL, sha256, with `tools/update_tap.sh <version>`
+  (run alone; it downloads the release zip, rewrites the cask, shows the
+  diff and commits locally, never pushes) — then confirm a fresh install
   resolves to the new version and launches. The tap update, including its
   push to `kni927/homebrew-tap`, is part of the authorized release and needs
   no separate approval.
@@ -202,11 +204,24 @@ Full procedural precedent: `docs/tasks/2026-07-26-02-release-v1.5.2.md`.
   build, optionally a `sample`), `prefs-set <key> <value>` and
   `prefs-delete <key>` (change one `jp.coo.cooViewer` key for a test; the
   domain is fixed in the script and a backup must exist), and
-  `ql-register` / `ql-unregister` (the QuickLook procedure below). Agents
+  `ql-register` / `ql-unregister` (the QuickLook procedure below), and
+  `capture [x,y,w,h]` (a screenshot into a new file outside the
+  repository, for checks and the spread comparison below). Agents
   and their subagents may run these without asking each time. Use them
   instead of calling `defaults write`, `lsregister` or `pluginkit -a/-r`
   directly. The `device-check` and `build-app` skills give the
   order of steps.
+- Commands that the global or project settings already run outside the
+  sandbox (`tools/device_check.sh`, `tools/update_tap.sh`, `xcodebuild`,
+  `pluginkit -m`, `ps`, `top`, `pgrep`, `sysctl`, `sample`, `log show`)
+  are run alone in their call, as written: no pipe, `;`, `&&`,
+  redirect or `$(...)`, and never with `dangerouslyDisableSandbox`. A
+  pipe or chain keeps the whole call sandboxed and then fails; read the
+  output instead of filtering it. Write `log show`, not `/usr/bin/log
+  show`.
+- Do not remove `$BUILD_TMP` (or anything under `/var/folders/`) after a
+  build: it is outside the repository, the next build reuses it, and
+  removing it needs a sandbox bypass.
 - Do not launch a local build with computer use's `open_application`:
   it resolves the app by bundle ID and starts the Homebrew-managed
   `/Applications` copy instead. Launch the build by path
