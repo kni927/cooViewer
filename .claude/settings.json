@@ -2,7 +2,8 @@
   "sandbox": {
     "excludedCommands": [
       "tools/device_check.sh *",
-      "tools/update_tap.sh *"
+      "tools/update_tap.sh *",
+      "codesign -dvv *"
     ]
   }
 }

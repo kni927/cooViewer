@@ -27,7 +27,7 @@ CASK="$TAP/Casks/cooviewer.rb"
 [ -f "$CASK" ] || die "no $CASK"
 git -C "$TAP" remote get-url origin | grep -q 'kni927/homebrew-tap' ||
     die "$TAP is not a kni927/homebrew-tap checkout"
-[ -z "$(git -C "$TAP" status --porcelain)" ] || die "$TAP has uncommitted changes; leave them to the owner"
+[ -z "$(git -C "$TAP" status --porcelain --untracked-files=no)" ] || die "$TAP has uncommitted changes; leave them to the owner"
 
 URL="https://github.com/kni927/cooViewer/releases/download/v$VERSION/cooViewer-v$VERSION.zip"
 WORK="$(getconf DARWIN_USER_TEMP_DIR)cooViewer-tap"
