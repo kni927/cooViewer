@@ -167,7 +167,10 @@ cmd_prefs_restore() {
 cmd_unregister() {
     [ -z "$(build_pids)" ] || die "quit the build copy first (tools/device_check.sh quit)"
     local p
-    for p in "$APP" "$BUILD_TMP/sym/Deployment/cooViewer.app"; do
+    # Every intermediate product under $BUILD_TMP, not only sym/: a build
+    # with other SYMROOTs (a repro variant in repro-sym/, for example) is
+    # registered too and keeps its extensions in pluginkit.
+    for p in "$APP" "$BUILD_TMP"/*/Deployment/cooViewer.app; do
         [ -d "$p" ] || continue
         # -10814 (kLSApplicationNotFoundErr) only means it was not registered
         local err rc=0
@@ -183,9 +186,15 @@ cmd_unregister() {
     done
     local left
     left="$("$LSREGISTER" -dump | grep -E "path: +($APP|$BUILD_TMP)" || true)"
-    if [ -n "$left" ]; then
+    # pluginkit keeps its own list of the embedded extensions
+    local ex_left
+    ex_left="$("$PLUGINKIT" -mADv -i jp.coo.cooViewer.QuickLookPreview 2>/dev/null
+               "$PLUGINKIT" -mADv -i jp.coo.cooViewer.QuickLookThumbnail 2>/dev/null)"
+    ex_left="$(printf '%s\n' "$ex_left" | grep -F -e "$APP/" -e "$BUILD_TMP/" || true)"
+    if [ -n "$left" ] || [ -n "$ex_left" ]; then
         echo "still registered:" >&2
-        echo "$left" >&2
+        [ -z "$left" ] || echo "$left" >&2
+        [ -z "$ex_left" ] || echo "$ex_left" >&2
         exit 1
     fi
     echo "no build or intermediate product left registered"
@@ -276,6 +285,12 @@ cmd_ql_register() {
     while read -r ex; do
         id="$(bundle_id "$ex")"
         "$PLUGINKIT" -m -v -i "$id" || echo "  $id: not listed"
+    done < <(ql_appexes "$QL_APP")
+    # every registered copy, duplicates included: with several copies of the
+    # same version, which one Finder uses is not fixed
+    echo "all registered copies (-A all versions, -D duplicates):"
+    while read -r ex; do
+        "$PLUGINKIT" -mADv -i "$(bundle_id "$ex")" || true
     done < <(ql_appexes "$QL_APP")
 }
 
