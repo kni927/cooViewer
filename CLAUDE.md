@@ -269,6 +269,11 @@ Perform steps 1-6 in a single session, without repeating installs.
     relying on the result. If the
     Homebrew build is being resolved instead, this step is not exercising
     the new binary — report it rather than treating the check as passed.
+    It also prints `pluginkit -mADv` for each extension: every registered
+    copy, duplicates included. With several copies of the same version,
+    Finder may use any of them; check which one actually ran (for example
+    with `ps`), and report a check served by the `/Applications` copy as
+    not verified — the release artifact verification covers it.
 5. Verify via Finder directly — Icon/List view for thumbnails, Space bar for
    Quick Look preview. Prefer this over `qlmanage`; on this machine
    `qlmanage -t`/`-p` have hung even on non-encrypted files in past
