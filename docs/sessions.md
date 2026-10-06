@@ -93,7 +93,8 @@ Send each message only to the sessions that need it.
   and the message does arrive. Once that bug is fixed, reply to the session ID
   in the received message's `from-session` instead, which does not depend on
   unique names. The TF tells the owner in one line where it sent the message,
-  without saying whether it was read; the HQ does not acknowledge receipt.
+  without saying whether it was read or that delivery is one-way; the HQ does
+  not acknowledge receipt. Every session reports its sends this way.
 - **Fallback:** if the Project HQ cannot be reached, for example because it is
   archived, send to `Central HQ`. Central HQ summarizes for the owner and forwards to a successor
   Project HQ if there is one.
