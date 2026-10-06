@@ -326,7 +326,10 @@ exists only in chat.
   it reconnects; the cloud cannot wake it. An automatic update may restart
   the app unattended (for example at night), so a TF stays unreachable from
   its HQ until the owner runs `/rc` in it (anthropics/claude-code#93288,
-  #98711). Computer-use app access is granted per session, so a long-lived TF
+  #98711). With a local base session on that Mac (for example `Mac mini HQ`),
+  the owner runs `/rc` only there and asks it to run the `wake-local` skill,
+  which sends every disconnected local session a short message; a message
+  reconnects a session, as `/rc` does. Computer-use app access is granted per session, so a long-lived TF
   asks for it once.
 - **Archiving:** the Web and the Mac app can disagree about a local session's
   state (see `docs/AGENT_PARITY.md` in `kni927/dotfiles`). The owner archives
