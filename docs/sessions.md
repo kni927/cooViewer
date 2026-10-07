@@ -63,6 +63,13 @@ the `sync-projects` skill there.
   session renames itself (as the `/tf` skill does), Mac mini HQ renames its
   Local Routines, or the owner does it in the app. A name set from the cloud
   (`set_session_title`) may not appear in the Mac app.
+- **Let local sessions name themselves:** the owner does not type a local
+  session's title; the session sets it (`/tf` does, and any other session
+  does when asked, for example "name yourself 🖥️ Mac mini HQ"). The app asks
+  the owner before a session replaces a title the owner typed, even in auto
+  mode, but not one a session or the app set, so later renames such as adding
+  `✅` go through without a card. A session with an owner-typed title shows
+  the card once; after that its title counts as set by the session.
 - Do not write session IDs into repository files. Refer to sessions by name, and
   look up current IDs with `ListAgents` or `list_sessions`.
 
