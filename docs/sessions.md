@@ -343,8 +343,11 @@ exists only in chat.
   once. They have the `claude-code-remote` tools but not the desktop app's
   session tools, and do not appear in the Mac app. They stop answering when
   the server stops; running `claude remote-control` in the same folder within
-  about four hours brings them back. The owner starts the server only when
-  this is wanted; the card (`offer-tf`) stays the default.
+  about four hours brings them back. Archiving such a session removes its
+  worktree at once (2026-10-07), and unarchiving brings back neither the
+  worktree nor the connection, only the record on claude.ai; so the TF
+  commits and merges or pushes before it is archived. The owner starts the
+  server only when this is wanted; the card (`offer-tf`) stays the default.
 - **A TF in a worktree** works in `.claude/worktrees/<name>/` on a
   `claude/<name>` branch created from the main clone's local `HEAD`. It
   commits on that branch and merges into `main` only when the TASK says so
