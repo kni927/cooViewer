@@ -56,9 +56,13 @@ the `sync-projects` skill there.
 - **A repository's HQ:** `<repo> HQ` for a project; `Upstream HQ` for
   `kni927/dotfiles`, `kni927/repo-template`, and `kni927/home-server` (there is
   no `dotfiles HQ`); `Central HQ` for `kni927/HQ`. `kni927/gateway` has none.
-- A name set from the cloud (`set_session_title`) may not appear in the Mac app.
-  Name a local session on the Mac, or let it name itself as the `/tf` skill
-  does.
+- **Routines carry the same mark:** `☁️` for a cloud Routine, `🖥️` or `💻` for a
+  Local Routine (a desktop scheduled task) on that Mac.
+- **Who renames:** a cloud session renames only cloud sessions and cloud
+  Routines. A local session and a Local Routine are renamed on their Mac: the
+  session renames itself (as the `/tf` skill does), Mac mini HQ renames its
+  Local Routines, or the owner does it in the app. A name set from the cloud
+  (`set_session_title`) may not appear in the Mac app.
 - Do not write session IDs into repository files. Refer to sessions by name, and
   look up current IDs with `ListAgents` or `list_sessions`.
 
@@ -359,9 +363,12 @@ exists only in chat.
   reads cost more in a day than one rewrite when the session is next used.
 - **Archiving:** the Web and the Mac app can disagree about a local session's
   state (see `docs/AGENT_PARITY.md` in `kni927/dotfiles`). The owner archives
-  local sessions from the Mac app's sidebar. HQs do not archive local sessions
-  from the cloud, and a TF cannot archive itself while its own turn and Remote
-  Control connection are live.
+  local sessions from the Mac app's sidebar. No cloud session archives a local
+  session, even when the owner asks: on 2026-10-07 a local session archived
+  from the cloud stayed in the Mac app until the owner archived it there too.
+  Tell the owner to archive it in the Mac app instead; this holds while the two
+  disagree. A TF cannot archive itself while its own turn and Remote Control
+  connection are live.
 - **Subagents:** a TF hands heavy work (builds, test runs, investigations,
   computer-use checks) to subagents (the Agent tool), so what they read does
   not fill the TF's context. Their permission dialogs and computer-use access
