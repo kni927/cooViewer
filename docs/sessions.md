@@ -12,8 +12,10 @@ the `sync-projects` skill there.
   from `list_sessions`, relays between projects, receives reports that lost
   their recipient, and tells the owner about items that have stalled. Each
   morning a Routine wakes it to look for local sessions left disconnected from
-  Remote Control (see Local sessions on the Mac, Lifetime) and to ask the
-  owner in its chat to run `/rc` in them. Does not implement.
+  Remote Control (see Local sessions on the Mac, Lifetime). It lists them in
+  its chat with their context size and asks for a reconnect only for
+  sessions that have work waiting; it suggests wrapping up the others. Does
+  not implement.
 - **Upstream HQ** (cloud): policy shared by all repositories. Changes
   `kni927/dotfiles` and `kni927/repo-template` and carries the changes to the
   projects with the `sync-projects` skill. It is also the HQ of
@@ -331,10 +333,19 @@ exists only in chat.
   the app unattended (for example at night), so a TF stays unreachable from
   its HQ until the owner runs `/rc` in it (anthropics/claude-code#93288,
   #98711). With a local base session on that Mac (for example `Mac mini HQ`),
-  the owner runs `/rc` only there and asks it to run the `wake-local` skill,
-  which sends every disconnected local session a short message; a message
-  reconnects a session, as `/rc` does. Computer-use app access is granted per session, so a long-lived TF
-  asks for it once.
+  the owner runs `/rc` only there and asks it to run the `wake-local` skill.
+  It lists the disconnected sessions with their context size and sends a
+  short message only to those the owner picks; a message reconnects a
+  session, as `/rc` does. Waking costs one turn that re-reads the session's
+  whole context, so a session is woken only when work is about to go to it;
+  a TASK sent to it later reconnects it just as well. Computer-use app access
+  is granted per session, so a long-lived TF asks for it once.
+- **Keep TFs short:** a TF serves one task and wraps up when it is done. Every
+  turn after an idle hour rewrites the whole context into the prompt cache, so
+  a TF kept for days at several hundred thousand tokens makes each later turn,
+  even a one-line reply, expensive. What the next TF needs goes into the
+  repository. Do not keep sessions warm with periodic messages: hourly cache
+  reads cost more in a day than one rewrite when the session is next used.
 - **Archiving:** the Web and the Mac app can disagree about a local session's
   state (see `docs/AGENT_PARITY.md` in `kni927/dotfiles`). The owner archives
   local sessions from the Mac app's sidebar. HQs do not archive local sessions
