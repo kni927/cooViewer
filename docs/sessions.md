@@ -332,6 +332,19 @@ exists only in chat.
   picks **Start locally**, and **Start with worktree** only when another TF
   is working in the main clone. Neither pulls first; the TF brings itself up
   to date when a TASK arrives.
+- **Starting a TF from the cloud (option):** when the owner runs
+  `claude remote-control --spawn worktree` in a repository on the Mac (server
+  mode), that folder appears to cloud sessions as a `bridge` environment
+  (`list_environments`). An HQ can then start a TF there with
+  `create_session` (that `environment_id`, a title with the location mark, and
+  a prompt that reads `~/.claude/skills/tf/SKILL.md`), and rename it with
+  `set_session_title` without an approval card. Each such session works in
+  its own worktree (`.claude/worktrees/bridge-<id>/`), so several can run at
+  once. They have the `claude-code-remote` tools but not the desktop app's
+  session tools, and do not appear in the Mac app. They stop answering when
+  the server stops; running `claude remote-control` in the same folder within
+  about four hours brings them back. The owner starts the server only when
+  this is wanted; the card (`offer-tf`) stays the default.
 - **A TF in a worktree** works in `.claude/worktrees/<name>/` on a
   `claude/<name>` branch created from the main clone's local `HEAD`. It
   commits on that branch and merges into `main` only when the TASK says so
