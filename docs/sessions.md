@@ -346,7 +346,12 @@ exists only in chat.
   about four hours brings them back. Archiving such a session removes its
   worktree at once (2026-10-07), and unarchiving brings back neither the
   worktree nor the connection, only the record on claude.ai; so the TF
-  commits and merges or pushes before it is archived. The owner starts the
+  commits and merges or pushes before it is archived. Because these sessions
+  are not in the Mac app, the rule against archiving local sessions from
+  elsewhere does not apply to them: a TF started this way can hand over to a
+  successor it starts the same way, and the successor archives it once the
+  work is committed. The server's own first session, which works in the main
+  folder, gets a title with the location mark too. The owner starts the
   server only when this is wanted; the card (`offer-tf`) stays the default.
 - **A TF in a worktree** works in `.claude/worktrees/<name>/` on a
   `claude/<name>` branch created from the main clone's local `HEAD`. It
