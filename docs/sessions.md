@@ -351,8 +351,21 @@ exists only in chat.
   elsewhere does not apply to them: a TF started this way can hand over to a
   successor it starts the same way, and the successor archives it once the
   work is committed. The server's own first session, which works in the main
-  folder, gets a title with the location mark too. The owner starts the
-  server only when this is wanted; the card (`offer-tf`) stays the default.
+  folder, gets a title with the location mark too (or start the server with
+  `--name "🖥️ <repo> RC server"`). The owner starts the server only when this
+  is wanted; the card (`offer-tf`) stays the default.
+- **Closing a server-mode setup:** stopping the server does not archive its
+  sessions; they stay in the session list as disconnected, so they can be
+  brought back for about four hours. To finish:
+  1. Each TF commits and merges or pushes its work, and reports to its HQ.
+  2. The owner stops the server (Ctrl+C in its terminal).
+  3. An HQ, a successor, or the owner archives the remaining sessions of that
+     `bridge` environment, the server's first session included. Archiving a
+     worktree session removes its worktree and branch; the first session
+     works in the main folder, and archiving it changes no files.
+  4. Check with `git worktree list` in the repository that no
+     `.claude/worktrees/bridge-*` entry is left; remove a leftover with
+     `git worktree remove <path>` and `git branch -d <branch>`.
 - **A TF in a worktree** works in `.claude/worktrees/<name>/` on a
   `claude/<name>` branch created from the main clone's local `HEAD`. It
   commits on that branch and merges into `main` only when the TASK says so
