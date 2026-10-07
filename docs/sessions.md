@@ -12,10 +12,12 @@ the `sync-projects` skill there.
   from `list_sessions`, relays between projects, receives reports that lost
   their recipient, and tells the owner about items that have stalled. Each
   morning a Routine wakes it to look for local sessions left disconnected from
-  Remote Control (see Local sessions on the Mac, Lifetime). It lists them in
-  its chat with their context size and asks for a reconnect only for
-  sessions that have work waiting; it suggests wrapping up the others. Does
-  not implement.
+  Remote Control (see Local sessions on the Mac, Lifetime). It reports an
+  error when no active Mac mini HQ, or no local session at all, is listed
+  (the app is closed or the Mac restarted), and a warning at once when Mac
+  mini HQ is disconnected. Other sessions disconnected for a day it lists
+  with their context size, asking for a reconnect only where work waits and
+  suggesting wrap-up for the rest. Does not implement.
 - **Upstream HQ** (cloud): policy shared by all repositories. Changes
   `kni927/dotfiles` and `kni927/repo-template` and carries the changes to the
   projects with the `sync-projects` skill. It is also the HQ of
