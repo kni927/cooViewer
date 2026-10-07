@@ -34,7 +34,7 @@ instead (`/tf`, step 8).
      `https://github.com/kni927/dotfiles` for Upstream HQ,
      `https://github.com/kni927/HQ` for Central HQ;
    - `source_revision`: `main` (without it the session lands in Other);
-   - `title`: the plain name (for example `cooViewer HQ`);
+   - `title`: `☁️ ` and the plain name (for example `☁️ cooViewer HQ`);
    - `prompt`: the handover.
    If auto mode refuses the call, tell the owner and keep working until it
    is resolved.
@@ -48,6 +48,6 @@ instead (`/tf`, step 8).
    session ID: upstream (Central HQ; when Central HQ itself hands over,
    Upstream HQ) and downstream (the Project HQs or TFs it coordinates).
 7. **Mark this session done.** Rename it with `set_session_title` to
-   `✅ <name> (handover YYYY-MM-DD)`, using the owner's local date. End the
+   `☁️ ✅ <name> (handover YYYY-MM-DD)`, using the owner's local date. End the
    reply with the ready-to-archive block from `docs/sessions.md`, stop taking
    work, and forward anything that still arrives to the successor.

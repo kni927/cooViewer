@@ -41,7 +41,18 @@ the `sync-projects` skill there.
   has finished renames itself `✅ <name>`, and one that has handed over
   `✅ <name> (handover YYYY-MM-DD)`, so the plain name is free and the session
   list shows what can be archived.
-- Names are unique, because a local session addresses messages by name.
+- **Where it runs:** every title starts with a mark for where the session
+  runs, then a space: `☁️` for a cloud session, `🖥️` for a local session on a
+  desktop Mac (the Mac mini), `💻` for one on a MacBook. A local session
+  checks with `pmset -g batt`: an `InternalBattery` line means `💻`. The
+  `✅` goes after the mark: `☁️ ✅ Upstream HQ (handover 2026-10-07)`,
+  `🖥️ ✅ cooViewer TF v1.6.5`. "The name" in these documents is the part
+  after the marks; checks for a finished session look for `✅` after the
+  mark. The marks were adopted on 2026-10-07; older titles without one are
+  left as they are.
+- Names are unique, because a local session addresses messages by name. When
+  addressing a session, copy its full title, marks included, from
+  `ListAgents` or `list_sessions`.
 - **A repository's HQ:** `<repo> HQ` for a project; `Upstream HQ` for
   `kni927/dotfiles`, `kni927/repo-template`, and `kni927/home-server` (there is
   no `dotfiles HQ`); `Central HQ` for `kni927/HQ`. `kni927/gateway` has none.
@@ -272,7 +283,7 @@ The `hq-handover` skill walks through these steps.
    already record and what the owner's personal preferences already say (how
    to address the owner, the language and tone of replies).
 2. Start the successor with `create_session` in the same environment, with
-   the same `source_url` and `source_revision` `main`, titled with the HQ's plain name and with the
+   the same `source_url` and `source_revision` `main`, titled `☁️ <plain name>` and with the
    handover as its initial prompt. `source_url` is the project's repository
    for a Project HQ, `https://github.com/kni927/dotfiles` for Upstream HQ
    (which then attaches the other repositories it works in with `add_repo`),
@@ -291,7 +302,7 @@ The `hq-handover` skill walks through these steps.
 4. Tell the successor's name upstream (Central HQ; when Central HQ itself
    hands over, Upstream HQ) and downstream (the Project HQs or TFs it
    coordinates).
-5. Rename itself `✅ <name> (handover YYYY-MM-DD)` with `set_session_title`,
+5. Rename itself `☁️ ✅ <name> (handover YYYY-MM-DD)` with `set_session_title`,
    using the owner's local date, show the ready-to-archive block, and stop
    taking work. The owner archives it.
 
@@ -360,8 +371,8 @@ exists only in chat.
   thresholds in Context usage, when its Project HQ asks, or when the owner
   says "wrap up", it finishes at a natural break: it confirms that nothing is
   uncommitted, reports what is done and what remains to its Project HQ,
-  renames itself `✅ <name>` (for example `✅ cooViewer TF solid RAR4
-  converter`), shows the ready-to-archive block, and waits. When work
+  renames itself `<mark> ✅ <name>` (for example `🖥️ ✅ cooViewer TF solid
+  RAR4 converter`), shows the ready-to-archive block, and waits. When work
   remains that needs the Mac, it also offers a new TF with `spawn_task`, so
   the owner starts it with one click; work that needs no Mac GUI or device
   continues in a cloud session the Project HQ starts.
