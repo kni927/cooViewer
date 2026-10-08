@@ -131,8 +131,9 @@ Send each message only to the sessions that need it.
   and the message does arrive. Once that bug is fixed, reply to the session ID
   in the received message's `from-session` instead, which does not depend on
   unique names. The TF tells the owner in one line where it sent the message,
-  without saying whether it was read or that delivery is one-way; the HQ does
-  not acknowledge receipt. Every session reports its sends this way.
+  in English (`Sent to: 🖥️ Mac mini HQ (SendMessage)`), without saying
+  whether it was read or that delivery is one-way; the HQ does not acknowledge
+  receipt. Every session reports its sends this way.
 - **Fallback:** if the Project HQ cannot be reached, for example because it is
   archived, send to `Central HQ`. Central HQ summarizes for the owner and forwards to a successor
   Project HQ if there is one.
@@ -148,12 +149,15 @@ Send each message only to the sessions that need it.
 
   ---
 
-  ### 📨 受信：<sender session name> ／ <kind of report>
+  ### 📨 Received: <sender session name> / <kind of report>
 
   ---
 
   <summary>
   ```
+- **Headings in replies to the owner:** titles, headings and bold section
+  labels are in English (`Changes to the skill`, `Also found`); the text under
+  them is in Japanese.
 - **Text for the owner to pass on:** a prompt, an approval line, or a message
   that the owner is to type or paste into another session is written in
   English, even when the reply around it is in Japanese.
