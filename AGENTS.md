@@ -115,7 +115,9 @@
   Keep DEV_LOG.md concise. Record only major completed milestones.
 - `docs/DECISIONS.md` contains lasting architectural, technical, and product decisions.
 - Avoid duplicating the same information across these files.
-- Do not modify `README.md` unless explicitly requested by the project owner.
+- Keep `README.md` current: when a change alters what it describes (setup, usage,
+  commands, behaviour), update it in the same change. Do not rewrite unrelated
+  sections or change its tone and structure unless the project owner asks.
 
 ## Language
 
