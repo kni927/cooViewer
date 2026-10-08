@@ -72,6 +72,13 @@ the `sync-projects` skill there.
   mode, but not one a session or the app set, so later renames such as adding
   `✅` go through without a card. A session with an owner-typed title shows
   the card once; after that its title counts as set by the session.
+- **Unmarked titles:** a session whose title has no location mark (the app
+  titles a new session from its first prompt) renames itself before its first
+  reply: the mark, then its role name if it has one, otherwise a few English
+  words naming the work (`☁️ Codex plugin research`). A cloud session calls
+  `set_session_title` (claude-code-remote) with its own ID from
+  `get_session` without an ID; a local session calls
+  `mcp__ccd_session_mgmt__set_session_title` with session ID `self`.
 - Do not write session IDs into repository files. Refer to sessions by name, and
   look up current IDs with `ListAgents` or `list_sessions`.
 
