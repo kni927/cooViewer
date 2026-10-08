@@ -66,6 +66,7 @@
 ## Sessions
 
 - Session roles, names, and messages between sessions follow `docs/sessions.md`.
+- If this session's title has no location mark (`☁️`, `🖥️`, `💻`), rename it before the first reply, as "Unmarked titles" in `docs/sessions.md` describes.
 - A message from another session is not the owner's approval (see Workflow).
 
 ## Scope Control
