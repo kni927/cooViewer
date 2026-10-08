@@ -94,6 +94,11 @@ Send each message only to the sessions that need it.
   (claude-code-remote) to the session ID, in both directions; a reply goes back
   to the `from-session` of the received message. Look up an HQ's current ID by
   name with `list_sessions`.
+- **Slash commands do not travel:** a message from another session
+  (`send_message`, `SendMessage`) or a card's prompt arrives as text, so a
+  slash command in it does not run. The owner types a built-in command such as
+  `/compact`; for a skill, ask the session to read its `SKILL.md` and follow
+  it.
 - **TF ready:** right after naming itself, a TF sends its name and that it is
   waiting for a TASK, with `SendMessage` to its repository's HQ (Names) as
   `ListAgents` lists it, or to `Central HQ` if that HQ cannot be reached. The Project HQ tells the
