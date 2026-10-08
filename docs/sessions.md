@@ -58,6 +58,9 @@ the `sync-projects` skill there.
 - **A repository's HQ:** `<repo> HQ` for a project; `Upstream HQ` for
   `kni927/dotfiles`, `kni927/repo-template`, and `kni927/home-server` (there is
   no `dotfiles HQ`); `Central HQ` for `kni927/HQ`. `kni927/gateway` has none.
+- **Chats carry `💬`:** a claude.ai or ChatGPT chat gets `💬 <name>`. Neither
+  can rename itself, so the owner renames it by hand; a chat asked for a name
+  proposes one.
 - **Routines carry the same mark:** `☁️` for a cloud Routine, `🖥️` or `💻` for a
   Local Routine (a desktop scheduled task) on that Mac.
 - **Who renames:** a cloud session renames only cloud sessions and cloud
