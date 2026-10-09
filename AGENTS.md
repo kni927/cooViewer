@@ -93,7 +93,9 @@
 - Use concise English commit messages.
 - If a task cannot be fully completed, commit the completed work and clearly describe the
   remaining work in the task archive.
-- Never push or modify remote repositories unless explicitly instructed.
+- Push when the work is done and verified: the permission dialog for `git push` is the
+  owner's approval, so do not ask in chat first. Do not otherwise modify remote
+  repositories unless explicitly instructed.
 - Before every push, run `git fetch`. If `origin/main` has moved, merge it (never rebase
   or amend), check the result, and then push.
 - The owner creates and pushes release tags. Prepare everything up to the tag (version
