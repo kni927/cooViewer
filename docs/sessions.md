@@ -37,8 +37,8 @@ the `sync-projects` skill there.
 
 ## Names
 
-- `Central HQ`, `Upstream HQ`, `<repo> HQ`, `<repo> TF <what>`, for example
-  `cooViewer TF v1.6.5`. No middle dot: local session names are often typed by
+- `Central HQ`, `Upstream HQ`, `<repo> HQ`, `<repo> TF #NN <what>`, for example
+  `cooViewer TF #03 v1.6.5`. No middle dot: local session names are often typed by
   hand. The current session of a role carries the plain name. A session that
   has finished renames itself `✅ <name>`, and one that has handed over
   `✅ <name> (handover YYYY-MM-DD)`, so the plain name is free and the session
@@ -48,10 +48,15 @@ the `sync-projects` skill there.
   desktop Mac (the Mac mini), `💻` for one on a MacBook. A local session
   checks with `pmset -g batt`: an `InternalBattery` line means `💻`. The
   `✅` goes after the mark: `☁️ ✅ Upstream HQ (handover 2026-10-07)`,
-  `🖥️ ✅ cooViewer TF v1.6.5`. "The name" in these documents is the part
+  `🖥️ ✅ cooViewer TF #03 v1.6.5`. "The name" in these documents is the part
   after the marks; checks for a finished session look for `✅` after the
   mark. The marks were adopted on 2026-10-07; older titles without one are
   left as they are.
+- **TF numbers:** TFs are numbered per repository from `#01`; HQs are not.
+  A new TF takes the highest `#NN` among its repository's TF titles in
+  `ListAgents` or `list_sessions`, finished (`✅`) ones included, plus one. An
+  HQ that offers a TF picks the number and passes it at the start of
+  `<what>`.
 - Names are unique, because a local session addresses messages by name. When
   addressing a session, copy its full title, marks included, from
   `ListAgents` or `list_sessions`.

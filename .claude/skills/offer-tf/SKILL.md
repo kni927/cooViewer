@@ -16,7 +16,8 @@ procedure.
 3. **Check that the main clone is free.** With `list_sessions`, look for
    another TF of this repository that is still working. If there is one,
    the owner must pick Start with worktree; say so in step 5.
-4. **Queue the card** with `spawn_task`:
+4. **Queue the card** with `spawn_task`. `<what>` starts with the TF's number,
+   `#NN` (TF numbers in `docs/sessions.md`), for example `#02 blender-pilot`:
    - `title`: `Start <repo> TF <what>`;
    - `tldr`: one or two sentences in the owner's language on what the TF
      will do;
