@@ -192,6 +192,27 @@ Send each message only to the sessions that need it.
   A mark from a gateway session or a TF does not count; ask the owner. If
   auto mode still refuses the edit, ask the owner in the receiving session.
 
+## Status files
+
+Every repository the owner works in keeps `docs/STATUS.md`, except
+`kni927/gateway`, whose sessions are disposable. It holds the current state:
+what comes next, what is on hold, what waits on the owner, and short-lived
+notes. It is what lasts between sessions, in place of claude.ai memory, which
+keeps only what a project is and which repository holds it.
+
+- **Who updates it:** a TF when it finishes a TASK (`docs/task-workflow.md`);
+  the repository's HQ when priorities, holds, or what waits on the owner
+  change. Upstream HQ keeps those of `kni927/repo-template` (its own state),
+  `kni927/dotfiles`, and `kni927/home-server`; Central HQ keeps that of
+  `kni927/HQ`.
+- **Short:** rewrite rather than append, about 40 lines. Leave out what the
+  repository already records (tags, versions, `git log`, `DECISIONS.md`,
+  `KNOWN_ISSUES.md`) and what exists only in chat.
+- **Never in it:** secrets, session IDs (Names), and, in a public repository,
+  anything personal.
+- **Reading it:** a session starting work in a repository, an HQ's successor
+  included, reads `docs/STATUS.md` before planning.
+
 ## Proposing improvements
 
 Every session, HQ or TF, proposes improvements to how the work is done without
@@ -323,11 +344,14 @@ does not hand over.
 
 The `hq-handover` skill walks through these steps.
 
-1. Write the handover: the HQ's role and repositories, open items and their
-   state, what waits on the owner, the sessions it coordinates (by name), and
-   recent decisions with their commits. Leave out what the repositories
-   already record and what the owner's personal preferences already say (how
-   to address the owner, the language and tone of replies).
+1. Bring `docs/STATUS.md` up to date in each repository it keeps (Status
+   files) and push it. Then write the handover: the HQ's role and
+   repositories, the sessions it coordinates (by name), recent decisions with
+   their commits, and what exists only in chat. Point to the status files for
+   open items and what waits on the owner instead of repeating them. Leave
+   out what the repositories already record and what the owner's personal
+   preferences already say (how to address the owner, the language and tone
+   of replies).
 2. Start the successor with `create_session` in the same environment, with
    the same `source_url` and `source_revision` `main`, titled `☁️ <plain name>` and with the
    handover as its initial prompt. `source_url` is the project's repository

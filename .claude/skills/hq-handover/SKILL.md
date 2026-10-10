@@ -11,16 +11,20 @@ instead (`/tf`, step 8).
 
 1. **Find a natural break.** Finish or stop the current step so the handover
    stays short. Read the context usage with `get_session` (no session ID).
-2. **Leave the repositories clean.** In every repository this HQ changed,
-   commit what belongs there and push it under that repository's rules
-   (fetch, merge `origin/main` if it moved, then push). Note anything that
-   cannot be pushed.
+2. **Leave the repositories clean.** Bring `docs/STATUS.md` up to date in
+   each repository this HQ keeps (`docs/sessions.md`, Status files): open
+   items and their state, what is on hold, what waits on the owner. In every
+   repository this HQ changed, commit what belongs there and push it under
+   that repository's rules (fetch, merge `origin/main` if it moved, then
+   push). Note anything that cannot be pushed.
 3. **Write the handover** in the owner's language, as the successor's first
    prompt. Include:
    - the role, the plain name, and the repositories it works in;
    - what to do first, including each `add_repo` that needs the owner's
      approval (the successor asks for it in its first reply);
-   - open items and their state, and what waits on the owner;
+   - a pointer to the status files for open items and what waits on the
+     owner, plus only what they cannot hold (session IDs, chat-only
+     context);
    - the sessions it coordinates, by name (IDs may be included: the
      handover is sent, not committed);
    - recent decisions with their commits;

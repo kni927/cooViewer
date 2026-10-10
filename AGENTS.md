@@ -1,4 +1,4 @@
-<!-- Template synced: repo-template@f20444b on 2026-10-10. -->
+<!-- Template synced: repo-template@86d7a4f on 2026-10-10. -->
 # Project Instructions
 
 ## Project Origin
@@ -118,6 +118,9 @@
 - `docs/DEV_LOG.md` contains notable project-level progress rather than detailed task history.
   Keep DEV_LOG.md concise. Record only major completed milestones.
 - `docs/DECISIONS.md` contains lasting architectural, technical, and product decisions.
+- `docs/STATUS.md` holds the current state: what comes next, what is on hold, what waits on the
+  owner, and short-lived notes. Rewrite it rather than append, keep it short, and do not copy
+  what other documents or the repository already record. Never write secrets or session IDs.
 - Avoid duplicating the same information across these files.
 - Keep `README.md` current: when a change alters what it describes (setup, usage,
   commands, behaviour), update it in the same change. Do not rewrite unrelated

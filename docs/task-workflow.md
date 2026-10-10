@@ -70,8 +70,9 @@ Perform these steps in order:
 2. Build and verify. For a task with several parts, finish, verify, and commit
    each part in order before moving to the next.
 3. Fill in the `Implementation Result` section of `TASK.md`.
-4. Update `docs/KNOWN_ISSUES.md`, `docs/DEV_LOG.md`, and `docs/DECISIONS.md`
-   when relevant (see Documentation in `AGENTS.md`).
+4. Update `docs/STATUS.md` (remove what this task finished, add its
+   follow-up suggestions), and `docs/KNOWN_ISSUES.md`, `docs/DEV_LOG.md`, and
+   `docs/DECISIONS.md` when relevant (see Documentation in `AGENTS.md`).
 5. Move `TASK.md` to `docs/tasks/YYYY-MM-DD-NN-<desc>.md`
    (`git mv` if tracked; otherwise move it and `git add` the new path).
    - `YYYY-MM-DD` is the archive date in local time.
