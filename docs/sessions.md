@@ -219,30 +219,42 @@ waiting to be asked, not only what it was told to do.
 
 ## Context usage
 
-A long conversation is compacted automatically, which loses detail. Cloud
-sessions compact at 80% of the maximum context
-(`CLAUDE_AUTOCOMPACT_PCT_OVERRIDE`), local sessions at 97%. A cloud session
-reads its own usage with `get_session` without an ID (`context_usage`); a local
-session in the Mac app reads it with `get_usage` for session `self`.
+A long conversation is compacted automatically. Compaction runs through the
+fast-jev-compaction plugin, which drops stale tool calls and keeps the rest
+verbatim; it falls back to the built-in summary, which loses detail, when it
+cannot reduce enough or fails. Cloud sessions compact at 80% of the maximum
+context (`CLAUDE_AUTOCOMPACT_PCT_OVERRIDE`), local sessions at 90% (the
+plugin's `compactAtPercent`). A cloud session reads its own usage with
+`get_session` without an ID (`context_usage`); a local session in the Mac app
+reads it with `get_usage` for session `self`. A session counts its compactions
+as the `compact_boundary` entries in its own transcript, the newest `.jsonl`
+under `~/.claude/projects/<directory>/`.
 
-- **Checking:** every session, HQ or TF, checks its usage at natural breaks
-  and before starting a step that would not fit. It does not report its usage
-  in ordinary replies; it reports only when it hands over or wraps up, in the
-  ready-to-archive block.
-- **Thresholds:** a cloud HQ hands over (below) and a local TF wraps up (see
-  Local sessions) without waiting for the owner, at a natural break where the
-  handover stays short:
+- **Checking:** every session, HQ or TF, checks its usage, and whether it has
+  been compacted, at natural breaks and before starting a step that would not
+  fit. It does not report its usage in ordinary replies; it reports only when
+  it hands over or wraps up, in the ready-to-archive block.
+- **One compaction is fine:** a session keeps working through its first
+  compaction. It hands over (cloud HQ, below) or wraps up (local TF, see Local
+  sessions) at the next natural break, without waiting for the owner, when:
+  - a compaction fell back to the built-in summary (the conversation then
+    opens with a summary of the earlier part);
+  - it has been compacted twice; or
+  - after its first compaction, its usage reaches the thresholds below:
 
   | Session | From (at a natural break) | At the latest (next break) |
   |---|---|---|
-  | Cloud HQ | 75% | 85% |
+  | Cloud HQ | 75% | 80% |
   | Local TF | 80% | 90% |
 
-  A compaction before that is acceptable. The owner may also say "handover"
-  or "wrap up" at any time. Gateway sessions are exempt: they neither hand
-  over nor wrap up, and keep working through compactions.
-- **Warning:** a Project HQ that sees one of its TFs past 90% warns the owner.
-  Central HQ reminds an HQ that has passed 85% and is still working.
+  Before the first compaction, usage alone does not trigger a handover. The
+  thresholds sit below the point where the next compaction starts, so a
+  session that follows them hands over before a second one. The owner may
+  also say "handover" or "wrap up" at any time. Gateway sessions are exempt:
+  they neither hand over nor wrap up, and keep working through compactions.
+- **Warning:** a Project HQ that sees one of its TFs past 90% after a
+  compaction warns the owner. Central HQ reminds an HQ that has passed 80% after
+  a compaction and is still working.
 - **Ready to archive:** a session that has wrapped up or handed over ends with
   this block in its chat, in English, and waits. The rules follow the same
   Markdown rules as the receiving heading; the heading is one level larger so
@@ -304,9 +316,9 @@ repository files.
 
 ## Handing over an HQ
 
-A cloud HQ hands its work to a fresh session at the thresholds in Context
-usage, when the owner says "handover", and right after a
-compaction if one has already happened. A gateway session is not an HQ and
+A cloud HQ hands its work to a fresh session when Context usage says so (a
+fallback to the built-in summary, a second compaction, or the thresholds after
+the first compaction) and when the owner says "handover". A gateway session is not an HQ and
 does not hand over.
 
 The `hq-handover` skill walks through these steps.

@@ -1,6 +1,6 @@
 ---
 name: hq-handover
-description: Hand this cloud HQ (Central HQ, Upstream HQ, or a Project HQ) over to a fresh cloud session, as docs/sessions.md "Handing over an HQ" describes. Use at the context thresholds in docs/sessions.md, when the owner says "handover", or right after a compaction.
+description: Hand this cloud HQ (Central HQ, Upstream HQ, or a Project HQ) over to a fresh cloud session, as docs/sessions.md "Handing over an HQ" describes. Use when docs/sessions.md "Context usage" calls for it (a fallback to the built-in summary, a second compaction, or the thresholds after the first compaction) or when the owner says "handover".
 ---
 
 # Hand over a cloud HQ
