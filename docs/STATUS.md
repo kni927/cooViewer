@@ -20,7 +20,8 @@ is active and no TF is running.
 
 ## On hold
 
-Owner put these on hold on 2026-10-08 as minor; details are in the files named.
+The first five were put on hold as minor (owner, 2026-10-08); details are in
+the files named.
 
 - Thumbnail panel and page-bar bubble still decode on the main thread; can
   stall on large solid RAR books (`docs/KNOWN_ISSUES.md` #46).
@@ -30,6 +31,12 @@ Owner put these on hold on 2026-10-08 as minor; details are in the files named.
 - Unused `Resources/empty.png` (`docs/KNOWN_ISSUES.md`, unused resources).
 - Archives nested in archives, or in folder books, still load through the
   modal path (`docs/KNOWN_ISSUES.md`, async loading).
+- Undecided (owner, moved here 2026-10-10): whether to support OPDS catalogues
+  from a self-hosted server; Komga is favoured over Kavita.
+- Not implemented: EPUB to PDF to CBZ conversion. Chosen toolchain is LuaLaTeX
+  with jlreq for vertical Japanese text, on BasicTeX rather than MacTeX; Typst
+  was rejected for lacking vertical writing. BasicTeX is not yet in the Mac
+  setup's Brewfile.
 
 ## Waiting on owner
 
