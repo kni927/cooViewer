@@ -96,8 +96,17 @@ Send each message only to the sessions that need it.
 - Upstream HQ sends a policy change to every current Project HQ by session ID,
   and a one-line summary to Central HQ.
 - Information for reference goes to the HQs it concerns, not to Central HQ.
-- An HQ tells the owner itself what waits on the owner. Central HQ reports
-  only items that have stalled.
+- An owner step is given once, by the session doing the work. A TF gives
+  the owner each step the owner takes for its TASK (tag commands,
+  approvals, stand-by requests) in its own chat. On a TF's report, its HQ
+  checks the repository and GitHub state and tells the owner only that it
+  is verified, with a one-line pointer to what the TF waits on ("TF #01
+  waits for the tag"). The HQ speaks in full only when the report and the
+  observed state disagree, when a TF is blocked without having told the
+  owner, or for decisions that belong in the HQ's chat (release notes,
+  version numbers, design choices). Otherwise an HQ tells the owner itself
+  what waits on the owner. Central HQ reports only items that have
+  stalled.
 - Central HQ receives only: messages between projects (it relays them),
   reports that lost their recipient (it forwards them to a successor), HQ
   handovers, and one-line summaries of policy changes.
