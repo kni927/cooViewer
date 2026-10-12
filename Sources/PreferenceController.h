@@ -106,6 +106,9 @@ enum {
     /* Preferences ▸ Page Bar ▸ Number: PageBarNumber, item tags are the
        COPageBarNumberMode values. */
     IBOutlet id pageBarNumberPopUpButton;
+    /* Preferences ▸ File Name ▸ Show in: FileNameLocation, item tags are
+       the COFileNameLocation values. */
+    IBOutlet id fileNameLocationPopUpButton;
     /* Preferences ▸ Resolution. The font field, its Select button and the
        Set position button apply only to the separate bar. */
     IBOutlet id showResolutionCheck;

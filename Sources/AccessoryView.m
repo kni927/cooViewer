@@ -49,6 +49,7 @@ NSRect COIntRect(NSRect aRect)
    item — see docs/KNOWN_ISSUES.md. */
 - (void)dealloc
 {
+	[[NSNotificationCenter defaultCenter] removeObserver:self name:NSViewBoundsDidChangeNotification object:nil];
 	[infoStringTimer invalidate];
 	infoStringTimer = nil;
 	[accessoryTimer invalidate];
@@ -74,6 +75,7 @@ NSRect COIntRect(NSRect aRect)
 	[resolutionStringAttr release];
 	[resolutionFont release];
 	[pageBarNumber release];
+	[statusBarEntries release];
 
 	[super dealloc];
 }
@@ -100,6 +102,7 @@ NSRect COIntRect(NSRect aRect)
    is the correct MRC operation for an unretained reference. */
 - (void)detachFromWindowController
 {
+	[[NSNotificationCenter defaultCenter] removeObserver:self name:NSViewBoundsDidChangeNotification object:nil];
 	controller = nil;
 	imageView = nil;
 }
@@ -171,7 +174,7 @@ NSRect COIntRect(NSRect aRect)
 	autoHidePageString = [defaults boolForKey:@"PageNumAutoHide"];
 	pageBarShowThumbnail = (int)[defaults integerForKey:@"PageBarShowThumbnail"];
 	pageBarPosition = (int)[defaults integerForKey:@"PageBarPosition"];
-	pageBarNumberMode = (int)[defaults integerForKey:@"PageBarNumber"];
+	pageBarNumberMode = COPageBarNumberModeFromStored([defaults integerForKey:@"PageBarNumber"]);
 	
 	
 	NSDictionary *dic = [defaults dictionaryForKey:@"PageBarSize"];
@@ -331,6 +334,8 @@ NSRect COIntRect(NSRect aRect)
 - (void)setFrame:(NSRect)frameRect
 {
 	[super setFrame:frameRect];
+	/* The pages move with the window: the status bar follows them. */
+	if (statusBarEnabled) [self setNeedsDisplayInRect:[self statusBarRect]];
 	[pageBarBezierPath release];
 	pageBarRect = [self pageBarRect];
 	NSRect innerRect = NSInsetRect(pageBarRect,1,1);
@@ -684,6 +689,11 @@ NSRect COIntRect(NSRect aRect)
 
 -(void)drawRect:(NSRect)frameRect
 {
+	if (controller && imageView && [imageView image] && !autoHidedPageBar) {
+		/* The file-name status bar: shown and hidden with the page bar's
+		   auto-hide, whether or not the page bar itself is switched on. */
+		[self drawStatusBar];
+	}
 	if (controller && [controller indicator] && imageView && [imageView image]) {
 		if (!autoHidedPageBar) {
 			pageBarRect = [self pageBarRect];
@@ -886,26 +896,14 @@ NSRect COIntRect(NSRect aRect)
    same 1 px gap; with a 15 px bar and no overlay the result is 17, as
    before. Like the old constant it ignores the margins and whether the bar
    is currently shown, so auto-hide does not move the HUDs. A top bar grows
-   downwards from below the HUD row and needs nothing here. */
+   downwards from below the HUD row and needs nothing here. With the file
+   names in the status bar the HUDs clear it (and a bottom bar above it). The
+   arithmetic is COBottomHUDOffset (COPageLabel), under engine test. */
 -(float)bottomHUDOffset
 {
-	float offset = 17;
-	if (pageBarPosition >= 2) {
-		float clear = pageBarHeight + 2;
-		if (pageBarNumberMode == COPageBarNumberOverlay) {
-			NSSize size = [@"0" sizeWithAttributes:[self pageBarNumberAttributes]];
-			clear += 1 + ceil(size.height);
-		} else if (pageBarNumberMode == COPageBarNumberInBar) {
-			/* The number is centred on the bar (2 + (height+1)/2 above the
-			   edge) and may be taller than it; the HUD starts 1 px above
-			   its top (offset + 2 > text top). */
-			NSSize size = [@"0" sizeWithAttributes:[self pageBarNumberAttributes]];
-			float textClear = ceil((pageBarHeight + 1)/2.0 + ceil(size.height)/2.0) + 1;
-			if (textClear > clear) clear = textClear;
-		}
-		if (clear > offset) offset = clear;
-	}
-	return offset;
+	NSSize size = [@"0" sizeWithAttributes:[self pageBarNumberAttributes]];
+	return (float)COBottomHUDOffset(pageBarNumberMode, pageBarPosition, pageBarHeight, size.height,
+									NSHeight([self statusBarRect]));
 }
 
 #pragma mark accessory
@@ -1187,12 +1185,12 @@ NSRect COIntRect(NSRect aRect)
 				break;
 			case 2:
 				rect = NSMakeRect(contentFrame.origin.x+pageBarMargin.x+2,
-								  contentFrame.origin.y+pageBarMargin.y+2,
+								  contentFrame.origin.y+pageBarMargin.y+2+[self pageBarStatusBarLift],
 								  width,height);
 				break;
 			case 3:
 				rect = NSMakeRect(contentFrame.origin.x+contentFrame.size.width-width-pageBarMargin.x-3,
-								  contentFrame.origin.y+pageBarMargin.y+2,
+								  contentFrame.origin.y+pageBarMargin.y+2+[self pageBarStatusBarLift],
 								  width,height);
 				break;
 			default:
@@ -1266,7 +1264,7 @@ NSRect COIntRect(NSRect aRect)
 -(void)setPageBarNumberMode:(int)mode
 {
 	NSRect oldRect = [self pageBarAreaRect];
-	pageBarNumberMode = mode;
+	pageBarNumberMode = COPageBarNumberModeFromStored(mode);
 	[self setNeedsDisplayInRect:NSUnionRect(oldRect,[self pageBarAreaRect])];
 }
 
@@ -1351,13 +1349,150 @@ NSRect COIntRect(NSRect aRect)
 
 -(NSRect)pageBarAreaRect
 {
-	NSRect bar = [self pageBarRect];
-	if (NSIsEmptyRect(bar)) return bar;
-	NSRect textRect = [self pageBarNumberTextRectForBarRect:bar attributedString:[self pageBarNumberAttributedString]];
-	if (NSIsEmptyRect(textRect)) return bar;
-	/* The shadow reaches past the glyphs; in the bar the text itself may
-	   reach past a bar shorter than it. */
-	return NSUnionRect(bar, NSIntegralRect(NSInsetRect(textRect,-4,-4)));
+	NSRect area = [self pageBarRect];
+	if (!NSIsEmptyRect(area)) {
+		NSRect textRect = [self pageBarNumberTextRectForBarRect:area attributedString:[self pageBarNumberAttributedString]];
+		if (!NSIsEmptyRect(textRect)) {
+			/* The shadow reaches past the glyphs; in the bar the text itself
+			   may reach past a bar shorter than it. */
+			area = NSUnionRect(area, NSIntegralRect(NSInsetRect(textRect,-4,-4)));
+		}
+	}
+	/* The status bar shows and hides with the bar (and without it). */
+	NSRect status = [self statusBarRect];
+	if (!NSIsEmptyRect(status)) {
+		area = NSIsEmptyRect(area) ? status : NSUnionRect(area, status);
+	}
+	return area;
+}
+
+#pragma mark statusBar
+/* The file-name status bar (FileNameLocation = Status bar): the file-name
+   entries in a full-width bar along the bottom edge, in the HUD's font and
+   colour (TextFont, with the HUD's shadow when it has no background) on
+   the HUD's background colour, so it reads like the file-name HUD it
+   replaces; it shows and hides with the page bar. */
+-(NSDictionary*)statusBarTextAttributes
+{
+	/* Built afresh rather than taken from pageStringAttr: -setPreferences
+	   asks for the bar's rect while pageStringAttr is being replaced. */
+	NSMutableDictionary *result = [NSMutableDictionary dictionaryWithDictionary:[self textAttributesWithFont:textFont]];
+	NSMutableParagraphStyle *style = [[[NSMutableParagraphStyle alloc] init] autorelease];
+	[style setLineBreakMode:NSLineBreakByTruncatingMiddle];
+	[result setObject:style forKey:NSParagraphStyleAttributeName];
+	return result;
+}
+
+-(void)setFileNameStatusBar:(BOOL)enabled entries:(NSArray*)entries
+{
+	if (!enabled) entries = nil;
+	BOOL sameEntries = (entries == statusBarEntries) || (entries && [entries isEqualToArray:statusBarEntries]);
+	if (enabled == statusBarEnabled && sameEntries) return;
+	NSRect oldRect = [self pageBarAreaRect];
+	BOOL layoutChanged = (enabled != statusBarEnabled);
+	statusBarEnabled = enabled;
+	NSArray *newEntries = [entries copy];
+	[statusBarEntries release];
+	statusBarEntries = newEntries;
+	if (layoutChanged) {
+		/* Scrolling a zoomed page moves it under the bar: follow it. */
+		NSNotificationCenter *center = [NSNotificationCenter defaultCenter];
+		NSClipView *clip = [[imageView enclosingScrollView] contentView];
+		[center removeObserver:self name:NSViewBoundsDidChangeNotification object:nil];
+		if (enabled && clip) {
+			[clip setPostsBoundsChangedNotifications:YES];
+			[center addObserver:self selector:@selector(imageViewDidScroll:)
+						   name:NSViewBoundsDidChangeNotification object:clip];
+		}
+		/* A bottom page bar moves up or down, and the corner HUDs with
+		   it (-bottomHUDOffset). */
+		[pageBarBezierPath release];
+		pageBarRect = [self pageBarRect];
+		pageBarBezierPath = [[NSBezierPath bezierPathWithRectWithDoubleArc:NSInsetRect(pageBarRect,1,1)] retain];
+		[pageBarBezierPath closePath];
+		[self setNeedsDisplay:YES];
+	} else if (!autoHidedPageBar) {
+		[self setNeedsDisplayInRect:NSUnionRect(oldRect,[self pageBarAreaRect])];
+	}
+}
+
+-(void)imageViewDidScroll:(NSNotification*)notification
+{
+	if (statusBarEnabled && !autoHidedPageBar) [self setNeedsDisplayInRect:[self statusBarRect]];
+}
+
+-(float)pageBarStatusBarLift
+{
+	return (float)COPageBarStatusBarLift(pageBarPosition, NSHeight([self statusBarRect]));
+}
+
+/* Full width along the bottom edge of the view, which covers the window's
+   content (the overlay child window): drawn over the image, so the image's
+   layout and size do not change. Empty when the file names are not in the
+   status bar (or ShowNumber is off). Its height does not depend on the
+   entries, so the page bar does not jump between pages. */
+-(NSRect)statusBarRect
+{
+	if (!statusBarEnabled) return NSZeroRect;
+	NSRect bounds = [self bounds];
+	CGFloat textHeight = [@"0" sizeWithAttributes:[self statusBarTextAttributes]].height;
+	return COIntRect(NSMakeRect(NSMinX(bounds), NSMinY(bounds), NSWidth(bounds),
+								COStatusBarHeight(textHeight)));
+}
+
+-(void)drawStatusBar
+{
+	if (!statusBarEnabled || [statusBarEntries count] == 0) return;
+	NSRect rect = [self statusBarRect];
+	if (NSIsEmptyRect(rect)) return;
+	/* The HUD's own background, which goes with its text colour; when the
+	   HUD has none (its text then has a shadow), the page bar's. */
+	NSColor *background = textBGColor;
+	if (!background || [background isEqualTo:[NSColor clearColor]]) background = pageBarBGColor;
+	if (background && ![background isEqualTo:[NSColor clearColor]]) {
+		[background set];
+		NSRectFillUsingOperation(rect, NSCompositingOperationSourceOver);
+	}
+	NSDictionary *attributes = [self statusBarTextAttributes];
+	NSString *left = [statusBarEntries objectAtIndex:0];
+	NSString *right = ([statusBarEntries count] > 1) ? [statusBarEntries objectAtIndex:1] : nil;
+	NSSize leftSize = [left sizeWithAttributes:attributes];
+	NSSize rightSize = right ? [right sizeWithAttributes:attributes] : NSZeroSize;
+	/* Each name centred under its page, from the geometry the image view
+	   draws with (read only); without it (no image view, as in the
+	   Preferences preview), the bar's halves or its middle. */
+	NSArray *pages = [imageView respondsToSelector:@selector(shownPageRectsInView:)]
+		? [imageView shownPageRectsInView:self] : nil;
+	double leftMin = NSMinX(rect), leftMax = NSMaxX(rect), rightMin = 0, rightMax = 0;
+	if (right) {
+		if ([pages count] == 2) {
+			leftMin = NSMinX([[pages objectAtIndex:0] rectValue]);
+			leftMax = NSMaxX([[pages objectAtIndex:0] rectValue]);
+			rightMin = NSMinX([[pages objectAtIndex:1] rectValue]);
+			rightMax = NSMaxX([[pages objectAtIndex:1] rectValue]);
+		} else {
+			leftMin = leftMax = 0;	/* COStatusBarLayoutMake falls back to the halves */
+		}
+	} else if ([pages count] > 0) {
+		NSRect all = [[pages objectAtIndex:0] rectValue];
+		for (NSValue *page in pages) all = NSUnionRect(all, [page rectValue]);
+		leftMin = NSMinX(all);
+		leftMax = NSMaxX(all);
+	}
+	COStatusBarLayout layout = COStatusBarLayoutMake(NSWidth(rect), 6, 16, right ? 2 : 1,
+													 leftMin - NSMinX(rect), leftMax - NSMinX(rect), ceil(leftSize.width),
+													 rightMin - NSMinX(rect), rightMax - NSMinX(rect), ceil(rightSize.width));
+	CGFloat h = ceil(leftSize.height);
+	CGFloat y = floor(NSMidY(rect) - h/2);
+	[NSGraphicsContext saveGraphicsState];
+	NSRectClip(rect);
+	if (layout.leftWidth > 0) {
+		[left drawInRect:NSMakeRect(NSMinX(rect) + layout.leftX, y, layout.leftWidth, h) withAttributes:attributes];
+	}
+	if (right && layout.rightWidth > 0) {
+		[right drawInRect:NSMakeRect(NSMinX(rect) + layout.rightX, y, layout.rightWidth, h) withAttributes:attributes];
+	}
+	[NSGraphicsContext restoreGraphicsState];
 }
 
 #pragma mark -

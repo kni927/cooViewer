@@ -16,11 +16,13 @@
 		AC0DE01A1CA7A106A55E7500 /* CORarHeaderIndex.h in Headers */ = {isa = PBXBuildFile; fileRef = AC0DE0181CA7A106A55E7500 /* CORarHeaderIndex.h */; };
 		AC0DE01B1CA7A106A55E7500 /* CORarHeaderIndex.m in Sources */ = {isa = PBXBuildFile; fileRef = AC0DE0191CA7A106A55E7500 /* CORarHeaderIndex.m */; };
 		C0DA6E1A2E9F4B0100000003 /* COPageLabel.h in Headers */ = {isa = PBXBuildFile; fileRef = C0DA6E1A2E9F4B0100000001 /* COPageLabel.h */; };
+		C0DA6E1A2E9F4B0100000013 /* COTitleBarLabelView.h in Headers */ = {isa = PBXBuildFile; fileRef = C0DA6E1A2E9F4B0100000011 /* COTitleBarLabelView.h */; };
 		C0E0A7E1A2E9F4B010000003 /* COExport.h in Headers */ = {isa = PBXBuildFile; fileRef = C0E0A7E1A2E9F4B010000001 /* COExport.h */; };
 		C0E0A7E1A2E9F4B010000004 /* COExport.m in Sources */ = {isa = PBXBuildFile; fileRef = C0E0A7E1A2E9F4B010000002 /* COExport.m */; };
 		C0E0A7E1A2E9F4B010000013 /* COExportSession.h in Headers */ = {isa = PBXBuildFile; fileRef = C0E0A7E1A2E9F4B010000011 /* COExportSession.h */; };
 		C0E0A7E1A2E9F4B010000014 /* COExportSession.m in Sources */ = {isa = PBXBuildFile; fileRef = C0E0A7E1A2E9F4B010000012 /* COExportSession.m */; };
 		C0DA6E1A2E9F4B0100000004 /* COPageLabel.m in Sources */ = {isa = PBXBuildFile; fileRef = C0DA6E1A2E9F4B0100000002 /* COPageLabel.m */; };
+		C0DA6E1A2E9F4B0100000014 /* COTitleBarLabelView.m in Sources */ = {isa = PBXBuildFile; fileRef = C0DA6E1A2E9F4B0100000012 /* COTitleBarLabelView.m */; };
 		AC0DE01E1CA7A106A55E7500 /* COCoverExtractor.h in Headers */ = {isa = PBXBuildFile; fileRef = AC0DE01C1CA7A106A55E7500 /* COCoverExtractor.h */; };
 		AC0DE01F1CA7A106A55E7500 /* COCoverExtractor.m in Sources */ = {isa = PBXBuildFile; fileRef = AC0DE01D1CA7A106A55E7500 /* COCoverExtractor.m */; };
 		AC0DE0051CA7A106A55E7500 /* libarchive.13.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = AC0DE0031CA7A106A55E7500 /* libarchive.13.dylib */; };
@@ -267,11 +269,13 @@
 		AC0DE0181CA7A106A55E7500 /* CORarHeaderIndex.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = Sources/CORarHeaderIndex.h; sourceTree = "<group>"; };
 		AC0DE0191CA7A106A55E7500 /* CORarHeaderIndex.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = Sources/CORarHeaderIndex.m; sourceTree = "<group>"; };
 		C0DA6E1A2E9F4B0100000001 /* COPageLabel.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = Sources/COPageLabel.h; sourceTree = "<group>"; };
+		C0DA6E1A2E9F4B0100000011 /* COTitleBarLabelView.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = Sources/COTitleBarLabelView.h; sourceTree = "<group>"; };
 		C0E0A7E1A2E9F4B010000001 /* COExport.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = Sources/COExport.h; sourceTree = "<group>"; };
 		C0E0A7E1A2E9F4B010000002 /* COExport.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = Sources/COExport.m; sourceTree = "<group>"; };
 		C0E0A7E1A2E9F4B010000011 /* COExportSession.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = Sources/COExportSession.h; sourceTree = "<group>"; };
 		C0E0A7E1A2E9F4B010000012 /* COExportSession.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = Sources/COExportSession.m; sourceTree = "<group>"; };
 		C0DA6E1A2E9F4B0100000002 /* COPageLabel.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = Sources/COPageLabel.m; sourceTree = "<group>"; };
+		C0DA6E1A2E9F4B0100000012 /* COTitleBarLabelView.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = Sources/COTitleBarLabelView.m; sourceTree = "<group>"; };
 		AC0DE01C1CA7A106A55E7500 /* COCoverExtractor.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = Sources/COCoverExtractor.h; sourceTree = "<group>"; };
 		AC0DE01D1CA7A106A55E7500 /* COCoverExtractor.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = Sources/COCoverExtractor.m; sourceTree = "<group>"; };
 		AC0DE0031CA7A106A55E7500 /* libarchive.13.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; name = libarchive.13.dylib; path = vendor/lib/libarchive.13.dylib; sourceTree = "<group>"; };
@@ -660,6 +664,8 @@
 				AC0DE0191CA7A106A55E7500 /* CORarHeaderIndex.m */,
 				C0DA6E1A2E9F4B0100000001 /* COPageLabel.h */,
 				C0DA6E1A2E9F4B0100000002 /* COPageLabel.m */,
+				C0DA6E1A2E9F4B0100000011 /* COTitleBarLabelView.h */,
+				C0DA6E1A2E9F4B0100000012 /* COTitleBarLabelView.m */,
 				C0E0A7E1A2E9F4B010000001 /* COExport.h */,
 				C0E0A7E1A2E9F4B010000002 /* COExport.m */,
 				C0E0A7E1A2E9F4B010000011 /* COExportSession.h */,
@@ -834,6 +840,7 @@
 				AC0DE0161CA7A106A55E7500 /* CORarArchive.h in Headers */,
 				AC0DE01A1CA7A106A55E7500 /* CORarHeaderIndex.h in Headers */,
 				C0DA6E1A2E9F4B0100000003 /* COPageLabel.h in Headers */,
+				C0DA6E1A2E9F4B0100000013 /* COTitleBarLabelView.h in Headers */,
 				C0E0A7E1A2E9F4B010000003 /* COExport.h in Headers */,
 				C0E0A7E1A2E9F4B010000013 /* COExportSession.h in Headers */,
 				AC0DE01E1CA7A106A55E7500 /* COCoverExtractor.h in Headers */,
@@ -1050,6 +1057,7 @@
 				AC0DE0171CA7A106A55E7500 /* CORarArchive.m in Sources */,
 				AC0DE01B1CA7A106A55E7500 /* CORarHeaderIndex.m in Sources */,
 				C0DA6E1A2E9F4B0100000004 /* COPageLabel.m in Sources */,
+				C0DA6E1A2E9F4B0100000014 /* COTitleBarLabelView.m in Sources */,
 				C0E0A7E1A2E9F4B010000004 /* COExport.m in Sources */,
 				C0E0A7E1A2E9F4B010000014 /* COExportSession.m in Sources */,
 				AC0DE01F1CA7A106A55E7500 /* COCoverExtractor.m in Sources */,

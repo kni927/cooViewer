@@ -81,9 +81,14 @@ extern NSString * const COResolutionMarginMigratedKey;
 
 	/* The page position on the page bar ("9-10/20") and where it goes
 	   (PageBarNumber, a COPageBarNumberMode). Drawn with the bar, so it
-	   follows the bar's switch and auto-hide. */
+	   follows the bar's switch and auto-hide. Title bar mode draws nothing
+	   here (BookWindowController shows it in the title bar). */
 	NSString *pageBarNumber;
 	int pageBarNumberMode;
+	/* The file-name status bar: shown with the page bar's auto-hide but
+	   not its switch (-setFileNameStatusBar:entries:). */
+	BOOL statusBarEnabled;
+	NSArray *statusBarEntries;
 }
 NSRect COIntRect(NSRect aRect);
 -(void)setPreferences;
@@ -121,6 +126,18 @@ NSRect COIntRect(NSRect aRect);
 /* The page bar plus its number (beside it, or in it and reaching past a
    short bar): the area to redraw when the bar is shown, hidden or changed. */
 -(NSRect)pageBarAreaRect;
+/* The file-name status bar (FileNameLocation = Status bar, ShowNumber on):
+   the entries in screen order (left page first), one or two. Disabled,
+   nothing is drawn and nothing moves. */
+-(void)setFileNameStatusBar:(BOOL)enabled entries:(NSArray*)entries;
+/* The full-width bar along the bottom edge (empty when disabled), and how
+   far a bottom page bar is raised to sit above it. */
+-(NSRect)statusBarRect;
+-(float)pageBarStatusBarLift;
+/* Draws the status bar with the entries in it, each centred under its
+   page (-[CustomImageView shownPageRectsInView:]) and truncated to stay
+   within it, so the two never overlap. */
+-(void)drawStatusBar;
 
 /* Page-number text attributes (color, background-dependent shadow) with
    the given font: the page number's with TextFont, the resolution bar's

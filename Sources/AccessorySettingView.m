@@ -113,6 +113,8 @@
 -(void)drawRect:(NSRect)frameRect
 {	
 	if (positionSettingMode>=0) {
+		/* The file-name status bar along the bottom edge, under the page bar. */
+		[self drawStatusBar];
 		pageBarRect = [self pageBarRect];
 		float pbWidth = pageBarRect.size.width;
 		
@@ -222,6 +224,9 @@
 			default:
 				break;
 		}
+		/* No file-name HUD, and so no guides, while the file names are in
+		   the status bar. */
+		if (!pageString) path = [NSBezierPath bezierPath];
 		[[[NSColor grayColor] colorWithAlphaComponent:0.8] set];
 		[path setLineDash:array count:2 phase:0.0];
 		[path stroke];
@@ -258,12 +263,12 @@
 			break;
 		case 2:
 			rect = NSMakeRect(contentFrame.origin.x+pageBarMargin.x+2,
-							  contentFrame.origin.y+pageBarMargin.y+2,
+							  contentFrame.origin.y+pageBarMargin.y+2+[self pageBarStatusBarLift],
 							  width,height);
 			break;
 		case 3:
 			rect = NSMakeRect(contentFrame.origin.x+contentFrame.size.width-width-pageBarMargin.x-3,
-							  contentFrame.origin.y+pageBarMargin.y+2,
+							  contentFrame.origin.y+pageBarMargin.y+2+[self pageBarStatusBarLift],
 							  width,height);
 			break;
 		default:

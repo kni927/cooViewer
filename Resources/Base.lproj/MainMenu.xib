@@ -898,6 +898,7 @@ go to the last page always.</string>
                                                                 <items>
                                                                     <menuItem title="In bar" state="on" id="PBN-It-000"/>
                                                                     <menuItem title="Overlay" tag="1" id="PBN-It-001"/>
+                                                                    <menuItem title="Title bar" tag="3" id="PBN-It-003"/>
                                                                     <menuItem title="Off" tag="2" id="PBN-It-002"/>
                                                                 </items>
                                                             </menu>
@@ -1009,6 +1010,29 @@ go to the last page always.</string>
                                                             <menu key="menu" title="OtherViews" id="2818">
                                                                 <items>
                                                                     <menuItem title="Other" state="on" id="2819"/>
+                                                                </items>
+                                                            </menu>
+                                                        </popUpButtonCell>
+                                                    </popUpButton>
+                                                    <textField verticalHuggingPriority="750" horizontalCompressionResistancePriority="250" fixedFrame="YES" translatesAutoresizingMaskIntoConstraints="NO" id="FNL-Lb-001">
+                                                        <rect key="frame" x="178" y="91" width="70" height="17"/>
+                                                        <autoresizingMask key="autoresizingMask" flexibleMaxX="YES" flexibleMinY="YES"/>
+                                                        <textFieldCell key="cell" sendsActionOnEndEditing="YES" alignment="left" title="Show in:" id="FNL-LbC-001">
+                                                            <font key="font" metaFont="system"/>
+                                                            <color key="textColor" name="controlTextColor" catalog="System" colorSpace="catalog"/>
+                                                            <color key="backgroundColor" name="controlColor" catalog="System" colorSpace="catalog"/>
+                                                        </textFieldCell>
+                                                    </textField>
+                                                    <popUpButton verticalHuggingPriority="750" fixedFrame="YES" translatesAutoresizingMaskIntoConstraints="NO" id="FNL-Pu-001">
+                                                        <rect key="frame" x="248" y="87" width="120" height="22"/>
+                                                        <autoresizingMask key="autoresizingMask"/>
+                                                        <popUpButtonCell key="cell" type="push" title="HUD" bezelStyle="rounded" alignment="left" controlSize="small" lineBreakMode="truncatingTail" state="on" borderStyle="borderAndBezel" inset="2" arrowPosition="arrowAtCenter" preferredEdge="maxY" selectedItem="FNL-It-000" id="FNL-PuC-001">
+                                                            <behavior key="behavior" lightByBackground="YES" lightByGray="YES"/>
+                                                            <font key="font" metaFont="smallSystem"/>
+                                                            <menu key="menu" title="OtherViews" id="FNL-Mn-001">
+                                                                <items>
+                                                                    <menuItem title="HUD" state="on" id="FNL-It-000"/>
+                                                                    <menuItem title="Status bar" tag="1" id="FNL-It-001"/>
                                                                 </items>
                                                             </menu>
                                                         </popUpButtonCell>
@@ -2504,6 +2528,7 @@ Gw
                 <outlet property="rememberBookSettingsCheck" destination="2850" id="2851"/>
                 <outlet property="showPageBarCheck" destination="2838" id="2841"/>
                 <outlet property="pageBarNumberPopUpButton" destination="PBN-Pu-001" id="PBN-Ou-001"/>
+                <outlet property="fileNameLocationPopUpButton" destination="FNL-Pu-001" id="FNL-Ou-001"/>
                 <outlet property="showPageNumCheck" destination="2839" id="2840"/>
                 <outlet property="showResolutionCheck" destination="RSb-Sh-001" id="RSb-Ou-001"/>
                 <outlet property="resolutionInPageNumberCheck" destination="RSb-IP-001" id="RSb-Ou-002"/>

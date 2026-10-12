@@ -113,6 +113,12 @@
 -(NSString*)pageString;
 -(void)setResolutionString:(NSString*)string;
 -(void)setPageBarNumberString:(NSString*)string;
+-(void)setFileNameStatusBar:(BOOL)enabled entries:(NSArray*)entries;
+/* Read only: the shown pages' visible rects, as NSValue rects in `view`'s
+   coordinates (any window), left page first, from the same geometry that
+   -drawRect: uses (-getDrawImagesInfo:and: / -getDrawImageInfo:, with the
+   rotation applied). Nothing is drawn or changed. nil without an image. */
+-(NSArray*)shownPageRectsInView:(NSView*)view;
 
 -(void)drawPageBar;
 -(void)setSlideshow:(BOOL)b;

@@ -21,14 +21,14 @@ Many thanks to everyone who has contributed to keeping cooViewer alive.
 
 ### Page Position, File Names and Image Resolution
 
-The page bar shows the current position, centred and in reading order: `5/42` for a single page, `4-5/42` for a spread. **Preferences → Appearance → Page Bar → Number** puts it in the bar (default), just outside it (Overlay, on the side away from the window edge), or turns it off. The number is drawn at the size of the HUD text (the File Name font) and may reach a little past a bar shorter than it. The bar's default height is 18 px; a profile that still had the old default (15 px) moves to it once, and any other height is kept.
+The page bar shows the current position, centred and in reading order: `5/42` for a single page, `4-5/42` for a spread. **Preferences → Appearance → Page Bar → Number** puts it in the bar (default), just outside it (Overlay, on the side away from the window edge), in the title bar (Title bar: the book name stays left-aligned and the position is centred on the window; a long name is shortened in the middle so it ends before the position; hidden in full screen with the title bar), or turns it off. The number is drawn at the size of the HUD text (the File Name font) and may reach a little past a bar shorter than it. The bar's default height is 18 px; a profile that still had the old default (15 px) moves to it once, and any other height is kept.
 
 The file-name HUD shows the file names of the shown pages, with each image's pixel dimensions:
 
 * Single page: `page005.jpg (1600x1080)`
 * Spread (two pages, in screen order): `page004.jpg (800x600) | page005.jpg (800x600)`
 
-Its settings are under **Preferences → Appearance → File Name**. Resolution can be toggled independently under **Preferences → Appearance → Resolution**: in the file-name HUD, in a bar of its own (the HUD then shows only `page004.jpg | page005.jpg`), or off. A resolution bar placed in the file-name HUD's row sits beside it; placed on another row, it stays where Preferences put it whatever the file names' length.
+Its settings are under **Preferences → Appearance → File Name**. **Show in** puts the file names in the corner HUD (default) or in a status bar: a full-width bar along the bottom of the window, drawn over the image (which keeps its size and place) and shown and hidden with the page bar's auto-hide. Each name is centred under its page (in a spread, the left page's under the left page and the right page's under the right page); a name too long for its page is shortened in the middle, so the two never overlap. A bottom page bar sits just above the status bar, and the other HUDs keep clear of it. Show (and its keyboard/mouse action) shows or hides the file names in either place. Resolution can be toggled independently under **Preferences → Appearance → Resolution**: in the file-name HUD, in a bar of its own (the HUD then shows only `page004.jpg | page005.jpg`), or off. A resolution bar placed in the file-name HUD's row sits beside it; placed on another row, it stays where Preferences put it whatever the file names' length.
 
 <!-- Screenshot placeholder -->
 

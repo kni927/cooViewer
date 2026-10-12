@@ -1552,6 +1552,88 @@ NSTimeInterval elapsed=0;
 	[accessoryView setPageBarNumberString:string];
 }
 
+-(void)setFileNameStatusBar:(BOOL)enabled entries:(NSArray*)entries
+{
+	[accessoryView setFileNameStatusBar:enabled entries:entries];
+}
+
+/* For the file-name status bar, which centres each name under its page.
+   It asks the same geometry methods -drawRect: asks, and applies the same
+   rotation, but only to rects: no image is drawn, and the render path
+   (one drawInRect:fromRect: per page, KNOWN_ISSUES/CLAUDE.md image-quality
+   rule) is untouched. -getDrawImagesInfo:and: also records fRect/sRect as
+   a side effect; they are restored so this stays read only. */
+-(NSArray*)shownPageRectsInView:(NSView*)view
+{
+	if (_image == nil || !view || ![self window] || ![view window]) return nil;
+	NSMutableArray *pageRects = [NSMutableArray array];
+	if ([target firstImage] && images) {
+		NSRect savedF = fRect, savedS = sRect;
+		NSDictionary *infodic = [self getDrawImagesInfo:[target image1] and:[target image2]];
+		fRect = savedF;
+		sRect = savedS;
+		[pageRects addObject:[NSValue valueWithRect:NSRectFromString([infodic objectForKey:@"drawRect1"])]];
+		if ([target image2]) {
+			[pageRects addObject:[NSValue valueWithRect:NSRectFromString([infodic objectForKey:@"drawRect2"])]];
+		}
+	} else {
+		NSDictionary *infodic = [self getDrawImageInfo:_image];
+		[pageRects addObject:[NSValue valueWithRect:NSRectFromString([infodic objectForKey:@"drawRect"])]];
+	}
+
+	/* The rotation -drawImages:and: and -drawImage: concatenate. */
+	NSAffineTransform *transform = [NSAffineTransform transform];
+	switch (rotateMode) {
+		case 1:
+			[transform translateXBy:NSWidth([self bounds]) yBy:0];
+			[transform rotateByDegrees:90];
+			break;
+		case 2:
+			[transform translateXBy:NSWidth([self bounds]) yBy:NSHeight([self bounds])];
+			[transform rotateByDegrees:180];
+			break;
+		case 3:
+			[transform translateXBy:0 yBy:NSHeight([self bounds])];
+			[transform rotateByDegrees:270];
+			break;
+		default:
+			break;
+	}
+
+	NSRect visible = [self visibleRect];
+	NSMutableArray *result = [NSMutableArray array];
+	for (NSValue *value in pageRects) {
+		NSRect r = [value rectValue];
+		if (NSIsEmptyRect(r)) continue;
+		NSPoint corners[4] = {
+			NSMakePoint(NSMinX(r), NSMinY(r)), NSMakePoint(NSMaxX(r), NSMinY(r)),
+			NSMakePoint(NSMinX(r), NSMaxY(r)), NSMakePoint(NSMaxX(r), NSMaxY(r)),
+		};
+		CGFloat minX = CGFLOAT_MAX, minY = CGFLOAT_MAX, maxX = -CGFLOAT_MAX, maxY = -CGFLOAT_MAX;
+		int i;
+		for (i = 0; i < 4; i++) {
+			NSPoint p = [transform transformPoint:corners[i]];
+			minX = MIN(minX, p.x); maxX = MAX(maxX, p.x);
+			minY = MIN(minY, p.y); maxY = MAX(maxY, p.y);
+		}
+		NSRect shown = NSMakeRect(minX, minY, maxX - minX, maxY - minY);
+		/* The part on screen, when the page is scrolled partly out of view. */
+		NSRect clipped = NSIntersectionRect(shown, visible);
+		if (!NSIsEmptyRect(clipped)) shown = clipped;
+		NSRect inWindow = [self convertRect:shown toView:nil];
+		NSRect onScreen = [[self window] convertRectToScreen:inWindow];
+		NSRect inTarget = [[view window] convertRectFromScreen:onScreen];
+		[result addObject:[NSValue valueWithRect:[view convertRect:inTarget fromView:nil]]];
+	}
+	[result sortUsingComparator:^NSComparisonResult(NSValue *a, NSValue *b) {
+		CGFloat ax = NSMidX([a rectValue]), bx = NSMidX([b rectValue]);
+		if (ax < bx) return NSOrderedAscending;
+		if (ax > bx) return NSOrderedDescending;
+		return NSOrderedSame;
+	}];
+	return result;
+}
+
 #pragma mark accessory
 
 -(void)drawPageBar

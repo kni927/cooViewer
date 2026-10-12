@@ -10,6 +10,7 @@
 #import "COPageLabel.h"
 #import "AccessoryView.h"	/* +migrateResolutionMarginInDefaults: */
 #import "COExportSession.h"
+#import "COTitleBarLabelView.h"
 #include <os/log.h>
 
 @implementation BookWindowController
@@ -48,6 +49,9 @@
 
 	[appDefault setObject:[NSNumber numberWithBool:YES] forKey:@"ShowPageBar"];
 	[appDefault setObject:[NSNumber numberWithBool:YES] forKey:@"ShowNumber"];
+	/* Where the file names (ShowNumber) are shown: the corner HUD or the
+	   status bar along the bottom (COFileNameLocation). */
+	[appDefault setObject:[NSNumber numberWithInt:COFileNameLocationHUD] forKey:COFileNameLocationKey];
 	/* Where the page bar shows the page position (COPageBarNumberMode). */
 	[appDefault setObject:[NSNumber numberWithInt:COPageBarNumberInBar] forKey:@"PageBarNumber"];
 
@@ -194,6 +198,8 @@
 	[exportSession ownerWillGoAway];
 	[exportSession release];
 	exportSession = nil;
+	[titleBarNumberAccessory release];
+	[titleBarLabelView release];
 
 	[lock release];
 	[cacheLock release];
@@ -486,6 +492,7 @@ static NSPoint gNextWindowCascadePoint;
 	
 	numberSwitch = [defaults boolForKey:@"ShowNumber"];
 	resolutionDisplay = (int)[defaults integerForKey:@"ResolutionDisplay"];
+	fileNameLocation = (int)[defaults integerForKey:COFileNameLocationKey];
 	maxEnlargement = (int)[defaults integerForKey:@"MaxEnlargement"];
 	
 	
@@ -785,6 +792,7 @@ static NSPoint gNextWindowCascadePoint;
 		[defaults setObject:[[[NSBundle mainBundle] infoDictionary] objectForKey:@"CFBundleVersion"] forKey:@"Version"];
 	}
 	[imageView setPreferences];
+	[self updateTitleBarNumber:nil];
 	[self setupInputMappings];
 }
 
@@ -1750,7 +1758,9 @@ static NSString * const kBookViewModeKey = @"cooViewerBookViewMode";
 	[imageView setPageString:nil];
 	[imageView setResolutionString:nil];
 	[imageView setPageBarNumberString:nil];
+	[imageView setFileNameStatusBar:[self fileNameStatusBarEnabled] entries:nil];
 	[[self window] setTitle:currentBookName];
+	[self updateTitleBarNumber:nil];
 	
 	[bookmarkArray removeAllObjects];
 	if (currentBookSetting) {
@@ -3240,13 +3250,17 @@ static void COPerformOpenStep(void (^block)(void))
 	pageBar = [defaults boolForKey:@"ShowPageBar"];
 	BOOL newNumberSwitch = [defaults boolForKey:@"ShowNumber"];
 	int newResolutionDisplay = (int)[defaults integerForKey:@"ResolutionDisplay"];
-	if (numberSwitch != newNumberSwitch || resolutionDisplay != newResolutionDisplay) {
+	int newFileNameLocation = (int)[defaults integerForKey:COFileNameLocationKey];
+	if (numberSwitch != newNumberSwitch || resolutionDisplay != newResolutionDisplay
+		|| fileNameLocation != newFileNameLocation) {
 		numberSwitch = newNumberSwitch;
 		resolutionDisplay = newResolutionDisplay;
+		fileNameLocation = newFileNameLocation;
 		[self setPageTextField];
 	}
 	
 	[imageView setPreferences];
+	[self updateTitleBarNumber:[self pageBarNumberString]];
 	[[self window] enableFlushWindow];
 	
 	
@@ -3795,9 +3809,13 @@ static const NSInteger kBookmarkMenuFixedItemCount = 3;
 	} else {
 		[imageView setSlideshow:NO];
 	}*/
+	/* The status bar first: it can move the corner HUDs, whose rects the
+	   two calls after it compute. */
+	[imageView setFileNameStatusBar:[self fileNameStatusBarEnabled] entries:[self fileNameStatusBarEntries]];
 	[imageView setPageString:[self pageTextFieldString]];
 	[imageView setResolutionString:[self resolutionBarString]];
 	[imageView setPageBarNumberString:[self pageBarNumberString]];
+	[self updateTitleBarNumber:[self pageBarNumberString]];
 }
 
 /* Pixel dimensions from the image's representations, not -[NSImage size],
@@ -3828,9 +3846,37 @@ static const NSInteger kBookmarkMenuFixedItemCount = 3;
    shown, or when there is nothing to show. */
 - (NSString*)pageStringWithName:(BOOL)withName resolution:(BOOL)withResolution
 {
+	if (withName) {
+		NSArray *entries = [self fileNameEntriesWithResolution:withResolution];
+		return entries ? [entries componentsJoinedByString:@" | "] : nil;
+	}
+	NSArray *sizes = nil;
+	if (![self shownPageNames:NULL sizes:&sizes resolution:YES]) return nil;
+	NSMutableArray *entries = [NSMutableArray array];
+	for (id size in sizes) {
+		if ([size isKindOfClass:[NSString class]]) [entries addObject:size];
+	}
+	if ([entries count] == 0) return nil;
+	return [entries componentsJoinedByString:@" | "];
+}
+
+/* The file-name entries, one per shown page in screen order (left page
+   first): "009.jpg (1400x2000)" with withResolution, else "009.jpg"
+   (COFileNameEntries). nil when no page is shown. */
+- (NSArray*)fileNameEntriesWithResolution:(BOOL)withResolution
+{
+	NSArray *names = nil, *sizes = nil;
+	if (![self shownPageNames:&names sizes:&sizes resolution:withResolution]) return nil;
+	return COFileNameEntries(names, sizes);
+}
+
+/* The shown pages' file names and sizes ("WxH" or NSNull), in screen
+   order; NO when no page is shown. */
+- (BOOL)shownPageNames:(NSArray**)namesOut sizes:(NSArray**)sizesOut resolution:(BOOL)withResolution
+{
 	int count = (int)[completeMutableArray count];
-	if (nowPage <= 0 || nowPage > count || !firstImage) return nil;
-	if (secondImage && nowPage < 2) return nil;
+	if (nowPage <= 0 || nowPage > count || !firstImage) return NO;
+	if (secondImage && nowPage < 2) return NO;
 
 	NSMutableArray *pages = [NSMutableArray array];	/* (index, image) pairs, left to right */
 	if (!secondImage) {
@@ -3854,21 +3900,34 @@ static const NSInteger kBookmarkMenuFixedItemCount = 3;
 		[sizes addObject:(size ? (id)size : (id)[NSNull null])];
 		[names addObject:[[completeMutableArray objectAtIndex:[[page objectAtIndex:0] intValue]] lastPathComponent]];
 	}
-	if (withName) return COFileNameHUDString(names, sizes);
-
-	NSMutableArray *entries = [NSMutableArray array];
-	for (id size in sizes) {
-		if ([size isKindOfClass:[NSString class]]) [entries addObject:size];
-	}
-	if ([entries count] == 0) return nil;
-	return [entries componentsJoinedByString:@" | "];
+	if (namesOut) *namesOut = names;
+	if (sizesOut) *sizesOut = sizes;
+	return YES;
 }
 
-/* The file-name HUD (ShowNumber). */
+/* The file-name HUD (ShowNumber), unless the file names are in the
+   status bar. */
 - (NSString*)pageTextFieldString
 {
-	if (!numberSwitch) return nil;
+	if (!numberSwitch || fileNameLocation == COFileNameLocationStatusBar) return nil;
 	return [self pageStringWithName:YES resolution:(resolutionDisplay == COResolutionDisplayInPageNumber)];
+}
+
+/* FileNameLocation = Status bar: the bar is there while ShowNumber is on
+   (also between books, so a bottom page bar does not jump). */
+- (BOOL)fileNameStatusBarEnabled
+{
+	return numberSwitch && fileNameLocation == COFileNameLocationStatusBar;
+}
+
+/* The status bar's entries: the HUD's, one per page in screen order, so a
+   spread's left page's entry goes under the left page and the right
+   page's under the right page (AccessoryView). The resolution is in them
+   when it is "in file name". */
+- (NSArray*)fileNameStatusBarEntries
+{
+	if (![self fileNameStatusBarEnabled]) return nil;
+	return [self fileNameEntriesWithResolution:(resolutionDisplay == COResolutionDisplayInPageNumber)];
 }
 
 /* The separate resolution bar: dimensions only, independent of ShowNumber. */
@@ -3891,6 +3950,42 @@ static const NSInteger kBookmarkMenuFixedItemCount = 3;
 		return COPageBarPositionString(nowPage-1, nowPage, count);
 	}
 	return COPageBarPositionString(nowPage, nowPage, count);
+}
+
+/* Title bar mode (PageBarNumber = COPageBarNumberTitleBar): the system
+   title is hidden and a left title-bar accessory draws the title
+   left-aligned and the position centred on the window (COTitleBarLabelView). The
+   window's own title stays the plain book name, so the Window menu, the
+   Dock and accessibility see only the name. Leaving the mode removes the
+   accessory and shows the system title again. In full screen the title
+   bar is hidden with everything in it. */
+- (void)updateTitleBarNumber:(NSString*)number
+{
+	NSWindow *window = [self window];
+	if (!window) return;
+	BOOL wanted = ([defaults integerForKey:@"PageBarNumber"] == COPageBarNumberTitleBar);
+	if (wanted) {
+		if (!titleBarNumberAccessory) {
+			CGFloat width = MAX(0, NSWidth([window frame]) - 80);
+			titleBarLabelView = [[COTitleBarLabelView alloc] initWithFrame:NSMakeRect(0, 0, width, 22)];
+			titleBarNumberAccessory = [[NSTitlebarAccessoryViewController alloc] init];
+			[titleBarNumberAccessory setView:titleBarLabelView];
+			[titleBarNumberAccessory setLayoutAttribute:NSLayoutAttributeLeft];
+			[window addTitlebarAccessoryViewController:titleBarNumberAccessory];
+			[window setTitleVisibility:NSWindowTitleHidden];
+		}
+		[titleBarLabelView setNumber:number];
+	} else if (titleBarNumberAccessory) {
+		NSUInteger index = [[window titlebarAccessoryViewControllers] indexOfObjectIdenticalTo:titleBarNumberAccessory];
+		if (index != NSNotFound) {
+			[window removeTitlebarAccessoryViewControllerAtIndex:(NSInteger)index];
+		}
+		[titleBarNumberAccessory release];
+		titleBarNumberAccessory = nil;
+		[titleBarLabelView release];
+		titleBarLabelView = nil;
+		[window setTitleVisibility:NSWindowTitleVisible];
+	}
 }
 
 
@@ -4295,6 +4390,8 @@ static const NSInteger kBookmarkMenuFixedItemCount = 3;
 		[imageView setPageString:nil];
 		[imageView setResolutionString:nil];
 		[imageView setPageBarNumberString:nil];
+		[imageView setFileNameStatusBar:[self fileNameStatusBarEnabled] entries:nil];
+		[self updateTitleBarNumber:nil];
 		[NSCursor setHiddenUntilMouseMoves:NO];
 		[imageView setImage:nil];
 		[firstImage release];

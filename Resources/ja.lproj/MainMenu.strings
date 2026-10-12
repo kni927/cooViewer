@@ -1407,3 +1407,15 @@
 
 /* Class = "NSMenuItem"; title = "Off"; ObjectID = "PBN-It-002"; */
 "PBN-It-002.title" = "表示しない";
+
+/* Class = "NSMenuItem"; title = "Title bar"; ObjectID = "PBN-It-003"; */
+"PBN-It-003.title" = "タイトルバー";
+
+/* Class = "NSTextFieldCell"; title = "Show in:"; ObjectID = "FNL-LbC-001"; */
+"FNL-LbC-001.title" = "表示場所:";
+
+/* Class = "NSMenuItem"; title = "HUD"; ObjectID = "FNL-It-000"; */
+"FNL-It-000.title" = "HUD";
+
+/* Class = "NSMenuItem"; title = "Status bar"; ObjectID = "FNL-It-001"; */
+"FNL-It-001.title" = "ステータスバー";

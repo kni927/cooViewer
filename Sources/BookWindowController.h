@@ -12,6 +12,7 @@
 
 @class AppController;
 @class COExportSession;
+@class COTitleBarLabelView;
 
 @interface BookWindowController : NSWindowController <NSMenuDelegate>
 {
@@ -202,6 +203,10 @@
 	/* File ▸ Export… in progress for this window's book, from its save
 	   panel to its end (COExportSession.h), or nil. */
 	COExportSession *exportSession;
+	/* Title bar mode of PageBarNumber: the accessory and its view while
+	   installed, else nil (-updateTitleBarNumber:). */
+	NSTitlebarAccessoryViewController *titleBarNumberAccessory;
+	COTitleBarLabelView *titleBarLabelView;
 
 	/* YES while an open into a window that was not on screen when the open
 	   began has not shown it yet. Such a window is shown only once there is
@@ -230,6 +235,7 @@
 	//BOOL loopSwitch;
 	BOOL numberSwitch;
 	int resolutionDisplay;	/* ResolutionDisplay, a COResolutionDisplay* value */
+	int fileNameLocation;	/* FileNameLocation, a COFileNameLocation value */
 	
 	
 	NSTimer *timer;
@@ -597,8 +603,12 @@
 
 - (void)setPageTextField;
 - (NSString*)pageTextFieldString;
+- (NSArray*)fileNameStatusBarEntries;
 - (NSString*)resolutionBarString;
 - (NSString*)pageBarNumberString;
+/* Installs or removes the title bar position (PageBarNumber Title bar)
+   and shows `number` there. */
+- (void)updateTitleBarNumber:(NSString*)number;
 - (IBAction)changeReadModeMenu:(id)sender;
 - (IBAction)changeSortModeMenu:(id)sender;
 - (void)goBookmark:(id)sender;

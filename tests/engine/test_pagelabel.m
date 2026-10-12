@@ -6,6 +6,7 @@
 
 #import <Foundation/Foundation.h>
 #import "COPageLabel.h"
+#include <math.h>
 
 static int failures = 0;
 static int checks = 0;
@@ -113,12 +114,151 @@ static void testHeightMigration(void)
           @"fresh profile: nothing written but the marker");
 }
 
+static BOOL near(double a, double b)
+{
+    return fabs(a - b) < 0.001;
+}
+
+static void testModeTags(void)
+{
+    printf("PageBarNumber and FileNameLocation values match the Preferences popup tags\n");
+    check(COPageBarNumberInBar == 0 && COPageBarNumberOverlay == 1 && COPageBarNumberOff == 2,
+          @"In bar 0, Overlay 1, Off 2");
+    check(COPageBarNumberTitleBar == 3, @"Title bar 3");
+    check(COPageBarNumberModeFromStored(3) == COPageBarNumberTitleBar, @"stored 3 kept");
+    check(COPageBarNumberModeFromStored(2) == COPageBarNumberOff, @"stored 2 kept");
+    check(COPageBarNumberModeFromStored(4) == COPageBarNumberInBar, @"stored 4 (old Status bar) -> In bar");
+    check(COPageBarNumberModeFromStored(-1) == COPageBarNumberInBar, @"stored -1 -> In bar");
+    check(COFileNameLocationHUD == 0 && COFileNameLocationStatusBar == 1, @"HUD 0, Status bar 1");
+    checkString(COFileNameLocationKey, @"FileNameLocation", @"FileNameLocation key");
+}
+
+static void testFileNameEntries(void)
+{
+    printf("file-name entries\n");
+    NSArray *two = [NSArray arrayWithObjects:@"009.jpg", @"010.jpg", nil];
+    NSArray *sizes = [NSArray arrayWithObjects:@"1400x2000", [NSNull null], nil];
+    NSArray *entries = COFileNameEntries(two, sizes);
+    check([entries count] == 2 && [[entries objectAtIndex:0] isEqualToString:@"009.jpg (1400x2000)"]
+          && [[entries objectAtIndex:1] isEqualToString:@"010.jpg"], @"per-page entries, size where known");
+    entries = COFileNameEntries(two, nil);
+    check([entries isEqualToArray:two], @"no sizes: names only");
+    check(COFileNameEntries([NSArray array], nil) == nil, @"no pages: nil");
+}
+
+static void testTitleBarLayout(void)
+{
+    printf("title bar layout\n");
+    /* View 900 wide, window centre at 430 in view coordinates, name from 4,
+       12 between name and number. */
+    COTitleBarLayout l = COTitleBarLayoutMake(900, 430, 4, 200, 12, 50);
+    check(near(l.nameX, 4) && near(l.nameWidth, 200) && near(l.numberX, 405),
+          @"short name left-aligned, number centred");
+
+    l = COTitleBarLayoutMake(900, 430, 4, 389, 12, 50);
+    check(near(l.nameWidth, 389) && near(l.numberX, 405), @"name ending exactly at the gap: kept");
+
+    l = COTitleBarLayoutMake(900, 430, 4, 600, 12, 50);
+    check(near(l.nameX, 4) && near(l.nameWidth, 389) && near(l.numberX, 405),
+          @"long name truncated before the centred number");
+
+    l = COTitleBarLayoutMake(900, 430, 4, 600, 12, 0);
+    check(near(l.nameWidth, 600), @"no number: name keeps its width");
+    l = COTitleBarLayoutMake(500, 430, 4, 600, 12, 0);
+    check(near(l.nameWidth, 496), @"no number: name truncated at the view's end");
+
+    l = COTitleBarLayoutMake(900, 880, 4, 100, 12, 50);
+    check(near(l.numberX, 850), @"centre near the right end: number kept within the view");
+    l = COTitleBarLayoutMake(900, 10, 4, 100, 12, 50);
+    check(near(l.numberX, 0) && near(l.nameWidth, 0), @"centre near the left end: number at 0, no name");
+}
+
+static void testStatusBarLayout(void)
+{
+    printf("status bar layout\n");
+    check(near(COStatusBarHeight(14), 18), @"height = text + 4");
+    check(near(COStatusBarHeight(13.2), 18), @"text height rounded up");
+
+    /* Bar 800 wide, 6 padding, 16 gap. */
+    COStatusBarLayout l = COStatusBarLayoutMake(800, 6, 16, 1, 0, 800, 200, 0, 0, 0);
+    check(near(l.leftX, 300) && near(l.leftWidth, 200), @"single page filling the bar: centred");
+    l = COStatusBarLayoutMake(800, 6, 16, 1, 100, 500, 200, 0, 0, 0);
+    check(near(l.leftX, 200) && near(l.leftWidth, 200), @"single page offset: centred under the page");
+    l = COStatusBarLayoutMake(800, 6, 16, 1, 600, 900, 300, 0, 0, 0);
+    check(near(l.leftX, 494) && near(l.leftWidth, 300), @"single page partly past the end: kept inside the bar");
+    l = COStatusBarLayoutMake(800, 6, 16, 1, 0, 800, 1000, 0, 0, 0);
+    check(near(l.leftX, 6) && near(l.leftWidth, 788), @"single long entry truncated to the bar");
+
+    /* Spread: pages 100..400 and 400..700, shared edge 400. */
+    l = COStatusBarLayoutMake(800, 6, 16, 2, 100, 400, 100, 400, 700, 120);
+    check(near(l.leftX, 200) && near(l.leftWidth, 100) && near(l.rightX, 490) && near(l.rightWidth, 120),
+          @"spread: each entry centred under its page");
+    l = COStatusBarLayoutMake(800, 6, 16, 2, 100, 400, 500, 400, 700, 120);
+    check(near(l.leftX, 100) && near(l.leftWidth, 292) && near(l.rightX, 490),
+          @"long left entry truncated within its page, gap kept");
+    l = COStatusBarLayoutMake(800, 6, 16, 2, 100, 400, 100, 400, 700, 500);
+    check(near(l.rightX, 408) && near(l.rightWidth, 292) && near(l.leftX, 200),
+          @"long right entry truncated within its page, gap kept");
+    l = COStatusBarLayoutMake(800, 6, 16, 2, 100, 400, 280, 400, 700, 280);
+    check(near(l.leftX, 110) && near(l.rightX, 410), @"wide entries: centred, still apart");
+    check(l.leftX + l.leftWidth + 16 <= l.rightX + 0.001, @"never closer than the gap");
+
+    /* Unequal pages: 0..300 and 300..800 (edge 300). */
+    l = COStatusBarLayoutMake(800, 6, 16, 2, 0, 300, 100, 300, 800, 100);
+    check(near(l.leftX, 100) && near(l.rightX, 500), @"unequal pages: each under its own centre");
+
+    /* Pages scrolled past the bar's ends (zoomed): kept inside the bar. */
+    l = COStatusBarLayoutMake(800, 6, 16, 2, -400, 400, 200, 400, 1200, 200);
+    check(near(l.leftX, 6) && near(l.rightX, 594), @"pages past the ends: entries inside the bar");
+
+    /* No usable page rects (stacked by rotation, or none): the halves. */
+    l = COStatusBarLayoutMake(800, 6, 16, 2, 100, 700, 100, 100, 700, 100);
+    check(near(l.leftX, 150) && near(l.rightX, 550), @"stacked pages: halves of the bar");
+    l = COStatusBarLayoutMake(800, 6, 16, 2, 0, 0, 100, 0, 0, 100);
+    check(near(l.leftX, 150) && near(l.rightX, 550), @"no rects: halves of the bar");
+
+    l = COStatusBarLayoutMake(20, 6, 16, 2, 0, 10, 100, 10, 20, 100);
+    check(near(l.leftWidth, 0) && near(l.rightWidth, 0), @"too narrow: nothing drawn");
+}
+
+static void testBottomOffsets(void)
+{
+    printf("page bar lift and bottom HUD offsets\n");
+    check(near(COPageBarStatusBarLift(2, 18), 18), @"bottom-left bar lifted");
+    check(near(COPageBarStatusBarLift(3, 18), 18), @"bottom-right bar lifted");
+    check(near(COPageBarStatusBarLift(0, 18), 0), @"top bar not lifted");
+    check(near(COPageBarStatusBarLift(2, 0), 0), @"no status bar: no lift");
+
+    /* Without a status bar: the values Part 1 had. */
+    check(near(COBottomHUDOffset(COPageBarNumberOff, 2, 15, 14, 0), 17), @"Off, 15 px bottom bar: 17");
+    check(near(COBottomHUDOffset(COPageBarNumberOff, 0, 30, 14, 0), 17), @"top bar: 17");
+    check(near(COBottomHUDOffset(COPageBarNumberOff, 2, 18, 14, 0), 20), @"Off, 18 px bar: 20");
+    check(near(COBottomHUDOffset(COPageBarNumberOverlay, 2, 18, 14, 0), 35), @"Overlay: above the number");
+    check(near(COBottomHUDOffset(COPageBarNumberInBar, 2, 18, 14, 0), 20), @"In bar, text within the bar");
+    check(near(COBottomHUDOffset(COPageBarNumberInBar, 2, 10, 20, 0), 17), @"In bar, short bar: text clear");
+    check(near(COBottomHUDOffset(COPageBarNumberInBar, 2, 10, 30, 0), 22), @"In bar, tall text");
+    check(near(COBottomHUDOffset(COPageBarNumberTitleBar, 2, 18, 14, 0), 20), @"Title bar mode: bar only");
+
+    /* With an 18 px status bar: the HUD (offset + 2) clears it by 1 px, or
+       the bottom bar raised onto it. */
+    check(near(COBottomHUDOffset(COPageBarNumberOff, 0, 18, 14, 18), 17), @"status, top bar: 17 (HUD from 19)");
+    check(near(COBottomHUDOffset(COPageBarNumberOff, 0, 18, 14, 28), 27), @"tall status bar: cleared");
+    check(near(COBottomHUDOffset(COPageBarNumberOff, 2, 18, 14, 18), 38), @"status + bottom bar");
+    check(near(COBottomHUDOffset(COPageBarNumberOverlay, 2, 18, 14, 18), 53), @"status + bottom bar + overlay number");
+    check(near(COBottomHUDOffset(COPageBarNumberInBar, 2, 18, 14, 18), 38), @"status + bottom bar, number in it");
+}
+
 int main(int argc, char **argv)
 {
     @autoreleasepool {
         testPositionString();
         testFileNameHUD();
         testHeightMigration();
+        testModeTags();
+        testFileNameEntries();
+        testTitleBarLayout();
+        testStatusBarLayout();
+        testBottomOffsets();
         if (failures == 0) {
             printf("\nALL PASS (%d checks)\n", checks);
             return 0;

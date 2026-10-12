@@ -996,8 +996,13 @@ static const CGFloat kAppearanceExtraHeight = 82;
 	} else {
 		[showPageBarCheck setState:NSOffState];
 	}
-	if (![pageBarNumberPopUpButton selectItemWithTag:[defaults integerForKey:@"PageBarNumber"]]) {
+	/* An unknown stored value (4 was a short-lived Status bar choice)
+	   shows as In bar, which is also how the window reads it. */
+	if (![pageBarNumberPopUpButton selectItemWithTag:COPageBarNumberModeFromStored([defaults integerForKey:@"PageBarNumber"])]) {
 		[pageBarNumberPopUpButton selectItemWithTag:COPageBarNumberInBar];
+	}
+	if (![fileNameLocationPopUpButton selectItemWithTag:[defaults integerForKey:COFileNameLocationKey]]) {
+		[fileNameLocationPopUpButton selectItemWithTag:COFileNameLocationHUD];
 	}
 	/* ResolutionDisplay stays the stored state; the two checkboxes are a
 	   view of it. Off does not say where the resolution would go, so that
@@ -1512,6 +1517,7 @@ static const CGFloat kAppearanceExtraHeight = 82;
 			[defaults setBool:NO forKey:@"ShowPageBar"];
 		}	
 		[defaults setInteger:[pageBarNumberPopUpButton selectedTag] forKey:@"PageBarNumber"];
+		[defaults setInteger:[fileNameLocationPopUpButton selectedTag] forKey:COFileNameLocationKey];
 		
 		
 		
@@ -2940,10 +2946,20 @@ static const CGFloat kAppearanceExtraHeight = 82;
 	
 	[accessorySettingView setPositionSettingMode:YES];
 	[accessorySettingPanel makeKeyAndOrderFront:self];
+	NSArray *sampleEntries;
 	if ([self resolutionDisplayFromChecks] == COResolutionDisplayInPageNumber) {
-		[accessorySettingView setPageString:@"67.jpg (1200x1800) | 89.jpg (1200x1800)"];
+		sampleEntries = [NSArray arrayWithObjects:@"67.jpg (1200x1800)", @"89.jpg (1200x1800)", nil];
 	} else {
-		[accessorySettingView setPageString:@"67.jpg | 89.jpg"];
+		sampleEntries = [NSArray arrayWithObjects:@"67.jpg", @"89.jpg", nil];
+	}
+	/* With the file names in the status bar the preview shows the bar and
+	   no corner HUD, as the window does. */
+	if ([fileNameLocationPopUpButton selectedTag] == COFileNameLocationStatusBar) {
+		[accessorySettingView setFileNameStatusBar:YES entries:sampleEntries];
+		[accessorySettingView setPageString:nil];
+	} else {
+		[accessorySettingView setFileNameStatusBar:NO entries:nil];
+		[accessorySettingView setPageString:[sampleEntries componentsJoinedByString:@" | "]];
 	}
 	[accessorySettingView setPageBarNumberMode:(int)[pageBarNumberPopUpButton selectedTag]];
 	[accessorySettingView setPageBarNumberString:@"1-2/345"];

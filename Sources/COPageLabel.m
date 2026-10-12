@@ -4,11 +4,26 @@
 //
 
 #import "COPageLabel.h"
+#include <math.h>
 
 const int COPageBarDefaultHeight = 18;
 const int COPageBarLegacyDefaultHeight = 15;
 
 NSString * const COPageBarHeightMigratedKey = @"PageBarHeightMigrated";
+NSString * const COFileNameLocationKey = @"FileNameLocation";
+
+int COPageBarNumberModeFromStored(NSInteger stored)
+{
+	switch (stored) {
+		case COPageBarNumberInBar:
+		case COPageBarNumberOverlay:
+		case COPageBarNumberOff:
+		case COPageBarNumberTitleBar:
+			return (int)stored;
+		default:
+			return COPageBarNumberInBar;
+	}
+}
 
 NSString *COPageBarPositionString(int firstPage, int lastPage, int count)
 {
@@ -19,7 +34,7 @@ NSString *COPageBarPositionString(int firstPage, int lastPage, int count)
 	return [NSString stringWithFormat:@"%d-%d/%d", firstPage, lastPage, count];
 }
 
-NSString *COFileNameHUDString(NSArray *names, NSArray *sizes)
+NSArray *COFileNameEntries(NSArray *names, NSArray *sizes)
 {
 	if ([names count] == 0) return nil;
 	NSMutableArray *entries = [NSMutableArray arrayWithCapacity:[names count]];
@@ -33,6 +48,13 @@ NSString *COFileNameHUDString(NSArray *names, NSArray *sizes)
 			[entries addObject:name];
 		}
 	}
+	return entries;
+}
+
+NSString *COFileNameHUDString(NSArray *names, NSArray *sizes)
+{
+	NSArray *entries = COFileNameEntries(names, sizes);
+	if (!entries) return nil;
 	return [entries componentsJoinedByString:@" | "];
 }
 
@@ -56,4 +78,120 @@ BOOL COMigratePageBarHeight(id store)
 	}
 	[store setObject:[NSNumber numberWithBool:YES] forKey:COPageBarHeightMigratedKey];
 	return (migrated != nil);
+}
+
+
+COTitleBarLayout COTitleBarLayoutMake(double viewWidth, double centreX, double leading,
+                                      double nameWidth, double gap, double numberWidth)
+{
+	COTitleBarLayout layout;
+	if (viewWidth < 0) viewWidth = 0;
+	if (leading < 0) leading = 0;
+	if (nameWidth < 0) nameWidth = 0;
+	double nameEnd = viewWidth;	/* where the name must end */
+	double numberX = 0;
+	if (numberWidth > 0) {
+		numberX = floor(centreX - numberWidth/2);
+		if (numberX + numberWidth > viewWidth) numberX = viewWidth - numberWidth;
+		if (numberX < 0) numberX = 0;
+		nameEnd = numberX - gap;
+	}
+	double width = nameWidth;
+	if (leading + width > nameEnd) width = nameEnd - leading;
+	if (width < 0) width = 0;
+	layout.nameX = leading;
+	layout.nameWidth = width;
+	layout.numberX = numberX;
+	return layout;
+}
+
+double COStatusBarHeight(double textHeight)
+{
+	return ceil(textHeight) + 4;
+}
+
+/* Places an entry of `width` centred on `centre` within lo..hi: the
+   width it gets and its x. */
+static void COPlaceEntry(double centre, double width, double lo, double hi,
+                         double *x, double *outWidth)
+{
+	double room = hi - lo;
+	if (room <= 0 || width <= 0) {
+		*x = (lo < hi) ? lo : 0;
+		*outWidth = 0;
+		return;
+	}
+	if (width > room) width = room;
+	double left = floor(centre - width/2);
+	if (left + width > hi) left = hi - width;
+	if (left < lo) left = lo;
+	*x = left;
+	*outWidth = width;
+}
+
+COStatusBarLayout COStatusBarLayoutMake(double barWidth, double padding, double gap, int count,
+                                        double leftMin, double leftMax, double leftWidth,
+                                        double rightMin, double rightMax, double rightWidth)
+{
+	COStatusBarLayout layout = {0, 0, 0, 0};
+	if (barWidth < 0) barWidth = 0;
+	if (padding < 0) padding = 0;
+	if (gap < 0) gap = 0;
+	double lo = padding, hi = barWidth - padding;
+	if (count <= 0 || hi <= lo) return layout;
+	if (count == 1) {
+		COPlaceEntry((leftMin + leftMax)/2, leftWidth, lo, hi, &layout.leftX, &layout.leftWidth);
+		return layout;
+	}
+	/* Side by side: the right page starts no earlier than the middle of
+	   the left one, and the left ends before the middle of the right. */
+	double leftCentre = (leftMin + leftMax)/2, rightCentre = (rightMin + rightMax)/2;
+	if (!(leftMax > leftMin && rightMax > rightMin && rightMin >= leftCentre && leftMax <= rightCentre
+		  && rightCentre - leftCentre >= gap)) {
+		leftMin = 0; leftMax = barWidth/2;
+		rightMin = barWidth/2; rightMax = barWidth;
+		leftCentre = barWidth/4; rightCentre = barWidth*3/4;
+	}
+	double edge = (leftMax + rightMin)/2;	/* the edge the pages share */
+	double leftLo = MAX(lo, leftMin), leftHi = MIN(leftMax, edge - gap/2);
+	double rightLo = MAX(rightMin, edge + gap/2), rightHi = MIN(hi, rightMax);
+	COPlaceEntry(leftCentre, leftWidth, leftLo, leftHi, &layout.leftX, &layout.leftWidth);
+	COPlaceEntry(rightCentre, rightWidth, rightLo, rightHi, &layout.rightX, &layout.rightWidth);
+	return layout;
+}
+
+double COPageBarStatusBarLift(int pageBarPosition, double statusBarHeight)
+{
+	if (pageBarPosition < 2 || statusBarHeight <= 0) return 0;
+	return statusBarHeight;
+}
+
+double COBottomHUDOffset(int mode, int pageBarPosition, double pageBarHeight,
+                         double numberTextHeight, double statusBarHeight)
+{
+	double offset = 17;
+	double textHeight = ceil(numberTextHeight);
+	if (statusBarHeight < 0) statusBarHeight = 0;
+	if (pageBarPosition >= 2) {
+		/* Everything about a bottom bar is measured from the top of the
+		   status bar it sits on (0 without one). */
+		double clear = pageBarHeight + 2;
+		if (mode == COPageBarNumberOverlay) {
+			clear += 1 + textHeight;
+		} else if (mode == COPageBarNumberInBar) {
+			/* The number is centred on the bar (2 + (height+1)/2 above its
+			   bottom edge) and may be taller than it; the HUD starts 1 px
+			   above its top (offset + 2 > text top). */
+			double textClear = ceil((pageBarHeight + 1)/2.0 + textHeight/2.0) + 1;
+			if (textClear > clear) clear = textClear;
+		}
+		clear += statusBarHeight;
+		if (clear > offset) offset = clear;
+	}
+	if (statusBarHeight > 0) {
+		/* The HUD (at offset + 2) starts 1 px above the status bar. */
+		double clear = statusBarHeight - 1;
+		if (clear > offset) offset = clear;
+	}
+	return offset;
 }
