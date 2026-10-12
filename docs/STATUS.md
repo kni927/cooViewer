@@ -34,9 +34,12 @@ Also for the next binary change (owner, 2026-10-12):
   position; display only, no click or drag; nothing in full screen. Image
   layout unchanged.
 - Page bar size can no longer be changed in Preferences (reported after
-  v1.6.8; cause not yet investigated). Decide with it how the in-bar number's
-  font size relates to the bar height, and whether the page number gets its
-  own Preferences section.
+  v1.6.8; cause not yet investigated). Fix it then, not as a hotfix.
+- Decided: the bar height is the user's setting again, and the in-bar number's
+  font size follows it automatically. The page number gets its own
+  Preferences section (location: in bar / above bar / title bar / off; font
+  for above bar and title bar); Page Bar keeps position, size, colours and
+  the title-bar fill.
 
 The first five were put on hold as minor (owner, 2026-10-08); details are in
 the files named.
