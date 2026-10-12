@@ -10,13 +10,15 @@ Updated: 2026-10-10
 ## Summary
 
 cooViewer: macOS image and comic viewer, a maintained fork of coo-ona's original.
-Latest release v1.6.7 (2026-10-06), notarized and in the Homebrew tap. No task
-is active and no TF is running.
+Latest release v1.6.7 (2026-10-06), notarized and in the Homebrew tap.
 
 ## Next
 
-- Nothing scheduled. The owner picks from On hold when work resumes.
-- The next TF is named `cooViewer TF #NN <what>` (`docs/sessions.md`).
+- TF #01 (page bar and export), decided 2026-10-12: page position `9-10/20`
+  on the page bar (in bar / overlay above it / off), the page number HUD
+  becomes a file-name HUD, and File > Export... writes original page files
+  (all, or lists like `1-3,7`) into an uncompressed `.cbz`; PDF books excluded.
+- Then release v1.6.8.
 
 ## On hold
 
