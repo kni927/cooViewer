@@ -15,7 +15,8 @@ Latest release v1.6.7 (2026-10-06), notarized and in the Homebrew tap.
 ## Next
 
 - TF #01 (page bar and export), decided 2026-10-12: page position `9-10/20`
-  on the page bar (in bar / overlay above it / off), the page number HUD
+  on the page bar (in bar / overlay above it / title bar / bottom status
+  bar over the image / off), the page number HUD
   becomes a file-name HUD, and File > Export... writes original page files
   (all, or lists like `1-3,7`) into an uncompressed `.cbz`; PDF books excluded.
 - Then release v1.6.8.

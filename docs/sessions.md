@@ -243,6 +243,15 @@ waiting to be asked, not only what it was told to do.
   repository also goes to Upstream HQ; a TF sends its proposals with its
   report to its Project HQ.
 - **Proposing is not doing:** build it only after the owner agrees.
+- **Editing a skill's text:** changing the prose of an existing skill
+  (`SKILL.md` body) needs no approval; report it. This does not extend to new
+  skills, `CLAUDE.md`, `AGENTS.md`, settings files, or scripts, which keep
+  their own approval rules.
+- **Rules belong in files, not memory:** when the owner gives an instruction
+  that reads like a standing rule, the session does not keep it only in
+  memory (claude.ai memory or Claude Code's automatic memory). It raises it
+  to its HQ, and an HQ raises rules for every repository to Upstream HQ, so
+  that it is written into the repository's rules.
 - **Who builds a skill:** a local TF's sandbox cannot write `.claude/skills/`,
   so a project skill is written and committed by a cloud session (the Project
   HQ, or Upstream HQ for shared ones) or by the owner.
@@ -255,39 +264,39 @@ waiting to be asked, not only what it was told to do.
 A long conversation is compacted automatically. Compaction runs through the
 fast-jev-compaction plugin, which drops stale tool calls and keeps the rest
 verbatim; it falls back to the built-in summary, which loses detail, when it
-cannot reduce enough or fails. Cloud sessions compact at 80% of the maximum
-context (`CLAUDE_AUTOCOMPACT_PCT_OVERRIDE`), local sessions at 90% (the
-plugin's `compactAtPercent`). A cloud session reads its own usage with
+cannot reduce enough or fails. The plugin compacts at the end of a turn once
+usage reaches its `compactAtPercent`: 78% in the cloud, 90% locally. Claude
+Code's own automatic compaction (80% in the cloud,
+`CLAUDE_AUTOCOMPACT_PCT_OVERRIDE`) usually bypasses the plugin and writes the
+built-in summary, so it is only the backstop for a turn that crosses both
+points at once. A cloud session reads its own usage with
 `get_session` without an ID (`context_usage`); a local session in the Mac app
 reads it with `get_usage` for session `self`. A session counts its compactions
 as the `compact_boundary` entries in its own transcript, the newest `.jsonl`
 under `~/.claude/projects/<directory>/`.
 
-- **Checking:** every session, HQ or TF, checks its usage, and whether it has
-  been compacted, at natural breaks and before starting a step that would not
-  fit. It does not report its usage in ordinary replies; it reports only when
-  it hands over or wraps up, in the ready-to-archive block.
-- **One compaction is fine:** a session keeps working through its first
-  compaction. It hands over (cloud HQ, below) or wraps up (local TF, see Local
-  sessions) at the next natural break, without waiting for the owner, when:
-  - a compaction fell back to the built-in summary (the conversation then
-    opens with a summary of the earlier part);
-  - it has been compacted twice; or
-  - after its first compaction, its usage reaches the thresholds below:
+- **Checking:** every session, HQ or TF, checks its usage at natural breaks
+  and before starting a step that would not fit. Only when usage is past its
+  threshold below does it read its transcript to see whether it has been
+  compacted. It does not report its usage in ordinary replies; it reports
+  only when it hands over or wraps up, in the ready-to-archive block.
+- **Avoid a second compaction:** a compaction is not fatal, whether through
+  Jev or the built-in summary, and a session keeps working through its first
+  one. After that first compaction, it hands over (cloud HQ, below) or wraps
+  up (local TF, see Local sessions) at the first natural break once usage
+  passes its threshold, without waiting for the owner:
 
-  | Session | From (at a natural break) | At the latest (next break) |
+  | Session | Threshold | Next compaction |
   |---|---|---|
-  | Cloud HQ | 75% | 80% |
-  | Local TF | 80% | 90% |
+  | Cloud HQ | 75% | 78% (plugin) |
+  | Local TF | 80% | 90% (plugin) |
 
-  Before the first compaction, usage alone does not trigger a handover. The
-  thresholds sit below the point where the next compaction starts, so a
-  session that follows them hands over before a second one. The owner may
-  also say "handover" or "wrap up" at any time. Gateway sessions are exempt:
-  they neither hand over nor wrap up, and keep working through compactions.
-- **Warning:** a Project HQ that sees one of its TFs past 90% after a
-  compaction warns the owner. Central HQ reminds an HQ that has passed 80% after
-  a compaction and is still working.
+  Before the first compaction, usage alone does not trigger a handover. A
+  session that has been compacted twice hands over or wraps up at the next
+  natural break. The owner may also say "handover" or "wrap up" at any time.
+  Gateway sessions are exempt: they neither hand over nor wrap up, and keep
+  working through compactions. No other session watches or reminds about
+  another session's usage.
 - **Ready to archive:** a session that has wrapped up or handed over ends with
   this block in its chat, in English, and waits. The rules follow the same
   Markdown rules as the receiving heading; the heading is one level larger so
@@ -349,9 +358,9 @@ repository files.
 
 ## Handing over an HQ
 
-A cloud HQ hands its work to a fresh session when Context usage says so (a
-fallback to the built-in summary, a second compaction, or the thresholds after
-the first compaction) and when the owner says "handover". A gateway session is not an HQ and
+A cloud HQ hands its work to a fresh session when Context usage says so (the
+threshold after the first compaction, or a second compaction) and when the
+owner says "handover". A gateway session is not an HQ and
 does not hand over.
 
 The `hq-handover` skill walks through these steps.
