@@ -10,13 +10,12 @@ Updated: 2026-10-12
 ## Summary
 
 cooViewer: macOS image and comic viewer, a maintained fork of coo-ona's original.
-Latest release v1.6.7 (2026-10-06), notarized and in the Homebrew tap.
-Unreleased on `main`: page position on the page bar / title bar, file-name
-HUD or status bar, File > Export... (`docs/tasks/2026-10-12-01-page-bar-and-export.md`).
+Latest release v1.6.8 (2026-10-12), notarized and in the Homebrew tap: page
+position on the page bar / title bar, file-name HUD or status bar, File >
+Export... (`docs/tasks/2026-10-12-02-release-v1.6.8.md`).
 
 ## Next
 
-- Release v1.6.8 (a separate task).
 - Small follow-ups from the page bar and export task, unscheduled (details
   in its archive): an unused pages-prompt string in `Localizable.strings`;
   Finder/drop routing can replace a window that is exporting; exported

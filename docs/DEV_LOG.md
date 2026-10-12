@@ -1234,7 +1234,7 @@ from the All Bookmarks browser, spreads, Quick Look and thumbnails (both
 extensions attributed to `/Applications`). See
 `docs/tasks/2026-10-06-02-release-v1.6.7.md`.
 
-### Page position on the page bar, file-name HUD and Export (2026-10-12, unreleased)
+### Page position on the page bar, file-name HUD and Export (2026-10-12, released in v1.6.8)
 
 The page bar shows `9-10/20` (in the bar, above it, in the title bar, or
 off); the page number HUD shows file names, optionally in a status bar under
@@ -1242,3 +1242,15 @@ the pages. File > Export... writes the original page files (all, or lists
 like `1-3,7`) into a store-only `.cbz`, cancellable in under a second on
 solid RAR5. Engine suite 504 + 169 + 81 + 511 checks. See
 `docs/tasks/2026-10-12-01-page-bar-and-export.md`.
+
+### v1.6.8 released (2026-10-12)
+
+Released from `dccfd78`: CI run `38236323188` signed, notarized, stapled and
+published the page position on the page bar or title bar, the file-name HUD
+and bottom status bar, File > Export... and the Resolution bar position fix;
+Homebrew tap commit `00eb2db`. The installed release passed Gatekeeper and
+signature checks, every page-bar number position, the file-name HUD and
+status bar, spreads in both directions, CBZ, non-solid and solid RAR5 paging,
+Export (entries Stored, byte-identical to the originals; disabled for PDF),
+Quick Look and thumbnails (extensions attributed to `/Applications`). See
+`docs/tasks/2026-10-12-02-release-v1.6.8.md`.
