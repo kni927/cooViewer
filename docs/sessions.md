@@ -264,9 +264,12 @@ waiting to be asked, not only what it was told to do.
 A long conversation is compacted automatically. Compaction runs through the
 fast-jev-compaction plugin, which drops stale tool calls and keeps the rest
 verbatim; it falls back to the built-in summary, which loses detail, when it
-cannot reduce enough or fails. Cloud sessions compact at 80% of the maximum
-context (`CLAUDE_AUTOCOMPACT_PCT_OVERRIDE`), local sessions at 90% (the
-plugin's `compactAtPercent`). A cloud session reads its own usage with
+cannot reduce enough or fails. The plugin compacts at the end of a turn once
+usage reaches its `compactAtPercent`: 75% in the cloud, 90% locally. Claude
+Code's own automatic compaction (80% in the cloud,
+`CLAUDE_AUTOCOMPACT_PCT_OVERRIDE`) usually bypasses the plugin and writes the
+built-in summary, so it is only the backstop for a turn that crosses both
+points at once. A cloud session reads its own usage with
 `get_session` without an ID (`context_usage`); a local session in the Mac app
 reads it with `get_usage` for session `self`. A session counts its compactions
 as the `compact_boundary` entries in its own transcript, the newest `.jsonl`
@@ -286,7 +289,7 @@ under `~/.claude/projects/<directory>/`.
 
   | Session | From (at a natural break) | At the latest (next break) |
   |---|---|---|
-  | Cloud HQ | 75% | 80% |
+  | Cloud HQ | 65% | 70% |
   | Local TF | 80% | 90% |
 
   Before the first compaction, usage alone does not trigger a handover. The
@@ -295,7 +298,7 @@ under `~/.claude/projects/<directory>/`.
   also say "handover" or "wrap up" at any time. Gateway sessions are exempt:
   they neither hand over nor wrap up, and keep working through compactions.
 - **Warning:** a Project HQ that sees one of its TFs past 90% after a
-  compaction warns the owner. Central HQ reminds an HQ that has passed 80% after
+  compaction warns the owner. Central HQ reminds an HQ that has passed 70% after
   a compaction and is still working.
 - **Ready to archive:** a session that has wrapped up or handed over ends with
   this block in its chat, in English, and waits. The rules follow the same
