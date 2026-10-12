@@ -243,6 +243,15 @@ waiting to be asked, not only what it was told to do.
   repository also goes to Upstream HQ; a TF sends its proposals with its
   report to its Project HQ.
 - **Proposing is not doing:** build it only after the owner agrees.
+- **Editing a skill's text:** changing the prose of an existing skill
+  (`SKILL.md` body) needs no approval; report it. This does not extend to new
+  skills, `CLAUDE.md`, `AGENTS.md`, settings files, or scripts, which keep
+  their own approval rules.
+- **Rules belong in files, not memory:** when the owner gives an instruction
+  that reads like a standing rule, the session does not keep it only in
+  memory (claude.ai memory or Claude Code's automatic memory). It raises it
+  to its HQ, and an HQ raises rules for every repository to Upstream HQ, so
+  that it is written into the repository's rules.
 - **Who builds a skill:** a local TF's sandbox cannot write `.claude/skills/`,
   so a project skill is written and committed by a cloud session (the Project
   HQ, or Upstream HQ for shared ones) or by the owner.
