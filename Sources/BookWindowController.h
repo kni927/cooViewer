@@ -11,6 +11,7 @@
 #import "COBookReadLane.h"
 
 @class AppController;
+@class COExportSession;
 
 @interface BookWindowController : NSWindowController <NSMenuDelegate>
 {
@@ -197,6 +198,10 @@
 	BOOL archiveLoadQuitting;
 	BOOL archiveProgressSheetShown;
 	NSTimer *archiveProgressTimer;
+
+	/* File ▸ Export… in progress for this window's book, from its save
+	   panel to its end (COExportSession.h), or nil. */
+	COExportSession *exportSession;
 
 	/* YES while an open into a window that was not on screen when the open
 	   began has not shown it yet. Such a window is shown only once there is
@@ -498,6 +503,14 @@
  * launch drain's poll could not run inside, so the deadline could not expire
  * in the middle of one. */
 - (BOOL)isLoadingRestoredBook;
+
+/* File ▸ Export… (⇧⌘E): writes the book's original page files, all or
+   chosen pages, into a store-only .cbz (COExportSession, COExport.h).
+   Enabled for an archive or folder book that is open and idle. */
+- (IBAction)exportBook:(id)sender;
+/* Cancels this window's export, if any, for a quit; answers whether a sheet
+   was taken down. Called with -cancelArchiveLoadForTermination. */
+- (BOOL)cancelExportForTermination;
 
 /* The window sheets raised on behalf of a load should attach to. One
  * window today; the seam exists so MW-5 can make it per-window. */

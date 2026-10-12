@@ -108,6 +108,12 @@
                                     </items>
                                 </menu>
                             </menuItem>
+                            <menuItem isSeparatorItem="YES" id="EXP-sep-001"/>
+                            <menuItem title="Export..." keyEquivalent="E" id="EXP-mnu-001">
+                                <connections>
+                                    <action selector="exportBook:" target="-1" id="EXP-act-001"/>
+                                </connections>
+                            </menuItem>
                             <menuItem isSeparatorItem="YES" id="79">
                                 <modifierMask key="keyEquivalentModifierMask" command="YES"/>
                             </menuItem>

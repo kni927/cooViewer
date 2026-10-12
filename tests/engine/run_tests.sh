@@ -182,6 +182,7 @@ clang -O2 -Wno-deprecated-declarations -Wno-unused-value \
     -I "$REPO_ROOT/vendor/include" \
     -I "$REPO_ROOT/Sources" \
     "$ENGINE_DIR/test_imageloader.m" "$REPO_ROOT/Sources/COImageLoader.m" \
+    "$REPO_ROOT/Sources/COExport.m" \
     "$REPO_ROOT/Sources/COBookReadLane.m" \
     "$REPO_ROOT/Sources/COPDFImage.m" "$REPO_ROOT/Sources/COPDFImageRep.m" \
     "$REPO_ROOT/Sources/COArchive.m" "$REPO_ROOT/Sources/COZipArchive.m" \
@@ -206,3 +207,57 @@ clang -O2 \
     -o "$OUT/test_pagelabel"
 
 "$OUT/test_pagelabel"
+
+# File > Export...: page list, names, the store-only ZIP writer, and whole
+# exports of fixture books read back with libzip and re-opened by the loader.
+# The password-protected books are made here: ZipCrypto by zip, AES by 7zz
+# when installed (password SECRET, as in no_pages/).
+rm -f "$GEN/enc_pages.cbz" "$GEN/enc_pages_aes.cbz"
+(cd "$SRC" && zip -q -P SECRET "$GEN/enc_pages.cbz" 001.png 002.jpg 003.png 004.jpg)
+if command -v 7zz >/dev/null 2>&1; then
+    (cd "$SRC" && 7zz a -bso0 -bsp0 -tzip -mem=AES256 -pSECRET "$GEN/enc_pages_aes.cbz" 001.png 002.jpg 003.png 004.jpg)
+fi
+# a large solid RAR5 of compressible entries (40 x 8 MB of hex text), for
+# cancelling an export while its reader walks the solid stream
+if command -v rar >/dev/null 2>&1 && [ ! -f "$GEN/test_rar5_solid_walk.cbr" ]; then
+    WALK_SRC="$OUT/solid_walk_src"
+    rm -rf "$WALK_SRC" && mkdir -p "$WALK_SRC"
+    python3 - "$WALK_SRC" <<'PYEOF'
+import binascii, pathlib, random, sys
+out = pathlib.Path(sys.argv[1])
+rng = random.Random(20261012)
+for i in range(1, 41):
+    (out / ("%03d.jpg" % i)).write_bytes(binascii.hexlify(rng.randbytes(4 * 1024 * 1024)))
+PYEOF
+    (cd "$WALK_SRC" && rar a -idq -s -m1 "$GEN/test_rar5_solid_walk.cbr" *.jpg)
+    rm -rf "$WALK_SRC"
+fi
+clang -O2 -Wno-deprecated-declarations \
+    -I "$REPO_ROOT/vendor/include" \
+    -I "$REPO_ROOT/Sources" \
+    "$ENGINE_DIR/test_export.m" "$REPO_ROOT/Sources/COExport.m" \
+    "$REPO_ROOT/Sources/COImageLoader.m" \
+    "$REPO_ROOT/Sources/COPDFImage.m" "$REPO_ROOT/Sources/COPDFImageRep.m" \
+    "$REPO_ROOT/Sources/COArchive.m" "$REPO_ROOT/Sources/COZipArchive.m" \
+    "$REPO_ROOT/Sources/CORarArchive.m" "$REPO_ROOT/Sources/CORarHeaderIndex.m" \
+    "$REPO_ROOT/Sources/NSString_Compare.m" \
+    "$REPO_ROOT/vendor/lib/libarchive.13.dylib" \
+    "$REPO_ROOT/vendor/lib/libuchardet.0.dylib" \
+    "$REPO_ROOT/vendor/lib/libzip.5.dylib" \
+    -framework Cocoa -framework Quartz -framework CoreServices \
+    -Wl,-rpath,"$REPO_ROOT/vendor/lib" \
+    -Wl,-sectcreate,__TEXT,__info_plist,"$REPO_ROOT/Resources/Info.plist" \
+    -o "$OUT/test_export"
+
+EXPORT_OUT="$OUT/export"
+rm -rf "$EXPORT_OUT"
+"$OUT/test_export" "$GEN" "$SRC" "$EXPORT_OUT"
+
+# what unzip itself reports: every entry of an export is Stored
+UNZIP_LIST="$(unzip -v "$EXPORT_OUT/test-export.cbz")"
+echo "$UNZIP_LIST"
+if [ "$(echo "$UNZIP_LIST" | grep -c ' Stored ')" -ne 4 ] || echo "$UNZIP_LIST" | grep -q ' Defl'; then
+    echo "FAIL: unzip -v does not list four Stored entries" >&2
+    exit 1
+fi
+echo "unzip -v: four Stored entries: ok"

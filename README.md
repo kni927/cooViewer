@@ -44,6 +44,18 @@ Right-clicking on the image opens a context menu with a **Save Image...** item.
 
 <!-- Screenshot placeholder -->
 
+### File → Export...
+
+**File → Export...** (⇧⌘E) writes the open book's pages into a new `.cbz`. It is available for archive and folder books (not PDF).
+
+* A sheet first asks for the **Pages**, using the page numbers the page bar shows: empty for every page, or a list such as `20-30`, `5` or `1-3,7,10-12`. Invalid input is reported under the field as you type, and **Continue…** stays disabled until it is fixed. Return or Enter continues; Esc cancels.
+* A save panel then asks where to save. Cancelling it ends the export.
+* The suggested name is `<book name>-export.cbz`, or `<book name>-export-<pages>.cbz` with chosen pages (`1-3,7` becomes `1-3_7`).
+* Each page is the original file, byte for byte: no decoding or re-encoding, and no rotation, filters or spread layout. Pages of a password-protected ZIP are written decrypted; pages from archives inside the book are included like any other.
+* The `.cbz` is uncompressed (stored), in the book's page order. Entries keep their original file names; when two names collide or the names would not sort in page order, every entry gets a sequence prefix instead (`0001_page.jpg`).
+* The export runs in the background with a progress sheet and **Cancel**. Cancelling, a failure, closing the window or quitting leaves no file behind.
+* A folder book that contains a PDF cannot export the PDF's pages; choosing one is refused with a message.
+
 ### Reduced macOS Folder Permission Prompts
 
 The "Open from same folder" menu is now built lazily instead of scanning the parent directory every time a book is opened. This significantly reduces unnecessary macOS folder permission prompts.

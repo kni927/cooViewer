@@ -161,6 +161,20 @@ typedef enum {
 - (NSUInteger)prefetchSkippedCount;
 - (NSUInteger)prefetchAbortedCount;
 
+/* File ▸ Export… (COExport.h). A second reader of the same file, with its
+ * own cursor and no prefetch, so an export neither waits behind the
+ * viewer's reads and prefetches nor moves the viewer's solid-RAR cursor;
+ * +1, or nil when there is no use for one (the base class and COZipArchive,
+ * whose reads are random access) or it cannot be opened with the same
+ * entries. `shouldStop` (optional) stops its open. Any thread. */
+- (COArchive *)newIndependentReaderWithCancel:(BOOL (^)(void))shouldStop;
+/* Entry `index` of -contents, read for an export: CORarArchive reads it
+ * without caching or prefetch and stops part-way, returning nil, once
+ * `shouldStop` (optional) answers YES; in a solid stream that is within one
+ * 256 KB decode chunk, also while walking past entries before it. The base
+ * class returns the entry's -data. Any thread. */
+- (NSData *)dataForEntryAtIndex:(NSUInteger)index cancelled:(BOOL (^)(void))shouldStop;
+
 /* Decode-ahead into a disk cache (B3), opt-in. Only a solid RAR read through
  * the header index (CORarArchive; solid RAR4 is refused at open, so in
  * practice solid RAR5) can use it: there a page the forward cursor has passed

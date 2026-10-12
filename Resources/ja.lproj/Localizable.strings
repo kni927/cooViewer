@@ -436,3 +436,48 @@
 
 /* A book with no readable pages (KNOWN_ISSUES #30). */
 "The archive is encrypted, and cooViewer cannot decrypt this kind of archive. Password-protected ZIP (CBZ) archives can be opened." = "このアーカイブは暗号化されていますが、cooViewer はこの種類のアーカイブを復号できません。パスワード付きの ZIP（CBZ）アーカイブは開けます。";
+
+/* Export save panel (File ▸ Export…). */
+"Pages:" = "ページ:";
+
+/* Export save panel (File ▸ Export…). */
+"All pages (1-%d)" = "すべてのページ（1-%d）";
+"Export Pages" = "ページを書き出す";
+"Continue…" = "続ける…";
+
+/* Export save panel (File ▸ Export…). */
+"Empty = all pages (1-%d). Examples: 5, 20-30, 1-3,7,10-12" = "空欄 = すべてのページ（1-%d）。例: 5、20-30、1-3,7,10-12";
+
+/* Export save panel (File ▸ Export…): message at the top of the panel. */
+"Choose the pages to export in the Pages field below, or leave it empty to export all pages." = "書き出すページを下の「ページ」欄で指定してください。空欄にするとすべてのページを書き出します。";
+
+/* Export save panel (File ▸ Export…). */
+"Enter page numbers and ranges, such as 1-3,7,10-12, or leave the field empty to export every page." = "ページ番号と範囲を 1-3,7,10-12 のように入力してください。空欄にするとすべてのページを書き出します。";
+
+/* Export (File ▸ Export…). */
+"“%@” is not a page number or a range of pages." = "“%@” はページ番号やページの範囲ではありません。";
+
+/* Export (File ▸ Export…). */
+"“%@” is outside this book, which has pages 1-%lu." = "“%@” はこのブックのページ（1-%lu）の範囲外です。";
+
+/* Export (File ▸ Export…). */
+"The range “%@” is reversed. Write the lower page number first." = "範囲 “%@” が逆順です。小さいページ番号を先に書いてください。";
+
+/* Export (File ▸ Export…). */
+"There are no pages to export." = "書き出すページがありません。";
+
+/* Export (File ▸ Export…). */
+"Page %lu is a page of a PDF file. Export copies the original page files, and a PDF page has none." = "%lu ページは PDF ファイルのページです。書き出しは元のページファイルをそのままコピーするため、PDF のページは書き出せません。";
+
+/* Export progress (File ▸ Export…). */
+"Exporting “%@”…" = "“%@” を書き出しています…";
+
+/* Export (File ▸ Export…). */
+"Page %lu could not be read." = "%lu ページを読み込めませんでした。";
+
+/* Export (File ▸ Export…). */
+"A page could not be read." = "ページを読み込めませんでした。";
+
+/* Export (File ▸ Export…). */
+"Could not export “%@”." = "“%@” を書き出せませんでした。";
+

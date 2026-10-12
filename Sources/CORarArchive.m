@@ -708,9 +708,12 @@ static void CORarRegisterDiskCache(CORarDiskCache *cache, BOOL live)
 - (BOOL)indexArchiveViaHeaderParser;
 - (void)indexArchiveViaLibarchiveWithProgress:(COArchiveProgress)progress;
 - (NSData *)readEntryOnQueue:(CORarEntry *)entry prefetchGeneration:(const unsigned long *)generation
+                     aborted:(BOOL *)outAborted cancelled:(BOOL (^)(void))shouldStop;
+- (NSData *)readEntryOnQueue:(CORarEntry *)entry prefetchGeneration:(const unsigned long *)generation
                      aborted:(BOOL *)outAborted;
 - (void)prefetchAfterEntry:(CORarEntry *)entry;
 - (void)invalidateCursor;
+- (BOOL)skipEntryDataOnQueueUnlessCancelled:(BOOL (^)(void))shouldStop;
 - (CORarDiskCache *)decodeAheadCache;
 - (BOOL)writeThroughPassedEntryTo:(CORarDiskCache *)disk ordinal:(NSUInteger)passedOrdinal;
 @end
@@ -1248,6 +1251,43 @@ static BOOL CORarEntryCounts(struct archive_entry *entry)
 	return cached;
 }
 
+/* File > Export...: see COArchive.h. Uncached, with no prefetch, and
+   cancellable inside the read (-readEntryOnQueue:...cancelled:). */
+- (NSData *)dataForEntryAtIndex:(NSUInteger)index cancelled:(BOOL (^)(void))shouldStop
+{
+	if (index >= [contentArray count]) return nil;
+	CORarEntry *entry = [contentArray objectAtIndex:index];
+	if (![entry isKindOfClass:[CORarEntry class]]) return [entry data];
+	NSData *cached = [dataCache objectForKey:[NSNumber numberWithUnsignedInteger:entry->ordinal]];
+	if (cached) return cached;
+	__block NSData *result = nil;
+	dispatch_sync(readQueue, ^{
+		result = [[self readEntryOnQueue:entry prefetchGeneration:NULL aborted:NULL
+		                       cancelled:shouldStop] retain];
+	});
+	return [result autorelease];
+}
+
+- (COArchive *)newIndependentReaderWithCancel:(BOOL (^)(void))shouldStop
+{
+	CORarArchive *reader = [[CORarArchive alloc] initWithPath:filePath progress:
+		^BOOL(long long done, long long total) { return !(shouldStop && shouldStop()); }];
+	BOOL same = [reader rarOpened] && ![reader cancelled] &&
+		[[reader contents] count] == [contentArray count];
+	NSUInteger i;
+	for (i = 0; same && i < [contentArray count]; i++) {
+		NSString *a = [[contentArray objectAtIndex:i] path];
+		NSString *b = [[[reader contents] objectAtIndex:i] path];
+		same = (a == b) || [a isEqualToString:b];
+	}
+	if (!same) {
+		[reader release];
+		return nil;
+	}
+	[reader disablePrefetch];
+	return reader;
+}
+
 /* must run on readQueue (a struct archive* stream is not safe for
  * concurrent use). Brings -cursor to the requested stream ordinal. With
  * direct positioning (B1) any cursor that is not exactly there is
@@ -1275,6 +1315,20 @@ static BOOL CORarEntryCounts(struct archive_entry *entry)
  * and make the next page rewind. */
 - (NSData *)readEntryOnQueue:(CORarEntry *)requestedEntry prefetchGeneration:(const unsigned long *)generation
                      aborted:(BOOL *)outAborted
+{
+	return [self readEntryOnQueue:requestedEntry prefetchGeneration:generation aborted:outAborted cancelled:nil];
+}
+
+/* The same, for -dataForEntryAtIndex:cancelled: (File > Export...).
+   `shouldStop`, when not nil, is polled at every header of the walk and after
+   every decoded chunk, and the read returns nil once it answers YES: between
+   entries the cursor stays valid, mid-entry it is dropped. With `shouldStop`
+   set, an entry walked past in a solid archive is decoded chunk by chunk
+   rather than skipped, so a cancel never waits for more than one chunk (a
+   skip decodes the whole entry anyway in a solid stream). nil keeps every
+   other read exactly as it was. */
+- (NSData *)readEntryOnQueue:(CORarEntry *)requestedEntry prefetchGeneration:(const unsigned long *)generation
+                     aborted:(BOOL *)outAborted cancelled:(BOOL (^)(void))shouldStop
 {
 	NSUInteger ordinal = requestedEntry->ordinal;
 	BOOL positioned = (positioningPrefixLength > 0 && requestedEntry->hasHeaderOffset);
@@ -1333,6 +1387,10 @@ static BOOL CORarEntryCounts(struct archive_entry *entry)
 	// have such a header in front of the page (code review M6).
 	struct archive_entry *entry;
 	for (;;) {
+		if (shouldStop && shouldStop()) {
+			// between entries: cursor and cursorNext stay valid
+			return nil;
+		}
 		if (generation) {
 			if (CORarPrefetchCheckpointHookForTesting)
 				CORarPrefetchCheckpointHookForTesting(self, ordinal, NO);
@@ -1351,7 +1409,10 @@ static BOOL CORarEntryCounts(struct archive_entry *entry)
 		}
 		BOOL counts = CORarEntryCounts(entry);
 		if (counts && cursorNext == ordinal) break;
-		if (!(counts && disk && [disk claimOrdinal:cursorNext] &&
+		if (shouldStop && solidArchive && !disk) {
+			if (![self skipEntryDataOnQueueUnlessCancelled:shouldStop])
+				return nil;	// the cursor has been dropped
+		} else if (!(counts && disk && [disk claimOrdinal:cursorNext] &&
 		      [self writeThroughPassedEntryTo:disk ordinal:cursorNext]))
 			archive_read_data_skip(cursor);
 		if (counts) cursorNext++;
@@ -1385,6 +1446,11 @@ static BOOL CORarEntryCounts(struct archive_entry *entry)
 			break;
 		}
 		[payload appendBytes:buf length:(NSUInteger)got];
+		if (shouldStop && shouldStop()) {
+			// mid-entry: the cursor cannot be continued
+			[self invalidateCursor];
+			return nil;
+		}
 		if (generation) {
 			if (CORarPrefetchCheckpointHookForTesting)
 				CORarPrefetchCheckpointHookForTesting(self, ordinal, YES);
@@ -1453,6 +1519,34 @@ static BOOL CORarEntryCounts(struct archive_entry *entry)
 		[disk releaseClaimOfOrdinal:passedOrdinal];
 	[payload release];
 	return ok;
+}
+
+/* On readQueue, for a cancellable walk: decodes the cursor's current entry
+   to nowhere, a chunk at a time, polling `shouldStop` after each. NO, with
+   the cursor dropped, when cancelled; a decode error ends the entry as a
+   skip would (the next header read reports the damage). */
+- (BOOL)skipEntryDataOnQueueUnlessCancelled:(BOOL (^)(void))shouldStop
+{
+	char *buf = malloc(CO_RAR_DECODE_CHUNK);
+	if (!buf) {
+		archive_read_data_skip(cursor);
+		return YES;
+	}
+	BOOL stopped = NO;
+	for (;;) {
+		la_ssize_t got = archive_read_data(cursor, buf, CO_RAR_DECODE_CHUNK);
+		if (got <= 0) break;
+		if (shouldStop()) {
+			stopped = YES;
+			break;
+		}
+	}
+	free(buf);
+	if (stopped) {
+		[self invalidateCursor];
+		return NO;
+	}
+	return YES;
 }
 
 - (void)invalidateCursor

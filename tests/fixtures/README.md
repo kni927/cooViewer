@@ -172,3 +172,14 @@ synthetic byte pattern (`(i*37+11) & 0xff` for `i` in 0..511) — not an image
 and not a copyrighted asset, so no additional licensing applies. The test
 password is `cooViewer-secret-42`. These fixtures exercise the vendored
 library only; no application code handles encrypted archives yet.
+
+## Export fixtures
+
+`tests/engine/run_tests.sh` also makes two password-protected books of the
+four `src/` pages for the File ▸ Export… harness (`test_export.m`), password
+`SECRET`: `enc_pages.cbz` (ZipCrypto, by `zip -P`) and, when `7zz` is
+installed, `enc_pages_aes.cbz` (AES-256). The harness writes its exports to
+`tests/engine/out/export/` and checks them against the `src/` files.
+When `rar` is installed it also makes `test_rar5_solid_walk.cbr` once: a
+solid RAR5 (`rar a -s -m1`) of 40 entries of 8 MB of generated hex text, for
+cancelling an export while its reader walks the solid stream.

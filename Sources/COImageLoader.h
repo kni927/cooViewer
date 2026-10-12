@@ -3,6 +3,7 @@
 #import "COPDFImage.h"
 #import "COPDFImageRep.h"
 #import "COArchive.h"	/* COArchiveCryptoStatus, for -tryPassword: */
+#import "COExport.h"
 
 /* Whether a loader has pages, and if not, why (KNOWN_ISSUES #30). A page that
  * fails to decode is still a page — -itemAtIndex: shows a placeholder for it —
@@ -110,6 +111,15 @@ typedef enum {
 
 //NSImageを返す
 - (id)itemAtIndex:(int)index;
+
+/* File ▸ Export…: where page `index`'s original bytes are, resolved the way
+   -itemAtIndex: finds the page (nested archives, repeated entry names) but
+   without reading or decoding it. nil for a PDF page, which has no bytes of
+   its own, and for an index outside the book. Main thread, like any use of
+   the page list. The page retains the archive its entry belongs to; the
+   caller keeps this loader alive while it reads (a nested archive's file
+   lives in the loader's temporary directory). */
+- (COExportPage *)exportPageAtIndex:(int)index;
 
 //file名のsort済みarray
 - (NSMutableArray*)pathArray;

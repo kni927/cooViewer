@@ -260,6 +260,43 @@ static NSArray *_COImageLoader_archiveTypes=nil;
 	return nil;
 }
 
+- (COExportPage *)exportPageAtIndex:(int)index
+{
+	if (index < 0 || index >= [self itemCount]) return nil;
+	NSUInteger occurrence = [self occurrenceOfPageAtIndex:index];
+	if ([inArchiveArray count] > 0) {
+		NSString *fileName = [contentPathArray objectAtIndex:index];
+		int i;
+		for (i=0; i<[inArchiveArray count]; i++) {
+			COImageLoader *inLoader = [inArchiveArray objectAtIndex:i];
+			NSArray *inPages = [inLoader pathArray];
+			NSUInteger at = [inPages indexOfObject:fileName];
+			while (at != NSNotFound) {
+				if (occurrence == 0) return [inLoader exportPageAtIndex:(int)at];
+				occurrence--;
+				at = [inPages indexOfObject:fileName inRange:NSMakeRange(at + 1, [inPages count] - at - 1)];
+			}
+		}
+	}
+	if (mode == 2) {
+		NSString *rawName = [contentPathDic objectForKey:[contentPathArray objectAtIndex:index]];
+		NSArray *items = [archiveContainer contents];
+		NSArray *sameName = rawName ? [entryIndicesByRawName objectForKey:rawName] : nil;
+		if (occurrence < [sameName count]) {
+			NSUInteger itemIndex = [[sameName objectAtIndex:occurrence] unsignedIntegerValue];
+			if (itemIndex < [items count]) {
+				return [COExportPage pageWithEntry:[items objectAtIndex:itemIndex] name:rawName
+										   archive:archiveContainer order:itemIndex];
+			}
+		}
+		return nil;
+	}
+	if (mode == 0 || mode == 3) {
+		return [COExportPage pageWithFilePath:[contentPathArray objectAtIndex:index]];
+	}
+	return nil;	/* PDF (mode 4), or not open */
+}
+
 #pragma mark -
 - (int)nextFolder:(int)now
 {

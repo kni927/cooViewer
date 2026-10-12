@@ -9,6 +9,7 @@
 #import "RemoteControl.h"	/* kRemoteButton* constants used by the 1.2b14 migration block below */
 #import "COPageLabel.h"
 #import "AccessoryView.h"	/* +migrateResolutionMarginInDefaults: */
+#import "COExportSession.h"
 #include <os/log.h>
 
 @implementation BookWindowController
@@ -190,6 +191,9 @@
 	/* The progress bar, label and cancel button are subviews of this
 	   window's content view and go with it. */
 	[archiveProgressSheet release];
+	[exportSession ownerWillGoAway];
+	[exportSession release];
+	exportSession = nil;
 
 	[lock release];
 	[cacheLock release];
@@ -843,7 +847,7 @@ static NSPoint gNextWindowCascadePoint;
    window out of routing for the same reason; these are the direct paths. */
 - (BOOL)refuseOpenWhileBusy
 {
-	if (bookLoadInFlight || passwordOpenInFlight) {
+	if (bookLoadInFlight || passwordOpenInFlight || [exportSession isActive]) {
 		NSBeep();
 		return YES;
 	}
@@ -2130,6 +2134,43 @@ static void COPerformOpenStep(void (^block)(void))
 	return dismissedSheet;
 }
 
+#pragma mark export (File ▸ Export…)
+
+/* An archive or folder book is open, nothing is loading into this window,
+   no sheet is up, and no export is running. */
+- (BOOL)canExportBook
+{
+	if (exportSession) return NO;
+	if (![self hasBookOpen] || bookLoadInFlight || passwordOpenInFlight || archiveLoadInFlight) return NO;
+	if (![[self window] isVisible] || [[self window] attachedSheet] != nil) return NO;
+	return [COExportSession canExportLoader:imageLoader];
+}
+
+- (IBAction)exportBook:(id)sender
+{
+	if (![self canExportBook]) {
+		NSBeep();
+		return;
+	}
+	exportSession = [[COExportSession alloc] initWithLoader:imageLoader
+	                                               bookName:[COExportSession bookNameForLoader:imageLoader]
+	                                                 window:[self window]
+	                                                  owner:(id <COExportSessionOwner>)self];
+	[exportSession begin];
+}
+
+- (void)exportSessionDidEnd:(COExportSession *)session
+{
+	if (session != exportSession) return;
+	[exportSession autorelease];
+	exportSession = nil;
+}
+
+- (BOOL)cancelExportForTermination
+{
+	return exportSession ? [exportSession cancelForTermination] : NO;
+}
+
 - (BOOL)isLoadingRestoredBook
 {
 	return (restoredBookOpening && archiveLoadInFlight);
@@ -3299,6 +3340,9 @@ static void COPerformOpenStep(void (^block)(void))
 
 - (BOOL)validateMenuItem:(NSMenuItem *)anItem
 {
+	if ([anItem action] == @selector(exportBook:)) {
+		return [self canExportBook];
+	}
     if ([[anItem title] isEqualToString:NSLocalizedString(@"Start/Stop", @"")] == YES) {
 		if ([[self window] isVisible]) {
 			return YES;
@@ -4173,6 +4217,9 @@ static const NSInteger kBookmarkMenuFixedItemCount = 3;
 		pendingArchiveLoader = nil;
 	}
 	passwordOpenInFlight = NO;
+	/* An export's save panel or progress sheet goes with the window; the
+	   export stops and leaves nothing at its destination. */
+	[exportSession cancelForWindowClose];
 	/* Whatever open this window was running is over; a window the registry
 	   keeps must not come back with its spinner still going. */
 	[progressIndicator stopAnimation:self];

@@ -28,6 +28,9 @@
 /* Class = "NSMenuItem"; title = "Open in New Window..."; ObjectID = "MW7-new-window"; */
 "MW7-new-window.title" = "新規ウインドウで開く...";
 
+/* Class = "NSMenuItem"; title = "Export..."; ObjectID = "EXP-mnu-001"; */
+"EXP-mnu-001.title" = "書き出す...";
+
 /* Class = "NSMenuItem"; title = "Close"; ObjectID = "73"; */
 "73.title" = "閉じる";
 

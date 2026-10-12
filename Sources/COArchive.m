@@ -296,6 +296,19 @@ static COArchive *COOpenLazyArchive(NSString *path, COArchiveProgress progress)
 	@synchronized(self) { return prefetchAbortedCount; }
 }
 
+/* File ▸ Export… (see COArchive.h): only CORarArchive has a use for a
+   second reader. */
+- (COArchive *)newIndependentReaderWithCancel:(BOOL (^)(void))shouldStop
+{
+	return nil;
+}
+
+- (NSData *)dataForEntryAtIndex:(NSUInteger)index cancelled:(BOOL (^)(void))shouldStop
+{
+	if (index >= [contentArray count]) return nil;
+	return [[contentArray objectAtIndex:index] data];
+}
+
 /* B3: only CORarArchive decodes ahead (see COArchive.h). */
 - (BOOL)canDecodeAhead
 {
