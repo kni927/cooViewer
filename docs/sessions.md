@@ -112,8 +112,12 @@ Send each message only to the sessions that need it.
   therefore names the session and the topic instead of copying long context
   or the owner's words, and the receiving HQ reads the transcript itself.
   Before asking another session about its state, read its transcript or its
-  repository first. Whether a local session can read a cloud transcript is
-  not verified; a local session copies what the cloud HQ needs.
+  repository first. A local session reads a cloud session's transcript in
+  the desktop app's built-in browser, which carries the owner's claude.ai
+  sign-in: open `https://claude.ai/code/<session ID>` and read it with
+  `get_page_text` (verified 2026-10-12; only the latest messages load until
+  "Load earlier messages" is clicked). Read only: never type into that page's
+  message box. Its own `list_events` covers only the app's local sessions.
 - **Slash commands do not travel:** a message from another session
   (`send_message`, `SendMessage`) or a card's prompt arrives as text, so a
   slash command in it does not run. The owner types a built-in command such as
