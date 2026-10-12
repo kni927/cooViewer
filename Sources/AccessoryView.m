@@ -13,6 +13,8 @@
 #import "NSAttributedString_Adding.h"
 #import "COPageLabel.h"
 
+NSString * const COResolutionMarginMigratedKey = @"ResolutionMarginMigrated";
+
 
 @implementation AccessoryView
 NSRect COIntRect(NSRect aRect)
@@ -893,6 +895,13 @@ NSRect COIntRect(NSRect aRect)
 		if (pageBarNumberMode == COPageBarNumberOverlay) {
 			NSSize size = [@"0" sizeWithAttributes:[self pageBarNumberAttributes]];
 			clear += 1 + ceil(size.height);
+		} else if (pageBarNumberMode == COPageBarNumberInBar) {
+			/* The number is centred on the bar (2 + (height+1)/2 above the
+			   edge) and may be taller than it; the HUD starts 1 px above
+			   its top (offset + 2 > text top). */
+			NSSize size = [@"0" sizeWithAttributes:[self pageBarNumberAttributes]];
+			float textClear = ceil((pageBarHeight + 1)/2.0 + ceil(size.height)/2.0) + 1;
+			if (textClear > clear) clear = textClear;
 		}
 		if (clear > offset) offset = clear;
 	}
@@ -1025,15 +1034,84 @@ NSRect COIntRect(NSRect aRect)
 	}
 }
 
+/* Whether a resolution bar in the given corner and margin shares the row of
+   the file-name HUD (and info string) in pageCorner/pageMargin: same corner,
+   and the two rows overlap vertically. Row heights come from the fonts
+   alone (the HUD rect is the text height + 5, see -sizeWithBG), not from
+   the strings shown, so the answer cannot change from page to page.
+   Top and bottom corners give the same test, since both rows are measured
+   from the same edge. Shared by -resolutionStringRect and the one-time
+   Margin_Resolution migration, which must agree. */
++(BOOL)resolutionRowAtPosition:(int)position margin:(NSPoint)margin font:(NSFont*)font
+	sharesPageRowAtPosition:(int)pagePosition margin:(NSPoint)pagePosMargin font:(NSFont*)pageFont
+{
+	if (position != pagePosition) return NO;
+	if (!pageFont || !font) return YES;
+	float pageHeight = (int)([@"0" sizeWithAttributes:[NSDictionary dictionaryWithObject:pageFont forKey:NSFontAttributeName]].height + 5 + 0.5);
+	float height = (int)([@"0" sizeWithAttributes:[NSDictionary dictionaryWithObject:font forKey:NSFontAttributeName]].height + 5 + 0.5);
+	return (margin.y < pagePosMargin.y + pageHeight) && (pagePosMargin.y < margin.y + height);
+}
+
+/* The width -resolutionStringRect used to add to the margin of a
+   resolution bar in the page number's corner whatever its row (Preferences
+   placed it beside the sample "#1-2/345 (67.jpg | 89.jpg)"), so a margin
+   stored by Preferences for a bar on another row is that much short. */
++(float)legacyResolutionInsetWithPageFont:(NSFont*)pageFont
+{
+	NSAttributedString *sample = [[[NSAttributedString alloc] initWithString:@"#1-2/345 (67.jpg | 89.jpg)"
+		attributes:[NSDictionary dictionaryWithObject:pageFont forKey:NSFontAttributeName]] autorelease];
+	return (int)([sample sizeWithBG].width + 1 + 0.5) + 2;
+}
+
++(void)migrateResolutionMarginInDefaults:(NSUserDefaults*)defaults
+{
+	if ([defaults objectForKey:COResolutionMarginMigratedKey]) return;
+	[defaults setBool:YES forKey:COResolutionMarginMigratedKey];
+
+	NSDictionary *stored = [defaults dictionaryForKey:@"Margin_Resolution"];
+	if (!stored) return;	/* unset: the page number's margin, same row */
+	int pagePosition = (int)[defaults integerForKey:@"PageNumPosition"];
+	int position = [defaults objectForKey:@"ResolutionPosition"] ? (int)[defaults integerForKey:@"ResolutionPosition"] : pagePosition;
+	if (position != pagePosition) return;
+
+	NSPoint margin = NSMakePoint([[stored objectForKey:@"x"] intValue],[[stored objectForKey:@"y"] intValue]);
+	NSPoint pagePosMargin = NSZeroPoint;
+	NSDictionary *pageStored = [defaults dictionaryForKey:@"Margin_Page"];
+	if (pageStored) pagePosMargin = NSMakePoint([[pageStored objectForKey:@"x"] intValue],[[pageStored objectForKey:@"y"] intValue]);
+
+	NSFont *pageFont = nil;
+	if ([defaults objectForKey:@"TextFont"]) pageFont = [NSUnarchiver unarchiveObjectWithData:[defaults objectForKey:@"TextFont"]];
+	if (!pageFont) pageFont = [NSFont controlContentFontOfSize:11];
+	NSFont *font = nil;
+	if ([defaults objectForKey:@"ResolutionTextFont"]) font = [NSUnarchiver unarchiveObjectWithData:[defaults objectForKey:@"ResolutionTextFont"]];
+	if (!font) font = pageFont;
+
+	if ([self resolutionRowAtPosition:position margin:margin font:font
+			  sharesPageRowAtPosition:pagePosition margin:pagePosMargin font:pageFont]) return;
+
+	margin.x += [self legacyResolutionInsetWithPageFont:pageFont];
+	[defaults setObject:[NSDictionary dictionaryWithObjectsAndKeys:
+						 [NSNumber numberWithInt:(int)margin.x],@"x",
+						 [NSNumber numberWithInt:(int)margin.y],@"y",nil]
+				 forKey:@"Margin_Resolution"];
+}
+
 /* The resolution bar is anchored to its own corner (resolutionStringPosition)
-   and offset by its own margin, the same way the page number is. In the
-   page number's corner it is laid out in that row, beside the page number
-   on the side away from the corner: left to right
-   [info][page number][resolution] in the left-hand positions, mirrored in
-   the right-hand ones, so the two never overlap; with no page number shown
-   it takes the page number's place. With the default settings (corner and
-   margin are the page number's) that is exactly where the bar was before
-   it had settings of its own. */
+   and offset by its own margin, the same way the page number is. When it
+   shares the page number's row (same corner, overlapping rows) it is laid
+   out beside the page number on the side away from the corner: left to
+   right [info][page number][resolution] in the left-hand positions,
+   mirrored in the right-hand ones, so the two never overlap; with no page
+   number shown it takes the page number's place. With the default settings
+   (corner and margin are the page number's) that is exactly where the bar
+   was before it had settings of its own.
+
+   On any other row the margin alone places it. Until 2026-10 the page
+   number's width was added there too, so the bar moved with the file names'
+   length and a bar placed at the left edge in Preferences was cut off by
+   the window for short names (single pages); +migrateResolutionMarginInDefaults:
+   converts such stored margins once. The bar is also kept inside the view
+   horizontally. */
 -(NSRect)resolutionStringRect
 {
 	if (!resolutionString) return NSZeroRect;
@@ -1043,7 +1121,8 @@ NSRect COIntRect(NSRect aRect)
 	rect.size.width = rect.size.width + 1;
 	rect.size.height = rect.size.height + 1;
 	float inset = 0;
-	if (resolutionStringPosition == pageStringPosition) {
+	if ([[self class] resolutionRowAtPosition:resolutionStringPosition margin:resolutionMargin font:resolutionFont
+					  sharesPageRowAtPosition:pageStringPosition margin:pageMargin font:textFont]) {
 		inset = [self infoStringRect].size.width;
 		if (pageString) inset += [self pageStringRect].size.width + 2;
 	}
@@ -1067,6 +1146,8 @@ NSRect COIntRect(NSRect aRect)
 		default:
 			break;
 	}
+	if (NSMaxX(rect) > NSWidth(contentFrame)) rect.origin.x = NSWidth(contentFrame) - rect.size.width;
+	if (rect.origin.x < 0) rect.origin.x = 0;
 	return COIntRect(rect);
 }
 
@@ -1189,19 +1270,15 @@ NSRect COIntRect(NSRect aRect)
 	[self setNeedsDisplayInRect:NSUnionRect(oldRect,[self pageBarAreaRect])];
 }
 
-/* Inside the bar the size follows the bar's height, so the number fits:
-   11 pt at the default 18 px (COPageBarDefaultHeight), smaller on a
-   shorter bar, larger on a taller one up to 14 pt. Beside the bar it is
-   11 pt whatever the bar's height. Digits are monospaced so the number does
-   not shift sideways from page to page. */
+/* The size of the HUD text (TextFont, the file-name HUD's font), in the bar
+   and beside it, so the number reads like the rest of the overlay text.
+   Inside the bar it may reach past a bar shorter than the text; it stays
+   centred on the bar. Digits are monospaced so the number does not shift
+   sideways from page to page. */
 -(NSFont*)pageBarNumberFont
 {
-	CGFloat size = 11;
-	if (pageBarNumberMode == COPageBarNumberInBar) {
-		size = pageBarHeight - 7;
-		if (size < 7) size = 7;
-		if (size > 14) size = 14;
-	}
+	CGFloat size = textFont ? [textFont pointSize] : 11;
+	if (size < 1) size = 11;
 	return [NSFont monospacedDigitSystemFontOfSize:size weight:NSFontWeightMedium];
 }
 
@@ -1260,8 +1337,13 @@ NSRect COIntRect(NSRect aRect)
 	if (NSIsEmptyRect(textRect)) return;
 	[NSGraphicsContext saveGraphicsState];
 	if (pageBarNumberMode == COPageBarNumberInBar) {
-		/* Never past the bar: a very short or narrow bar cuts the number. */
-		NSRectClip(NSInsetRect(barRect,1,1));
+		/* Never wider than the bar: a narrow bar cuts the number at its
+		   ends. Vertically the text (and its shadow) may reach past a bar
+		   that is shorter than it. */
+		NSRect clip = NSUnionRect(NSInsetRect(barRect,1,1), NSInsetRect(textRect,0,-4));
+		clip.origin.x = NSMinX(barRect) + 1;
+		clip.size.width = NSWidth(barRect) - 2;
+		NSRectClip(clip);
 	}
 	[string drawAtPoint:textRect.origin];
 	[NSGraphicsContext restoreGraphicsState];
@@ -1270,10 +1352,11 @@ NSRect COIntRect(NSRect aRect)
 -(NSRect)pageBarAreaRect
 {
 	NSRect bar = [self pageBarRect];
-	if (NSIsEmptyRect(bar) || pageBarNumberMode != COPageBarNumberOverlay) return bar;
+	if (NSIsEmptyRect(bar)) return bar;
 	NSRect textRect = [self pageBarNumberTextRectForBarRect:bar attributedString:[self pageBarNumberAttributedString]];
 	if (NSIsEmptyRect(textRect)) return bar;
-	/* The shadow reaches past the glyphs. */
+	/* The shadow reaches past the glyphs; in the bar the text itself may
+	   reach past a bar shorter than it. */
 	return NSUnionRect(bar, NSIntegralRect(NSInsetRect(textRect,-4,-4)));
 }
 

@@ -8,6 +8,7 @@
 #import "FilterPanelController.h"	/* per-window filters (code review L6) */
 #import "RemoteControl.h"	/* kRemoteButton* constants used by the 1.2b14 migration block below */
 #import "COPageLabel.h"
+#import "AccessoryView.h"	/* +migrateResolutionMarginInDefaults: */
 #include <os/log.h>
 
 @implementation BookWindowController
@@ -55,6 +56,11 @@
 	   stored height is kept. A profile with no PageBarSize yet gets the new
 	   default from -windowDidLoad. */
 	COMigratePageBarHeight(defaults);
+
+	/* A resolution bar placed in the file-name HUD's corner but on another
+	   row no longer moves with the file names' width; its stored margin is
+	   converted once so it stays where Preferences showed it. */
+	[AccessoryView migrateResolutionMarginInDefaults:defaults];
 
 	/* ResolutionDisplay replaced the ShowResolution checkbox. A profile that
 	   has no ResolutionDisplay yet keeps what it showed: ShowResolution NO →

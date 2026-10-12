@@ -477,9 +477,9 @@
 			break;
 		case 5:
 			/* The resolution bar: case 2 with its own corner and margin. In
-			   the page number's corner -resolutionStringRect adds the page
-			   number's width to the anchor; that is the same with the margin
-			   zeroed below, so the margin arithmetic is unaffected. */
+			   the page number's row -resolutionStringRect adds the page
+			   number's width to the anchor; the correction after the corner
+			   switch below accounts for the row changing with the margin. */
 			switch (resolutionStringPosition) {
 				case 0:
 					resolutionMargin.x += xMoved;
@@ -528,6 +528,17 @@
 				newRect = [self resolutionStringRect];
 				resolutionMargin.x -= tempRect.origin.x-newRect.origin.x;
 				resolutionMargin.y -= newRect.origin.y-tempRect.origin.y;
+			}
+			/* newRect was measured with the margin zeroed, which puts the
+			   bar in the page number's row and so beside it; with its real
+			   margin it may be on another row, where nothing is added. The
+			   row (y) is already right, so one horizontal correction puts
+			   the bar back under the pointer. */
+			newRect = [self resolutionStringRect];
+			if (resolutionStringPosition == 0 || resolutionStringPosition == 2) {
+				resolutionMargin.x += tempRect.origin.x-newRect.origin.x;
+			} else {
+				resolutionMargin.x -= tempRect.origin.x-newRect.origin.x;
 			}
 			break;
 		default:

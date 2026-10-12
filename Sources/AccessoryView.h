@@ -8,6 +8,9 @@
 
 #import <Cocoa/Cocoa.h>
 
+/* Set once +[AccessoryView migrateResolutionMarginInDefaults:] has run. */
+extern NSString * const COResolutionMarginMigratedKey;
+
 @interface AccessoryView : NSView 
 {	
 	NSTimer *infoStringTimer;
@@ -100,14 +103,23 @@ NSRect COIntRect(NSRect aRect);
 
 -(void)setResolutionString:(NSString*)string;
 -(NSRect)resolutionStringRect;
+/* Whether a resolution bar at position/margin/font shares the file-name
+   HUD's row (and so is laid out beside it). */
++(BOOL)resolutionRowAtPosition:(int)position margin:(NSPoint)margin font:(NSFont*)font
+	sharesPageRowAtPosition:(int)pagePosition margin:(NSPoint)pagePosMargin font:(NSFont*)pageFont;
+/* Once per profile (COResolutionMarginMigratedKey): a Margin_Resolution
+   stored for a bar in the file-name HUD's corner but on another row gets
+   the width that -resolutionStringRect no longer adds there, so the bar
+   stays where Preferences showed it. */
++(void)migrateResolutionMarginInDefaults:(NSUserDefaults*)defaults;
 
 -(void)setPageBarNumberString:(NSString*)string;
 -(void)setPageBarNumberMode:(int)mode;
-/* Draws the position number for a page bar drawn in barRect: centred and
-   clipped inside it, or just outside it, by pageBarNumberMode. */
+/* Draws the position number for a page bar drawn in barRect: centred on it
+   and clipped to its width, or just outside it, by pageBarNumberMode. */
 -(void)drawPageBarNumberForBarRect:(NSRect)barRect;
-/* The page bar plus, in Overlay mode, the number beside it: the area to
-   redraw when the bar is shown, hidden or changed. */
+/* The page bar plus its number (beside it, or in it and reaching past a
+   short bar): the area to redraw when the bar is shown, hidden or changed. */
 -(NSRect)pageBarAreaRect;
 
 /* Page-number text attributes (color, background-dependent shadow) with
