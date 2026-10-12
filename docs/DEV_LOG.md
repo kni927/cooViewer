@@ -1233,3 +1233,12 @@ jumps, the empty/unreadable book messages, the Resolution section, quitting
 from the All Bookmarks browser, spreads, Quick Look and thumbnails (both
 extensions attributed to `/Applications`). See
 `docs/tasks/2026-10-06-02-release-v1.6.7.md`.
+
+### Page position on the page bar, file-name HUD and Export (2026-10-12, unreleased)
+
+The page bar shows `9-10/20` (in the bar, above it, in the title bar, or
+off); the page number HUD shows file names, optionally in a status bar under
+the pages. File > Export... writes the original page files (all, or lists
+like `1-3,7`) into a store-only `.cbz`, cancellable in under a second on
+solid RAR5. Engine suite 504 + 169 + 81 + 511 checks. See
+`docs/tasks/2026-10-12-01-page-bar-and-export.md`.

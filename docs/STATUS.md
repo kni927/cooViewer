@@ -5,21 +5,24 @@ what comes next, what is on hold, and what waits on the owner. Rewrite it
 rather than append; keep it under about 40 lines. Rules are in `AGENTS.md`,
 decisions in `docs/DECISIONS.md`, and history in `docs/tasks/` and Git.
 
-Updated: 2026-10-10
+Updated: 2026-10-12
 
 ## Summary
 
 cooViewer: macOS image and comic viewer, a maintained fork of coo-ona's original.
 Latest release v1.6.7 (2026-10-06), notarized and in the Homebrew tap.
+Unreleased on `main`: page position on the page bar / title bar, file-name
+HUD or status bar, File > Export... (`docs/tasks/2026-10-12-01-page-bar-and-export.md`).
 
 ## Next
 
-- TF #01 (page bar and export), decided 2026-10-12: page position `9-10/20`
-  on the page bar (in bar / overlay above it / title bar / bottom status
-  bar over the image / off), the page number HUD
-  becomes a file-name HUD, and File > Export... writes original page files
-  (all, or lists like `1-3,7`) into an uncompressed `.cbz`; PDF books excluded.
-- Then release v1.6.8.
+- Release v1.6.8 (a separate task).
+- Small follow-ups from the page bar and export task, unscheduled (details
+  in its archive): an unused pages-prompt string in `Localizable.strings`;
+  Finder/drop routing can replace a window that is exporting; exported
+  entries get the current mtime; solid RAR prefetch in page order can
+  restart the cursor (speed only); the bottom HUD offset ignores
+  `Margin_PageBar`.
 
 ## On hold
 
@@ -52,3 +55,6 @@ delete it when it is done or out of date.
 
 - 2026-10-06: QuickLook checks of a dev build count only when `ps` shows the
   test copy's extension ran (`CLAUDE.md`, QuickLook step 4).
+- 2026-10-12: computer use cannot type into save-panel accessory fields or
+  secure input; run screen-operating subagents in the foreground
+  (`device-check` skill).

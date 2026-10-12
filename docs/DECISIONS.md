@@ -2071,3 +2071,71 @@ or from adding `dangerouslyDisableSandbox` to them, removals of
 `screencapture`. The owner approved items 3 to 6 of that report in the
 cooViewer HQ chat on 2026-10-06. The tap push stays a separate, visible
 step.
+
+
+## The page position lives on the page bar; the page number HUD shows file names (2026-10-12)
+
+**Decision:** the position (`9/20`, `9-10/20`, reading order, no `#`) is
+drawn on the page bar, at the HUD text size, with a subtle shadow.
+`PageBarNumber` (Preferences ▸ Appearance ▸ Page Bar ▸ Number) chooses
+0 In bar (default), 1 Overlay (just outside the bar, away from the window
+edge), 3 Title bar, or 2 Off; any other stored value reads as In bar. Title
+bar mode uses a title-bar accessory: the book name left-aligned, the
+position centred on the window, `window.title` left as the plain book name.
+The default bar height is 18 px; a stored 15 moves to 18 once
+(`PageBarHeightMigrated`). The `ShowNumber` HUD becomes the file-name HUD,
+`009.jpg (1400x2000) | 010.jpg (1400x2000)` (no position, no outer
+parentheses; spread entries in screen order, KNOWN_ISSUES #3), or names
+only when `ResolutionDisplay` puts the resolution elsewhere. The key and
+its action are kept. `FileNameLocation` (0 HUD, default; 1 Status bar)
+can move the names into a bottom status bar, each name centred under its
+page. A resolution bar on another row of the HUD's corner no longer moves
+with the names' width; stored `Margin_Resolution` values were converted
+once (`ResolutionMarginMigrated`). This supersedes the `#page (…)` HUD
+format of "Resolution display is a three-way setting" (2026-10-03).
+
+**Why:** owner decisions in the cooViewer HQ chat and in the TF chat
+(2026-10-12). The position belongs with the bar it describes, and the HUD
+was too long on spreads. A "Status bar" page-position choice was tried and
+replaced by the owner after an on-device look: the bottom bar is more
+useful for the two file names, placed under their pages.
+
+## Overlays must not change the image layout (2026-10-12)
+
+**Decision:** the file-name status bar, like the page bar and the HUDs, is
+drawn semi-transparent over the image; no space is reserved and the image's
+size and position do not change. Page spans for the status bar are read
+from `-[CustomImageView shownPageRectsInView:]`, which runs the same
+geometry as `-drawRect:`, draws nothing and restores `fRect`/`sRect`;
+stacked pages or no geometry fall back to the bar's halves. A bottom page
+bar sits just above the status bar while it is shown.
+
+**Why:** `CLAUDE.md`'s image-quality rule: spread geometry comes only from
+the view, and a bar that reserved space would change the fit and the one
+`drawInRect:` scale. Reading the geometry without drawing keeps the
+resampling count at one per page.
+
+## Export writes original bytes into a store-only CBZ; pages are asked before the save panel (2026-10-12)
+
+**Decision:** File ▸ Export… (⇧⌘E; archive and folder books, not PDF)
+writes each chosen page's original bytes (decrypted for encrypted ZIP,
+nested archives included) into a store-only ZIP with the vendored libzip,
+in page order, never decoding or drawing. Entry names keep the original
+names, flattened; when names collide or would sort out of page order every
+entry gets a `0001_` prefix. The pages (empty = all, or lists such as
+`1-3,7`) are asked in an app-owned sheet before a plain save panel; the
+default name is `<book>-export.cbz` or `<book>-export-<pages>.cbz`. The
+export runs in the background with Cancel, writes to a staging file and
+moves it into place only on success. RAR pages are read through a reader
+of the export's own, with cancel checks every 256 KB.
+
+**Why:** owner decisions (2026-10-12). Original bytes keep image quality
+and need no format choices; storing avoids recompressing already
+compressed images. The task asked for a save-panel accessory field, but on
+current macOS the save panel runs out of process (NSRemoteView; its
+`defaultButtonCell` is nil), so Return/Enter in the field could not be
+validated reliably; the owner approved the separate sheet. Sharing the
+viewer's forward-only solid RAR cursor made Cancel wait about 30 s on a
+1.8 GB solid book; a separate reader brought it to under a second and
+leaves the viewer's cursor alone. See
+`docs/tasks/2026-10-12-01-page-bar-and-export.md`.
