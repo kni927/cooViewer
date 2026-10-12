@@ -49,10 +49,24 @@ do nothing.
    - Screenshots: `tools/device_check.sh capture` (or `capture x,y,w,h`
      for a region) writes a new PNG outside the repository and prints its
      path; use it instead of calling `screencapture` directly.
-   - If computer use stops with "user interrupt" although the owner did
-     nothing (seen 2026-10-04, cause unknown), continue with background
-     means and record it. The single-app `app_*` tools kept working when
-     the full-screen tools and `app_batch` did not.
+   - "user interrupt" without any owner input means the parent session's
+     turn is not running (found 2026-10-12 in the Claude desktop app
+     code). Computer use treats an idle parent as aborted, so a background
+     subagent (`run_in_background`) fails at once in `computer_batch`,
+     `app_batch`, `teach_batch`, full-screen `key`/`type`/`wait`/
+     `hold_key`, `app_menu` presses, and any input sent within 750 ms of
+     the previous one. Run screen-operating subagents in the foreground
+     (`run_in_background: false`). In the background, use only single
+     `app_*` calls (`app_screenshot`, `app_click`, `app_key`, `app_zoom`),
+     one at a time and about 1 s apart, and click the menu bar with
+     `app_click` instead of using `app_menu`.
+   - `app_menu` validates menu items while the app is in the background,
+     so it can report an enabled item as disabled; use its key equivalent
+     after bringing the build to the front with `open <build path>`.
+   - The tool refuses to type into a save panel's accessory field or to
+     type a path (⌘⇧G, `/`, `~`) there. A save panel opens in the book's
+     folder, so copy test inputs into the output folder first, and leave
+     accessory-field input to the owner.
    - When the app looks stuck or slow, `tools/device_check.sh diag` shows
      its CPU, memory and state, and `tools/device_check.sh diag 3` also
      samples it for 3 s and prints the main thread's call graph. Use these
