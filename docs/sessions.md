@@ -106,6 +106,14 @@ Send each message only to the sessions that need it.
   (claude-code-remote) to the session ID, in both directions; a reply goes back
   to the `from-session` of the received message. Look up an HQ's current ID by
   name with `list_sessions`.
+- **Read before relaying or asking:** a cloud session can read another
+  session's transcript with `list_events` (claude-code-remote), local sessions
+  included (verified 2026-10-12 on a local session on the Mac mini). A message
+  therefore names the session and the topic instead of copying long context
+  or the owner's words, and the receiving HQ reads the transcript itself.
+  Before asking another session about its state, read its transcript or its
+  repository first. Whether a local session can read a cloud transcript is
+  not verified; a local session copies what the cloud HQ needs.
 - **Slash commands do not travel:** a message from another session
   (`send_message`, `SendMessage`) or a card's prompt arrives as text, so a
   slash command in it does not run. The owner types a built-in command such as
