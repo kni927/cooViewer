@@ -75,6 +75,12 @@
 	
 	int tempPageNum;
 	int pageStringPosition;
+
+	/* The page position on the page bar ("9-10/20") and where it goes
+	   (PageBarNumber, a COPageBarNumberMode). Drawn with the bar, so it
+	   follows the bar's switch and auto-hide. */
+	NSString *pageBarNumber;
+	int pageBarNumberMode;
 }
 NSRect COIntRect(NSRect aRect);
 -(void)setPreferences;
@@ -94,6 +100,15 @@ NSRect COIntRect(NSRect aRect);
 
 -(void)setResolutionString:(NSString*)string;
 -(NSRect)resolutionStringRect;
+
+-(void)setPageBarNumberString:(NSString*)string;
+-(void)setPageBarNumberMode:(int)mode;
+/* Draws the position number for a page bar drawn in barRect: centred and
+   clipped inside it, or just outside it, by pageBarNumberMode. */
+-(void)drawPageBarNumberForBarRect:(NSRect)barRect;
+/* The page bar plus, in Overlay mode, the number beside it: the area to
+   redraw when the bar is shown, hidden or changed. */
+-(NSRect)pageBarAreaRect;
 
 /* Page-number text attributes (color, background-dependent shadow) with
    the given font: the page number's with TextFont, the resolution bar's

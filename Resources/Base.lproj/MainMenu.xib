@@ -873,10 +873,34 @@ go to the last page always.</string>
                                                             <font key="font" metaFont="system"/>
                                                         </buttonCell>
                                                     </button>
+                                                    <textField verticalHuggingPriority="750" horizontalCompressionResistancePriority="250" fixedFrame="YES" translatesAutoresizingMaskIntoConstraints="NO" id="PBN-Lb-001">
+                                                        <rect key="frame" x="163" y="66" width="66" height="17"/>
+                                                        <autoresizingMask key="autoresizingMask" flexibleMaxX="YES" flexibleMinY="YES"/>
+                                                        <textFieldCell key="cell" sendsActionOnEndEditing="YES" alignment="left" title="Number:" id="PBN-LbC-001">
+                                                            <font key="font" metaFont="system"/>
+                                                            <color key="textColor" name="controlTextColor" catalog="System" colorSpace="catalog"/>
+                                                            <color key="backgroundColor" name="controlColor" catalog="System" colorSpace="catalog"/>
+                                                        </textFieldCell>
+                                                    </textField>
+                                                    <popUpButton verticalHuggingPriority="750" fixedFrame="YES" translatesAutoresizingMaskIntoConstraints="NO" id="PBN-Pu-001">
+                                                        <rect key="frame" x="229" y="62" width="110" height="22"/>
+                                                        <autoresizingMask key="autoresizingMask"/>
+                                                        <popUpButtonCell key="cell" type="push" title="In bar" bezelStyle="rounded" alignment="left" controlSize="small" lineBreakMode="truncatingTail" state="on" borderStyle="borderAndBezel" inset="2" arrowPosition="arrowAtCenter" preferredEdge="maxY" selectedItem="PBN-It-000" id="PBN-PuC-001">
+                                                            <behavior key="behavior" lightByBackground="YES" lightByGray="YES"/>
+                                                            <font key="font" metaFont="smallSystem"/>
+                                                            <menu key="menu" title="OtherViews" id="PBN-Mn-001">
+                                                                <items>
+                                                                    <menuItem title="In bar" state="on" id="PBN-It-000"/>
+                                                                    <menuItem title="Overlay" tag="1" id="PBN-It-001"/>
+                                                                    <menuItem title="Off" tag="2" id="PBN-It-002"/>
+                                                                </items>
+                                                            </menu>
+                                                        </popUpButtonCell>
+                                                    </popUpButton>
                                                 </subviews>
                                             </view>
                                         </box>
-                                        <box fixedFrame="YES" title="Page Number" translatesAutoresizingMaskIntoConstraints="NO" id="1984">
+                                        <box fixedFrame="YES" title="File Name" translatesAutoresizingMaskIntoConstraints="NO" id="1984">
                                             <rect key="frame" x="17" y="290" width="413" height="134"/>
                                             <autoresizingMask key="autoresizingMask" flexibleMaxX="YES" flexibleMinY="YES"/>
                                             <view key="contentView" id="zur-GO-M3a">
@@ -902,7 +926,7 @@ go to the last page always.</string>
                                                     <textField verticalHuggingPriority="750" fixedFrame="YES" translatesAutoresizingMaskIntoConstraints="NO" id="2769">
                                                         <rect key="frame" x="50" y="37" width="210" height="19"/>
                                                         <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
-                                                        <textFieldCell key="cell" scrollable="YES" lineBreakMode="clipping" sendsActionOnEndEditing="YES" state="on" borderStyle="bezel" alignment="center" title="#1-2/345 (67.jpg | 89.jpg)" drawsBackground="YES" id="4403">
+                                                        <textFieldCell key="cell" scrollable="YES" lineBreakMode="clipping" sendsActionOnEndEditing="YES" state="on" borderStyle="bezel" alignment="center" title="67.jpg | 89.jpg" drawsBackground="YES" id="4403">
                                                             <font key="font" metaFont="system"/>
                                                             <color key="textColor" name="textColor" catalog="System" colorSpace="catalog"/>
                                                             <color key="backgroundColor" name="textBackgroundColor" catalog="System" colorSpace="catalog"/>
@@ -1026,7 +1050,7 @@ go to the last page always.</string>
                                                     <button fixedFrame="YES" translatesAutoresizingMaskIntoConstraints="NO" id="RSb-IP-001">
                                                         <rect key="frame" x="70" y="34" width="126" height="18"/>
                                                         <autoresizingMask key="autoresizingMask"/>
-                                                        <buttonCell key="cell" type="check" title="In page number" bezelStyle="regularSquare" imagePosition="left" alignment="left" inset="2" id="RSb-IPC-001">
+                                                        <buttonCell key="cell" type="check" title="In file name" bezelStyle="regularSquare" imagePosition="left" alignment="left" inset="2" id="RSb-IPC-001">
                                                             <behavior key="behavior" changeContents="YES" doesNotDimImage="YES" lightByContents="YES"/>
                                                             <font key="font" metaFont="system"/>
                                                         </buttonCell>
@@ -1077,7 +1101,7 @@ go to the last page always.</string>
                                                     <textField verticalHuggingPriority="750" horizontalCompressionResistancePriority="250" fixedFrame="YES" translatesAutoresizingMaskIntoConstraints="NO" id="RSb-Nt-001">
                                                         <rect key="frame" x="258" y="2" width="142" height="28"/>
                                                         <autoresizingMask key="autoresizingMask" flexibleMaxX="YES" flexibleMinY="YES"/>
-                                                        <textFieldCell key="cell" controlSize="small" sendsActionOnEndEditing="YES" alignment="left" title="Colors and auto hide follow Page Number." id="RSb-NtC-001">
+                                                        <textFieldCell key="cell" controlSize="small" sendsActionOnEndEditing="YES" alignment="left" title="Colors and auto hide follow File Name." id="RSb-NtC-001">
                                                             <font key="font" metaFont="smallSystem"/>
                                                             <color key="textColor" name="secondaryLabelColor" catalog="System" colorSpace="catalog"/>
                                                             <color key="backgroundColor" name="controlColor" catalog="System" colorSpace="catalog"/>
@@ -2473,6 +2497,7 @@ Gw
                 <outlet property="readSubFolderCheck" destination="969" id="1709"/>
                 <outlet property="rememberBookSettingsCheck" destination="2850" id="2851"/>
                 <outlet property="showPageBarCheck" destination="2838" id="2841"/>
+                <outlet property="pageBarNumberPopUpButton" destination="PBN-Pu-001" id="PBN-Ou-001"/>
                 <outlet property="showPageNumCheck" destination="2839" id="2840"/>
                 <outlet property="showResolutionCheck" destination="RSb-Sh-001" id="RSb-Ou-001"/>
                 <outlet property="resolutionInPageNumberCheck" destination="RSb-IP-001" id="RSb-Ou-002"/>
@@ -2591,7 +2616,7 @@ Gw
                                 <modifierMask key="keyEquivalentModifierMask" command="YES"/>
                             </menuItem>
                             <menuItem title="ShowThumbnail" tag="18" id="2446"/>
-                            <menuItem title="ShowNumber" tag="12" id="2423"/>
+                            <menuItem title="ShowFileName" tag="12" id="2423"/>
                             <menuItem title="ShowPageBar" tag="20" id="2424"/>
                             <menuItem title="ShowLoupe" tag="34" id="2425"/>
                             <menuItem isSeparatorItem="YES" title=" " tag="-1" id="2690">
@@ -2770,7 +2795,7 @@ Gw
                                 <modifierMask key="keyEquivalentModifierMask" command="YES"/>
                             </menuItem>
                             <menuItem title="ShowThumbnail" tag="24" id="2685"/>
-                            <menuItem title="ShowNumber" tag="18" id="2658"/>
+                            <menuItem title="ShowFileName" tag="18" id="2658"/>
                             <menuItem title="ShowPageBar" tag="26" id="2659"/>
                             <menuItem title="ShowLoupe" tag="43" id="2660"/>
                             <menuItem isSeparatorItem="YES" id="2749">

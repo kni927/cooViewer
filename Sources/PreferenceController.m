@@ -5,6 +5,7 @@
 #import "RemoteControl.h"	/* kRemoteButton* constants used by the default key/mouse array builders */
 #import "AccessorySettingView.h"
 #import "NSDictionary_Adding.h"
+#import "COPageLabel.h"
 
 
 @implementation PreferenceController
@@ -995,6 +996,9 @@ static const CGFloat kAppearanceExtraHeight = 82;
 	} else {
 		[showPageBarCheck setState:NSOffState];
 	}
+	if (![pageBarNumberPopUpButton selectItemWithTag:[defaults integerForKey:@"PageBarNumber"]]) {
+		[pageBarNumberPopUpButton selectItemWithTag:COPageBarNumberInBar];
+	}
 	/* ResolutionDisplay stays the stored state; the two checkboxes are a
 	   view of it. Off does not say where the resolution would go, so that
 	   choice is kept in ResolutionInPageNumber (YES when unset, matching the
@@ -1507,6 +1511,7 @@ static const CGFloat kAppearanceExtraHeight = 82;
 		} else {
 			[defaults setBool:NO forKey:@"ShowPageBar"];
 		}	
+		[defaults setInteger:[pageBarNumberPopUpButton selectedTag] forKey:@"PageBarNumber"];
 		
 		
 		
@@ -2935,7 +2940,13 @@ static const CGFloat kAppearanceExtraHeight = 82;
 	
 	[accessorySettingView setPositionSettingMode:YES];
 	[accessorySettingPanel makeKeyAndOrderFront:self];
-	[accessorySettingView setPageString:@"#1-2/345 (67.jpg | 89.jpg)"];
+	if ([self resolutionDisplayFromChecks] == COResolutionDisplayInPageNumber) {
+		[accessorySettingView setPageString:@"67.jpg (1200x1800) | 89.jpg (1200x1800)"];
+	} else {
+		[accessorySettingView setPageString:@"67.jpg | 89.jpg"];
+	}
+	[accessorySettingView setPageBarNumberMode:(int)[pageBarNumberPopUpButton selectedTag]];
+	[accessorySettingView setPageBarNumberString:@"1-2/345"];
 	/* The resolution bar is placed here only when it is a bar of its own. */
 	if ([self resolutionDisplayFromChecks] == COResolutionDisplaySeparateBar) {
 		[accessorySettingView setResolutionString:@"1200x1800 | 1200x1800"];

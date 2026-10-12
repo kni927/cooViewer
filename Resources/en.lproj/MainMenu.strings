@@ -412,8 +412,8 @@
 /* Class = "NSBox"; title = "Page Bar"; ObjectID = "1970"; */
 "1970.title" = "Page Bar";
 
-/* Class = "NSBox"; title = "Page Number"; ObjectID = "1984"; */
-"1984.title" = "Page Number";
+/* Class = "NSBox"; title = "File Name"; ObjectID = "1984"; */
+"1984.title" = "File Name";
 
 /* Class = "NSBox"; title = "Thumbnail View"; ObjectID = "1987"; */
 "1987.title" = "Thumbnail View";
@@ -595,8 +595,8 @@
 /* Class = "NSMenuItem"; title = "ChangeReadMode"; ObjectID = "2418"; */
 "2418.title" = "ChangeReadMode";
 
-/* Class = "NSMenuItem"; title = "ShowNumber"; ObjectID = "2423"; */
-"2423.title" = "ShowNumber";
+/* Class = "NSMenuItem"; title = "ShowFileName"; ObjectID = "2423"; */
+"2423.title" = "ShowFileName";
 
 /* Class = "NSMenuItem"; title = "ShowPageBar"; ObjectID = "2424"; */
 "2424.title" = "ShowPageBar";
@@ -847,8 +847,8 @@
 /* Class = "NSMenuItem"; title = "ViewOriginal(left)"; ObjectID = "2657"; */
 "2657.title" = "ViewOriginal(left)";
 
-/* Class = "NSMenuItem"; title = "ShowNumber"; ObjectID = "2658"; */
-"2658.title" = "ShowNumber";
+/* Class = "NSMenuItem"; title = "ShowFileName"; ObjectID = "2658"; */
+"2658.title" = "ShowFileName";
 
 /* Class = "NSMenuItem"; title = "ShowPageBar"; ObjectID = "2659"; */
 "2659.title" = "ShowPageBar";
@@ -1363,8 +1363,8 @@
 /* Class = "NSButtonCell"; title = "Set position and size..."; ObjectID = "4401"; */
 "4401.title" = "Set position and size...";
 
-/* Class = "NSTextFieldCell"; title = "#1-2/345 (67.jpg | 89.jpg)"; ObjectID = "4403"; */
-"4403.title" = "#1-2/345 (67.jpg | 89.jpg)";
+/* Class = "NSTextFieldCell"; title = "67.jpg | 89.jpg"; ObjectID = "4403"; */
+"4403.title" = "67.jpg | 89.jpg";
 
 /* Class = "NSButtonCell"; title = "Select..."; ObjectID = "4404"; */
 "4404.title" = "Select...";
@@ -1423,8 +1423,8 @@
 /* Class = "NSButtonCell"; title = "Show"; ObjectID = "RSb-ShC-001"; */
 "RSb-ShC-001.title" = "Show";
 
-/* Class = "NSButtonCell"; title = "In page number"; ObjectID = "RSb-IPC-001"; */
-"RSb-IPC-001.title" = "In page number";
+/* Class = "NSButtonCell"; title = "In file name"; ObjectID = "RSb-IPC-001"; */
+"RSb-IPC-001.title" = "In file name";
 
 /* Class = "NSButtonCell"; title = "Set position..."; ObjectID = "RSb-SPC-001"; */
 "RSb-SPC-001.title" = "Set position...";
@@ -1438,6 +1438,17 @@
 /* Class = "NSButtonCell"; title = "Select..."; ObjectID = "RSb-FSC-001"; */
 "RSb-FSC-001.title" = "Select...";
 
-/* Class = "NSTextFieldCell"; title = "Colors and auto hide follow Page Number."; ObjectID = "RSb-NtC-001"; */
-"RSb-NtC-001.title" = "Colors and auto hide follow Page Number.";
+/* Class = "NSTextFieldCell"; title = "Colors and auto hide follow File Name."; ObjectID = "RSb-NtC-001"; */
+"RSb-NtC-001.title" = "Colors and auto hide follow File Name.";
 
+/* Class = "NSTextFieldCell"; title = "Number:"; ObjectID = "PBN-LbC-001"; */
+"PBN-LbC-001.title" = "Number:";
+
+/* Class = "NSMenuItem"; title = "In bar"; ObjectID = "PBN-It-000"; */
+"PBN-It-000.title" = "In bar";
+
+/* Class = "NSMenuItem"; title = "Overlay"; ObjectID = "PBN-It-001"; */
+"PBN-It-001.title" = "Overlay";
+
+/* Class = "NSMenuItem"; title = "Off"; ObjectID = "PBN-It-002"; */
+"PBN-It-002.title" = "Off";

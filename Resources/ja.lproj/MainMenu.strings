@@ -406,8 +406,8 @@
 /* Class = "NSBox"; title = "Page Bar"; ObjectID = "1970"; */
 "1970.title" = "ページバー";
 
-/* Class = "NSBox"; title = "Page Number"; ObjectID = "1984"; */
-"1984.title" = "ページ数表示";
+/* Class = "NSBox"; title = "File Name"; ObjectID = "1984"; */
+"1984.title" = "ファイル名表示";
 
 /* Class = "NSBox"; title = "Thumbnail View"; ObjectID = "1987"; */
 "1987.title" = "一覧表示";
@@ -589,8 +589,8 @@
 /* Class = "NSMenuItem"; title = "ChangeReadMode"; ObjectID = "2418"; */
 "2418.title" = "ページ方向を切り替え";
 
-/* Class = "NSMenuItem"; title = "ShowNumber"; ObjectID = "2423"; */
-"2423.title" = "ページ数を表示";
+/* Class = "NSMenuItem"; title = "ShowFileName"; ObjectID = "2423"; */
+"2423.title" = "ファイル名を表示";
 
 /* Class = "NSMenuItem"; title = "ShowPageBar"; ObjectID = "2424"; */
 "2424.title" = "ページバーを表示";
@@ -838,8 +838,8 @@
 /* Class = "NSMenuItem"; title = "ViewOriginal(left)"; ObjectID = "2657"; */
 "2657.title" = "左の画像を実際のサイズで表示";
 
-/* Class = "NSMenuItem"; title = "ShowNumber"; ObjectID = "2658"; */
-"2658.title" = "ページ数を表示";
+/* Class = "NSMenuItem"; title = "ShowFileName"; ObjectID = "2658"; */
+"2658.title" = "ファイル名を表示";
 
 /* Class = "NSMenuItem"; title = "ShowPageBar"; ObjectID = "2659"; */
 "2659.title" = "ページバーを表示";
@@ -1303,8 +1303,8 @@
 /* Class = "NSButtonCell"; title = "Set position and size..."; ObjectID = "4401"; */
 "4401.title" = "位置とサイズの設定...";
 
-/* Class = "NSTextFieldCell"; title = "#1-2/345 (67.jpg | 89.jpg)"; ObjectID = "4403"; */
-"4403.title" = "#1-2/345 (67.jpg | 89.jpg)";
+/* Class = "NSTextFieldCell"; title = "67.jpg | 89.jpg"; ObjectID = "4403"; */
+"4403.title" = "67.jpg | 89.jpg";
 
 /* Class = "NSButtonCell"; title = "Select..."; ObjectID = "4404"; */
 "4404.title" = "選択...";
@@ -1375,8 +1375,8 @@
 /* Class = "NSButtonCell"; title = "Show"; ObjectID = "RSb-ShC-001"; */
 "RSb-ShC-001.title" = "表示";
 
-/* Class = "NSButtonCell"; title = "In page number"; ObjectID = "RSb-IPC-001"; */
-"RSb-IPC-001.title" = "ページ番号内";
+/* Class = "NSButtonCell"; title = "In file name"; ObjectID = "RSb-IPC-001"; */
+"RSb-IPC-001.title" = "ファイル名内";
 
 /* Class = "NSButtonCell"; title = "Set position..."; ObjectID = "RSb-SPC-001"; */
 "RSb-SPC-001.title" = "位置の設定...";
@@ -1390,6 +1390,17 @@
 /* Class = "NSButtonCell"; title = "Select..."; ObjectID = "RSb-FSC-001"; */
 "RSb-FSC-001.title" = "選択...";
 
-/* Class = "NSTextFieldCell"; title = "Colors and auto hide follow Page Number."; ObjectID = "RSb-NtC-001"; */
-"RSb-NtC-001.title" = "色と自動的に隠すはページ数表示と共通です。";
+/* Class = "NSTextFieldCell"; title = "Colors and auto hide follow File Name."; ObjectID = "RSb-NtC-001"; */
+"RSb-NtC-001.title" = "色と自動的に隠すはファイル名表示と共通です。";
 
+/* Class = "NSTextFieldCell"; title = "Number:"; ObjectID = "PBN-LbC-001"; */
+"PBN-LbC-001.title" = "ページ番号:";
+
+/* Class = "NSMenuItem"; title = "In bar"; ObjectID = "PBN-It-000"; */
+"PBN-It-000.title" = "バーの中";
+
+/* Class = "NSMenuItem"; title = "Overlay"; ObjectID = "PBN-It-001"; */
+"PBN-It-001.title" = "バーの外";
+
+/* Class = "NSMenuItem"; title = "Off"; ObjectID = "PBN-It-002"; */
+"PBN-It-002.title" = "表示しない";

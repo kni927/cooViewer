@@ -1547,6 +1547,11 @@ NSTimeInterval elapsed=0;
 	[accessoryView setResolutionString:string];
 }
 
+-(void)setPageBarNumberString:(NSString*)string
+{
+	[accessoryView setPageBarNumberString:string];
+}
+
 #pragma mark accessory
 
 -(void)drawPageBar

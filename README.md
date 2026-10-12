@@ -19,14 +19,16 @@ Many thanks to everyone who has contributed to keeping cooViewer alive.
 
 ## Changes in This Fork
 
-### Image Resolution Display
+### Page Position, File Names and Image Resolution
 
-The page bar (bottom HUD) now shows the pixel dimensions of the current image alongside the page number and filename.
+The page bar shows the current position, centred and in reading order: `5/42` for a single page, `4-5/42` for a spread. **Preferences → Appearance → Page Bar → Number** puts it in the bar (default), just outside it (Overlay, on the side away from the window edge), or turns it off. The bar's default height is 18 px; a profile that still had the old default (15 px) moves to it once, and any other height is kept.
 
-* Single page: `#5/42 (page005.jpg) 1600x1080`
-* Spread (two pages): `#4-5/42 (page004.jpg 800x600 | page005.jpg 800x600)`
+The file-name HUD shows the file names of the shown pages, with each image's pixel dimensions:
 
-Resolution can be toggled independently under **Preferences → Appearance → Page Number → Resolution**.
+* Single page: `page005.jpg (1600x1080)`
+* Spread (two pages, in screen order): `page004.jpg (800x600) | page005.jpg (800x600)`
+
+Its settings are under **Preferences → Appearance → File Name**. Resolution can be toggled independently under **Preferences → Appearance → Resolution**: in the file-name HUD, in a bar of its own (the HUD then shows only `page004.jpg | page005.jpg`), or off.
 
 <!-- Screenshot placeholder -->
 

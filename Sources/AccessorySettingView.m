@@ -144,6 +144,8 @@
 			[pageBarBorderColor set];
 			[base stroke];
 		}
+		/* A sample position number, so the bar can be sized to fit it. */
+		[self drawPageBarNumberForBarRect:pageBarRect];
 		NSImage *resizeIndicator = [NSImage imageNamed:@"NSGrayResizeCorner"];
 		
 		NSRect tempRect = pageBarRect;

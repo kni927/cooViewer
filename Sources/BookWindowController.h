@@ -585,6 +585,7 @@
 - (void)setPageTextField;
 - (NSString*)pageTextFieldString;
 - (NSString*)resolutionBarString;
+- (NSString*)pageBarNumberString;
 - (IBAction)changeReadModeMenu:(id)sender;
 - (IBAction)changeSortModeMenu:(id)sender;
 - (void)goBookmark:(id)sender;

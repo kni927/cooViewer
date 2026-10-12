@@ -103,6 +103,9 @@ enum {
 	
     IBOutlet id showPageNumCheck;
     IBOutlet id showPageBarCheck;
+    /* Preferences ▸ Page Bar ▸ Number: PageBarNumber, item tags are the
+       COPageBarNumberMode values. */
+    IBOutlet id pageBarNumberPopUpButton;
     /* Preferences ▸ Resolution. The font field, its Select button and the
        Set position button apply only to the separate bar. */
     IBOutlet id showResolutionCheck;

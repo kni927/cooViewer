@@ -196,3 +196,13 @@ clang -O2 -Wno-deprecated-declarations -Wno-unused-value \
     -o "$OUT/test_imageloader"
 
 "$OUT/test_imageloader" "$GEN"
+
+# page bar position number, file-name HUD and the page bar height migration
+# (Foundation only)
+clang -O2 \
+    -I "$REPO_ROOT/Sources" \
+    "$ENGINE_DIR/test_pagelabel.m" "$REPO_ROOT/Sources/COPageLabel.m" \
+    -framework Foundation \
+    -o "$OUT/test_pagelabel"
+
+"$OUT/test_pagelabel"

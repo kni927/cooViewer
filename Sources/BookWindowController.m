@@ -7,6 +7,7 @@
 #import "FullImagePanel.h"
 #import "FilterPanelController.h"	/* per-window filters (code review L6) */
 #import "RemoteControl.h"	/* kRemoteButton* constants used by the 1.2b14 migration block below */
+#import "COPageLabel.h"
 #include <os/log.h>
 
 @implementation BookWindowController
@@ -45,6 +46,15 @@
 
 	[appDefault setObject:[NSNumber numberWithBool:YES] forKey:@"ShowPageBar"];
 	[appDefault setObject:[NSNumber numberWithBool:YES] forKey:@"ShowNumber"];
+	/* Where the page bar shows the page position (COPageBarNumberMode). */
+	[appDefault setObject:[NSNumber numberWithInt:COPageBarNumberInBar] forKey:@"PageBarNumber"];
+
+	/* The page bar's default height went from 15 to 18 when the position
+	   number moved into the bar. A profile that still holds the old default
+	   moves to the new one, once (COPageBarHeightMigratedKey); any other
+	   stored height is kept. A profile with no PageBarSize yet gets the new
+	   default from -windowDidLoad. */
+	COMigratePageBarHeight(defaults);
 
 	/* ResolutionDisplay replaced the ShowResolution checkbox. A profile that
 	   has no ResolutionDisplay yet keeps what it showed: ShowResolution NO →
@@ -460,7 +470,7 @@ static NSPoint gNextWindowCascadePoint;
 	
 	pageBar = [defaults boolForKey:@"ShowPageBar"];
 	if (![defaults dictionaryForKey:@"PageBarSize"]) {
-		[defaults setObject:[NSDictionary dictionaryWithObjectsAndKeys:[NSNumber numberWithInt:200],@"width",[NSNumber numberWithInt:15],@"height",nil]
+		[defaults setObject:[NSDictionary dictionaryWithObjectsAndKeys:[NSNumber numberWithInt:200],@"width",[NSNumber numberWithInt:COPageBarDefaultHeight],@"height",nil]
 					 forKey:@"PageBarSize"];
 	}
 	
@@ -1729,6 +1739,7 @@ static NSString * const kBookViewModeKey = @"cooViewerBookViewMode";
 
 	[imageView setPageString:nil];
 	[imageView setResolutionString:nil];
+	[imageView setPageBarNumberString:nil];
 	[[self window] setTitle:currentBookName];
 	
 	[bookmarkArray removeAllObjects];
@@ -3736,6 +3747,7 @@ static const NSInteger kBookmarkMenuFixedItemCount = 3;
 	}*/
 	[imageView setPageString:[self pageTextFieldString]];
 	[imageView setResolutionString:[self resolutionBarString]];
+	[imageView setPageBarNumberString:[self pageBarNumberString]];
 }
 
 /* Pixel dimensions from the image's representations, not -[NSImage size],
@@ -3755,15 +3767,16 @@ static const NSInteger kBookmarkMenuFixedItemCount = 3;
 	return nil;
 }
 
-/* The one formatter behind both bars. Each shown page becomes one entry —
+/* The one formatter behind both HUDs. Each shown page becomes one entry —
    file name, dimensions, or both — and a spread joins its two entries with
    " | " in screen order (left page first), which depends on readMode
    (KNOWN_ISSUES #3). firstImage is always the earlier page (index nowPage-2
    on a spread, nowPage-1 alone), so callers must have assigned it before
-   asking. With withNumber the result carries the "#page/count" prefix and
-   the entries in parentheses; without it, only the dimensions. nil when no
-   page is shown, or when there is nothing to show. */
-- (NSString*)pageStringWithNumber:(BOOL)withNumber resolution:(BOOL)withResolution
+   asking. With withName the result is the file-name HUD,
+   "009.jpg (1400x2000) | 010.jpg (1400x2000)" (COFileNameHUDString); without
+   it, only the dimensions, "1400x2000 | 1400x2000". nil when no page is
+   shown, or when there is nothing to show. */
+- (NSString*)pageStringWithName:(BOOL)withName resolution:(BOOL)withResolution
 {
 	int count = (int)[completeMutableArray count];
 	if (nowPage <= 0 || nowPage > count || !firstImage) return nil;
@@ -3784,38 +3797,50 @@ static const NSInteger kBookmarkMenuFixedItemCount = 3;
 		}
 	}
 
-	NSMutableArray *entries = [NSMutableArray array];
+	NSMutableArray *names = [NSMutableArray array];
+	NSMutableArray *sizes = [NSMutableArray array];
 	for (NSArray *page in pages) {
 		NSString *size = withResolution ? [self pixelSizeStringForImage:[page objectAtIndex:1]] : nil;
-		if (withNumber) {
-			NSString *name = [[completeMutableArray objectAtIndex:[[page objectAtIndex:0] intValue]] lastPathComponent];
-			[entries addObject:(size ? [NSString stringWithFormat:@"%@ %@", name, size] : name)];
-		} else if (size) {
-			[entries addObject:size];
-		}
+		[sizes addObject:(size ? (id)size : (id)[NSNull null])];
+		[names addObject:[[completeMutableArray objectAtIndex:[[page objectAtIndex:0] intValue]] lastPathComponent]];
+	}
+	if (withName) return COFileNameHUDString(names, sizes);
+
+	NSMutableArray *entries = [NSMutableArray array];
+	for (id size in sizes) {
+		if ([size isKindOfClass:[NSString class]]) [entries addObject:size];
 	}
 	if ([entries count] == 0) return nil;
-	NSString *joined = [entries componentsJoinedByString:@" | "];
-	if (!withNumber) return joined;
-
-	if (secondImage) {
-		return [NSString stringWithFormat:@"#%d-%d/%d (%@)", nowPage-1, nowPage, count, joined];
-	}
-	return [NSString stringWithFormat:@"#%d/%d (%@)", nowPage, count, joined];
+	return [entries componentsJoinedByString:@" | "];
 }
 
-/* The page-number bar. */
+/* The file-name HUD (ShowNumber). */
 - (NSString*)pageTextFieldString
 {
 	if (!numberSwitch) return nil;
-	return [self pageStringWithNumber:YES resolution:(resolutionDisplay == COResolutionDisplayInPageNumber)];
+	return [self pageStringWithName:YES resolution:(resolutionDisplay == COResolutionDisplayInPageNumber)];
 }
 
 /* The separate resolution bar: dimensions only, independent of ShowNumber. */
 - (NSString*)resolutionBarString
 {
 	if (resolutionDisplay != COResolutionDisplaySeparateBar) return nil;
-	return [self pageStringWithNumber:NO resolution:YES];
+	return [self pageStringWithName:NO resolution:YES];
+}
+
+/* The page position on the page bar, "9/20" or "9-10/20" in reading order,
+   independent of ShowNumber; AccessoryView decides from PageBarNumber
+   whether and where it is drawn. Same "is a page shown" test as
+   -pageStringWithName:resolution:. */
+- (NSString*)pageBarNumberString
+{
+	int count = (int)[completeMutableArray count];
+	if (nowPage <= 0 || nowPage > count || !firstImage) return nil;
+	if (secondImage) {
+		if (nowPage < 2) return nil;
+		return COPageBarPositionString(nowPage-1, nowPage, count);
+	}
+	return COPageBarPositionString(nowPage, nowPage, count);
 }
 
 
@@ -4216,6 +4241,7 @@ static const NSInteger kBookmarkMenuFixedItemCount = 3;
 
 		[imageView setPageString:nil];
 		[imageView setResolutionString:nil];
+		[imageView setPageBarNumberString:nil];
 		[NSCursor setHiddenUntilMouseMoves:NO];
 		[imageView setImage:nil];
 		[firstImage release];

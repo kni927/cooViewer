@@ -11,6 +11,7 @@
 #import "CustomImageView.h"
 #import "NSBezierPath_Adding.h"
 #import "NSAttributedString_Adding.h"
+#import "COPageLabel.h"
 
 
 @implementation AccessoryView
@@ -70,6 +71,7 @@ NSRect COIntRect(NSRect aRect)
 	[resolutionString release];
 	[resolutionStringAttr release];
 	[resolutionFont release];
+	[pageBarNumber release];
 
 	[super dealloc];
 }
@@ -167,6 +169,7 @@ NSRect COIntRect(NSRect aRect)
 	autoHidePageString = [defaults boolForKey:@"PageNumAutoHide"];
 	pageBarShowThumbnail = (int)[defaults integerForKey:@"PageBarShowThumbnail"];
 	pageBarPosition = (int)[defaults integerForKey:@"PageBarPosition"];
+	pageBarNumberMode = (int)[defaults integerForKey:@"PageBarNumber"];
 	
 	
 	NSDictionary *dic = [defaults dictionaryForKey:@"PageBarSize"];
@@ -349,7 +352,7 @@ NSRect COIntRect(NSRect aRect)
            -pageBarRect consult [controller indicator] themselves. */
         if (autoHidedPageBar) {
             autoHidedPageBar = NO;
-            [self displayRect:[self pageBarRect]];
+            [self displayRect:[self pageBarAreaRect]];
         }
     
         if (autoHidedPageString) {
@@ -667,7 +670,7 @@ NSRect COIntRect(NSRect aRect)
 		[self setNeedsDisplayInRect:pageBarStringRect];
 		pageBarStringRect = NSZeroRect;
 	}
-	if (!autoHidedPageBar) [self setNeedsDisplayInRect:[self pageBarRect]];
+	if (!autoHidedPageBar) [self setNeedsDisplayInRect:[self pageBarAreaRect]];
 	if (!autoHidedPageString) [self setNeedsDisplayInRect:[self pageStringsRect]];
 	/*
 	if (!slideshow) {
@@ -711,6 +714,7 @@ NSRect COIntRect(NSRect aRect)
 				[pageBarBorderColor set];
 				[base stroke];
 			}
+			[self drawPageBarNumberForBarRect:pageBarRect];
 		} else {
 			pageBarRect = NSZeroRect;
 		}
@@ -861,16 +865,38 @@ NSRect COIntRect(NSRect aRect)
 			break;
 		case 2:
 			rect.origin.x = pageMargin.x+2;
-			rect.origin.y = 17+pageMargin.y+2;
+			rect.origin.y = [self bottomHUDOffset]+pageMargin.y+2;
 			break;
 		case 3:
 			rect.origin.x = contentFrame.size.width-(int)rect.size.width-pageMargin.x-2;
-			rect.origin.y = 17+pageMargin.y+2;
+			rect.origin.y = [self bottomHUDOffset]+pageMargin.y+2;
 			break;
 		default:
 			break;
 	}
 	return COIntRect(rect);
+}
+
+/* How far the HUDs in the bottom corners (info, file name, resolution) sit
+   above the bottom edge. 17 is what the old 15 px default page bar needed:
+   the bar at y 2-18, the HUD from 19. A bottom bar that is taller, or that
+   has the position number above it (Overlay), raises them so they keep the
+   same 1 px gap; with a 15 px bar and no overlay the result is 17, as
+   before. Like the old constant it ignores the margins and whether the bar
+   is currently shown, so auto-hide does not move the HUDs. A top bar grows
+   downwards from below the HUD row and needs nothing here. */
+-(float)bottomHUDOffset
+{
+	float offset = 17;
+	if (pageBarPosition >= 2) {
+		float clear = pageBarHeight + 2;
+		if (pageBarNumberMode == COPageBarNumberOverlay) {
+			NSSize size = [@"0" sizeWithAttributes:[self pageBarNumberAttributes]];
+			clear += 1 + ceil(size.height);
+		}
+		if (clear > offset) offset = clear;
+	}
+	return offset;
 }
 
 #pragma mark accessory
@@ -882,9 +908,9 @@ NSRect COIntRect(NSRect aRect)
 	if (autoHidePageBar) {
 		autoHidedPageBar = YES;
 		if (NSEqualRects(updateRect,NSZeroRect)) {
-			updateRect = [self pageBarRect];
+			updateRect = [self pageBarAreaRect];
 		} else {
-			updateRect = NSUnionRect(updateRect,[self pageBarRect]);
+			updateRect = NSUnionRect(updateRect,[self pageBarAreaRect]);
 		}
 	}
 	if (autoHidePageString) {
@@ -967,11 +993,11 @@ NSRect COIntRect(NSRect aRect)
 			break;
 		case 2:
 			rect.origin.x = pageMargin.x+2 +[self infoStringRect].size.width;
-			rect.origin.y = 17+pageMargin.y+2;
+			rect.origin.y = [self bottomHUDOffset]+pageMargin.y+2;
 			break;
 		case 3:
 			rect.origin.x = contentFrame.size.width-rect.size.width-pageMargin.x-2 -[self infoStringRect].size.width;
-			rect.origin.y = 17+pageMargin.y+2;
+			rect.origin.y = [self bottomHUDOffset]+pageMargin.y+2;
 			break;
 		default:
 			break;
@@ -1032,11 +1058,11 @@ NSRect COIntRect(NSRect aRect)
 			break;
 		case 2:
 			rect.origin.x = resolutionMargin.x+2 +inset;
-			rect.origin.y = 17+resolutionMargin.y+2;
+			rect.origin.y = [self bottomHUDOffset]+resolutionMargin.y+2;
 			break;
 		case 3:
 			rect.origin.x = contentFrame.size.width-rect.size.width-resolutionMargin.x-2 -inset;
-			rect.origin.y = 17+resolutionMargin.y+2;
+			rect.origin.y = [self bottomHUDOffset]+resolutionMargin.y+2;
 			break;
 		default:
 			break;
@@ -1055,9 +1081,9 @@ NSRect COIntRect(NSRect aRect)
 -(void)drawPageBar
 {
 	if (NSIsEmptyRect(pageBarRect)) {
-		[self setNeedsDisplayInRect:[self pageBarRect]];
+		[self setNeedsDisplayInRect:[self pageBarAreaRect]];
 	} else {
-		[self setNeedsDisplayInRect:pageBarRect];
+		[self setNeedsDisplayInRect:NSUnionRect(pageBarRect,[self pageBarAreaRect])];
 	}
 }
 -(NSRect)pageBarRect
@@ -1143,6 +1169,114 @@ NSRect COIntRect(NSRect aRect)
 {
 	return tempPageNum;
 }
+#pragma mark pageBarNumber
+-(void)setPageBarNumberString:(NSString*)string
+{
+	if (string == pageBarNumber || (string && [string isEqualToString:pageBarNumber])) return;
+	NSRect oldRect = [self pageBarAreaRect];
+	NSString *newNumber = [string copy];
+	[pageBarNumber release];
+	pageBarNumber = newNumber;
+	if (!autoHidedPageBar) {
+		[self setNeedsDisplayInRect:NSUnionRect(oldRect,[self pageBarAreaRect])];
+	}
+}
+
+-(void)setPageBarNumberMode:(int)mode
+{
+	NSRect oldRect = [self pageBarAreaRect];
+	pageBarNumberMode = mode;
+	[self setNeedsDisplayInRect:NSUnionRect(oldRect,[self pageBarAreaRect])];
+}
+
+/* Inside the bar the size follows the bar's height, so the number fits:
+   11 pt at the default 18 px (COPageBarDefaultHeight), smaller on a
+   shorter bar, larger on a taller one up to 14 pt. Beside the bar it is
+   11 pt whatever the bar's height. Digits are monospaced so the number does
+   not shift sideways from page to page. */
+-(NSFont*)pageBarNumberFont
+{
+	CGFloat size = 11;
+	if (pageBarNumberMode == COPageBarNumberInBar) {
+		size = pageBarHeight - 7;
+		if (size < 7) size = 7;
+		if (size > 14) size = 14;
+	}
+	return [NSFont monospacedDigitSystemFontOfSize:size weight:NSFontWeightMedium];
+}
+
+/* The bar's text color, with a soft dark shadow so the number reads over
+   both the read part of the bar (PageBarReadedColor, 50 % white by default)
+   and the unread part. */
+-(NSDictionary*)pageBarNumberAttributes
+{
+	NSShadow *shadow = [[[NSShadow alloc] init] autorelease];
+	[shadow setShadowOffset:NSZeroSize];
+	[shadow setShadowBlurRadius:2.0];
+	[shadow setShadowColor:[[NSColor blackColor] colorWithAlphaComponent:0.9]];
+	return [NSDictionary dictionaryWithObjectsAndKeys:
+		pageBarFontColor ? pageBarFontColor : [NSColor whiteColor],NSForegroundColorAttributeName,
+		[self pageBarNumberFont],NSFontAttributeName,
+		shadow,NSShadowAttributeName,
+		nil];
+}
+
+/* Where the number's text goes for a bar in barRect: centred in the bar,
+   or centred just outside it on the side away from the window edge (above
+   a bottom bar, below a top one), kept within the view. NSZeroRect when no
+   number is shown. */
+-(NSRect)pageBarNumberTextRectForBarRect:(NSRect)barRect attributedString:(NSAttributedString*)string
+{
+	if (!string || NSIsEmptyRect(barRect)) return NSZeroRect;
+	NSSize size = [string size];
+	NSRect rect = NSMakeRect(0,0,ceil(size.width),ceil(size.height));
+	rect.origin.x = floor(NSMidX(barRect) - rect.size.width/2);
+	if (pageBarNumberMode == COPageBarNumberOverlay) {
+		if (pageBarPosition >= 2) {
+			rect.origin.y = NSMaxY(barRect) + 1;
+		} else {
+			rect.origin.y = NSMinY(barRect) - rect.size.height - 1;
+		}
+		NSRect bounds = [self bounds];
+		if (NSMaxX(rect) > NSMaxX(bounds)) rect.origin.x = NSMaxX(bounds) - rect.size.width;
+		if (rect.origin.x < NSMinX(bounds)) rect.origin.x = NSMinX(bounds);
+	} else {
+		rect.origin.y = floor(NSMidY(barRect) - rect.size.height/2);
+	}
+	return rect;
+}
+
+-(NSAttributedString*)pageBarNumberAttributedString
+{
+	if (!pageBarNumber || pageBarNumberMode == COPageBarNumberOff) return nil;
+	if (pageBarNumberMode != COPageBarNumberInBar && pageBarNumberMode != COPageBarNumberOverlay) return nil;
+	return [[[NSAttributedString alloc] initWithString:pageBarNumber attributes:[self pageBarNumberAttributes]] autorelease];
+}
+
+-(void)drawPageBarNumberForBarRect:(NSRect)barRect
+{
+	NSAttributedString *string = [self pageBarNumberAttributedString];
+	NSRect textRect = [self pageBarNumberTextRectForBarRect:barRect attributedString:string];
+	if (NSIsEmptyRect(textRect)) return;
+	[NSGraphicsContext saveGraphicsState];
+	if (pageBarNumberMode == COPageBarNumberInBar) {
+		/* Never past the bar: a very short or narrow bar cuts the number. */
+		NSRectClip(NSInsetRect(barRect,1,1));
+	}
+	[string drawAtPoint:textRect.origin];
+	[NSGraphicsContext restoreGraphicsState];
+}
+
+-(NSRect)pageBarAreaRect
+{
+	NSRect bar = [self pageBarRect];
+	if (NSIsEmptyRect(bar) || pageBarNumberMode != COPageBarNumberOverlay) return bar;
+	NSRect textRect = [self pageBarNumberTextRectForBarRect:bar attributedString:[self pageBarNumberAttributedString]];
+	if (NSIsEmptyRect(textRect)) return bar;
+	/* The shadow reaches past the glyphs. */
+	return NSUnionRect(bar, NSIntegralRect(NSInsetRect(textRect,-4,-4)));
+}
+
 #pragma mark -
 - (void)resetCursorRects
 {
