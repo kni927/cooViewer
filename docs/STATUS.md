@@ -28,6 +28,16 @@ is exporting; exported entries get the current mtime; solid RAR prefetch in
 page order can restart the cursor (speed only); the bottom HUD offset ignores
 `Margin_PageBar`.
 
+Also for the next binary change (owner, 2026-10-12):
+- Page bar in the title bar: fill the title bar's background with a light grey
+  up to the reading position (right to left for RTL), behind the title and
+  position; display only, no click or drag; nothing in full screen. Image
+  layout unchanged.
+- Page bar size can no longer be changed in Preferences (reported after
+  v1.6.8; cause not yet investigated). Decide with it how the in-bar number's
+  font size relates to the bar height, and whether the page number gets its
+  own Preferences section.
+
 The first five were put on hold as minor (owner, 2026-10-08); details are in
 the files named.
 
