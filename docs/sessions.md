@@ -380,9 +380,12 @@ The `hq-handover` skill walks through these steps.
    (which then attaches the other repositories it works in with `add_repo`),
    and `https://github.com/kni927/HQ` for Central HQ; their `AGENTS.md` makes
    this file binding. `source_url` takes one repository. Auto mode refuses
-   `add_repo` without the owner's explicit approval, except in `kni927/dotfiles`
-   and `kni927/HQ`, whose `.claude/settings.json` allows it so that Upstream HQ
-   and Central HQ can attach repositories after a handover. If auto mode stops
+   `add_repo` without the owner's explicit approval in chat. A cloud session
+   ignores the allow rule in a repository's `.claude/settings.json` (the
+   checkout is never trusted); the `Trusted` setup script allows `add_repo`
+   in the user settings instead (`docs/CLOUD_ENVIRONMENTS.md` in
+   `kni927/dotfiles`), which takes effect in containers created after
+   2026-10-12. If auto mode stops
    `create_session` or the successor needs that approval, tell the owner and
    keep working until it is resolved.
 3. Move the Routines that wake this session (`list_triggers`, those bound to
@@ -476,12 +479,18 @@ exists only in chat.
   whole context, so a session is woken only when work is about to go to it;
   a TASK sent to it later reconnects it just as well. Computer-use app access
   is granted per session, so a long-lived TF asks for it once.
-- **Keep TFs short:** a TF serves one task and wraps up when it is done. Every
-  turn after an idle hour rewrites the whole context into the prompt cache, so
-  a TF kept for days at several hundred thousand tokens makes each later turn,
-  even a one-line reply, expensive. What the next TF needs goes into the
-  repository. Do not keep sessions warm with periodic messages: hourly cache
-  reads cost more in a day than one rewrite when the session is next used.
+- **How long a TF runs:** a TF keeps taking its Project HQ's TASKs while
+  they follow one another, a release after the change it ships included, and
+  wraps up at a natural break: no TASK is waiting, the work is about to sit
+  idle for hours, or Context usage says so. A local TF is started by hand
+  (unless Remote Control server mode starts it), so a new TF per TASK costs
+  the owner a step each time. TASKs that would conflict run in order in the
+  same TF, or in subagents. Every turn after an idle hour rewrites the whole
+  context into the prompt cache, so a TF kept for days at several hundred
+  thousand tokens makes each later turn, even a one-line reply, expensive:
+  what the next TF needs goes into the repository. Do not keep sessions warm
+  with periodic messages: hourly cache reads cost more in a day than one
+  rewrite when the session is next used.
 - **Archiving:** the Web and the Mac app can disagree about a local session's
   state (see `docs/AGENT_PARITY.md` in `kni927/dotfiles`). The owner archives
   local sessions from the Mac app's sidebar. No cloud session archives a local
@@ -496,8 +505,9 @@ exists only in chat.
   prompts appear in the TF's window as usual. Use worktree isolation only when
   the work must not touch the main directory.
 - **Wrapping up a TF:** a TF cannot start its own successor. At the
-  thresholds in Context usage, when its Project HQ asks, or when the owner
-  says "wrap up", it finishes at a natural break: it confirms that nothing is
+  thresholds in Context usage, at a natural break with no TASK waiting
+  (How long a TF runs), when its Project HQ asks, or when the owner says
+  "wrap up", it finishes at a natural break: it confirms that nothing is
   uncommitted, reports what is done and what remains to its Project HQ,
   renames itself `<mark> ✅ <name>` (for example `🖥️ ✅ cooViewer TF solid
   RAR4 converter`), shows the ready-to-archive block, and waits. When work
