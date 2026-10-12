@@ -16,14 +16,17 @@ Export... (`docs/tasks/2026-10-12-02-release-v1.6.8.md`).
 
 ## Next
 
-- Small follow-ups from the page bar and export task, unscheduled (details
-  in its archive): an unused pages-prompt string in `Localizable.strings`;
-  Finder/drop routing can replace a window that is exporting; exported
-  entries get the current mtime; solid RAR prefetch in page order can
-  restart the cursor (speed only); the bottom HUD offset ignores
-  `Margin_PageBar`.
+- Nothing scheduled. The owner picks from On hold when work resumes.
 
 ## On hold
+
+Held until the next binary change (owner, 2026-10-12: no binary changes right
+after a release). Small follow-ups from the page bar and export task, details
+in `docs/tasks/2026-10-12-01-page-bar-and-export.md`: an unused pages-prompt
+string in `Localizable.strings`; Finder/drop routing can replace a window that
+is exporting; exported entries get the current mtime; solid RAR prefetch in
+page order can restart the cursor (speed only); the bottom HUD offset ignores
+`Margin_PageBar`.
 
 The first five were put on hold as minor (owner, 2026-10-08); details are in
 the files named.
