@@ -34,10 +34,18 @@ the `sync-projects` skill there.
 - **TF**, task force (usually a local session on a Mac): receives a TASK from
   its Project HQ, carries it out, and reports back. A TF takes one TASK after
   another until it wraps up, and hands heavy work to subagents.
+- **Base local session** (local, one per Mac): `🖥️ Mac mini HQ` in
+  `~/Projects/Local/MacMiniHQ` and `💻 MacBook HQ` in
+  `~/Projects/Local/MacBookHQ`. Every local session on that Mac goes through
+  it: after an app restart the owner runs `/rc` there and it runs
+  `wake-local`; it holds that Mac's Local Routines and answers cloud HQs'
+  questions about the Mac. It does not implement. Central HQ's morning check
+  covers Mac mini HQ only, since the MacBook is often asleep or offline.
 
 ## Names
 
-- `Central HQ`, `Upstream HQ`, `<repo> HQ`, `<repo> TF #NN <what>`, for example
+- `Central HQ`, `Upstream HQ`, `<repo> HQ`, `Mac mini HQ`, `MacBook HQ`,
+  `<repo> TF #NN <what>`, for example
   `cooViewer TF #03 v1.6.5`. No middle dot: local session names are often typed by
   hand. The current session of a role carries the plain name. A session that
   has finished renames itself `✅ <name>`, and one that has handed over
