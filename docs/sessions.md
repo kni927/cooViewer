@@ -241,6 +241,14 @@ keeps only what a project is and which repository holds it.
   anything personal.
 - **Reading it:** a session starting work in a repository, an HQ's successor
   included, reads `docs/STATUS.md` before planning.
+- **Check before asking the owner:** before an item goes to the owner or
+  stays under "Waiting on owner", the session checks whether it is already
+  done wherever it can look: `list_sessions` for an archived or renamed
+  session, `git log` and GitHub for a push, tag, or release, the Google Drive
+  connector for a report, a base session or `list_events` for a Mac's state.
+  A done item is dropped without asking. Skip a check only when it would cost
+  far more than the question (a large download, many transcript pages), and
+  say why.
 
 ## Proposing improvements
 
