@@ -272,8 +272,9 @@ waiting to be asked, not only what it was told to do.
 - **Who builds a skill:** a local TF's sandbox cannot write `.claude/skills/`,
   so a project skill is written and committed by a cloud session (the Project
   HQ, or Upstream HQ for shared ones) or by the owner.
-- **Shared skills:** `hq-handover` (handing over a cloud HQ) and `offer-tf`
-  (offering a TF with a card) are kept in `kni927/repo-template` and copied
+- **Shared skills:** `hq-handover` (handing over a cloud HQ), `offer-tf`
+  (offering a TF with a card), and `find-session` (finding the session where
+  something was discussed or changed) are kept in `kni927/repo-template` and copied
   unchanged into every repository's `.claude/skills/`, like this file.
 
 ## Context usage
