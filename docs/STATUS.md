@@ -16,7 +16,8 @@ Export... (`docs/tasks/2026-10-12-02-release-v1.6.8.md`).
 
 ## Next
 
-- Nothing scheduled. The owner picks from On hold when work resumes.
+- TF #02 (2026-10-15): the two "next binary change" blocks under On hold,
+  plus a setting for the file-name status bar's opacity. Release after it.
 
 ## On hold
 
