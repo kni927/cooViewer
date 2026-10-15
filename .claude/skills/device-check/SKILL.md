@@ -60,6 +60,15 @@ do nothing.
      `app_*` calls (`app_screenshot`, `app_click`, `app_key`, `app_zoom`),
      one at a time and about 1 s apart, and click the menu bar with
      `app_click` instead of using `app_menu`.
+   - Approval dialogs (`request_access`, `request_full_control`) appear
+     behind a frontmost build, where the owner cannot see them without
+     switching apps; that approval can only be given at the Mac itself, not
+     from a phone or Remote Control. Run `open -a Claude` alone, right
+     before each request, then bring the build back to the front and
+     confirm it before the next key or click (owner decision 2026-10-15).
+     A subagent resumed with `SendMessage` runs in the background, so hand
+     screen work to a new foreground `Agent` call or do it in the main
+     session instead.
    - `app_menu` validates menu items while the app is in the background,
      so it can report an enabled item as disabled; use its key equivalent
      after bringing the build to the front with `open <build path>`.
