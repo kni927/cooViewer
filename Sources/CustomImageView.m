@@ -1704,6 +1704,9 @@ NSTimeInterval elapsed=0;
 {
     NSRect temp = [[[self window] contentView] frame];
     temp.origin = [[self window] frame].origin;
+    /* Also called for every window move now (KNOWN_ISSUES #47), when the
+       child window has usually moved along already. */
+    if (NSEqualRects([accessoryWindow frame], temp)) return;
     [accessoryWindow setFrame:temp display:YES];
     //[self displayIfNeededInRect:[self visibleRect]];
     //[self setNeedsDisplayInRect:[self visibleRect]];

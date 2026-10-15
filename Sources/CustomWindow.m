@@ -19,6 +19,18 @@
 	[self setCollectionBehavior:[self collectionBehavior] |
 	                            NSWindowCollectionBehaviorFullScreenPrimary];
 
+	/* KNOWN_ISSUES #47: the overlay (AccessoryWindow, a child window) has to
+	   follow every frame change. Not every change goes through
+	   -setFrame:display: below: macOS window tiling (Window > Fill, Move &
+	   Resize, drag to a screen edge) sets the frame without calling it, and
+	   the overlay kept the old frame. These notifications are posted for
+	   every resize and move, whoever makes it. */
+	NSNotificationCenter *center = [NSNotificationCenter defaultCenter];
+	[center addObserver:self selector:@selector(frameDidChange:)
+				   name:NSWindowDidResizeNotification object:self];
+	[center addObserver:self selector:@selector(frameDidChange:)
+				   name:NSWindowDidMoveNotification object:self];
+
 	/* MW-6 item 1: the frame autosave name moved to
 	   -[BookWindowController windowDidLoad]. AppKit still persists and
 	   restores the windowed frame (and still correctly ignores frames taken
@@ -36,6 +48,7 @@
    rather than making -dealloc reachable. */
 - (void)dealloc
 {
+	[[NSNotificationCenter defaultCenter] removeObserver:self];
 	[cursorTimer invalidate];
 	cursorTimer = nil;
 
@@ -45,6 +58,11 @@
 - (void)setFrame:(NSRect)windowFrame display:(BOOL)displayViews
 {
 	[super setFrame:windowFrame display:displayViews];
+	[view setAccessoryWindowFrame];
+}
+
+- (void)frameDidChange:(NSNotification *)notification
+{
 	[view setAccessoryWindowFrame];
 }
 
