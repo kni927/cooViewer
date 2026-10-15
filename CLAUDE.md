@@ -77,6 +77,14 @@ CI run, installed at `/Applications` via the tap — not a local build in
    that should now win LaunchServices precedence.
 4. Cleanup: none. This install is the intended end state.
 
+That is the whole check: versions, Gatekeeper, launch, and Quick Look.
+Features were verified on the development build of the same commit, and CI
+builds that commit, so do not repeat feature checks on the release
+artifact. Re-check a feature only if app code changed after it was
+verified. During development, check on device only what the change
+touches; a change that leaves the render, save, or archive-reading paths
+alone does not re-test them (for example encrypted ZIPs or Export).
+
 ### Credentials — never ask for these
 
 Notarization uses three App Store Connect API secrets, already registered
