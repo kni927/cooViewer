@@ -1,4 +1,4 @@
-<!-- Template synced: repo-template@ad54fe1 on 2026-10-15. -->
+<!-- Template synced: repo-template@8a868d6 on 2026-10-15. -->
 # Project Instructions
 
 ## Project Origin
@@ -101,7 +101,9 @@
   or amend), check the result, and then push.
 - The owner creates and pushes release tags. Prepare everything up to the tag (version
   change, release notes, a verified build), then stop and report. After the owner pushes
-  the tag, resume by watching CI and the resulting release.
+  the tag, resume by watching CI and the resulting release. Hand over the tag as one
+  ready-to-paste block with the annotated form: `git tag -a vX.Y.Z -m "vX.Y.Z" <commit>`,
+  then `git push origin vX.Y.Z`.
 - Releases follow "Releasing" in `CLAUDE.md`, whichever agent performs them. Once the owner
   has authorized a release, updating the Homebrew tap (`kni927/homebrew-tap`) is part of it
   and needs no separate approval.
