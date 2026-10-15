@@ -2159,3 +2159,28 @@ after the report that the page bar size could no longer be changed in
 v1.6.8: since f5f8951 the number used the File Name font's size and was
 allowed to reach past a bar shorter than it, so the bar's height no longer
 decided what the bar looked like.
+
+## The title-bar fill is a separate page bar switch (2026-10-15)
+
+**Decision:** the page bar can also be shown as a fill of the title bar:
+**Preferences ▸ Appearance ▸ Page Bar ▸ Fill title bar**
+(`PageBarTitleBarFill`, BOOL, default NO), a switch of its own beside
+**Show** (`ShowPageBar`), so the fill can be on with the normal bar, or
+instead of it with Show off. It is drawn by the title-bar accessory of
+Title bar mode (`COTitleBarLabelView`), which is installed when either
+Title bar mode or the fill is on; the window's own title stays the plain
+book name (Window menu, Dock). The fill measures the reading position as
+the page bar does (`-nowPar`), from the left or, for right-to-left books,
+from the right, across the accessory's span (after the window buttons to
+the right edge). It is a translucent overlay on the title bar's own
+background: black at 10 % (inactive 5 %) in light mode, white at 14 %
+(inactive 7 %) in dark mode, with the title and position in their system
+colours. Display only (the view takes no clicks); not drawn in full
+screen. With the fill on and the position not in the title bar, the book
+name is centred as the system title is.
+
+**Why:** owner decision in the cooViewer HQ chat (2026-10-12 to
+2026-10-15): a title-bar fill up to the reading position, display only,
+nothing in full screen. A separate switch keeps the normal bar's settings
+and Show unchanged and needs no new mode value. Window chrome only: the
+image's layout and the render path are not involved.

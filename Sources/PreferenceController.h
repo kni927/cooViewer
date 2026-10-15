@@ -106,6 +106,8 @@ enum {
     /* Preferences ▸ Page Number ▸ Show in: PageBarNumber, item tags are
        the COPageBarNumberMode values. */
     IBOutlet id pageBarNumberPopUpButton;
+    /* Preferences ▸ Page Bar ▸ Fill title bar: PageBarTitleBarFill. */
+    IBOutlet id pageBarTitleBarFillCheck;
     /* Preferences ▸ Page Number ▸ Font: PageNumberFont, for Above bar and
        Title bar (in the bar the size follows the bar's height). */
     IBOutlet id pageNumberFontTextField;

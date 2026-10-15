@@ -996,6 +996,7 @@ static const CGFloat kAppearanceExtraHeight = 146;
 	} else {
 		[showPageBarCheck setState:NSOffState];
 	}
+	[pageBarTitleBarFillCheck setState:([defaults boolForKey:COPageBarTitleBarFillKey] ? NSOnState : NSOffState)];
 	/* An unknown stored value (4 was a short-lived Status bar choice)
 	   shows as In bar, which is also how the window reads it. */
 	if (![pageBarNumberPopUpButton selectItemWithTag:COPageBarNumberModeFromStored([defaults integerForKey:@"PageBarNumber"])]) {
@@ -1518,6 +1519,7 @@ static const CGFloat kAppearanceExtraHeight = 146;
 		} else {
 			[defaults setBool:NO forKey:@"ShowPageBar"];
 		}	
+		[defaults setBool:([pageBarTitleBarFillCheck state] == NSOnState) forKey:COPageBarTitleBarFillKey];
 		[defaults setInteger:[pageBarNumberPopUpButton selectedTag] forKey:@"PageBarNumber"];
 		[defaults setObject:[NSArchiver archivedDataWithRootObject:[pageNumberFontTextField font]] forKey:COPageNumberFontKey];
 		[defaults setInteger:[fileNameLocationPopUpButton selectedTag] forKey:COFileNameLocationKey];

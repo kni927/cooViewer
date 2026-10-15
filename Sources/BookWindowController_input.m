@@ -1736,6 +1736,8 @@ static BOOL IsWindowMouseAction(int action)
 	   again by a display request (-redisplayShownPagesBody), which may have
 	   to wait for the next page. */
 	readMode = mode;
+	/* The title-bar fill follows the reading direction at once. */
+	[self updateTitleBarNumber:[self pageBarNumberString]];
 	if (![self hasShownPage]) {
 		return;
 	}

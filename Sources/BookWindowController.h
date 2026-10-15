@@ -203,8 +203,9 @@
 	/* File ▸ Export… in progress for this window's book, from its save
 	   panel to its end (COExportSession.h), or nil. */
 	COExportSession *exportSession;
-	/* Title bar mode of PageBarNumber: the accessory and its view while
-	   installed, else nil (-updateTitleBarNumber:). */
+	/* Title bar mode of PageBarNumber or Fill title bar
+	   (PageBarTitleBarFill): the accessory and its view while installed,
+	   else nil (-updateTitleBarNumber:). */
 	NSTitlebarAccessoryViewController *titleBarNumberAccessory;
 	COTitleBarLabelView *titleBarLabelView;
 
@@ -607,7 +608,8 @@
 - (NSString*)resolutionBarString;
 - (NSString*)pageBarNumberString;
 /* Installs or removes the title bar position (PageBarNumber Title bar)
-   and shows `number` there. */
+   and the title-bar fill (PageBarTitleBarFill), and shows `number` and
+   the reading position there; also call it when readMode changes. */
 - (void)updateTitleBarNumber:(NSString*)number;
 - (IBAction)changeReadModeMenu:(id)sender;
 - (IBAction)changeSortModeMenu:(id)sender;

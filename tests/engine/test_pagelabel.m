@@ -261,9 +261,40 @@ static void testInBarFontSize(void)
     check(size * 1.19 <= 24 - 3 + 0.0001, @"line fits inside the bar");
 }
 
+static void testTitleBarFill(void)
+{
+    printf("title-bar fill and centred name\n");
+    COTitleBarFill f = COTitleBarFillMake(800, 0.25, YES);
+    check(near(f.x, 0) && near(f.width, 200), @"left to right: from the left edge");
+    f = COTitleBarFillMake(800, 0.25, NO);
+    check(near(f.x, 600) && near(f.width, 200), @"right to left: from the right edge");
+    f = COTitleBarFillMake(800, 1, NO);
+    check(near(f.x, 0) && near(f.width, 800), @"last page: the whole span");
+    f = COTitleBarFillMake(800, 0, YES);
+    check(near(f.width, 0), @"no position: nothing filled");
+    f = COTitleBarFillMake(800, 1.5, YES);
+    check(near(f.width, 800), @"fraction above 1: clamped");
+    f = COTitleBarFillMake(800, -0.5, NO);
+    check(near(f.width, 0) && near(f.x, 800), @"negative fraction: nothing filled");
+    f = COTitleBarFillMake(801, 1.0/3, YES);
+    check(near(f.width, 267), @"whole points");
+    f = COTitleBarFillMake(-5, 0.5, YES);
+    check(near(f.width, 0), @"negative width: nothing filled");
+
+    COTitleBarLayout l = COTitleBarCentredNameLayout(900, 430, 4, 200);
+    check(near(l.nameX, 330) && near(l.nameWidth, 200), @"name centred on the window");
+    l = COTitleBarCentredNameLayout(900, 50, 4, 200);
+    check(near(l.nameX, 4) && near(l.nameWidth, 200), @"centre near the buttons: kept after them");
+    l = COTitleBarCentredNameLayout(900, 880, 4, 200);
+    check(near(l.nameX, 700), @"centre near the right end: kept within the view");
+    l = COTitleBarCentredNameLayout(300, 150, 4, 500);
+    check(near(l.nameX, 4) && near(l.nameWidth, 296), @"long name: narrowed to the view");
+}
+
 int main(int argc, char **argv)
 {
     @autoreleasepool {
+        testTitleBarFill();
         testPositionString();
         testFileNameHUD();
         testHeightMigration();

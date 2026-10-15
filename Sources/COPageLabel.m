@@ -11,6 +11,7 @@ const int COPageBarLegacyDefaultHeight = 15;
 
 NSString * const COPageBarHeightMigratedKey = @"PageBarHeightMigrated";
 NSString * const COFileNameLocationKey = @"FileNameLocation";
+NSString * const COPageBarTitleBarFillKey = @"PageBarTitleBarFill";
 
 int COPageBarNumberModeFromStored(NSInteger stored)
 {
@@ -103,6 +104,38 @@ COTitleBarLayout COTitleBarLayoutMake(double viewWidth, double centreX, double l
 	layout.nameWidth = width;
 	layout.numberX = numberX;
 	return layout;
+}
+
+COTitleBarLayout COTitleBarCentredNameLayout(double viewWidth, double centreX, double leading,
+                                             double nameWidth)
+{
+	COTitleBarLayout layout;
+	if (viewWidth < 0) viewWidth = 0;
+	if (leading < 0) leading = 0;
+	if (nameWidth < 0) nameWidth = 0;
+	double room = viewWidth - leading;
+	if (room < 0) room = 0;
+	double width = (nameWidth > room) ? room : nameWidth;
+	double x = floor(centreX - width/2);
+	if (x + width > viewWidth) x = viewWidth - width;
+	if (x < leading) x = leading;
+	layout.nameX = x;
+	layout.nameWidth = width;
+	layout.numberX = 0;
+	return layout;
+}
+
+COTitleBarFill COTitleBarFillMake(double width, double fraction, BOOL fromLeft)
+{
+	COTitleBarFill fill;
+	if (width < 0 || isnan(width)) width = 0;
+	if (isnan(fraction) || fraction < 0) fraction = 0;
+	if (fraction > 1) fraction = 1;
+	double filled = round(width * fraction);
+	if (filled > width) filled = width;
+	fill.width = filled;
+	fill.x = fromLeft ? 0 : width - filled;
+	return fill;
 }
 
 double COPageBarInBarFontSize(double barHeight, double lineHeightPerPoint)

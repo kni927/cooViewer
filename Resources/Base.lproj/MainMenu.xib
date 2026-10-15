@@ -871,6 +871,14 @@ go to the last page always.</string>
                                                             <action selector="setPosition:" target="1673" id="2871"/>
                                                         </connections>
                                                     </button>
+                                                    <button fixedFrame="YES" translatesAutoresizingMaskIntoConstraints="NO" id="PBF-Ck-001">
+                                                        <rect key="frame" x="166" y="65" width="170" height="18"/>
+                                                        <autoresizingMask key="autoresizingMask"/>
+                                                        <buttonCell key="cell" type="check" title="Fill title bar" bezelStyle="regularSquare" imagePosition="left" alignment="left" inset="2" id="PBF-CkC-001">
+                                                            <behavior key="behavior" changeContents="YES" doesNotDimImage="YES" lightByContents="YES"/>
+                                                            <font key="font" metaFont="system"/>
+                                                        </buttonCell>
+                                                    </button>
                                                     <button fixedFrame="YES" translatesAutoresizingMaskIntoConstraints="NO" id="2796">
                                                         <rect key="frame" x="70" y="90" width="104" height="18"/>
                                                         <autoresizingMask key="autoresizingMask"/>
@@ -2570,6 +2578,7 @@ Gw
                 <outlet property="rememberBookSettingsCheck" destination="2850" id="2851"/>
                 <outlet property="showPageBarCheck" destination="2838" id="2841"/>
                 <outlet property="pageBarNumberPopUpButton" destination="PBN-Pu-001" id="PBN-Ou-001"/>
+                <outlet property="pageBarTitleBarFillCheck" destination="PBF-Ck-001" id="PBF-Ou-001"/>
                 <outlet property="pageNumberFontTextField" destination="PNS-FF-001" id="PNS-Ou-001"/>
                 <outlet property="pageNumberFontButton" destination="PNS-FS-001" id="PNS-Ou-002"/>
                 <outlet property="fileNameLocationPopUpButton" destination="FNL-Pu-001" id="FNL-Ou-001"/>

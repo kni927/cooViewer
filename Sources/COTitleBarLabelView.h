@@ -11,7 +11,17 @@
 //  controller hides the system title while this is installed; the window's
 //  own title (Window menu, Dock, accessibility) stays the plain book name.
 //
-//  Draws text only, never an image: the render path is not involved.
+//  Fill title bar (PageBarTitleBarFill): the same view also fills its
+//  background, behind the name and the position, with a light grey from
+//  its leading end up to the reading position (from the right end for
+//  right-to-left books). It spans the title bar from after the window
+//  buttons to the right edge, so that is the span the fill measures. Not
+//  drawn in full screen, where the title bar is hidden (and only slides in
+//  with the menu bar). With the fill on and the position not in the title
+//  bar, the name is centred as the system title is.
+//
+//  Draws text and flat fills only, never an image: the render path is not
+//  involved.
 //
 
 #import <Cocoa/Cocoa.h>
@@ -19,6 +29,9 @@
 @interface COTitleBarLabelView : NSView {
 	NSString *number;
 	NSFont *numberFont;
+	double fillFraction;
+	BOOL fillFromLeft;
+	BOOL centresName;
 }
 
 /* The position to show after the title; nil shows the title alone. Also
@@ -28,5 +41,13 @@
 /* The position's font (the Page Number font, PageNumberFont); nil uses
    the title bar's own font size. Digits are made monospaced. */
 - (void)setNumberFont:(NSFont *)font;
+
+/* The title-bar fill: the part of the book read (0..1, as the page bar's
+   read part); 0 draws no fill. fromLeft is the reading direction. */
+- (void)setFillFraction:(double)fraction fromLeft:(BOOL)fromLeft;
+
+/* YES centres the name on the window (the position is not shown here);
+   NO keeps it left-aligned, as in Title bar mode. */
+- (void)setCentresName:(BOOL)flag;
 
 @end

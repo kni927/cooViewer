@@ -1479,3 +1479,6 @@
 
 /* Class = "NSButtonCell"; title = "Select..."; ObjectID = "PNS-FSC-001"; */
 "PNS-FSC-001.title" = "Select...";
+
+/* Class = "NSButtonCell"; title = "Fill title bar"; ObjectID = "PBF-CkC-001"; */
+"PBF-CkC-001.title" = "Fill title bar";

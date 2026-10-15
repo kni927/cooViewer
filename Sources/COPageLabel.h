@@ -33,6 +33,12 @@ typedef enum {
 
 extern NSString * const COFileNameLocationKey;
 
+/* PageBarTitleBarFill (Preferences ▸ Page Bar ▸ Fill title bar), a BOOL,
+   default NO: the title bar's background is filled up to the reading
+   position (COTitleBarLabelView), on its own or alongside the page bar
+   (ShowPageBar). Window chrome only; nothing in full screen. */
+extern NSString * const COPageBarTitleBarFillKey;
+
 /* The page bar's default height (PageBarSize "height"), and the default it
    had before the position number moved into the bar. */
 extern const int COPageBarDefaultHeight;
@@ -83,6 +89,23 @@ typedef struct {
 
 COTitleBarLayout COTitleBarLayoutMake(double viewWidth, double centreX, double leading,
                                       double nameWidth, double gap, double numberWidth);
+
+/* The name alone, centred on centreX as the system title is (used when the
+   title bar is filled but the position is not shown there): kept within
+   leading..viewWidth and narrowed to it when longer. numberX is 0. */
+COTitleBarLayout COTitleBarCentredNameLayout(double viewWidth, double centreX, double leading,
+                                             double nameWidth);
+
+/* The filled part of the title bar for a reading position of `fraction`
+   (0..1, clamped) across a span `width` wide: from the left edge when
+   fromLeft, else from the right edge (right-to-left books). Whole points;
+   width 0 when there is nothing to fill. */
+typedef struct {
+	double x;
+	double width;
+} COTitleBarFill;
+
+COTitleBarFill COTitleBarFillMake(double width, double fraction, BOOL fromLeft);
 
 /* The point size of the position number drawn in a page bar of
    barHeight (PageBarSize "height"), for a font whose line height is

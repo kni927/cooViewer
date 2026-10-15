@@ -59,6 +59,9 @@
 	   Number ▸ Font). In the bar its size follows the bar's height. */
 	[appDefault setObject:[NSArchiver archivedDataWithRootObject:[AccessoryView defaultPageNumberFont]]
 				   forKey:COPageNumberFontKey];
+	/* Fill the title bar up to the reading position (Preferences ▸ Page
+	   Bar ▸ Fill title bar), independent of ShowPageBar. Off by default. */
+	[appDefault setObject:[NSNumber numberWithBool:NO] forKey:COPageBarTitleBarFillKey];
 
 	/* The page bar's default height went from 15 to 18 when the position
 	   number moved into the bar. A profile that still holds the old default
@@ -3957,18 +3960,24 @@ static const NSInteger kBookmarkMenuFixedItemCount = 3;
 	return COPageBarPositionString(nowPage, nowPage, count);
 }
 
-/* Title bar mode (PageBarNumber = COPageBarNumberTitleBar): the system
-   title is hidden and a left title-bar accessory draws the title
-   left-aligned and the position centred on the window (COTitleBarLabelView). The
-   window's own title stays the plain book name, so the Window menu, the
-   Dock and accessibility see only the name. Leaving the mode removes the
+/* Title bar mode (PageBarNumber = COPageBarNumberTitleBar) and Fill title
+   bar (PageBarTitleBarFill): the system title is hidden and a left
+   title-bar accessory draws the title and, in Title bar mode, the position
+   centred on the window (COTitleBarLabelView; the title left-aligned with
+   the position, centred without it). With the fill on it also fills the
+   title bar up to the reading position (-nowPar, the page bar's measure),
+   in the reading direction; no fill while no page is shown (number nil).
+   The window's own title stays the plain book name, so the Window menu,
+   the Dock and accessibility see only the name. Leaving both removes the
    accessory and shows the system title again. In full screen the title
-   bar is hidden with everything in it. */
+   bar is hidden with everything in it, and the view leaves the fill out. */
 - (void)updateTitleBarNumber:(NSString*)number
 {
 	NSWindow *window = [self window];
 	if (!window) return;
-	BOOL wanted = ([defaults integerForKey:@"PageBarNumber"] == COPageBarNumberTitleBar);
+	BOOL wantsNumber = ([defaults integerForKey:@"PageBarNumber"] == COPageBarNumberTitleBar);
+	BOOL wantsFill = [defaults boolForKey:COPageBarTitleBarFillKey];
+	BOOL wanted = (wantsNumber || wantsFill);
 	if (wanted) {
 		if (!titleBarNumberAccessory) {
 			CGFloat width = MAX(0, NSWidth([window frame]) - 80);
@@ -3980,7 +3989,10 @@ static const NSInteger kBookmarkMenuFixedItemCount = 3;
 			[window setTitleVisibility:NSWindowTitleHidden];
 		}
 		[titleBarLabelView setNumberFont:[AccessoryView pageNumberFontInDefaults:defaults]];
-		[titleBarLabelView setNumber:number];
+		[titleBarLabelView setCentresName:!wantsNumber];
+		[titleBarLabelView setFillFraction:((wantsFill && number) ? [self nowPar] : 0)
+								  fromLeft:[self readFromLeft]];
+		[titleBarLabelView setNumber:(wantsNumber ? number : nil)];
 	} else if (titleBarNumberAccessory) {
 		NSUInteger index = [[window titlebarAccessoryViewControllers] indexOfObjectIdenticalTo:titleBarNumberAccessory];
 		if (index != NSNotFound) {
