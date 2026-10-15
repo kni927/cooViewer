@@ -219,7 +219,8 @@ double COPageBarStatusBarLift(int pageBarPosition, double statusBarHeight)
 }
 
 double COBottomHUDOffset(int mode, int pageBarPosition, double pageBarHeight,
-                         double numberTextHeight, double statusBarHeight)
+                         double numberTextHeight, double statusBarHeight,
+                         double pageBarMarginY)
 {
 	double offset = 17;
 	double textHeight = ceil(numberTextHeight);
@@ -237,7 +238,9 @@ double COBottomHUDOffset(int mode, int pageBarPosition, double pageBarHeight,
 			double textClear = ceil((pageBarHeight + 1)/2.0 + textHeight/2.0) + 1;
 			if (textClear > clear) clear = textClear;
 		}
-		clear += statusBarHeight;
+		/* The bar, and everything with it, sits pageBarMarginY above
+		   where it would be without a margin. */
+		clear += statusBarHeight + pageBarMarginY;
 		if (clear > offset) offset = clear;
 	}
 	if (statusBarHeight > 0) {

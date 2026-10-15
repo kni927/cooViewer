@@ -163,7 +163,10 @@ double COPageBarStatusBarLift(int pageBarPosition, double statusBarHeight);
    the bottom edge (before their own margin), for a page bar at
    pageBarPosition (0, 1 top; 2, 3 bottom) of pageBarHeight with the
    position shown by `mode` in a text of numberTextHeight, and a status bar
-   of statusBarHeight (0 when none). 17 is the old constant, kept as the
-   minimum. */
+   of statusBarHeight (0 when none). pageBarMarginY is the bar's vertical
+   margin (Margin_PageBar "y"): a bottom bar moved up by it moves the HUDs
+   up with it (moved down, they come down no further than the minimum). 17
+   is the old constant, kept as the minimum. */
 double COBottomHUDOffset(int mode, int pageBarPosition, double pageBarHeight,
-                         double numberTextHeight, double statusBarHeight);
+                         double numberTextHeight, double statusBarHeight,
+                         double pageBarMarginY);

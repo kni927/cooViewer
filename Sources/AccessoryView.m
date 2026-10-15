@@ -899,8 +899,9 @@ NSRect COIntRect(NSRect aRect)
    the bar at y 2-18, the HUD from 19. A bottom bar that is taller, or that
    has the position number above it (Overlay), raises them so they keep the
    same 1 px gap; with a 15 px bar and no overlay the result is 17, as
-   before. Like the old constant it ignores the margins and whether the bar
-   is currently shown, so auto-hide does not move the HUDs. A top bar grows
+   before. A bottom bar's vertical margin (Margin_PageBar) moves them with
+   the bar. Like the old constant it ignores whether the bar is currently
+   shown, so auto-hide does not move the HUDs. A top bar grows
    downwards from below the HUD row and needs nothing here. With the file
    names in the status bar the HUDs clear it (and a bottom bar above it). The
    arithmetic is COBottomHUDOffset (COPageLabel), under engine test. */
@@ -908,7 +909,7 @@ NSRect COIntRect(NSRect aRect)
 {
 	NSSize size = [@"0" sizeWithAttributes:[self pageBarNumberAttributes]];
 	return (float)COBottomHUDOffset(pageBarNumberMode, pageBarPosition, pageBarHeight, size.height,
-									NSHeight([self statusBarRect]));
+									NSHeight([self statusBarRect]), pageBarMargin.y);
 }
 
 #pragma mark accessory

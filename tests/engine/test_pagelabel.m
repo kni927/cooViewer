@@ -230,22 +230,30 @@ static void testBottomOffsets(void)
     check(near(COPageBarStatusBarLift(2, 0), 0), @"no status bar: no lift");
 
     /* Without a status bar: the values Part 1 had. */
-    check(near(COBottomHUDOffset(COPageBarNumberOff, 2, 15, 14, 0), 17), @"Off, 15 px bottom bar: 17");
-    check(near(COBottomHUDOffset(COPageBarNumberOff, 0, 30, 14, 0), 17), @"top bar: 17");
-    check(near(COBottomHUDOffset(COPageBarNumberOff, 2, 18, 14, 0), 20), @"Off, 18 px bar: 20");
-    check(near(COBottomHUDOffset(COPageBarNumberOverlay, 2, 18, 14, 0), 35), @"Overlay: above the number");
-    check(near(COBottomHUDOffset(COPageBarNumberInBar, 2, 18, 14, 0), 20), @"In bar, text within the bar");
-    check(near(COBottomHUDOffset(COPageBarNumberInBar, 2, 10, 20, 0), 17), @"In bar, short bar: text clear");
-    check(near(COBottomHUDOffset(COPageBarNumberInBar, 2, 10, 30, 0), 22), @"In bar, tall text");
-    check(near(COBottomHUDOffset(COPageBarNumberTitleBar, 2, 18, 14, 0), 20), @"Title bar mode: bar only");
+    check(near(COBottomHUDOffset(COPageBarNumberOff, 2, 15, 14, 0, 0), 17), @"Off, 15 px bottom bar: 17");
+    check(near(COBottomHUDOffset(COPageBarNumberOff, 0, 30, 14, 0, 0), 17), @"top bar: 17");
+    check(near(COBottomHUDOffset(COPageBarNumberOff, 2, 18, 14, 0, 0), 20), @"Off, 18 px bar: 20");
+    check(near(COBottomHUDOffset(COPageBarNumberOverlay, 2, 18, 14, 0, 0), 35), @"Overlay: above the number");
+    check(near(COBottomHUDOffset(COPageBarNumberInBar, 2, 18, 14, 0, 0), 20), @"In bar, text within the bar");
+    check(near(COBottomHUDOffset(COPageBarNumberInBar, 2, 10, 20, 0, 0), 17), @"In bar, short bar: text clear");
+    check(near(COBottomHUDOffset(COPageBarNumberInBar, 2, 10, 30, 0, 0), 22), @"In bar, tall text");
+    check(near(COBottomHUDOffset(COPageBarNumberTitleBar, 2, 18, 14, 0, 0), 20), @"Title bar mode: bar only");
 
     /* With an 18 px status bar: the HUD (offset + 2) clears it by 1 px, or
        the bottom bar raised onto it. */
-    check(near(COBottomHUDOffset(COPageBarNumberOff, 0, 18, 14, 18), 17), @"status, top bar: 17 (HUD from 19)");
-    check(near(COBottomHUDOffset(COPageBarNumberOff, 0, 18, 14, 28), 27), @"tall status bar: cleared");
-    check(near(COBottomHUDOffset(COPageBarNumberOff, 2, 18, 14, 18), 38), @"status + bottom bar");
-    check(near(COBottomHUDOffset(COPageBarNumberOverlay, 2, 18, 14, 18), 53), @"status + bottom bar + overlay number");
-    check(near(COBottomHUDOffset(COPageBarNumberInBar, 2, 18, 14, 18), 38), @"status + bottom bar, number in it");
+    check(near(COBottomHUDOffset(COPageBarNumberOff, 0, 18, 14, 18, 0), 17), @"status, top bar: 17 (HUD from 19)");
+    check(near(COBottomHUDOffset(COPageBarNumberOff, 0, 18, 14, 28, 0), 27), @"tall status bar: cleared");
+    check(near(COBottomHUDOffset(COPageBarNumberOff, 2, 18, 14, 18, 0), 38), @"status + bottom bar");
+    check(near(COBottomHUDOffset(COPageBarNumberOverlay, 2, 18, 14, 18, 0), 53), @"status + bottom bar + overlay number");
+    check(near(COBottomHUDOffset(COPageBarNumberInBar, 2, 18, 14, 18, 0), 38), @"status + bottom bar, number in it");
+
+    /* Margin_PageBar "y": a bottom bar raised by it raises the HUDs too. */
+    check(near(COBottomHUDOffset(COPageBarNumberOff, 2, 18, 14, 0, 30), 50), @"bottom bar 30 px up: HUD 30 px up");
+    check(near(COBottomHUDOffset(COPageBarNumberOverlay, 2, 18, 14, 0, 10), 45), @"margin + overlay number");
+    check(near(COBottomHUDOffset(COPageBarNumberOff, 2, 18, 14, 18, 5), 43), @"margin + status bar");
+    check(near(COBottomHUDOffset(COPageBarNumberOff, 2, 18, 14, 0, -10), 17), @"bar moved down: minimum 17");
+    check(near(COBottomHUDOffset(COPageBarNumberOff, 2, 18, 14, 0, -2), 18), @"bar moved down 2 px: 2 px lower");
+    check(near(COBottomHUDOffset(COPageBarNumberOff, 0, 18, 14, 0, 40), 17), @"top bar: margin ignored");
 }
 
 static void testInBarFontSize(void)
