@@ -3994,8 +3994,9 @@ static const NSInteger kBookmarkMenuFixedItemCount = 3;
 			titleBarNumberAccessory = [[NSTitlebarAccessoryViewController alloc] init];
 			[titleBarNumberAccessory setView:titleBarLabelView];
 			[titleBarNumberAccessory setLayoutAttribute:NSLayoutAttributeLeft];
+			[titleBarNumberAccessory setHidden:titleBarInFullScreen];
 			[window addTitlebarAccessoryViewController:titleBarNumberAccessory];
-			[window setTitleVisibility:NSWindowTitleHidden];
+			[window setTitleVisibility:(titleBarInFullScreen ? NSWindowTitleVisible : NSWindowTitleHidden)];
 		}
 		[titleBarLabelView setNumberFont:[AccessoryView pageNumberFontInDefaults:defaults]];
 		[titleBarLabelView setCentresName:!wantsNumber];
@@ -4269,13 +4270,21 @@ static const NSInteger kBookmarkMenuFixedItemCount = 3;
 	[self setTitleBarInFullScreen:NO];
 }
 
-/* The title-bar fill is not shown in full screen (COTitleBarLabelView).
-   Set here, from this window's own transitions, because in full screen
-   the accessory lives in a separate system window. */
+/* In full screen the accessory lives in a separate system window whose
+   title is empty, so COTitleBarLabelView cannot draw the name there. The
+   accessory is hidden (no fill, no name, no position) and the system
+   title is shown instead; leaving full screen reverses both. Set here, from this
+   window's own transitions. */
 - (void)setTitleBarInFullScreen:(BOOL)flag
 {
 	titleBarInFullScreen = flag;
 	[titleBarLabelView setInFullScreen:flag];
+	if (titleBarNumberAccessory) {
+		/* Hidden too, or its width pushes the system title off to the
+		   right edge. */
+		[titleBarNumberAccessory setHidden:flag];
+		[[self window] setTitleVisibility:(flag ? NSWindowTitleVisible : NSWindowTitleHidden)];
+	}
 }
 
 /* v1.6.2: keeps -lastWindowedSize current. Captured here rather than from

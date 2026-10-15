@@ -210,7 +210,9 @@ static const CGFloat COTitleBarTrailingInset = 8;
 {
 	NSWindow *window = [self window];
 	if (!window) return;
-	BOOL active = [NSApp isActive] && ([window isMainWindow] || [window isKeyWindow]);
+	/* Full screen: the controller shows the system title instead. */
+	if (inFullScreen || ([window styleMask] & NSWindowStyleMaskFullScreen)) return;
+	BOOL active =[NSApp isActive] && ([window isMainWindow] || [window isKeyWindow]);
 	[self drawFillActive:active];
 
 	NSString *title = [window title];
