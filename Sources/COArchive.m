@@ -36,6 +36,7 @@
 {
 	[path release];
 	[data release];
+	[modificationDate release];
 	[super dealloc];
 }
 
@@ -49,7 +50,26 @@
 	return data;
 }
 
+- (NSDate *)modificationDate
+{
+	return modificationDate;
+}
+
+- (void)setModificationDate:(NSDate *)date
+{
+	if (date == modificationDate) return;
+	[modificationDate release];
+	modificationDate = [date retain];
+}
+
 @end
+
+NSDate *COArchiveEntryMTime(struct archive_entry *entry)
+{
+	if (!entry || !archive_entry_mtime_is_set(entry)) return nil;
+	return [NSDate dateWithTimeIntervalSince1970:(NSTimeInterval)archive_entry_mtime(entry)
+	                                             + archive_entry_mtime_nsec(entry) / 1e9];
+}
 
 BOOL COIsContainedEntryPath(NSString *path)
 {
@@ -68,6 +88,7 @@ BOOL COIsContainedEntryPath(NSString *path)
 	NSData *rawName;	// header bytes as stored (may be nil)
 	NSString *utf8Name;	// libarchive's UTF-8 conversion (may be nil)
 	NSData *payload;
+	NSDate *mtime;		// nil when the header has none
 }
 @end
 
@@ -77,6 +98,7 @@ BOOL COIsContainedEntryPath(NSString *path)
 	[rawName release];
 	[utf8Name release];
 	[payload release];
+	[mtime release];
 	[super dealloc];
 }
 @end
@@ -454,6 +476,7 @@ static COArchive *COOpenLazyArchive(NSString *path, COArchiveProgress progress)
 			allHaveUTF8 = NO;
 		}
 		re->payload = [[NSData alloc] initWithData:payload];
+		re->mtime = [COArchiveEntryMTime(entry) retain];
 		[rawEntries addObject:re];
 	}
 out:
@@ -493,6 +516,7 @@ out:
 		if (!name) continue;
 		COArchiveEntry *e = [[[COArchiveEntry alloc] initWithPath:name
 		                                                     data:re->payload] autorelease];
+		[e setModificationDate:re->mtime];
 		[contentArray addObject:e];
 	}
 

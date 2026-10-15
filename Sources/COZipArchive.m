@@ -134,6 +134,7 @@
 	NSMutableArray *indexes = [NSMutableArray array];	// NSNumber zip index
 	NSMutableArray *sizes = [NSMutableArray array];		// NSNumber uncompressed
 	NSMutableArray *encFlags = [NSMutableArray array];	// NSNumber BOOL
+	NSMutableArray *mtimes = [NSMutableArray array];	// NSDate, or NSNull when none
 	NSMutableData *allRaw = [NSMutableData data];
 	zip_uint64_t i;
 	for (i = 0; i < (zip_uint64_t)count; i++) {
@@ -165,6 +166,8 @@
 		[indexes addObject:[NSNumber numberWithUnsignedLongLong:i]];
 		[sizes addObject:[NSNumber numberWithUnsignedLongLong:st.size]];
 		[encFlags addObject:[NSNumber numberWithBool:enc]];
+		[mtimes addObject:(st.valid & ZIP_STAT_MTIME)
+			? (id)[NSDate dateWithTimeIntervalSince1970:(NSTimeInterval)st.mtime] : (id)[NSNull null]];
 		[allRaw appendBytes:raw length:len];
 		[allRaw appendBytes:"\n" length:1];
 	}
@@ -210,6 +213,8 @@
 			        size:[[sizes objectAtIndex:k] unsignedLongLongValue]]
 			autorelease];
 		e->ordinal = [contentArray count];
+		id mtime = [mtimes objectAtIndex:k];
+		if (mtime != [NSNull null]) [e setModificationDate:mtime];
 		[contentArray addObject:e];
 	}
 

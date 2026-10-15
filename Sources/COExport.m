@@ -9,6 +9,7 @@
 #include <zip.h>
 #include <stdlib.h>
 #include <string.h>
+#include <math.h>
 
 #pragma mark COExportPage
 
@@ -66,6 +67,18 @@ static NSString *COExportFlattenedName(NSString *name)
 	}
 	if ([entry respondsToSelector:@selector(data)]) {
 		return [entry data];
+	}
+	return nil;
+}
+
+- (NSDate *)modificationDate
+{
+	if (filePath) {
+		return [[[NSFileManager defaultManager] attributesOfItemAtPath:filePath error:NULL] fileModificationDate];
+	}
+	if ([entry respondsToSelector:@selector(modificationDate)]) {
+		id date = [entry modificationDate];
+		return [date isKindOfClass:[NSDate class]] ? date : nil;
 	}
 	return nil;
 }
@@ -262,11 +275,13 @@ static void COExportZipProgress(zip_t *za, double fraction, void *ud)
 }
 
 static BOOL COExportWriteStoredZipWithProgress(NSString *zipPath, NSArray *names, NSArray *contents,
+                                               NSArray *dates,
                                                BOOL (^cancelled)(void), void (^progress)(double),
                                                NSString **errorMessage)
 {
 	if (errorMessage) *errorMessage = nil;
-	if ([names count] != [contents count] || [names count] == 0) {
+	if ([names count] != [contents count] || [names count] == 0
+		|| (dates && [dates count] != [names count])) {
 		if (errorMessage) *errorMessage = @"nothing to write";
 		return NO;
 	}
@@ -304,6 +319,13 @@ static BOOL COExportWriteStoredZipWithProgress(NSString *zipPath, NSArray *names
 			goto failed;
 		}
 		if (zip_set_file_compression(za, (zip_uint64_t)index, ZIP_CM_STORE, 0) < 0) goto failed;
+		/* The original's time; without one libzip uses the source's (a
+		   staged file's is the time it was staged). */
+		id date = dates ? [dates objectAtIndex:i] : nil;
+		if ([date isKindOfClass:[NSDate class]]) {
+			time_t mtime = (time_t)floor([date timeIntervalSince1970]);
+			if (zip_file_set_mtime(za, (zip_uint64_t)index, mtime, 0) < 0) goto failed;
+		}
 	}
 
 	if (zip_close(za) == 0) {
@@ -324,7 +346,14 @@ failed:
 BOOL COExportWriteStoredZip(NSString *zipPath, NSArray *names, NSArray *contents,
                             BOOL (^cancelled)(void), NSString **errorMessage)
 {
-	return COExportWriteStoredZipWithProgress(zipPath, names, contents, cancelled, nil, errorMessage);
+	return COExportWriteStoredZipWithProgress(zipPath, names, contents, nil, cancelled, nil, errorMessage);
+}
+
+BOOL COExportWriteStoredZipWithDates(NSString *zipPath, NSArray *names, NSArray *contents,
+                                     NSArray *dates, BOOL (^cancelled)(void),
+                                     NSString **errorMessage)
+{
+	return COExportWriteStoredZipWithProgress(zipPath, names, contents, dates, cancelled, nil, errorMessage);
 }
 
 /* A new directory for staging, on the destination's volume: the system's
@@ -371,10 +400,13 @@ COExportResult COExportPages(NSArray *pages, NSURL *destination,
 	NSUInteger count = [pages count];
 	NSMutableArray *contents = [NSMutableArray arrayWithCapacity:count];
 	NSMutableArray *originalNames = [NSMutableArray arrayWithCapacity:count];
+	NSMutableArray *dates = [NSMutableArray arrayWithCapacity:count];
 	NSUInteger i;
 	for (i = 0; i < count; i++) {
 		COExportPage *page = [pages objectAtIndex:i];
 		[originalNames addObject:[page name]];
+		NSDate *date = [page modificationDate];
+		[dates addObject:date ? (id)date : (id)[NSNull null]];
 		/* A file is copied straight from where it is; an entry is staged. */
 		[contents addObject:[page filePath] ? (id)[page filePath] : (id)[NSNull null]];
 	}
@@ -491,7 +523,7 @@ COExportResult COExportPages(NSArray *pages, NSURL *destination,
 			};
 		}
 		if (!COExportWriteStoredZipWithProgress(zipPath, COExportEntryNames(originalNames), contents,
-		                                        cancelled, zipProgress, &zipError)) {
+		                                        dates, cancelled, zipProgress, &zipError)) {
 			if (cancelled && cancelled()) {
 				result = COExportCancelled;
 			} else {

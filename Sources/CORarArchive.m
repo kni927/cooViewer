@@ -63,6 +63,7 @@ BOOL CORarPayloadMatchesExpectedMetadata(NSData *payload,
 	NSData *rawName;	// header bytes as stored (may be nil)
 	NSString *utf8Name;	// libarchive's UTF-8 conversion (may be nil)
 	NSUInteger streamOrdinal;
+	NSDate *mtime;		// nil when the header has none
 }
 @end
 
@@ -71,6 +72,7 @@ BOOL CORarPayloadMatchesExpectedMetadata(NSData *payload,
 {
 	[rawName release];
 	[utf8Name release];
+	[mtime release];
 	[super dealloc];
 }
 @end
@@ -934,6 +936,9 @@ static void CORarRegisterDiskCache(CORarDiskCache *cache, BOOL live)
 			e->hasHeaderOffset = YES;
 			e->headerOffset = he->headerOffset;
 		}
+		if (he->hasMTime) {
+			[e setModificationDate:[NSDate dateWithTimeIntervalSince1970:(NSTimeInterval)he->mtime]];
+		}
 		[contentArray addObject:e];
 	}
 
@@ -1139,6 +1144,7 @@ static BOOL CORarEntryCounts(struct archive_entry *entry)
 
 		CORarRawEntry *re = [[[CORarRawEntry alloc] init] autorelease];
 		re->streamOrdinal = streamOrdinal++;
+		re->mtime = [COArchiveEntryMTime(entry) retain];
 		if (raw) {
 			re->rawName = [[NSData alloc] initWithBytes:raw length:strlen(raw)];
 			[allRaw appendBytes:raw length:strlen(raw)];
@@ -1202,6 +1208,7 @@ static BOOL CORarEntryCounts(struct archive_entry *entry)
 		                                    hasExpectedCRC:NO
 		                                       expectedCRC:0] autorelease];
 		e->arrayIndex = [contentArray count];
+		[e setModificationDate:re->mtime];
 		[contentArray addObject:e];
 	}
 

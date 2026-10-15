@@ -41,6 +41,10 @@
 - (NSUInteger)order;
 /* The page's original bytes, or nil if they cannot be read. */
 - (NSData *)readData;
+/* The original's modification time: the file's, or the entry's as its
+   archive stores it (-[COArchiveEntry modificationDate]); nil when there
+   is none. The exported entry keeps it. */
+- (NSDate *)modificationDate;
 @end
 
 #pragma mark page list
@@ -101,6 +105,12 @@ BOOL COExportNamesNeedSequencePrefix(NSArray *originalNames);
    `zipPath` and *errorMessage (optional) says why (nil for a cancel). */
 BOOL COExportWriteStoredZip(NSString *zipPath, NSArray *names, NSArray *contents,
                             BOOL (^cancelled)(void), NSString **errorMessage);
+/* The same, with each entry's modification time: `dates` holds an NSDate
+   per entry, or NSNull for "now" (as for every entry when `dates` is nil).
+   ZIP stores it as a DOS time: local time, to 2 seconds. */
+BOOL COExportWriteStoredZipWithDates(NSString *zipPath, NSArray *names, NSArray *contents,
+                                     NSArray *dates, BOOL (^cancelled)(void),
+                                     NSString **errorMessage);
 
 typedef enum {
 	COExportOK = 0,
@@ -113,7 +123,7 @@ typedef enum {
    entries grouped by archive and in each archive's entry order, so a solid
    RAR is read in one forward pass — into a staging directory beside the
    destination, writes the store-only ZIP there in page order with
-   COExportEntryNames(), and moves it to `destination`, replacing a file
+   COExportEntryNames() and each page's -modificationDate, and moves it to `destination`, replacing a file
    already there (the save panel has asked about that). On cancel or failure
    the destination is untouched and the staging directory is removed.
    `cancelled` is polled between pages and while the ZIP is written;

@@ -11,6 +11,8 @@
 #import "CORarArchive.h"
 #include <mach/mach_time.h>
 #include <zip.h>
+#include <archive.h>
+#include <archive_entry.h>
 
 // As in test_imageloader.m: nested archives go under $TMPDIR, which a
 // sandboxed run can write, rather than the per-user temporary directory.
@@ -197,6 +199,84 @@ static void checkZip(NSString *label, NSString *path, NSArray *wantNames, NSArra
     zip_close(za);
 }
 
+#pragma mark modification times
+
+/* An archive's entry times as libarchive reads them, by entry path: the
+   reference the export is compared with, read apart from cooViewer's own
+   readers (libzip for ZIP, the RAR header index). */
+static NSDictionary *referenceMTimes(NSString *archivePath)
+{
+    static NSMutableDictionary *cache = nil;
+    if (!cache) cache = [[NSMutableDictionary alloc] init];
+    NSDictionary *cached = [cache objectForKey:archivePath];
+    if (cached) return cached;
+    NSMutableDictionary *times = [NSMutableDictionary dictionary];
+    struct archive *a = archive_read_new();
+    archive_read_support_format_all(a);
+    archive_read_support_filter_all(a);
+    if (archive_read_open_filename(a, [archivePath fileSystemRepresentation], 65536) == ARCHIVE_OK) {
+        struct archive_entry *entry;
+        while (archive_read_next_header(a, &entry) == ARCHIVE_OK) {
+            const char *name = archive_entry_pathname_utf8(entry);
+            if (!name) name = archive_entry_pathname(entry);
+            if (name && archive_entry_mtime_is_set(entry)) {
+                [times setObject:[NSDate dateWithTimeIntervalSince1970:(NSTimeInterval)archive_entry_mtime(entry)]
+                          forKey:[NSString stringWithUTF8String:name]];
+            }
+            archive_read_data_skip(a);
+        }
+    }
+    archive_read_free(a);
+    [cache setObject:times forKey:archivePath];
+    return times;
+}
+
+/* The time the export should keep for a page: the file's, or the entry's
+   in its archive (nil when there is none). */
+static NSDate *referenceMTime(COExportPage *page)
+{
+    if ([page filePath]) {
+        return [[[NSFileManager defaultManager] attributesOfItemAtPath:[page filePath] error:NULL] fileModificationDate];
+    }
+    id archive = [page archive];
+    if (![archive respondsToSelector:@selector(filePath)] || ![[page entry] respondsToSelector:@selector(path)]) return nil;
+    return [referenceMTimes([archive filePath]) objectForKey:[[page entry] path]];
+}
+
+/* Every exported entry keeps its original's time, as ZIP stores it: a
+   local DOS time, to 2 seconds. The reference can be up to 2 s off that
+   either way: a ZIP book's DOS time is what the export keeps, and its
+   writer may have rounded it up, while libarchive reports the book's
+   extended timestamp when it has one (enc_pages.cbz: DOS :32, extended
+   :31). Pages with no time, or one before 1980 that DOS cannot hold, are
+   not compared. */
+static void checkMTimes(NSString *label, NSString *path, NSArray *pages)
+{
+    int err = 0;
+    zip_t *za = zip_open([path fileSystemRepresentation], ZIP_RDONLY, &err);
+    if (!za) return;	/* checkZip reports it */
+    NSUInteger compared = 0;
+    NSUInteger i;
+    for (i = 0; i < [pages count] && (zip_int64_t)i < zip_get_num_entries(za, 0); i++) {
+        NSDate *want = referenceMTime([pages objectAtIndex:i]);
+        if (!want || [want timeIntervalSince1970] < 315532800.0 + 86400.0) continue;
+        zip_stat_t st;
+        zip_stat_init(&st);
+        if (zip_stat_index(za, (zip_uint64_t)i, 0, &st) != 0 || !(st.valid & ZIP_STAT_MTIME)) {
+            check(NO, [NSString stringWithFormat:@"%@: entry %lu has a time", label, (unsigned long)i]);
+            continue;
+        }
+        long long wantSeconds = (long long)floor([want timeIntervalSince1970]);
+        long long got = (long long)st.mtime;
+        check(llabs(got - wantSeconds) <= 2,
+              [NSString stringWithFormat:@"%@: entry %lu keeps the original's time (%lld, want %lld)",
+               label, (unsigned long)i, got, wantSeconds]);
+        compared++;
+    }
+    zip_close(za);
+    check(compared > 0, [NSString stringWithFormat:@"%@: entry times compared (%lu)", label, (unsigned long)compared]);
+}
+
 /* cooViewer's own loader re-opens the export, with the pages in the same
    order. */
 static void checkReopen(NSString *label, NSString *path, NSArray *wantNames)
@@ -262,6 +342,7 @@ static void exportAndCheck(NSString *label, COImageLoader *loader, NSString *pag
         [expected addObject:original ? original : [NSData data]];
     }
     checkZip(label, dest, wantNames, expected);
+    checkMTimes(label, dest, pages);
     checkReopen(label, dest, wantNames);
     checkNoLeftovers(label, outDir);
 }
@@ -368,6 +449,11 @@ static void testFolders(NSString *gen, NSString *src, NSString *outDir)
     [fm copyItemAtPath:[src stringByAppendingPathComponent:@"001.png"] toPath:[mixed stringByAppendingPathComponent:@"001.png"] error:NULL];
     [fm copyItemAtPath:[src stringByAppendingPathComponent:@"002.jpg"] toPath:[mixed stringByAppendingPathComponent:@"002.jpg"] error:NULL];
     [fm copyItemAtPath:[gen stringByAppendingPathComponent:@"test.cbz"] toPath:[mixed stringByAppendingPathComponent:@"zz.cbz"] error:NULL];
+    // fixed times, years before the run, so a kept time cannot pass for "now"
+    [fm setAttributes:@{NSFileModificationDate: [NSDate dateWithTimeIntervalSince1970:981173106]}	// 2001-02-03
+         ofItemAtPath:[mixed stringByAppendingPathComponent:@"001.png"] error:NULL];
+    [fm setAttributes:@{NSFileModificationDate: [NSDate dateWithTimeIntervalSince1970:1118131751]}	// 2005-06-07, odd second
+         ofItemAtPath:[mixed stringByAppendingPathComponent:@"002.jpg"] error:NULL];
     COImageLoader *mixedLoader = [[[COImageLoader alloc] initWithPath:mixed readSubFolder:NO controller:nil] autorelease];
     check([mixedLoader itemCount] == 6, [NSString stringWithFormat:@"folder with archive: %d pages", [mixedLoader itemCount]]);
     exportAndCheck(@"folder with an archive inside (colliding names)", mixedLoader, @"", outDir, @"mixed-export.cbz", src,
@@ -393,6 +479,77 @@ static void testFolders(NSString *gen, NSString *src, NSString *outDir)
     check([folder exportPageAtIndex:-1] == nil && [folder exportPageAtIndex:4] == nil, @"index outside the book");
     [fm removeItemAtPath:mixed error:NULL];
     [fm removeItemAtPath:withPDF error:NULL];
+}
+
+#pragma mark modification times, known values
+
+static time_t zipEntryMTime(NSString *path, zip_uint64_t index)
+{
+    int err = 0;
+    zip_t *za = zip_open([path fileSystemRepresentation], ZIP_RDONLY, &err);
+    if (!za) return (time_t)-1;
+    zip_stat_t st;
+    zip_stat_init(&st);
+    time_t t = (zip_stat_index(za, index, 0, &st) == 0 && (st.valid & ZIP_STAT_MTIME)) ? st.mtime : (time_t)-1;
+    zip_close(za);
+    return t;
+}
+
+static void testKnownMTimes(NSString *src, NSString *outDir)
+{
+    printf("modification times kept, known values\n");
+    NSFileManager *fm = [NSFileManager defaultManager];
+    const time_t t1 = 1000000000, t2 = 1234567890;	/* 2001-09-09, 2009-02-13; both even */
+
+    // a ZIP book whose entries carry fixed times (written with libzip)
+    NSString *book = [outDir stringByAppendingPathComponent:@"dated.cbz"];
+    [fm removeItemAtPath:book error:NULL];
+    int err = 0;
+    zip_t *za = zip_open([book fileSystemRepresentation], ZIP_CREATE | ZIP_EXCL, &err);
+    check(za != NULL, @"dated book: created");
+    if (!za) return;
+    NSArray *names = @[@"001.png", @"002.jpg"];
+    time_t times[2] = { t1, t2 };
+    NSUInteger i;
+    for (i = 0; i < 2; i++) {
+        NSString *file = [src stringByAppendingPathComponent:[names objectAtIndex:i]];
+        zip_source_t *s = zip_source_file(za, [file fileSystemRepresentation], 0, ZIP_LENGTH_TO_END);
+        zip_int64_t index = zip_file_add(za, [[names objectAtIndex:i] UTF8String], s, ZIP_FL_ENC_UTF_8);
+        zip_file_set_mtime(za, (zip_uint64_t)index, times[i], 0);
+    }
+    check(zip_close(za) == 0, @"dated book: written");
+    check(zipEntryMTime(book, 0) == t1 && zipEntryMTime(book, 1) == t2, @"dated book: times as set");
+
+    COImageLoader *loader = [[[COImageLoader alloc] initWithPath:book readSubFolder:NO controller:nil] autorelease];
+    NSArray *pages = pagesOf(loader, [NSIndexSet indexSetWithIndexesInRange:NSMakeRange(0, 2)]);
+    check([pages count] == 2, @"dated book: two pages");
+    if ([pages count] != 2) return;
+    check([[[pages objectAtIndex:0] modificationDate] timeIntervalSince1970] == (NSTimeInterval)t1,
+          @"dated book: entry time read (libzip)");
+    NSString *dest = [outDir stringByAppendingPathComponent:@"dated-export.cbz"];
+    [fm removeItemAtPath:dest error:NULL];
+    COExportResult result = COExportPages(pages, [NSURL fileURLWithPath:dest], nil, nil, NULL, NULL);
+    check(result == COExportOK, @"dated book: exported");
+    check(zipEntryMTime(dest, 0) == t1, [NSString stringWithFormat:@"dated book: page 1 keeps its time (%ld)", (long)zipEntryMTime(dest, 0)]);
+    check(zipEntryMTime(dest, 1) == t2, [NSString stringWithFormat:@"dated book: page 2 keeps its time (%ld)", (long)zipEntryMTime(dest, 1)]);
+
+    // the writer: a date per entry, NSNull for "now"
+    NSString *direct = [outDir stringByAppendingPathComponent:@"dated-direct.zip"];
+    [fm removeItemAtPath:direct error:NULL];
+    NSData *bytes = [@"hello" dataUsingEncoding:NSUTF8StringEncoding];
+    time_t before = time(NULL);
+    BOOL ok = COExportWriteStoredZipWithDates(direct, @[@"a.txt", @"b.txt"], @[bytes, bytes],
+                                              @[[NSDate dateWithTimeIntervalSince1970:(NSTimeInterval)t2 + 1], [NSNull null]],
+                                              nil, NULL);
+    check(ok, @"writer with dates: wrote");
+    check(zipEntryMTime(direct, 0) == t2, @"writer with dates: odd second rounded down to DOS time");
+    time_t now = zipEntryMTime(direct, 1);
+    check(now >= before - 2 && now <= time(NULL) + 2, @"writer with dates: no date, the time of writing");
+    ok = COExportWriteStoredZipWithDates(direct, @[@"a.txt"], @[bytes], @[], nil, NULL);
+    check(!ok, @"writer with dates: count mismatch refused");
+    [fm removeItemAtPath:direct error:NULL];
+    [fm removeItemAtPath:dest error:NULL];
+    [fm removeItemAtPath:book error:NULL];
 }
 
 #pragma mark solid RAR: own reader, prompt cancel
@@ -523,6 +680,7 @@ int main(int argc, char **argv)
 
         testFolders(gen, src, outDir);
         testFailures(outDir, src);
+        testKnownMTimes(src, outDir);
         testSolidReader(gen, outDir);
 
         if (failures == 0) {

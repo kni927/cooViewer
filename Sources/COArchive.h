@@ -50,10 +50,16 @@
 {
 	NSString *path;
 	NSData *data;
+	NSDate *modificationDate;
 }
 - (id)initWithPath:(NSString *)inPath data:(NSData *)inData;
 - (NSString *)path;
 - (NSData *)data;
+/* The entry's modification time as the archive stores it, or nil when it
+   stores none (Export keeps it on the exported entry). Set by the reader
+   when it lists the entries. */
+- (NSDate *)modificationDate;
+- (void)setModificationDate:(NSDate *)date;
 @end
 
 /* Progress callback: bytesRead/bytesTotal are positions in the
@@ -227,3 +233,8 @@ NSUInteger COArchiveDecodedCacheLimit(void);
  * headers unchanged, so this must hold before one is used as a file name
  * on disk (COImageLoader's nested-archive extraction). */
 BOOL COIsContainedEntryPath(NSString *path);
+
+/* A libarchive entry's modification time, or nil when its header has
+   none (the libarchive readers' COArchiveEntry -modificationDate). */
+struct archive_entry;
+NSDate *COArchiveEntryMTime(struct archive_entry *entry);

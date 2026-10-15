@@ -11,6 +11,7 @@
 #import "CORarHeaderIndex.h"
 #include <stdio.h>
 #include <string.h>
+#include <time.h>
 
 @implementation CORarHeaderEntry
 - (void)dealloc
@@ -85,7 +86,8 @@ static CORarHeaderEntry *MakeEntry(NSData *rawName, NSString *utf8Name,
                                     unsigned long long uncompressedSize,
                                     BOOL hasUncompressedSize,
                                     BOOL hasFileCRC, uint32_t fileCRC,
-                                    off_t headerOffset)
+                                    off_t headerOffset,
+                                    BOOL hasMTime, time_t mtime)
 {
 	CORarHeaderEntry *e = [[[CORarHeaderEntry alloc] init] autorelease];
 	e->rawName = [rawName retain];
@@ -96,7 +98,32 @@ static CORarHeaderEntry *MakeEntry(NSData *rawName, NSString *utf8Name,
 	e->hasFileCRC = hasFileCRC;
 	e->fileCRC = fileCRC;
 	e->headerOffset = (unsigned long long)headerOffset;
+	e->hasMTime = hasMTime;
+	e->mtime = hasMTime ? mtime : 0;
 	return e;
+}
+
+/* A DOS date and time (RAR4 FTIME: time in the low word, date in the
+   high one, local time) as a time_t; NO when the fields are not a valid
+   date, such as 0. */
+static BOOL CORarDOSTime(uint32_t dos, time_t *out)
+{
+	unsigned int day = (dos >> 16) & 0x1f, month = (dos >> 21) & 0x0f, year = ((dos >> 25) & 0x7f) + 1980;
+	unsigned int sec = (dos & 0x1f) * 2, min = (dos >> 5) & 0x3f, hour = (dos >> 11) & 0x1f;
+	if (month < 1 || month > 12 || day < 1 || day > 31 || hour > 23 || min > 59 || sec > 59) return NO;
+	struct tm tm;
+	memset(&tm, 0, sizeof(tm));
+	tm.tm_year = (int)year - 1900;
+	tm.tm_mon = (int)month - 1;
+	tm.tm_mday = (int)day;
+	tm.tm_hour = (int)hour;
+	tm.tm_min = (int)min;
+	tm.tm_sec = (int)sec;
+	tm.tm_isdst = -1;
+	time_t t = mktime(&tm);
+	if (t == (time_t)-1) return NO;
+	*out = t;
+	return YES;
 }
 
 #pragma mark - RAR5
@@ -182,7 +209,14 @@ static NSMutableArray *ParseRAR5(FILE *f, off_t fileSize, BOOL *outCrypted, BOOL
 			BOOL hasFileCRC = (fileflags & 0x0004) != 0;
 			uint32_t fileCRC = 0;
 
-			if (fileflags & 0x0002) { uint32_t mtime; if (!ReadU32LE(f, &mtime)) return nil; }
+			BOOL hasMTime = NO;
+			time_t mtime = 0;
+			if (fileflags & 0x0002) {
+				uint32_t unixTime;
+				if (!ReadU32LE(f, &unixTime)) return nil;
+				hasMTime = YES;
+				mtime = (time_t)unixTime;
+			}
 			if (hasFileCRC && !ReadU32LE(f, &fileCRC)) return nil;
 			if (!isDirectory) { if (!ReadVInt(f, &compinfo)) return nil; }
 			if (compinfo & RAR5_COMPINFO_SOLID) layout->solid = YES;
@@ -212,6 +246,30 @@ static NSMutableArray *ParseRAR5(FILE *f, off_t fileSize, BOOL *outCrypted, BOOL
 					if (!ReadVInt(f, &recType)) break;
 					if (recType == 0x01) entryEncrypted = YES;	// file encryption record
 					if (recType == 0x05) entryRedirected = YES;	// symlink, junction, hard link, file copy
+					if (recType == 0x03) {
+						// file time record: flags, then mtime first when
+						// present (Unix seconds, or a Windows FILETIME)
+						uint64_t timeFlags;
+						if (ReadVInt(f, &timeFlags) && (timeFlags & 0x0002)) {
+							if (timeFlags & 0x0001) {
+								uint32_t unixTime;
+								if (ReadU32LE(f, &unixTime)) {
+									hasMTime = YES;
+									mtime = (time_t)unixTime;
+								}
+							} else {
+								uint32_t low, high;
+								if (ReadU32LE(f, &low) && ReadU32LE(f, &high)) {
+									uint64_t fileTime = ((uint64_t)high << 32) | low;
+									uint64_t seconds = fileTime / 10000000ULL;
+									if (seconds >= 11644473600ULL) {
+										hasMTime = YES;
+										mtime = (time_t)(seconds - 11644473600ULL);
+									}
+								}
+							}
+						}
+					}
 					if (recSize == 0) break;
 					if (fseeko(f, recStart + (off_t)recSize, SEEK_SET) != 0) break;
 					pos = ftello(f);
@@ -233,7 +291,8 @@ static NSMutableArray *ParseRAR5(FILE *f, off_t fileSize, BOOL *outCrypted, BOOL
 				// RAR5 names are UTF-8 by spec; if that somehow fails,
 				// fall through with rawName only (shared uchardet path)
 				[entries addObject:MakeEntry(nameBuf, [u8 autorelease], datasize, uncompsize,
-				                                  !unknownSize, hasFileCRC, fileCRC, headerOffset)];
+				                                  !unknownSize, hasFileCRC, fileCRC, headerOffset,
+				                                  hasMTime, mtime)];
 			}
 		}
 		// type 3 (Service) and anything unrecognized: nothing extra
@@ -325,7 +384,8 @@ static NSMutableArray *ParseRAR4(FILE *f, off_t fileSize, BOOL *outCrypted, BOOL
 			if (!ReadU8(f, &os)) return nil;
 			if (!ReadU32LE(f, &filecrc)) return nil;
 			if (!ReadU32LE(f, &dostime)) return nil;
-			(void)dostime;
+			time_t mtime = 0;
+			BOOL hasMTime = CORarDOSTime(dostime, &mtime);
 			if (!ReadU8(f, &version)) return nil;
 			if (!ReadU8(f, &method)) return nil;
 			(void)method;
@@ -374,7 +434,8 @@ static NSMutableArray *ParseRAR4(FILE *f, off_t fileSize, BOOL *outCrypted, BOOL
 				// zero-byte entry, skip
 			} else if (!IsAppleDoubleName([nameBuf bytes], [nameBuf length])) {
 				[entries addObject:MakeEntry(nameBuf, nil, datasize, size,
-				                                  YES, YES, filecrc, blockStart)];
+				                                  YES, YES, filecrc, blockStart,
+				                                  hasMTime, mtime)];
 			}
 		}
 

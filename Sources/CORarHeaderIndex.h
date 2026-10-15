@@ -96,6 +96,9 @@
 	unsigned long long headerOffset;	// file offset of this entry's
 					// header block (its first byte:
 					// RAR5 header CRC / RAR4 HEAD_CRC)
+	BOOL hasMTime;		// the header stores a usable modification time
+	time_t mtime;		// RAR5: the time record's or the Unix field's;
+				// RAR4: FTIME (DOS, local time)
 }
 @end
 
