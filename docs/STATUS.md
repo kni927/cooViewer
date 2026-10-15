@@ -16,15 +16,16 @@ Export... (`docs/tasks/2026-10-12-02-release-v1.6.8.md`).
 
 ## Next
 
-- Release of the page bar settings work (Page Number section, Fill title
-  bar, status bar opacity, v1.6.8 follow-ups;
-  `docs/tasks/2026-10-15-01-page-bar-settings.md`), as its own task.
-- Triage the 2026-10-15 on-device findings (`docs/KNOWN_ISSUES.md` #47).
+- v1.6.9 release, as its own task: the page bar settings work (Page Number
+  section, Fill title bar, status bar opacity, v1.6.8 follow-ups;
+  `docs/tasks/2026-10-15-01-page-bar-settings.md`) and the #47 fixes
+  (`docs/tasks/2026-10-15-02-known-issues-47.md`).
 
 ## On hold
 
 - Solid RAR next-page prefetch in page order can restart the cursor (speed
-  only); left unchanged on 2026-10-15, reasons in the task archive above.
+  only); left unchanged on 2026-10-15, reasons in
+  `docs/tasks/2026-10-15-01-page-bar-settings.md`.
 
 The next five were put on hold as minor (owner, 2026-10-08); details are in
 the files named.

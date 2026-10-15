@@ -1991,11 +1991,12 @@ Two separate parts:
   large solid book. Moving that read off the main thread is a change to
   the display flow, not done here.
 
-## 47. Findings from the 2026-10-15 on-device check (not yet triaged)
+## 47. ~~Findings from the 2026-10-15 on-device check~~ — FIXED (2026-10-15)
 
 Seen on device while verifying the page bar settings task
-(`docs/tasks/2026-10-15-01-page-bar-settings.md`). Not compared with older
-builds, so whether each predates v1.6.8 is unknown.
+(`docs/tasks/2026-10-15-01-page-bar-settings.md`). All four were fixed the
+same day (`docs/tasks/2026-10-15-02-known-issues-47.md`); all predate
+v1.6.8 (the build-libs check broke with a newer Xcode `lipo`).
 
 - **Preferences ▸ OK resets the open book's reading direction** to the
   default after it was changed with Setting ▸ Read from. Cancel does not.
