@@ -302,6 +302,13 @@
 	   through -currentWindowedSize. */
 	NSSize lastWindowedSize;
 
+	/* YES from -windowWillEnterFullScreen: until -windowDidExitFullScreen:
+	   (or a failed enter): the title-bar fill is left out. In full screen
+	   the title bar, accessory included, is hosted by a separate system
+	   window whose style mask has no full-screen bit, so the label view
+	   cannot tell by itself (-updateTitleBarFullScreen). */
+	BOOL titleBarInFullScreen;
+
 	/* MW-6 item 4: explicit "this window has a book open" state. It replaces
 	   the two proxies the code used to test — [[self window] isVisible] and
 	   [imageView image] — neither of which is the question being asked:

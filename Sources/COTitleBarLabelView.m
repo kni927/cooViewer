@@ -69,6 +69,13 @@ static const CGFloat COTitleBarTrailingInset = 8;
 	[self setNeedsDisplay:YES];
 }
 
+- (void)setInFullScreen:(BOOL)flag
+{
+	if (flag == inFullScreen) return;
+	inFullScreen = flag;
+	[self setNeedsDisplay:YES];
+}
+
 - (void)setCentresName:(BOOL)flag
 {
 	if (flag == centresName) return;
@@ -147,9 +154,6 @@ static const CGFloat COTitleBarTrailingInset = 8;
 	NSString *names[] = {
 		NSWindowDidBecomeMainNotification, NSWindowDidResignMainNotification,
 		NSWindowDidBecomeKeyNotification, NSWindowDidResignKeyNotification,
-		/* The fill is left out in full screen. */
-		NSWindowWillEnterFullScreenNotification, NSWindowDidEnterFullScreenNotification,
-		NSWindowDidExitFullScreenNotification,
 	};
 	unsigned i;
 	for (i = 0; i < sizeof(names)/sizeof(names[0]); i++) {
@@ -190,7 +194,10 @@ static const CGFloat COTitleBarTrailingInset = 8;
 {
 	NSWindow *window = [self window];
 	if (fillFraction <= 0 || !window) return;
-	if ([window styleMask] & NSWindowStyleMaskFullScreen) return;
+	/* In full screen the title bar slides in with the menu bar, hosted by
+	   a separate system window; the controller's flag covers that, the
+	   style mask the windowed case. */
+	if (inFullScreen || ([window styleMask] & NSWindowStyleMaskFullScreen)) return;
 	NSRect bounds = [self bounds];
 	COTitleBarFill fill = COTitleBarFillMake(NSWidth(bounds), fillFraction, fillFromLeft);
 	if (fill.width <= 0) return;

@@ -16,9 +16,10 @@
 //  its leading end up to the reading position (from the right end for
 //  right-to-left books). It spans the title bar from after the window
 //  buttons to the right edge, so that is the span the fill measures. Not
-//  drawn in full screen, where the title bar is hidden (and only slides in
-//  with the menu bar). With the fill on and the position not in the title
-//  bar, the name is centred as the system title is.
+//  drawn in full screen, where the title bar is hidden and only slides in
+//  with the menu bar (-setInFullScreen:, set by the window controller).
+//  With the fill on and the position not in the title bar, the name is
+//  centred as the system title is.
 //
 //  Draws text and flat fills only, never an image: the render path is not
 //  involved.
@@ -32,6 +33,7 @@
 	double fillFraction;
 	BOOL fillFromLeft;
 	BOOL centresName;
+	BOOL inFullScreen;
 }
 
 /* The position to show after the title; nil shows the title alone. Also
@@ -49,5 +51,10 @@
 /* YES centres the name on the window (the position is not shown here);
    NO keeps it left-aligned, as in Title bar mode. */
 - (void)setCentresName:(BOOL)flag;
+
+/* YES while the book window is in (or entering) full screen: no fill.
+   Set by the window controller: in full screen this view is hosted by a
+   separate system window, so [self window] does not say so. */
+- (void)setInFullScreen:(BOOL)flag;
 
 @end

@@ -3999,6 +3999,7 @@ static const NSInteger kBookmarkMenuFixedItemCount = 3;
 		}
 		[titleBarLabelView setNumberFont:[AccessoryView pageNumberFontInDefaults:defaults]];
 		[titleBarLabelView setCentresName:!wantsNumber];
+		[titleBarLabelView setInFullScreen:(titleBarInFullScreen || [(CustomWindow *)window isInFullScreen])];
 		[titleBarLabelView setFillFraction:((wantsFill && number) ? [self nowPar] : 0)
 								  fromLeft:[self readFromLeft]];
 		[titleBarLabelView setNumber:(wantsNumber ? number : nil)];
@@ -4260,6 +4261,21 @@ static const NSInteger kBookmarkMenuFixedItemCount = 3;
 - (void)windowDidExitFullScreen:(NSNotification *)aNotification
 {
 	[self recomposeForCurrentSize];
+	[self setTitleBarInFullScreen:NO];
+}
+
+- (void)windowDidFailToEnterFullScreen:(NSWindow *)window
+{
+	[self setTitleBarInFullScreen:NO];
+}
+
+/* The title-bar fill is not shown in full screen (COTitleBarLabelView).
+   Set here, from this window's own transitions, because in full screen
+   the accessory lives in a separate system window. */
+- (void)setTitleBarInFullScreen:(BOOL)flag
+{
+	titleBarInFullScreen = flag;
+	[titleBarLabelView setInFullScreen:flag];
 }
 
 /* v1.6.2: keeps -lastWindowedSize current. Captured here rather than from
@@ -4272,6 +4288,7 @@ static const NSInteger kBookmarkMenuFixedItemCount = 3;
 - (void)windowWillEnterFullScreen:(NSNotification *)aNotification
 {
 	lastWindowedSize = [[self window] frame].size;
+	[self setTitleBarInFullScreen:YES];
 }
 
 - (NSSize)currentWindowedSize
