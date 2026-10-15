@@ -2175,8 +2175,11 @@ from the right, across the accessory's span (after the window buttons to
 the right edge). It is a translucent overlay on the title bar's own
 background: black at 10 % (inactive 5 %) in light mode, white at 14 %
 (inactive 7 %) in dark mode, with the title and position in their system
-colours. Display only (the view takes no clicks); not drawn in full
-screen. With the fill on and the position not in the title bar, the book
+colours. Display only (the view takes no clicks). In full screen the
+accessory is hidden and the system title shown instead (the title bar
+there is hosted by a system window whose title is empty, so the view could
+not draw the name; owner choice 2026-10-15), so Title bar mode's position
+is not shown there either. With the fill on and the position not in the title bar, the book
 name is centred as the system title is.
 
 **Why:** owner decision in the cooViewer HQ chat (2026-10-12 to

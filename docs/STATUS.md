@@ -5,7 +5,7 @@ what comes next, what is on hold, and what waits on the owner. Rewrite it
 rather than append; keep it under about 40 lines. Rules are in `AGENTS.md`,
 decisions in `docs/DECISIONS.md`, and history in `docs/tasks/` and Git.
 
-Updated: 2026-10-12
+Updated: 2026-10-15
 
 ## Summary
 
@@ -16,33 +16,17 @@ Export... (`docs/tasks/2026-10-12-02-release-v1.6.8.md`).
 
 ## Next
 
-- TF #02 (2026-10-15): the two "next binary change" blocks under On hold,
-  plus a setting for the file-name status bar's opacity. Release after it.
+- Release of the page bar settings work (Page Number section, Fill title
+  bar, status bar opacity, v1.6.8 follow-ups;
+  `docs/tasks/2026-10-15-01-page-bar-settings.md`), as its own task.
+- Triage the 2026-10-15 on-device findings (`docs/KNOWN_ISSUES.md` #47).
 
 ## On hold
 
-Held until the next binary change (owner, 2026-10-12: no binary changes right
-after a release). Small follow-ups from the page bar and export task, details
-in `docs/tasks/2026-10-12-01-page-bar-and-export.md`: an unused pages-prompt
-string in `Localizable.strings`; Finder/drop routing can replace a window that
-is exporting; exported entries get the current mtime; solid RAR prefetch in
-page order can restart the cursor (speed only); the bottom HUD offset ignores
-`Margin_PageBar`.
+- Solid RAR next-page prefetch in page order can restart the cursor (speed
+  only); left unchanged on 2026-10-15, reasons in the task archive above.
 
-Also for the next binary change (owner, 2026-10-12):
-- Page bar in the title bar: fill the title bar's background with a light grey
-  up to the reading position (right to left for RTL), behind the title and
-  position; display only, no click or drag; nothing in full screen. Image
-  layout unchanged.
-- Page bar size can no longer be changed in Preferences (reported after
-  v1.6.8; cause not yet investigated). Fix it then, not as a hotfix.
-- Decided: the bar height is the user's setting again, and the in-bar number's
-  font size follows it automatically. The page number gets its own
-  Preferences section (location: in bar / above bar / title bar / off; font
-  for above bar and title bar); Page Bar keeps position, size, colours and
-  the title-bar fill.
-
-The first five were put on hold as minor (owner, 2026-10-08); details are in
+The next five were put on hold as minor (owner, 2026-10-08); details are in
 the files named.
 
 - Thumbnail panel and page-bar bubble still decode on the main thread; can
@@ -74,3 +58,5 @@ delete it when it is done or out of date.
 - 2026-10-12: computer use cannot type into save-panel accessory fields or
   secure input; run screen-operating subagents in the foreground
   (`device-check` skill).
+- 2026-10-15: run `open -a Claude` right before a computer-use approval
+  request so the owner sees the dialog (`device-check` skill).

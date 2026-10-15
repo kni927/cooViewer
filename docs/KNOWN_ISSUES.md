@@ -1990,3 +1990,25 @@ Two separate parts:
   freezes the UI for its whole duration, including a backward jump in a
   large solid book. Moving that read off the main thread is a change to
   the display flow, not done here.
+
+## 47. Findings from the 2026-10-15 on-device check (not yet triaged)
+
+Seen on device while verifying the page bar settings task
+(`docs/tasks/2026-10-15-01-page-bar-settings.md`). Not compared with older
+builds, so whether each predates v1.6.8 is unknown.
+
+- **Preferences ▸ OK resets the open book's reading direction** to the
+  default after it was changed with Setting ▸ Read from. Cancel does not.
+- **Window ▸ Fill (macOS tiling) leaves the overlay behind:** the
+  `AccessoryWindow` keeps the old frame, so the page bar and HUDs are drawn
+  in the wrong place. Window ▸ Center and a manual resize keep it in sync.
+- **Light mode: the File Name, Resolution and Page Bar font preview fields**
+  in Preferences show white text on a near-white field, so they cannot be
+  read.
+- **Build tooling:** `vendor/build-libs.sh`'s final check
+  `lipo "$lib" -verify_arch arm64 x86_64` fails with "-verify_arch requires
+  exactly one input file" under the current Xcode `lipo`, although the
+  libraries are universal (`file` shows both architectures). An
+  incremental `xcodebuild` sometimes fails in the `cooViewer (New Window)`
+  "Configure helper Info.plist" phase (`PlistBuddy Delete
+  :CFBundleURLTypes` on a key already gone); a clean build works.
