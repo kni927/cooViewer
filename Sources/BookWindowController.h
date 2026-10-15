@@ -700,6 +700,11 @@
    `bookLoadInFlight` ivar. -hasBookOpen alone does not cover this: it
    only goes YES once a load finishes. */
 - (BOOL)isBookLoadInFlight;
+/* Whether an export of this window's book is under way (its pages sheet,
+   save panel or the export itself). Such a window keeps its book until the
+   export ends, so Finder/drop routing passes it over, as it does a window
+   with a load in flight. */
+- (BOOL)isExportActive;
 /* Exposes the window-side ThumbnailController to -[AppController
    remoteButton:pressedDown:clickCount:] (MW-3). */
 - (id)thumController;

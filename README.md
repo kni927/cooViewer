@@ -53,6 +53,7 @@ Right-clicking on the image opens a context menu with a **Save Image...** item.
 * The suggested name is `<book name>-export.cbz`, or `<book name>-export-<pages>.cbz` with chosen pages (`1-3,7` becomes `1-3_7`).
 * Each page is the original file, byte for byte: no decoding or re-encoding, and no rotation, filters or spread layout. Pages of a password-protected ZIP are written decrypted; pages from archives inside the book are included like any other.
 * The `.cbz` is uncompressed (stored), in the book's page order. Entries keep their original file names; when two names collide or the names would not sort in page order, every entry gets a sequence prefix instead (`0001_page.jpg`).
+* While a window is exporting, a book opened from the Finder or dropped on it opens in another window instead, so the export's book stays in place.
 * The export runs in the background with a progress sheet and **Cancel**. Cancelling, a failure, closing the window or quitting leaves no file behind.
 * A folder book that contains a PDF cannot export the PDF's pages; choosing one is refused with a message.
 

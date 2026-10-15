@@ -348,7 +348,10 @@ static NSString * const kLaunchRequestKindHelper = @"helper-url";
    pick a different one than the drop target; for a Finder open the front
    window is that same window, so the result is unchanged. A target waiting on
    a password or awaiting a restored book is passed over as well as one that
-   is mid-load: putting a second book into it would race the first. */
+   is mid-load: putting a second book into it would race the first. So is a
+   target with an export under way (its pages sheet, save panel or the
+   export itself): it refuses opens until the export ends, so the book goes
+   to another window rather than being refused. */
 - (void)openFiles:(NSArray *)filenames preferringWindow:(id)target entry:(NSString *)entry
 {
 	BOOL targetUsed = NO;
@@ -376,6 +379,11 @@ static NSString * const kLaunchRequestKindHelper = @"helper-url";
 			gateReason = @"gate:target.waitingForUser=YES";
 		} else if ([target isAwaitingRestoredBook]) {
 			gateReason = @"gate:target.awaitingRestore=YES";
+		} else if ([target isExportActive]) {
+			/* An export reads this window's book until it ends; the window
+			   would refuse the open (-refuseOpenWhileBusy), so the book
+			   goes to another window instead of being dropped. */
+			gateReason = @"gate:target.exporting=YES";
 		}
 		if (gateReason) {
 			[self openBookInNewWindow:filename entry:entry reason:gateReason];
@@ -1172,10 +1180,11 @@ static NSString * const kLaunchRequestKindHelper = @"helper-url";
 }
 
 /* One token per registered window: its slot, then B (book open), L (load in
-   flight), R (awaiting a restored book), P (password sheet), then vis / hid /
-   min, fs (full screen), main, key. Followed by which window -frontController
-   resolves to and how, and which window AppKit itself calls main — the two
-   disagreeing is hypothesis H2 of the task this was added for. */
+   flight), R (awaiting a restored book), P (password sheet), E (export under
+   way), then vis / hid / min, fs (full screen), main, key. Followed by
+   which window -frontController resolves to and how, and which window
+   AppKit itself calls main — the two disagreeing is hypothesis H2 of the
+   task this was added for. */
 - (NSString *)routingStateSummary
 {
 	NSMutableString *summary = [NSMutableString string];
@@ -1189,6 +1198,7 @@ static NSString * const kLaunchRequestKindHelper = @"helper-url";
 		if ([aController isBookLoadInFlight]) [flags addObject:@"L"];
 		if ([aController isAwaitingRestoredBook]) [flags addObject:@"R"];
 		if ([aController isWaitingForUserInput]) [flags addObject:@"P"];
+		if ([aController isExportActive]) [flags addObject:@"E"];
 		if ([window isMiniaturized]) {
 			[flags addObject:@"min"];
 		} else if ([window isVisible]) {

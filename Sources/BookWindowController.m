@@ -2554,6 +2554,11 @@ static void COPerformOpenStep(void (^block)(void))
 	return bookLoadInFlight;
 }
 
+- (BOOL)isExportActive
+{
+	return [exportSession isActive];
+}
+
 - (id)thumController
 {
 	return thumController;
