@@ -1375,7 +1375,7 @@ go to the last page always.</string>
                                             </view>
                                         </box>
                                         <button fixedFrame="YES" translatesAutoresizingMaskIntoConstraints="NO" id="2105">
-                                            <rect key="frame" x="18" y="-24" width="409" height="18"/>
+                                            <rect key="frame" x="18" y="-88" width="409" height="18"/>
                                             <autoresizingMask key="autoresizingMask" flexibleMaxX="YES" flexibleMinY="YES"/>
                                             <buttonCell key="cell" type="check" title="Show thumbnail view on open" bezelStyle="regularSquare" imagePosition="left" alignment="left" inset="2" id="4317">
                                                 <behavior key="behavior" changeContents="YES" doesNotDimImage="YES" lightByContents="YES"/>
