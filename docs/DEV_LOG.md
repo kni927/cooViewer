@@ -1254,3 +1254,14 @@ status bar, spreads in both directions, CBZ, non-solid and solid RAR5 paging,
 Export (entries Stored, byte-identical to the originals; disabled for PDF),
 Quick Look and thumbnails (extensions attributed to `/Applications`). See
 `docs/tasks/2026-10-12-02-release-v1.6.8.md`.
+
+### v1.6.9 released (2026-10-15)
+
+Released from `0ebc8f3`: CI run `38692250296` signed, notarized, stapled
+and published the page bar size fix, the Page Number section, Fill title
+bar, the status bar opacity setting, the system title in full screen and
+the #47 fixes (Preferences OK keeps a book's direction and sort order,
+overlays follow Window ▸ Fill, readable font previews in Light mode);
+Homebrew tap commit `3033e8f`. Work: `docs/tasks/2026-10-15-01-page-bar-settings.md`,
+`docs/tasks/2026-10-15-02-known-issues-47.md`; release:
+`docs/tasks/2026-10-15-03-release-v1.6.9.md`.

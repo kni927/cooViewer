@@ -10,16 +10,13 @@ Updated: 2026-10-15
 ## Summary
 
 cooViewer: macOS image and comic viewer, a maintained fork of coo-ona's original.
-Latest release v1.6.8 (2026-10-12), notarized and in the Homebrew tap: page
-position on the page bar / title bar, file-name HUD or status bar, File >
-Export... (`docs/tasks/2026-10-12-02-release-v1.6.8.md`).
+Latest release v1.6.9 (2026-10-15), notarized and in the Homebrew tap: page
+bar size and Page Number settings, Fill title bar, status bar opacity, and
+the #47 fixes (`docs/tasks/2026-10-15-03-release-v1.6.9.md`).
 
 ## Next
 
-- v1.6.9 release, as its own task: the page bar settings work (Page Number
-  section, Fill title bar, status bar opacity, v1.6.8 follow-ups;
-  `docs/tasks/2026-10-15-01-page-bar-settings.md`) and the #47 fixes
-  (`docs/tasks/2026-10-15-02-known-issues-47.md`).
+- None set; ask the owner.
 
 ## On hold
 
