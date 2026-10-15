@@ -52,6 +52,10 @@
 	/* Where the file names (ShowNumber) are shown: the corner HUD or the
 	   status bar along the bottom (COFileNameLocation). */
 	[appDefault setObject:[NSNumber numberWithInt:COFileNameLocationHUD] forKey:COFileNameLocationKey];
+	/* The status bar background's opacity in percent (Preferences ▸ File
+	   Name ▸ Bar opacity); 80 is the default colours' alpha, the bar's
+	   look before the setting. */
+	[appDefault setObject:[NSNumber numberWithInt:COStatusBarDefaultOpacity] forKey:COStatusBarOpacityKey];
 	/* Where the page bar shows the page position (COPageBarNumberMode;
 	   Preferences ▸ Page Number ▸ Show in). */
 	[appDefault setObject:[NSNumber numberWithInt:COPageBarNumberInBar] forKey:@"PageBarNumber"];

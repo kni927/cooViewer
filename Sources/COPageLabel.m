@@ -12,6 +12,15 @@ const int COPageBarLegacyDefaultHeight = 15;
 NSString * const COPageBarHeightMigratedKey = @"PageBarHeightMigrated";
 NSString * const COFileNameLocationKey = @"FileNameLocation";
 NSString * const COPageBarTitleBarFillKey = @"PageBarTitleBarFill";
+NSString * const COStatusBarOpacityKey = @"StatusBarOpacity";
+const int COStatusBarDefaultOpacity = 80;
+
+double COStatusBarAlpha(NSInteger storedPercent)
+{
+	if (storedPercent < 0) storedPercent = 0;
+	if (storedPercent > 100) storedPercent = 100;
+	return storedPercent / 100.0;
+}
 
 int COPageBarNumberModeFromStored(NSInteger stored)
 {

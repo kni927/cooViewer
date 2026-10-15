@@ -1087,6 +1087,38 @@ go to the last page always.</string>
                                                             </menu>
                                                         </popUpButtonCell>
                                                     </popUpButton>
+                                                    <textField verticalHuggingPriority="750" horizontalCompressionResistancePriority="250" fixedFrame="YES" translatesAutoresizingMaskIntoConstraints="NO" id="SBO-Lb-001">
+                                                        <rect key="frame" x="112" y="64" width="134" height="17"/>
+                                                        <autoresizingMask key="autoresizingMask" flexibleMaxX="YES" flexibleMinY="YES"/>
+                                                        <textFieldCell key="cell" sendsActionOnEndEditing="YES" alignment="right" title="Bar opacity:" id="SBO-LbC-001">
+                                                            <font key="font" metaFont="system"/>
+                                                            <color key="textColor" name="controlTextColor" catalog="System" colorSpace="catalog"/>
+                                                            <color key="backgroundColor" name="controlColor" catalog="System" colorSpace="catalog"/>
+                                                        </textFieldCell>
+                                                    </textField>
+                                                    <popUpButton verticalHuggingPriority="750" fixedFrame="YES" translatesAutoresizingMaskIntoConstraints="NO" id="SBO-Pu-001">
+                                                        <rect key="frame" x="248" y="60" width="80" height="22"/>
+                                                        <autoresizingMask key="autoresizingMask"/>
+                                                        <popUpButtonCell key="cell" type="push" title="80%" bezelStyle="rounded" alignment="left" controlSize="small" lineBreakMode="truncatingTail" state="on" borderStyle="borderAndBezel" inset="2" arrowPosition="arrowAtCenter" preferredEdge="maxY" selectedItem="SBO-It-080" id="SBO-PuC-001">
+                                                            <behavior key="behavior" lightByBackground="YES" lightByGray="YES"/>
+                                                            <font key="font" metaFont="smallSystem"/>
+                                                            <menu key="menu" title="OtherViews" id="SBO-Mn-001">
+                                                                <items>
+                                                                    <menuItem title="100%" tag="100" id="SBO-It-100"/>
+                                                                    <menuItem title="90%" tag="90" id="SBO-It-090"/>
+                                                                    <menuItem title="80%" state="on" tag="80" id="SBO-It-080"/>
+                                                                    <menuItem title="70%" tag="70" id="SBO-It-070"/>
+                                                                    <menuItem title="60%" tag="60" id="SBO-It-060"/>
+                                                                    <menuItem title="50%" tag="50" id="SBO-It-050"/>
+                                                                    <menuItem title="40%" tag="40" id="SBO-It-040"/>
+                                                                    <menuItem title="30%" tag="30" id="SBO-It-030"/>
+                                                                    <menuItem title="20%" tag="20" id="SBO-It-020"/>
+                                                                    <menuItem title="10%" tag="10" id="SBO-It-010"/>
+                                                                    <menuItem title="0%" tag="0" id="SBO-It-000"/>
+                                                                </items>
+                                                            </menu>
+                                                        </popUpButtonCell>
+                                                    </popUpButton>
                                                     <button fixedFrame="YES" translatesAutoresizingMaskIntoConstraints="NO" id="2839">
                                                         <rect key="frame" x="10" y="90" width="56" height="18"/>
                                                         <autoresizingMask key="autoresizingMask"/>
@@ -2582,6 +2614,7 @@ Gw
                 <outlet property="pageNumberFontTextField" destination="PNS-FF-001" id="PNS-Ou-001"/>
                 <outlet property="pageNumberFontButton" destination="PNS-FS-001" id="PNS-Ou-002"/>
                 <outlet property="fileNameLocationPopUpButton" destination="FNL-Pu-001" id="FNL-Ou-001"/>
+                <outlet property="statusBarOpacityPopUpButton" destination="SBO-Pu-001" id="SBO-Ou-001"/>
                 <outlet property="showPageNumCheck" destination="2839" id="2840"/>
                 <outlet property="showResolutionCheck" destination="RSb-Sh-001" id="RSb-Ou-001"/>
                 <outlet property="resolutionInPageNumberCheck" destination="RSb-IP-001" id="RSb-Ou-002"/>

@@ -177,6 +177,7 @@ NSRect COIntRect(NSRect aRect)
 	pageBarShowThumbnail = (int)[defaults integerForKey:@"PageBarShowThumbnail"];
 	pageBarPosition = (int)[defaults integerForKey:@"PageBarPosition"];
 	pageBarNumberMode = COPageBarNumberModeFromStored([defaults integerForKey:@"PageBarNumber"]);
+	statusBarAlpha = COStatusBarAlpha([defaults integerForKey:COStatusBarOpacityKey]);
 	[pageNumberFont release];
 	pageNumberFont = [[AccessoryView pageNumberFontInDefaults:defaults] retain];
 	
@@ -1464,6 +1465,14 @@ NSRect COIntRect(NSRect aRect)
 	}
 }
 
+-(void)setStatusBarOpacity:(NSInteger)percent
+{
+	double alpha = COStatusBarAlpha(percent);
+	if (alpha == statusBarAlpha) return;
+	statusBarAlpha = alpha;
+	if (statusBarEnabled && !autoHidedPageBar) [self setNeedsDisplayInRect:[self statusBarRect]];
+}
+
 -(void)imageViewDidScroll:(NSNotification*)notification
 {
 	if (statusBarEnabled && !autoHidedPageBar) [self setNeedsDisplayInRect:[self statusBarRect]];
@@ -1498,7 +1507,8 @@ NSRect COIntRect(NSRect aRect)
 	NSColor *background = textBGColor;
 	if (!background || [background isEqualTo:[NSColor clearColor]]) background = pageBarBGColor;
 	if (background && ![background isEqualTo:[NSColor clearColor]]) {
-		[background set];
+		/* The colour's RGB at the bar's own opacity (StatusBarOpacity). */
+		[[background colorWithAlphaComponent:statusBarAlpha] set];
 		NSRectFillUsingOperation(rect, NSCompositingOperationSourceOver);
 	}
 	NSDictionary *attributes = [self statusBarTextAttributes];

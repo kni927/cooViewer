@@ -115,6 +115,9 @@ enum {
     /* Preferences ▸ File Name ▸ Show in: FileNameLocation, item tags are
        the COFileNameLocation values. */
     IBOutlet id fileNameLocationPopUpButton;
+    /* Preferences ▸ File Name ▸ Bar opacity: StatusBarOpacity, item tags
+       are percentages. */
+    IBOutlet id statusBarOpacityPopUpButton;
     /* Preferences ▸ Resolution. The font field, its Select button and the
        Set position button apply only to the separate bar. */
     IBOutlet id showResolutionCheck;

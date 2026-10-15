@@ -1007,6 +1007,16 @@ static const CGFloat kAppearanceExtraHeight = 146;
 	if (![fileNameLocationPopUpButton selectItemWithTag:[defaults integerForKey:COFileNameLocationKey]]) {
 		[fileNameLocationPopUpButton selectItemWithTag:COFileNameLocationHUD];
 	}
+	/* A stored value that is not in the menu (set outside Preferences)
+	   shows as the nearest 10 %. */
+	{
+		NSInteger opacity = [defaults integerForKey:COStatusBarOpacityKey];
+		if (opacity < 0) opacity = 0;
+		if (opacity > 100) opacity = 100;
+		if (![statusBarOpacityPopUpButton selectItemWithTag:opacity]) {
+			[statusBarOpacityPopUpButton selectItemWithTag:((opacity + 5) / 10) * 10];
+		}
+	}
 	/* ResolutionDisplay stays the stored state; the two checkboxes are a
 	   view of it. Off does not say where the resolution would go, so that
 	   choice is kept in ResolutionInPageNumber (YES when unset, matching the
@@ -1523,6 +1533,7 @@ static const CGFloat kAppearanceExtraHeight = 146;
 		[defaults setInteger:[pageBarNumberPopUpButton selectedTag] forKey:@"PageBarNumber"];
 		[defaults setObject:[NSArchiver archivedDataWithRootObject:[pageNumberFontTextField font]] forKey:COPageNumberFontKey];
 		[defaults setInteger:[fileNameLocationPopUpButton selectedTag] forKey:COFileNameLocationKey];
+		[defaults setInteger:[statusBarOpacityPopUpButton selectedTag] forKey:COStatusBarOpacityKey];
 		
 		
 		
@@ -2987,6 +2998,7 @@ static const CGFloat kAppearanceExtraHeight = 146;
 	}
 	/* With the file names in the status bar the preview shows the bar and
 	   no corner HUD, as the window does. */
+	[accessorySettingView setStatusBarOpacity:[statusBarOpacityPopUpButton selectedTag]];
 	if ([fileNameLocationPopUpButton selectedTag] == COFileNameLocationStatusBar) {
 		[accessorySettingView setFileNameStatusBar:YES entries:sampleEntries];
 		[accessorySettingView setPageString:nil];

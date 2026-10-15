@@ -33,6 +33,18 @@ typedef enum {
 
 extern NSString * const COFileNameLocationKey;
 
+/* StatusBarOpacity (Preferences ▸ File Name ▸ Bar opacity), an integer
+   percentage: the opacity of the file-name status bar's background over
+   the image, in place of its colour's own alpha. The default,
+   COStatusBarDefaultOpacity (80), is the alpha of the default background
+   colours, so the bar looks as it did before the setting existed. */
+extern NSString * const COStatusBarOpacityKey;
+extern const int COStatusBarDefaultOpacity;
+
+/* The status bar background's alpha (0-1) for a stored StatusBarOpacity,
+   clamped to 0-100 %. */
+double COStatusBarAlpha(NSInteger storedPercent);
+
 /* PageBarTitleBarFill (Preferences ▸ Page Bar ▸ Fill title bar), a BOOL,
    default NO: the title bar's background is filled up to the reading
    position (COTitleBarLabelView), on its own or alongside the page bar

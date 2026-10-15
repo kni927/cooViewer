@@ -291,6 +291,19 @@ static void testTitleBarFill(void)
     check(near(l.nameX, 4) && near(l.nameWidth, 296), @"long name: narrowed to the view");
 }
 
+static void testStatusBarOpacity(void)
+{
+    printf("status bar opacity\n");
+    check(COStatusBarDefaultOpacity == 80, @"default 80 %, the default colours' alpha");
+    check(near(COStatusBarAlpha(COStatusBarDefaultOpacity), 0.8), @"default: alpha 0.8, the look before the setting");
+    check(near(COStatusBarAlpha(100), 1), @"100 %: opaque");
+    check(near(COStatusBarAlpha(0), 0), @"0 %: no background");
+    check(near(COStatusBarAlpha(35), 0.35), @"35 %");
+    check(near(COStatusBarAlpha(-10), 0), @"below 0: clamped");
+    check(near(COStatusBarAlpha(250), 1), @"above 100: clamped");
+    checkString(COStatusBarOpacityKey, @"StatusBarOpacity", @"key name");
+}
+
 int main(int argc, char **argv)
 {
     @autoreleasepool {
@@ -304,6 +317,7 @@ int main(int argc, char **argv)
         testStatusBarLayout();
         testBottomOffsets();
         testInBarFontSize();
+        testStatusBarOpacity();
         if (failures == 0) {
             printf("\nALL PASS (%d checks)\n", checks);
             return 0;

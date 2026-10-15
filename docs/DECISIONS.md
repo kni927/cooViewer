@@ -2184,3 +2184,22 @@ name is centred as the system title is.
 nothing in full screen. A separate switch keeps the normal bar's settings
 and Show unchanged and needs no new mode value. Window chrome only: the
 image's layout and the render path are not involved.
+
+## The status bar's opacity is its own setting (2026-10-15)
+
+**Decision:** **Preferences ▸ Appearance ▸ File Name ▸ Bar opacity**
+(`StatusBarOpacity`, integer percent, 0-100 in steps of 10 in the menu,
+default 80) sets the alpha of the file-name status bar's background. It
+replaces the background colour's own alpha for the status bar only; the
+colour's RGB still comes from the File Name background (or the page bar's
+when the File Name has none), and the corner HUD keeps using the colour as
+set. The default 80 is the alpha of both default background colours, so a
+profile with default colours looks as before.
+
+**Why:** owner decision in the cooViewer HQ chat (2026-10-12 to
+2026-10-15): how see-through the status bar is becomes a setting next to
+File Name ▸ Show in, with the current look as the default. An absolute
+value gives the whole range (solid included) independent of the HUD's
+colour. A profile whose File Name background colour has a non-default
+alpha gets 80 % for the status bar until the setting is changed. Overlay
+drawing only: the image's layout and the render path are not involved.

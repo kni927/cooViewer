@@ -96,6 +96,8 @@ extern NSString * const COPageNumberFontKey;
 	   not its switch (-setFileNameStatusBar:entries:). */
 	BOOL statusBarEnabled;
 	NSArray *statusBarEntries;
+	/* StatusBarOpacity as an alpha (0-1): the status bar background's. */
+	double statusBarAlpha;
 }
 NSRect COIntRect(NSRect aRect);
 -(void)setPreferences;
@@ -153,6 +155,9 @@ NSRect COIntRect(NSRect aRect);
    page (-[CustomImageView shownPageRectsInView:]) and truncated to stay
    within it, so the two never overlap. */
 -(void)drawStatusBar;
+/* The status bar background's opacity in percent (StatusBarOpacity), for
+   the Preferences preview; -setPreferences reads it from the defaults. */
+-(void)setStatusBarOpacity:(NSInteger)percent;
 
 /* Page-number text attributes (color, background-dependent shadow) with
    the given font: the page number's with TextFont, the resolution bar's
