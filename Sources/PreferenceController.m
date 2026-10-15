@@ -1110,7 +1110,6 @@ static const CGFloat kAppearanceExtraHeight = 146;
 		pageBarBG = [[NSColor blackColor] colorWithAlphaComponent:0.8];
 	}
 	[pageBarBGColor setCurrentColor:pageBarBG];
-	[pageBarFontTextField setBackgroundColor:pageBarBG];
 	NSColor *pageBarBorder;
 	if ([defaults objectForKey:@"PageBarBorderColor"]) {
 		pageBarBorder = [NSUnarchiver unarchiveObjectWithData:[defaults objectForKey:@"PageBarBorderColor"]];
@@ -1193,7 +1192,6 @@ static const CGFloat kAppearanceExtraHeight = 146;
 		textBGColor = [[NSColor blackColor] colorWithAlphaComponent:0.8];
 	}
 	[pageBGColor setCurrentColor:textBGColor];
-	[fontTextField setBackgroundColor:textBGColor];
 	NSColor *textBorderColor;
 	if ([defaults objectForKey:@"TextBorderColor"]) {
 		textBorderColor = [NSUnarchiver unarchiveObjectWithData:[defaults objectForKey:@"TextBorderColor"]];
@@ -1209,8 +1207,11 @@ static const CGFloat kAppearanceExtraHeight = 146;
 		[resolutionFontTextField setFont:[fontTextField font]];
 	}
 	[resolutionFontTextField setTextColor:textColor];
-	[resolutionFontTextField setBackgroundColor:textBGColor];
 	[self resolutionDisplayChanged:nil];
+	/* The previews follow the View background colour too (set above). */
+	[viewBackGroundColor setTarget:self];
+	[viewBackGroundColor setAction:@selector(viewBackGroundColorChanged:)];
+	[self updateFontPreviewBackgrounds];
 	
 	
 	[interpolationPopUpButton selectItemAtIndex:[defaults integerForKey:@"Interpolation"]];
@@ -2025,8 +2026,46 @@ static const CGFloat kAppearanceExtraHeight = 146;
 }
 - (IBAction)changeFontBGColor:(id)sender
 {
-	[fontTextField setBackgroundColor:[sender currentColor]];
-	[resolutionFontTextField setBackgroundColor:[sender currentColor]];
+	[self updateFontPreviewBackgrounds];
+}
+
+/* KNOWN_ISSUES #47: the File Name, Resolution and Page Bar font previews
+   show the HUD's text colour on the HUD's background as it appears over the
+   viewer, i.e. the (usually translucent) HUD background composited over the
+   View background colour. The fields used to be bezeled and translucent, and
+   in light mode the bezel's light fill showed through, so the default white
+   text sat on a near-white field. Plain bordered fields with an opaque fill
+   look the same in light and dark mode. */
+- (NSColor *)previewBackgroundForHUDColor:(NSColor *)hud
+{
+	NSColorSpace *space = [NSColorSpace sRGBColorSpace];
+	NSColor *top = [hud colorUsingColorSpace:space];
+	NSColor *base = [[viewBackGroundColor currentColor] colorUsingColorSpace:space];
+	if (!top) return hud;
+	if (!base) base = [[NSColor blackColor] colorUsingColorSpace:space];
+	base = [base colorWithAlphaComponent:1];
+	return [base blendedColorWithFraction:[top alphaComponent]
+								  ofColor:[top colorWithAlphaComponent:1]];
+}
+
+- (void)setFontPreview:(NSTextField *)field hudBackground:(NSColor *)hud
+{
+	[field setBezeled:NO];
+	[field setBordered:YES];
+	[field setDrawsBackground:YES];
+	[field setBackgroundColor:[self previewBackgroundForHUDColor:hud]];
+}
+
+- (void)updateFontPreviewBackgrounds
+{
+	[self setFontPreview:fontTextField hudBackground:[pageBGColor currentColor]];
+	[self setFontPreview:resolutionFontTextField hudBackground:[pageBGColor currentColor]];
+	[self setFontPreview:pageBarFontTextField hudBackground:[pageBarBGColor currentColor]];
+}
+
+- (IBAction)viewBackGroundColorChanged:(id)sender
+{
+	[self updateFontPreviewBackgrounds];
 }
 
 - (IBAction)showResolutionFontPanel:(id)sender
@@ -2116,7 +2155,7 @@ static const CGFloat kAppearanceExtraHeight = 146;
 }
 - (IBAction)changePageBarBGColor:(id)sender
 {
-	[pageBarFontTextField setBackgroundColor:[sender currentColor]];
+	[self updateFontPreviewBackgrounds];
 }
 
 - (NSFontPanelModeMask) validModesForFontPanel : (NSFontPanel *) fontPanel
