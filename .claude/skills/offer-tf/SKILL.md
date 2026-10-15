@@ -32,7 +32,14 @@ procedure.
    does not run, and `/tf` cannot be invoked by the model.
 5. **Tell the owner** the card's title and which button to press: Start
    locally, or Start with worktree when step 3 found a working TF. No pull is
-   needed first; the TF brings itself up to date when a TASK arrives. When
-   the TF announces itself, send the TASK to the `from-session` of that
-   message.
-6. If the card becomes unnecessary, withdraw it with `dismiss_task`.
+   needed first; the TF brings itself up to date when a TASK arrives. The
+   card shows in the app on every Mac; the owner presses it on the Mac that
+   should do the work (the MacBook has more memory, the Mac mini is always
+   on). When the TF announces itself, send the TASK to the `from-session` of
+   that message, and tell the owner in one line to close the card on the
+   other Mac without starting it: once started, the card stays there and
+   `dismiss_task` reports no pending task.
+6. If a second TF announces itself for the same card, send it no TASK; tell
+   the owner it is a duplicate to close (the TF has not changed anything).
+7. If the card becomes unnecessary before it is started, withdraw it with
+   `dismiss_task`.
