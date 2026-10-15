@@ -99,6 +99,11 @@
 	
 	
 	int sortMode;
+	/* The SortMode / ReadMode defaults this window last took. -setPreferences
+	   applies a default to the open book only when the default itself has
+	   changed since, so OK in Preferences keeps a direction or sort order
+	   chosen for this book (Setting menu, a key or a click). */
+	int takenDefaultSortMode;
 	BOOL threadStop;
 	int cacheSize;
 	NSMutableArray *cacheArray;
@@ -135,6 +140,7 @@
 	NSMutableArray *mouseArrayMode3;
 	
 	int readMode;
+	int takenDefaultReadMode;
 	
 	
 	

@@ -474,6 +474,8 @@ static NSPoint gNextWindowCascadePoint;
 	
 	readMode = (int)[defaults integerForKey:@"ReadMode"];
 	[defaults setInteger:readMode forKey:@"ReadMode"];
+	takenDefaultReadMode = readMode;
+	takenDefaultSortMode = (int)[defaults integerForKey:@"SortMode"];
 	
 
 	
@@ -1727,6 +1729,7 @@ static NSString * const kBookViewModeKey = @"cooViewerBookViewMode";
 	bookLane = [[COBookReadLane alloc] initWithLoader:imageLoader];
 	
 	sortMode = 0;
+	takenDefaultSortMode = (int)[defaults integerForKey:@"SortMode"];
 	if ([currentBookSetting objectForKey:@"sortMode"]) {
 		sortMode = [[currentBookSetting objectForKey:@"sortMode"] intValue];
 	} else {
@@ -1755,6 +1758,7 @@ static NSString * const kBookViewModeKey = @"cooViewerBookViewMode";
 	[imageMutableArray removeAllObjects];
 	nowPage = last ? [self lastSpreadStartPage] : page;
 	readMode = (int)[defaults integerForKey:@"ReadMode"];
+	takenDefaultReadMode = readMode;
 	[marksArray removeAllObjects];
 	
 	if (currentBookSetting) {
@@ -3192,7 +3196,20 @@ static void COPerformOpenStep(void (^block)(void))
         [[imageView enclosingScrollView] setBackgroundColor:viewBackGround];
     }
 	
-	if (readMode != [defaults integerForKey:@"ReadMode"]) {
+	/* KNOWN_ISSUES #47: a default is applied only when it has changed since
+	   this window took it, and only to a book that still follows it. OK used
+	   to apply the unchanged default whenever the book's mode differed from
+	   it, which reset a direction or sort order chosen with the Setting menu
+	   (not recorded in currentBookSetting while RememberBookSettings is off). */
+	int newDefaultReadMode = (int)[defaults integerForKey:@"ReadMode"];
+	int newDefaultSortMode = (int)[defaults integerForKey:@"SortMode"];
+	BOOL readModeFollowsDefault = (readMode == takenDefaultReadMode);
+	BOOL sortModeFollowsDefault = (sortMode == takenDefaultSortMode);
+	BOOL readModeDefaultChanged = (newDefaultReadMode != takenDefaultReadMode);
+	BOOL sortModeDefaultChanged = (newDefaultSortMode != takenDefaultSortMode);
+	takenDefaultReadMode = newDefaultReadMode;
+	takenDefaultSortMode = newDefaultSortMode;
+	if (readModeDefaultChanged && readModeFollowsDefault && readMode != newDefaultReadMode) {
 		if ([imageView image]) {
 			BOOL readModeTemp = NO;
 			if (currentBookSetting) {
@@ -3201,11 +3218,11 @@ static void COPerformOpenStep(void (^block)(void))
 				}
 			}
 			if (!readModeTemp) {
-				[self changeReadMode:(int)[defaults integerForKey:@"ReadMode"]];
+				[self changeReadMode:newDefaultReadMode];
 			}
 		}
 	}
-	if (sortMode != [defaults integerForKey:@"SortMode"]) {
+	if (sortModeDefaultChanged && sortModeFollowsDefault && sortMode != newDefaultSortMode) {
 		if ([imageView image]) {
 			BOOL sortModeTemp = NO;
 			if (currentBookSetting) {
@@ -3214,7 +3231,7 @@ static void COPerformOpenStep(void (^block)(void))
 				}
 			}
 			if (!sortModeTemp) {
-				[self setSortMode:(int)[defaults integerForKey:@"SortMode"] page:-1];
+				[self setSortMode:newDefaultSortMode page:-1];
 				[self goTo:0 array:nil];
 			}
 		}
@@ -4088,8 +4105,10 @@ static const NSInteger kBookmarkMenuFixedItemCount = 3;
 	[currentBookSetting removeObjectForKey:@"sortMode"];
 	[currentBookSetting removeObjectForKey:@"marks"];
 	
-	[self changeReadMode:(int)[defaults integerForKey:@"ReadMode"]];
-	[self setSortMode:(int)[defaults integerForKey:@"SortMode"] page:-1];
+	takenDefaultReadMode = (int)[defaults integerForKey:@"ReadMode"];
+	takenDefaultSortMode = (int)[defaults integerForKey:@"SortMode"];
+	[self changeReadMode:takenDefaultReadMode];
+	[self setSortMode:takenDefaultSortMode page:-1];
 }
 
 
