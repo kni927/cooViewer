@@ -1156,7 +1156,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "set -e\nPLIST=\"$TARGET_BUILD_DIR/$INFOPLIST_PATH\"\n/usr/libexec/PlistBuddy -c 'Delete :CFBundleURLTypes' \"$PLIST\"\n/usr/libexec/PlistBuddy -c 'Delete :NSMainNibFile' \"$PLIST\"\n/usr/libexec/PlistBuddy -c 'Set :NSPrincipalClass NSApplication' \"$PLIST\"\n/usr/libexec/PlistBuddy -c 'Add :CFBundleDisplayName string cooViewer\\ \(New\\ Window\)' \"$PLIST\"\n/usr/libexec/PlistBuddy -c 'Add :LSUIElement bool true' \"$PLIST\"\n";
+			shellScript = "set -e\nPLIST=\"$TARGET_BUILD_DIR/$INFOPLIST_PATH\"\n# An incremental build can run this on an Info.plist it already edited:\n# each Delete tolerates a missing key, and each Add replaces the key.\n/usr/libexec/PlistBuddy -c 'Delete :CFBundleURLTypes' \"$PLIST\" || true\n/usr/libexec/PlistBuddy -c 'Delete :NSMainNibFile' \"$PLIST\" || true\n/usr/libexec/PlistBuddy -c 'Set :NSPrincipalClass NSApplication' \"$PLIST\"\n/usr/libexec/PlistBuddy -c 'Delete :CFBundleDisplayName' \"$PLIST\" || true\n/usr/libexec/PlistBuddy -c 'Add :CFBundleDisplayName string cooViewer\\ \(New\\ Window\)' \"$PLIST\"\n/usr/libexec/PlistBuddy -c 'Delete :LSUIElement' \"$PLIST\" || true\n/usr/libexec/PlistBuddy -c 'Add :LSUIElement bool true' \"$PLIST\"\n";
 		};
 /* End PBXShellScriptBuildPhase section */
 
