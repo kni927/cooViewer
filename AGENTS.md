@@ -1,4 +1,4 @@
-<!-- Template synced: repo-template@ab9d3a5 on 2026-10-15. -->
+<!-- Template synced: repo-template@ad54fe1 on 2026-10-15. -->
 # Project Instructions
 
 ## Project Origin
@@ -73,7 +73,8 @@
 ## Scope Control
 
 - Small changes required to build, test, or safely integrate the requested work are allowed.
-- Record substantial newly discovered work as a follow-up suggestion rather than expanding the current task.
+- Bugs found while working are in scope: fix them without asking and list them under Changes in the result. Stop and report instead when the fix turns out to be large (a wide refactor, a design decision, or real risk).
+- Record substantial newly discovered work other than bugs (new features, redesigns) as a follow-up suggestion rather than expanding the current task.
 - Do not ignore uncommitted changes outside the scope of the task, and do not
   silently fold them into the task's commit. Report them and ask whether
   they should be committed separately.

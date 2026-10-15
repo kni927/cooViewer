@@ -100,6 +100,8 @@ The section layout is defined in `docs/task-template.md`. Guidance:
 
 - **Changes:** summarize the implemented changes, note important files or
   components, and record any intentional deviation from the requested scope.
+  List bugs found and fixed along the way separately (`AGENTS.md`, Scope
+  Control).
 - **Verification:** list Build, Automated verification, Manual verification,
   and Not performed separately.
 - **Remaining Issues:** unresolved problems directly related to the task, or `None`.
