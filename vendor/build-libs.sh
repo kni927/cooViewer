@@ -103,9 +103,13 @@ cp "$SRC_DIR/libzip/lib/zip.h" "$SRC_DIR/libzip-build/zipconf.h" "$INC_DIR/"
 #
 # sanity checks: universal + expected install names
 #
+# One architecture per -verify_arch: the lipo in current Xcode rejects
+# several ("-verify_arch requires exactly one input file").
 for lib in "$LIB_DIR/$LIBARCHIVE_DYLIB" "$LIB_DIR/$UCHARDET_DYLIB" "$LIB_DIR/$LIBZIP_DYLIB"; do
-    lipo "$lib" -verify_arch arm64 x86_64 ||
-        { echo "ERROR: $lib is not universal" >&2; exit 1; }
+    for arch in arm64 x86_64; do
+        lipo "$lib" -verify_arch "$arch" ||
+            { echo "ERROR: $lib is not universal (no $arch)" >&2; exit 1; }
+    done
 done
 for name in "$LIBARCHIVE_DYLIB" "$UCHARDET_DYLIB" "$LIBZIP_DYLIB"; do
     actual=$(otool -D "$LIB_DIR/$name" | tail -1)
