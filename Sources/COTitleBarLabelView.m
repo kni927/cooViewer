@@ -5,6 +5,7 @@
 
 #import "COTitleBarLabelView.h"
 #import "COPageLabel.h"
+#import "AccessoryView.h"	/* +fontWithMonospacedDigits: */
 
 /* Space before the name (after the window buttons), between the name and
    the position, and kept free at the window's right edge. */
@@ -19,6 +20,7 @@ static const CGFloat COTitleBarTrailingInset = 8;
 	[NSObject cancelPreviousPerformRequestsWithTarget:self];
 	[[NSNotificationCenter defaultCenter] removeObserver:self];
 	[number release];
+	[numberFont release];
 	[super dealloc];
 }
 
@@ -46,6 +48,15 @@ static const CGFloat COTitleBarTrailingInset = 8;
 - (BOOL)isOpaque
 {
 	return NO;
+}
+
+- (void)setNumberFont:(NSFont *)font
+{
+	NSFont *newFont = [AccessoryView fontWithMonospacedDigits:font];
+	if (newFont == numberFont || (newFont && [newFont isEqual:numberFont])) return;
+	[numberFont release];
+	numberFont = [newFont retain];
+	[self setNeedsDisplay:YES];
 }
 
 #pragma mark width
@@ -146,7 +157,7 @@ static const CGFloat COTitleBarTrailingInset = 8;
 		style, NSParagraphStyleAttributeName,
 		nil];
 	NSDictionary *numberAttributes = [NSDictionary dictionaryWithObjectsAndKeys:
-		[NSFont monospacedDigitSystemFontOfSize:[font pointSize] weight:NSFontWeightRegular], NSFontAttributeName,
+		numberFont ? numberFont : [NSFont monospacedDigitSystemFontOfSize:[font pointSize] weight:NSFontWeightRegular], NSFontAttributeName,
 		active ? [NSColor secondaryLabelColor] : [NSColor tertiaryLabelColor], NSForegroundColorAttributeName,
 		nil];
 

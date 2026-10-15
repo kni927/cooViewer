@@ -62,6 +62,11 @@
 	[resolutionFont release];
 	resolutionFont = [font retain];
 }
+-(void)setPageNumberFont:(NSFont*)font
+{
+	[pageNumberFont release];
+	pageNumberFont = [font retain];
+}
 
 /* Dashed lines from the two edges of the view that meet in `position`'s
    corner to the matching corner of `rect`, as drawn for the page bar and
@@ -146,7 +151,8 @@
 			[pageBarBorderColor set];
 			[base stroke];
 		}
-		/* A sample position number, so the bar can be sized to fit it. */
+		/* A sample position number: in the bar it grows and shrinks with
+		   the bar's height while the bar is resized here. */
 		[self drawPageBarNumberForBarRect:pageBarRect];
 		NSImage *resizeIndicator = [NSImage imageNamed:@"NSGrayResizeCorner"];
 		

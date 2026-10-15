@@ -248,6 +248,19 @@ static void testBottomOffsets(void)
     check(near(COBottomHUDOffset(COPageBarNumberInBar, 2, 18, 14, 18), 38), @"status + bottom bar, number in it");
 }
 
+static void testInBarFontSize(void)
+{
+    printf("in-bar number size follows the bar height\n");
+    check(near(COPageBarInBarFontSize(18, 1.2), 12.5), @"18 px bar (default): 12.5 pt");
+    check(near(COPageBarInBarFontSize(15, 1.2), 10), @"15 px bar: 10 pt");
+    check(near(COPageBarInBarFontSize(30, 1.2), 22.5), @"30 px bar: 22.5 pt");
+    check(COPageBarInBarFontSize(40, 1.2) > COPageBarInBarFontSize(20, 1.2), @"taller bar, larger number");
+    check(near(COPageBarInBarFontSize(5, 1.2), 6), @"very short bar: 6 pt minimum");
+    check(near(COPageBarInBarFontSize(18, 0), 12.5), @"no metrics: 1.2 assumed");
+    double size = COPageBarInBarFontSize(24, 1.19);
+    check(size * 1.19 <= 24 - 3 + 0.0001, @"line fits inside the bar");
+}
+
 int main(int argc, char **argv)
 {
     @autoreleasepool {
@@ -259,6 +272,7 @@ int main(int argc, char **argv)
         testTitleBarLayout();
         testStatusBarLayout();
         testBottomOffsets();
+        testInBarFontSize();
         if (failures == 0) {
             printf("\nALL PASS (%d checks)\n", checks);
             return 0;

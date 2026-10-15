@@ -620,7 +620,7 @@ static const int DIALOG_CANCEL	= 129;
 	preferencesBaseHeight = newFrame.size.height;
 }
 /* See -tabView:willSelectTabViewItem:. */
-static const CGFloat kAppearanceExtraHeight = 82;
+static const CGFloat kAppearanceExtraHeight = 146;
 
 #pragma mark Table Delegate:
 
@@ -1001,6 +1001,8 @@ static const CGFloat kAppearanceExtraHeight = 82;
 	if (![pageBarNumberPopUpButton selectItemWithTag:COPageBarNumberModeFromStored([defaults integerForKey:@"PageBarNumber"])]) {
 		[pageBarNumberPopUpButton selectItemWithTag:COPageBarNumberInBar];
 	}
+	[pageNumberFontTextField setFont:[AccessoryView pageNumberFontInDefaults:defaults]];
+	[self pageBarNumberChanged:nil];
 	if (![fileNameLocationPopUpButton selectItemWithTag:[defaults integerForKey:COFileNameLocationKey]]) {
 		[fileNameLocationPopUpButton selectItemWithTag:COFileNameLocationHUD];
 	}
@@ -1517,6 +1519,7 @@ static const CGFloat kAppearanceExtraHeight = 82;
 			[defaults setBool:NO forKey:@"ShowPageBar"];
 		}	
 		[defaults setInteger:[pageBarNumberPopUpButton selectedTag] forKey:@"PageBarNumber"];
+		[defaults setObject:[NSArchiver archivedDataWithRootObject:[pageNumberFontTextField font]] forKey:COPageNumberFontKey];
 		[defaults setInteger:[fileNameLocationPopUpButton selectedTag] forKey:COFileNameLocationKey];
 		
 		
@@ -1819,8 +1822,8 @@ static const CGFloat kAppearanceExtraHeight = 82;
 	} else {
 		newFrame.size.width = 484; 
 	}
-	/* Appearance is taller than the other tabs by the Resolution box below
-	   Page Number. Every control in that tab keeps its distance from the top
+	/* Appearance is taller than the other tabs by the Resolution and Page
+	   Number boxes. Every control in that tab keeps its distance from the top
 	   (flexibleMinY), so in MainMenu.xib, which has one height for all tabs,
 	   the controls below the box sit up to kAppearanceExtraHeight lower than
 	   the tab's bottom edge and come into view when the window grows here.
@@ -2050,6 +2053,33 @@ static const CGFloat kAppearanceExtraHeight = 82;
 	[resolutionPositionButton setEnabled:separateBar];
 }
 
+
+- (IBAction)showPageNumberFontPanel:(id)sender
+{
+    NSFontPanel* fontPanel;
+    fontPanel = [[NSFontManager sharedFontManager] fontPanel:YES];
+	[[NSFontManager sharedFontManager] setSelectedFont:[pageNumberFontTextField font] isMultiple:NO];
+	[fontPanel setLevel:NSMainMenuWindowLevel];
+	[fontPanel setDelegate:(id)self];
+	[[NSFontManager sharedFontManager] setAction:@selector(changePageNumberFont:)];
+    [fontPanel makeKeyAndOrderFront:self];
+}
+- (void)changePageNumberFont:(id)fontManager
+{
+    NSFont *oldFont = [pageNumberFontTextField font];
+    NSFont *newFont = [fontManager convertFont:oldFont];
+	[pageNumberFontTextField setFont:newFont];
+}
+
+/* The Page Number font applies only above (or below) the bar and in the
+   title bar: in the bar the size follows the bar's height. */
+- (IBAction)pageBarNumberChanged:(id)sender
+{
+	NSInteger mode = [pageBarNumberPopUpButton selectedTag];
+	BOOL usesFont = (mode == COPageBarNumberOverlay || mode == COPageBarNumberTitleBar);
+	[pageNumberFontTextField setEnabled:usesFont];
+	[pageNumberFontButton setEnabled:usesFont];
+}
 
 - (IBAction)showPageBarFontPanel:(id)sender
 {
@@ -2940,6 +2970,7 @@ static const CGFloat kAppearanceExtraHeight = 82;
 	[accessorySettingView setPageBarReadedColor:[pageBarReadedColor currentColor]];
 	[accessorySettingView setTextFont:[fontTextField font]];
 	[accessorySettingView setResolutionFont:[resolutionFontTextField font]];
+	[accessorySettingView setPageNumberFont:[pageNumberFontTextField font]];
 	[accessorySettingView setTextFontColor:[pageColor currentColor]];
 	[accessorySettingView setTextBGColor:[pageBGColor currentColor]];
 	[accessorySettingView setTextBorderColor:[pageBorderColor currentColor]];

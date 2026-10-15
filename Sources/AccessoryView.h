@@ -11,6 +11,11 @@
 /* Set once +[AccessoryView migrateResolutionMarginInDefaults:] has run. */
 extern NSString * const COResolutionMarginMigratedKey;
 
+/* The page position's font for Above bar and Title bar (Preferences ▸
+   Page Number ▸ Font), an archived NSFont. In the bar the size follows
+   the bar's height instead (COPageBarInBarFontSize). */
+extern NSString * const COPageNumberFontKey;
+
 @interface AccessoryView : NSView 
 {	
 	NSTimer *infoStringTimer;
@@ -85,6 +90,8 @@ extern NSString * const COResolutionMarginMigratedKey;
 	   here (BookWindowController shows it in the title bar). */
 	NSString *pageBarNumber;
 	int pageBarNumberMode;
+	/* PageNumberFont: the number's font above (or below) the bar. */
+	NSFont *pageNumberFont;
 	/* The file-name status bar: shown with the page bar's auto-hide but
 	   not its switch (-setFileNameStatusBar:entries:). */
 	BOOL statusBarEnabled;
@@ -120,6 +127,14 @@ NSRect COIntRect(NSRect aRect);
 
 -(void)setPageBarNumberString:(NSString*)string;
 -(void)setPageBarNumberMode:(int)mode;
+/* The Page Number font: the stored PageNumberFont, or the default (the
+   system font at its regular size) when none is stored or it cannot be
+   read. */
++(NSFont*)defaultPageNumberFont;
++(NSFont*)pageNumberFontInDefaults:(NSUserDefaults*)defaults;
+/* `font` with monospaced digits where the font has them, so the position
+   does not shift sideways from page to page. */
++(NSFont*)fontWithMonospacedDigits:(NSFont*)font;
 /* Draws the position number for a page bar drawn in barRect: centred on it
    and clipped to its width, or just outside it, by pageBarNumberMode. */
 -(void)drawPageBarNumberForBarRect:(NSRect)barRect;

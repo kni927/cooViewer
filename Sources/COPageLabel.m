@@ -105,6 +105,16 @@ COTitleBarLayout COTitleBarLayoutMake(double viewWidth, double centreX, double l
 	return layout;
 }
 
+double COPageBarInBarFontSize(double barHeight, double lineHeightPerPoint)
+{
+	if (lineHeightPerPoint <= 0) lineHeightPerPoint = 1.2;
+	/* The bar is drawn barHeight + 1 tall with a 1 px border inside it. */
+	double room = barHeight - 3;
+	double size = floor(room / lineHeightPerPoint * 2) / 2;
+	if (size < 6) size = 6;
+	return size;
+}
+
 double COStatusBarHeight(double textHeight)
 {
 	return ceil(textHeight) + 4;

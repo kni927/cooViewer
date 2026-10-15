@@ -2139,3 +2139,23 @@ viewer's forward-only solid RAR cursor made Cancel wait about 30 s on a
 1.8 GB solid book; a separate reader brought it to under a second and
 leaves the viewer's cursor alone. See
 `docs/tasks/2026-10-12-01-page-bar-and-export.md`.
+
+## The bar's height sets the in-bar number's size; the page number has its own settings (2026-10-15)
+
+**Decision:** the page bar's height (`PageBarSize`, set in Preferences ▸
+Appearance ▸ Page Bar ▸ Set position and size…) is the user's setting, and
+a position number drawn in the bar takes its size from it
+(`COPageBarInBarFontSize`: the line fits the bar with about 1 px to spare,
+6 pt minimum); no font setting applies in the bar. The number has its own
+Preferences section, Page Number: **Show in** (`PageBarNumber`, values
+unchanged: 0 In bar, 1 Above bar (shown as "Overlay" in v1.6.8), 3 Title
+bar, 2 Off; any other value reads as In bar) and **Font**
+(`PageNumberFont`, an archived `NSFont`, registered default the system font
+at its regular size) for Above bar and Title bar, with monospaced digits.
+This replaces "at the HUD text size" in the 2026-10-12 decision above.
+
+**Why:** owner decision in the cooViewer HQ chat (2026-10-12 to 2026-10-15)
+after the report that the page bar size could no longer be changed in
+v1.6.8: since f5f8951 the number used the File Name font's size and was
+allowed to reach past a bar shorter than it, so the bar's height no longer
+decided what the bar looked like.

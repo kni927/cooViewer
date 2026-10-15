@@ -1396,14 +1396,14 @@
 /* Class = "NSTextFieldCell"; title = "Colors and auto hide follow File Name."; ObjectID = "RSb-NtC-001"; */
 "RSb-NtC-001.title" = "色と自動的に隠すはファイル名表示と共通です。";
 
-/* Class = "NSTextFieldCell"; title = "Number:"; ObjectID = "PBN-LbC-001"; */
-"PBN-LbC-001.title" = "ページ番号:";
+/* Class = "NSTextFieldCell"; title = "Show in:"; ObjectID = "PBN-LbC-001"; */
+"PBN-LbC-001.title" = "表示場所:";
 
 /* Class = "NSMenuItem"; title = "In bar"; ObjectID = "PBN-It-000"; */
 "PBN-It-000.title" = "バーの中";
 
-/* Class = "NSMenuItem"; title = "Overlay"; ObjectID = "PBN-It-001"; */
-"PBN-It-001.title" = "バーの外";
+/* Class = "NSMenuItem"; title = "Above bar"; ObjectID = "PBN-It-001"; */
+"PBN-It-001.title" = "バーの上";
 
 /* Class = "NSMenuItem"; title = "Off"; ObjectID = "PBN-It-002"; */
 "PBN-It-002.title" = "表示しない";
@@ -1419,3 +1419,15 @@
 
 /* Class = "NSMenuItem"; title = "Status bar"; ObjectID = "FNL-It-001"; */
 "FNL-It-001.title" = "ステータスバー";
+
+/* Class = "NSBox"; title = "Page Number"; ObjectID = "PNS-Bx-001"; */
+"PNS-Bx-001.title" = "ページ番号表示";
+
+/* Class = "NSTextFieldCell"; title = "Font:"; ObjectID = "PNS-FLC-001"; */
+"PNS-FLC-001.title" = "フォント：";
+
+/* Class = "NSTextFieldCell"; title = "1-2/345"; ObjectID = "PNS-FFC-001"; */
+"PNS-FFC-001.title" = "1-2/345";
+
+/* Class = "NSButtonCell"; title = "Select..."; ObjectID = "PNS-FSC-001"; */
+"PNS-FSC-001.title" = "選択...";

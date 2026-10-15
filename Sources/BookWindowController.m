@@ -52,8 +52,13 @@
 	/* Where the file names (ShowNumber) are shown: the corner HUD or the
 	   status bar along the bottom (COFileNameLocation). */
 	[appDefault setObject:[NSNumber numberWithInt:COFileNameLocationHUD] forKey:COFileNameLocationKey];
-	/* Where the page bar shows the page position (COPageBarNumberMode). */
+	/* Where the page bar shows the page position (COPageBarNumberMode;
+	   Preferences ▸ Page Number ▸ Show in). */
 	[appDefault setObject:[NSNumber numberWithInt:COPageBarNumberInBar] forKey:@"PageBarNumber"];
+	/* The position's font for Above bar and Title bar (Preferences ▸ Page
+	   Number ▸ Font). In the bar its size follows the bar's height. */
+	[appDefault setObject:[NSArchiver archivedDataWithRootObject:[AccessoryView defaultPageNumberFont]]
+				   forKey:COPageNumberFontKey];
 
 	/* The page bar's default height went from 15 to 18 when the position
 	   number moved into the bar. A profile that still holds the old default
@@ -3974,6 +3979,7 @@ static const NSInteger kBookmarkMenuFixedItemCount = 3;
 			[window addTitlebarAccessoryViewController:titleBarNumberAccessory];
 			[window setTitleVisibility:NSWindowTitleHidden];
 		}
+		[titleBarLabelView setNumberFont:[AccessoryView pageNumberFontInDefaults:defaults]];
 		[titleBarLabelView setNumber:number];
 	} else if (titleBarNumberAccessory) {
 		NSUInteger index = [[window titlebarAccessoryViewControllers] indexOfObjectIdenticalTo:titleBarNumberAccessory];

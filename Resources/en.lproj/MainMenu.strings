@@ -1444,14 +1444,14 @@
 /* Class = "NSTextFieldCell"; title = "Colors and auto hide follow File Name."; ObjectID = "RSb-NtC-001"; */
 "RSb-NtC-001.title" = "Colors and auto hide follow File Name.";
 
-/* Class = "NSTextFieldCell"; title = "Number:"; ObjectID = "PBN-LbC-001"; */
-"PBN-LbC-001.title" = "Number:";
+/* Class = "NSTextFieldCell"; title = "Show in:"; ObjectID = "PBN-LbC-001"; */
+"PBN-LbC-001.title" = "Show in:";
 
 /* Class = "NSMenuItem"; title = "In bar"; ObjectID = "PBN-It-000"; */
 "PBN-It-000.title" = "In bar";
 
-/* Class = "NSMenuItem"; title = "Overlay"; ObjectID = "PBN-It-001"; */
-"PBN-It-001.title" = "Overlay";
+/* Class = "NSMenuItem"; title = "Above bar"; ObjectID = "PBN-It-001"; */
+"PBN-It-001.title" = "Above bar";
 
 /* Class = "NSMenuItem"; title = "Off"; ObjectID = "PBN-It-002"; */
 "PBN-It-002.title" = "Off";
@@ -1467,3 +1467,15 @@
 
 /* Class = "NSMenuItem"; title = "Status bar"; ObjectID = "FNL-It-001"; */
 "FNL-It-001.title" = "Status bar";
+
+/* Class = "NSBox"; title = "Page Number"; ObjectID = "PNS-Bx-001"; */
+"PNS-Bx-001.title" = "Page Number";
+
+/* Class = "NSTextFieldCell"; title = "Font:"; ObjectID = "PNS-FLC-001"; */
+"PNS-FLC-001.title" = "Font:";
+
+/* Class = "NSTextFieldCell"; title = "1-2/345"; ObjectID = "PNS-FFC-001"; */
+"PNS-FFC-001.title" = "1-2/345";
+
+/* Class = "NSButtonCell"; title = "Select..."; ObjectID = "PNS-FSC-001"; */
+"PNS-FSC-001.title" = "Select...";

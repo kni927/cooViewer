@@ -9,11 +9,13 @@
 
 #import <Foundation/Foundation.h>
 
-/* Values of the PageBarNumber preference: where the page position
-   ("9-10/20") is drawn. */
+/* Values of the PageBarNumber preference (Preferences ▸ Page Number ▸
+   Show in): where the page position ("9-10/20") is drawn. The stored
+   values are those of v1.6.8; only the labels changed (Overlay is shown
+   as "Above bar"). */
 typedef enum {
-	COPageBarNumberInBar = 0,	/* centred inside the page bar (default) */
-	COPageBarNumberOverlay = 1,	/* just outside the bar, on the side away from the window edge */
+	COPageBarNumberInBar = 0,	/* centred inside the page bar (default); size from the bar's height */
+	COPageBarNumberOverlay = 1,	/* "Above bar": just outside the bar, on the side away from the window edge (below a top bar) */
 	COPageBarNumberOff = 2,
 	COPageBarNumberTitleBar = 3	/* centred in the window's title bar, the book name left-aligned */
 } COPageBarNumberMode;
@@ -81,6 +83,16 @@ typedef struct {
 
 COTitleBarLayout COTitleBarLayoutMake(double viewWidth, double centreX, double leading,
                                       double nameWidth, double gap, double numberWidth);
+
+/* The point size of the position number drawn in a page bar of
+   barHeight (PageBarSize "height"), for a font whose line height is
+   lineHeightPerPoint times its point size: the line fits in the bar with
+   about 1 px to spare above and below, inside the border, rounded down to
+   a half point; never below 6 pt (a very short bar then cuts the number).
+   The bar's height is the user's setting and the number follows it; no
+   font setting applies in the bar. A lineHeightPerPoint of 0 or less is
+   taken as 1.2. */
+double COPageBarInBarFontSize(double barHeight, double lineHeightPerPoint);
 
 /* The file-name status bar: its height for a text of textHeight. */
 double COStatusBarHeight(double textHeight);

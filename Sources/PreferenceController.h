@@ -103,9 +103,13 @@ enum {
 	
     IBOutlet id showPageNumCheck;
     IBOutlet id showPageBarCheck;
-    /* Preferences ▸ Page Bar ▸ Number: PageBarNumber, item tags are the
-       COPageBarNumberMode values. */
+    /* Preferences ▸ Page Number ▸ Show in: PageBarNumber, item tags are
+       the COPageBarNumberMode values. */
     IBOutlet id pageBarNumberPopUpButton;
+    /* Preferences ▸ Page Number ▸ Font: PageNumberFont, for Above bar and
+       Title bar (in the bar the size follows the bar's height). */
+    IBOutlet id pageNumberFontTextField;
+    IBOutlet id pageNumberFontButton;
     /* Preferences ▸ File Name ▸ Show in: FileNameLocation, item tags are
        the COFileNameLocation values. */
     IBOutlet id fileNameLocationPopUpButton;
@@ -161,6 +165,8 @@ enum {
 - (IBAction)showPageBarFontPanel:(id)sender;
 - (IBAction)showResolutionFontPanel:(id)sender;
 - (IBAction)resolutionDisplayChanged:(id)sender;
+- (IBAction)showPageNumberFontPanel:(id)sender;
+- (IBAction)pageBarNumberChanged:(id)sender;
 - (IBAction)changePageBarFontColor:(id)sender;
 - (IBAction)changePageBarBGColor:(id)sender;
 

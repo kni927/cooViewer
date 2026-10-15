@@ -716,7 +716,7 @@ go to the last page always.</string>
                                     <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
                                     <subviews>
                                         <button fixedFrame="YES" translatesAutoresizingMaskIntoConstraints="NO" id="1627">
-                                            <rect key="frame" x="18" y="-44" width="409" height="18"/>
+                                            <rect key="frame" x="18" y="-108" width="409" height="18"/>
                                             <autoresizingMask key="autoresizingMask" flexibleMaxX="YES" flexibleMinY="YES"/>
                                             <buttonCell key="cell" type="check" title="Fit original size window to image size" bezelStyle="regularSquare" imagePosition="left" alignment="left" inset="2" id="4315">
                                                 <behavior key="behavior" changeContents="YES" doesNotDimImage="YES" lightByContents="YES"/>
@@ -879,17 +879,27 @@ go to the last page always.</string>
                                                             <font key="font" metaFont="system"/>
                                                         </buttonCell>
                                                     </button>
+                                                </subviews>
+                                            </view>
+                                        </box>
+                                        <box fixedFrame="YES" title="Page Number" translatesAutoresizingMaskIntoConstraints="NO" id="PNS-Bx-001">
+                                            <rect key="frame" x="17" y="5" width="413" height="60"/>
+                                            <autoresizingMask key="autoresizingMask" flexibleMaxX="YES" flexibleMinY="YES"/>
+                                            <view key="contentView" id="PNS-Cv-001">
+                                                <rect key="frame" x="4" y="5" width="405" height="40"/>
+                                                <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
+                                                <subviews>
                                                     <textField verticalHuggingPriority="750" horizontalCompressionResistancePriority="250" fixedFrame="YES" translatesAutoresizingMaskIntoConstraints="NO" id="PBN-Lb-001">
-                                                        <rect key="frame" x="163" y="66" width="66" height="17"/>
+                                                        <rect key="frame" x="9" y="10" width="68" height="17"/>
                                                         <autoresizingMask key="autoresizingMask" flexibleMaxX="YES" flexibleMinY="YES"/>
-                                                        <textFieldCell key="cell" sendsActionOnEndEditing="YES" alignment="left" title="Number:" id="PBN-LbC-001">
+                                                        <textFieldCell key="cell" sendsActionOnEndEditing="YES" alignment="left" title="Show in:" id="PBN-LbC-001">
                                                             <font key="font" metaFont="system"/>
                                                             <color key="textColor" name="controlTextColor" catalog="System" colorSpace="catalog"/>
                                                             <color key="backgroundColor" name="controlColor" catalog="System" colorSpace="catalog"/>
                                                         </textFieldCell>
                                                     </textField>
                                                     <popUpButton verticalHuggingPriority="750" fixedFrame="YES" translatesAutoresizingMaskIntoConstraints="NO" id="PBN-Pu-001">
-                                                        <rect key="frame" x="229" y="62" width="110" height="22"/>
+                                                        <rect key="frame" x="78" y="6" width="104" height="22"/>
                                                         <autoresizingMask key="autoresizingMask"/>
                                                         <popUpButtonCell key="cell" type="push" title="In bar" bezelStyle="rounded" alignment="left" controlSize="small" lineBreakMode="truncatingTail" state="on" borderStyle="borderAndBezel" inset="2" arrowPosition="arrowAtCenter" preferredEdge="maxY" selectedItem="PBN-It-000" id="PBN-PuC-001">
                                                             <behavior key="behavior" lightByBackground="YES" lightByGray="YES"/>
@@ -897,13 +907,45 @@ go to the last page always.</string>
                                                             <menu key="menu" title="OtherViews" id="PBN-Mn-001">
                                                                 <items>
                                                                     <menuItem title="In bar" state="on" id="PBN-It-000"/>
-                                                                    <menuItem title="Overlay" tag="1" id="PBN-It-001"/>
+                                                                    <menuItem title="Above bar" tag="1" id="PBN-It-001"/>
                                                                     <menuItem title="Title bar" tag="3" id="PBN-It-003"/>
                                                                     <menuItem title="Off" tag="2" id="PBN-It-002"/>
                                                                 </items>
                                                             </menu>
                                                         </popUpButtonCell>
+                                                        <connections>
+                                                            <action selector="pageBarNumberChanged:" target="1673" id="PNS-Ac-001"/>
+                                                        </connections>
                                                     </popUpButton>
+                                                    <textField verticalHuggingPriority="750" horizontalCompressionResistancePriority="250" fixedFrame="YES" translatesAutoresizingMaskIntoConstraints="NO" id="PNS-FL-001">
+                                                        <rect key="frame" x="186" y="10" width="68" height="17"/>
+                                                        <autoresizingMask key="autoresizingMask" flexibleMaxX="YES" flexibleMinY="YES"/>
+                                                        <textFieldCell key="cell" sendsActionOnEndEditing="YES" alignment="right" title="Font:" id="PNS-FLC-001">
+                                                            <font key="font" metaFont="system"/>
+                                                            <color key="textColor" name="controlTextColor" catalog="System" colorSpace="catalog"/>
+                                                            <color key="backgroundColor" name="controlColor" catalog="System" colorSpace="catalog"/>
+                                                        </textFieldCell>
+                                                    </textField>
+                                                    <textField verticalHuggingPriority="750" fixedFrame="YES" translatesAutoresizingMaskIntoConstraints="NO" id="PNS-FF-001">
+                                                        <rect key="frame" x="258" y="9" width="72" height="19"/>
+                                                        <autoresizingMask key="autoresizingMask"/>
+                                                        <textFieldCell key="cell" scrollable="YES" lineBreakMode="clipping" sendsActionOnEndEditing="YES" state="on" borderStyle="bezel" alignment="center" title="1-2/345" drawsBackground="YES" id="PNS-FFC-001">
+                                                            <font key="font" metaFont="system"/>
+                                                            <color key="textColor" name="textColor" catalog="System" colorSpace="catalog"/>
+                                                            <color key="backgroundColor" name="textBackgroundColor" catalog="System" colorSpace="catalog"/>
+                                                        </textFieldCell>
+                                                    </textField>
+                                                    <button verticalHuggingPriority="750" fixedFrame="YES" translatesAutoresizingMaskIntoConstraints="NO" id="PNS-FS-001">
+                                                        <rect key="frame" x="331" y="4" width="70" height="28"/>
+                                                        <autoresizingMask key="autoresizingMask"/>
+                                                        <buttonCell key="cell" type="push" title="Select..." bezelStyle="rounded" alignment="center" controlSize="small" borderStyle="border" inset="2" id="PNS-FSC-001">
+                                                            <behavior key="behavior" pushIn="YES" lightByBackground="YES" lightByGray="YES"/>
+                                                            <font key="font" metaFont="smallSystem"/>
+                                                        </buttonCell>
+                                                        <connections>
+                                                            <action selector="showPageNumberFontPanel:" target="1673" id="PNS-Ac-002"/>
+                                                        </connections>
+                                                    </button>
                                                 </subviews>
                                             </view>
                                         </box>
@@ -1141,7 +1183,7 @@ go to the last page always.</string>
                                             </view>
                                         </box>
                                         <box fixedFrame="YES" title="Thumbnail View" translatesAutoresizingMaskIntoConstraints="NO" id="1987">
-                                            <rect key="frame" x="225" y="5" width="188" height="60"/>
+                                            <rect key="frame" x="225" y="-59" width="188" height="60"/>
                                             <autoresizingMask key="autoresizingMask" flexibleMaxX="YES" flexibleMinY="YES"/>
                                             <view key="contentView" id="Lcd-ah-M8w">
                                                 <rect key="frame" x="4" y="5" width="180" height="40"/>
@@ -1201,7 +1243,7 @@ go to the last page always.</string>
                                             </view>
                                         </box>
                                         <box fixedFrame="YES" title="Loupe" translatesAutoresizingMaskIntoConstraints="NO" id="1989">
-                                            <rect key="frame" x="17" y="5" width="206" height="60"/>
+                                            <rect key="frame" x="17" y="-59" width="206" height="60"/>
                                             <autoresizingMask key="autoresizingMask" flexibleMaxX="YES" flexibleMinY="YES"/>
                                             <view key="contentView" id="h2S-Vm-02u">
                                                 <rect key="frame" x="4" y="5" width="198" height="40"/>
@@ -2528,6 +2570,8 @@ Gw
                 <outlet property="rememberBookSettingsCheck" destination="2850" id="2851"/>
                 <outlet property="showPageBarCheck" destination="2838" id="2841"/>
                 <outlet property="pageBarNumberPopUpButton" destination="PBN-Pu-001" id="PBN-Ou-001"/>
+                <outlet property="pageNumberFontTextField" destination="PNS-FF-001" id="PNS-Ou-001"/>
+                <outlet property="pageNumberFontButton" destination="PNS-FS-001" id="PNS-Ou-002"/>
                 <outlet property="fileNameLocationPopUpButton" destination="FNL-Pu-001" id="FNL-Ou-001"/>
                 <outlet property="showPageNumCheck" destination="2839" id="2840"/>
                 <outlet property="showResolutionCheck" destination="RSb-Sh-001" id="RSb-Ou-001"/>

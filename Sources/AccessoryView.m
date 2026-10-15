@@ -14,6 +14,7 @@
 #import "COPageLabel.h"
 
 NSString * const COResolutionMarginMigratedKey = @"ResolutionMarginMigrated";
+NSString * const COPageNumberFontKey = @"PageNumberFont";
 
 
 @implementation AccessoryView
@@ -75,6 +76,7 @@ NSRect COIntRect(NSRect aRect)
 	[resolutionStringAttr release];
 	[resolutionFont release];
 	[pageBarNumber release];
+	[pageNumberFont release];
 	[statusBarEntries release];
 
 	[super dealloc];
@@ -175,6 +177,8 @@ NSRect COIntRect(NSRect aRect)
 	pageBarShowThumbnail = (int)[defaults integerForKey:@"PageBarShowThumbnail"];
 	pageBarPosition = (int)[defaults integerForKey:@"PageBarPosition"];
 	pageBarNumberMode = COPageBarNumberModeFromStored([defaults integerForKey:@"PageBarNumber"]);
+	[pageNumberFont release];
+	pageNumberFont = [[AccessoryView pageNumberFontInDefaults:defaults] retain];
 	
 	
 	NSDictionary *dic = [defaults dictionaryForKey:@"PageBarSize"];
@@ -1268,16 +1272,59 @@ NSRect COIntRect(NSRect aRect)
 	[self setNeedsDisplayInRect:NSUnionRect(oldRect,[self pageBarAreaRect])];
 }
 
-/* The size of the HUD text (TextFont, the file-name HUD's font), in the bar
-   and beside it, so the number reads like the rest of the overlay text.
-   Inside the bar it may reach past a bar shorter than the text; it stays
-   centred on the bar. Digits are monospaced so the number does not shift
++(NSFont*)defaultPageNumberFont
+{
+	return [NSFont systemFontOfSize:[NSFont systemFontSize]];
+}
+
++(NSFont*)pageNumberFontInDefaults:(NSUserDefaults*)defaults
+{
+	NSFont *font = nil;
+	id data = [defaults objectForKey:COPageNumberFontKey];
+	if ([data isKindOfClass:[NSData class]]) {
+		@try {
+			id object = [NSUnarchiver unarchiveObjectWithData:data];
+			if ([object isKindOfClass:[NSFont class]]) font = object;
+		} @catch (NSException *exception) {
+			font = nil;
+		}
+	}
+	if (!font || [font pointSize] < 1) font = [self defaultPageNumberFont];
+	return font;
+}
+
++(NSFont*)fontWithMonospacedDigits:(NSFont*)font
+{
+	if (!font) return nil;
+	NSArray *features = [NSArray arrayWithObject:[NSDictionary dictionaryWithObjectsAndKeys:
+		[NSNumber numberWithInt:kNumberSpacingType],NSFontFeatureTypeIdentifierKey,
+		[NSNumber numberWithInt:kMonospacedNumbersSelector],NSFontFeatureSelectorIdentifierKey,
+		nil]];
+	NSFontDescriptor *descriptor = [[font fontDescriptor] fontDescriptorByAddingAttributes:
+		[NSDictionary dictionaryWithObject:features forKey:NSFontFeatureSettingsAttribute]];
+	NSFont *result = [NSFont fontWithDescriptor:descriptor size:[font pointSize]];
+	return result ? result : font;
+}
+
+/* In the bar the size follows the bar's height (COPageBarInBarFontSize),
+   so the number is a little smaller than the bar and the bar's height,
+   the user's setting, decides how large it is; no font setting applies
+   there. Above (or below) the bar it is the Page Number font
+   (PageNumberFont). Digits are monospaced so the number does not shift
    sideways from page to page. */
 -(NSFont*)pageBarNumberFont
 {
-	CGFloat size = textFont ? [textFont pointSize] : 11;
-	if (size < 1) size = 11;
-	return [NSFont monospacedDigitSystemFontOfSize:size weight:NSFontWeightMedium];
+	if (pageBarNumberMode == COPageBarNumberInBar) {
+		static CGFloat lineHeightPerPoint = 0;
+		if (lineHeightPerPoint <= 0) {
+			NSFont *reference = [NSFont monospacedDigitSystemFontOfSize:100 weight:NSFontWeightMedium];
+			lineHeightPerPoint = [@"0" sizeWithAttributes:[NSDictionary dictionaryWithObject:reference forKey:NSFontAttributeName]].height / 100;
+		}
+		CGFloat size = (CGFloat)COPageBarInBarFontSize(pageBarHeight, lineHeightPerPoint);
+		return [NSFont monospacedDigitSystemFontOfSize:size weight:NSFontWeightMedium];
+	}
+	NSFont *font = pageNumberFont ? pageNumberFont : [AccessoryView defaultPageNumberFont];
+	return [AccessoryView fontWithMonospacedDigits:font];
 }
 
 /* The bar's text color, with a soft dark shadow so the number reads over
@@ -1336,8 +1383,9 @@ NSRect COIntRect(NSRect aRect)
 	[NSGraphicsContext saveGraphicsState];
 	if (pageBarNumberMode == COPageBarNumberInBar) {
 		/* Never wider than the bar: a narrow bar cuts the number at its
-		   ends. Vertically the text (and its shadow) may reach past a bar
-		   that is shorter than it. */
+		   ends. Vertically the text fits the bar (its size follows the
+		   bar's height); only the shadow, and the text of a bar too short
+		   for the 6 pt minimum, reach past it. */
 		NSRect clip = NSUnionRect(NSInsetRect(barRect,1,1), NSInsetRect(textRect,0,-4));
 		clip.origin.x = NSMinX(barRect) + 1;
 		clip.size.width = NSWidth(barRect) - 2;

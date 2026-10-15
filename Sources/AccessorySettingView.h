@@ -32,5 +32,7 @@
 -(void)setTextBorderColor:(NSColor*)color;
 -(void)setTextFont:(NSFont*)font;
 -(void)setResolutionFont:(NSFont*)font;
+/* The Page Number font (Above bar), as chosen in Preferences. */
+-(void)setPageNumberFont:(NSFont*)font;
 
 @end

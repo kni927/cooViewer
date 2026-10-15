@@ -18,10 +18,15 @@
 
 @interface COTitleBarLabelView : NSView {
 	NSString *number;
+	NSFont *numberFont;
 }
 
 /* The position to show after the title; nil shows the title alone. Also
    redraws, so call it after the window's title changes. */
 - (void)setNumber:(NSString *)string;
+
+/* The position's font (the Page Number font, PageNumberFont); nil uses
+   the title bar's own font size. Digits are made monospaced. */
+- (void)setNumberFont:(NSFont *)font;
 
 @end
