@@ -290,12 +290,12 @@ waiting to be asked, not only what it was told to do.
 A long conversation is compacted automatically. Compaction runs through the
 fast-jev-compaction plugin, which drops stale tool calls and keeps the rest
 verbatim; it falls back to the built-in summary, which loses detail, when it
-cannot reduce enough or fails. The plugin compacts at the end of a turn once
-usage reaches its `compactAtPercent`: 78% in the cloud, 90% locally. Claude
-Code's own automatic compaction (80% in the cloud,
-`CLAUDE_AUTOCOMPACT_PCT_OVERRIDE`) usually bypasses the plugin and writes the
-built-in summary, so it is only the backstop for a turn that crosses both
-points at once. A cloud session reads its own usage with
+cannot reduce enough or fails. Locally the plugin compacts at the end of a turn
+once usage reaches its `compactAtPercent` (90%). In the cloud it cannot start a
+compaction itself (a headless session has no `$.session.compact` yet), and
+Claude Code's own automatic compaction (80%, `CLAUDE_AUTOCOMPACT_PCT_OVERRIDE`)
+bypasses it and writes the built-in summary; only a `/compact` the owner types
+runs through the plugin there. A cloud session reads its own usage with
 `get_session` without an ID (`context_usage`); a local session in the Mac app
 reads it with `get_usage` for session `self`. A session counts its compactions
 as the `compact_boundary` entries in its own transcript, the newest `.jsonl`
@@ -306,6 +306,11 @@ under `~/.claude/projects/<directory>/`.
   threshold below does it read its transcript to see whether it has been
   compacted. It does not report its usage in ordinary replies; it reports
   only when it hands over or wraps up, in the ready-to-archive block.
+- **Ask for `/compact` (cloud HQ):** before its first compaction, a cloud HQ
+  whose usage has passed 70% ends its reply at the next natural break with one
+  English line asking the owner to type `/compact` in this session. It asks
+  once per crossing; the 80% automatic compaction is the backstop when the
+  owner does not.
 - **Avoid a second compaction:** a compaction is not fatal, whether through
   Jev or the built-in summary, and a session keeps working through its first
   one. After that first compaction, it hands over (cloud HQ, below) or wraps
@@ -314,7 +319,7 @@ under `~/.claude/projects/<directory>/`.
 
   | Session | Threshold | Next compaction |
   |---|---|---|
-  | Cloud HQ | 75% | 78% (plugin) |
+  | Cloud HQ | 75% | 80% (built-in summary) |
   | Local TF | 80% | 90% (plugin) |
 
   Before the first compaction, usage alone does not trigger a handover. A
