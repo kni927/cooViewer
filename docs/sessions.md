@@ -542,6 +542,10 @@ exists only in chat.
   continues in a cloud session the Project HQ starts.
 - **Screen operations:** before computer use, a TF asks the owner in chat to
   stand by and waits for the reply. An approval card that nobody answers times
-  out.
+  out. Right before each computer-use approval request (`request_access`,
+  `request_full_control`), run `open -a Claude`: with another app in front,
+  the dialog stays hidden and can be answered only at the Mac. Screen work
+  runs in the main session or a new foreground subagent; a subagent resumed
+  with `SendMessage` runs in the background, where computer use breaks.
 - **Pushing:** several sessions may push to `main` at the same time. Follow the
   fetch-and-merge rule in `AGENTS.md` (Git Workflow) before every push.
