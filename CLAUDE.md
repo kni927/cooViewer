@@ -99,6 +99,9 @@ report — secret *names* are visible in Settings even though values are not.
   does it.** Get explicit owner authorization for both the version number
   and the release notes, prepare everything up to the tag, then stop. Resume
   by watching the CI run once the owner has pushed the tag.
+  When handing over the tag, give the owner one ready-to-paste block with
+  the annotated form: `git tag -a vX.Y.Z -m "vX.Y.Z" <commit>` followed by
+  `git push origin vX.Y.Z`.
 - If notarization fails, stop and report. Never work around Gatekeeper
   (ad-hoc signing, clearing quarantine, disabling checks) — none of these
   substitute for a passing notarization.
