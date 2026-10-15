@@ -45,6 +45,21 @@ For long-running or multi-stage work, update the `Progress` section of
 `TASK.md` at meaningful phase boundaries with the last completed step,
 current partial state, and exact next step.
 
+## Verification Scope
+
+Check what a change can affect, and check it once.
+
+- During development, verify on device only what the change touches. A change
+  that leaves a path alone (rendering, saving, file reading, and the like) does
+  not re-test it.
+- A release artifact (the CI build of a tagged commit) is checked only for what
+  it can differ in from the development build of the same commit: versions,
+  signing and Gatekeeper, launch, and pieces that depend on where it is
+  installed (app extensions such as Quick Look). Features verified on that
+  commit are not re-checked; re-check one only if app code changed after it was
+  verified.
+- An HQ writes a TASK's verification list to match.
+
 ## Handover and Session Transfer
 
 Choose the record type by situation. Do not produce more than one for the same event.
