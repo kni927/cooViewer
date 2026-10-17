@@ -1,11 +1,11 @@
 ---
 name: hq-handover
-description: Hand this cloud HQ (Central HQ, Upstream HQ, or a Project HQ) over to a fresh cloud session, as docs/sessions.md "Handing over an HQ" describes. Use when docs/sessions.md "Context usage" calls for it (the threshold after the first compaction, or a second compaction) or when the owner says "handover".
+description: Hand this cloud HQ (Central HQ, Upstream HQ, or a Project HQ) over to a fresh cloud session, as docs/sessions.md "Cloud sessions" (Handover) describes. Use when docs/sessions.md "Context usage" calls for it (the threshold after the first compaction, or a second compaction) or when the owner says "handover".
 ---
 
 # Hand over a cloud HQ
 
-`docs/sessions.md` ("Context usage" and "Handing over an HQ") is the rule;
+`docs/sessions.md` ("Context usage" and "Cloud sessions") is the rule;
 this is the procedure. It applies to cloud HQs only. A local TF wraps up
 instead (`/tf`, step 8).
 
@@ -40,8 +40,12 @@ instead (`/tf`, step 8).
    - `source_revision`: `main` (without it the session lands in Other);
    - `title`: `☁️ ` and the plain name (for example `☁️ cooViewer HQ`);
    - `prompt`: the handover.
-   If auto mode refuses the call, tell the owner and keep working until it
-   is resolved.
+   Upstream HQ's successor then attaches its other repositories with
+   `add_repo`. A cloud session ignores allow rules in a repository's
+   `.claude/settings.json`; the `Trusted` setup script allows `add_repo` in
+   the user settings (`docs/CLOUD_ENVIRONMENTS.md` in `kni927/dotfiles`).
+   If auto mode refuses a call, tell the owner and keep working until it is
+   resolved.
 5. **Move this session's Routines.** With `list_triggers`, find the Routines
    bound to this session (`persistent_session_id` is this session, or they
    resume it). Create each again with `create_trigger`: same name, schedule,

@@ -5,7 +5,7 @@ description: Offer the owner a new local TF on the Mac as a one-click spawn_task
 
 # Offer a TF with a card
 
-`docs/sessions.md` ("Starting a TF from a card") is the rule; this is the
+`docs/sessions.md` ("Local sessions on the Mac") is the rule; this is the
 procedure.
 
 1. **Get the tool.** `mcp__ccd_session__spawn_task` may be deferred; load it
