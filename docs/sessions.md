@@ -298,14 +298,15 @@ transcript, the newest `.jsonl` under `~/.claude/projects/<directory>/`.
 - **Stand-by:** a Project HQ with no work left and no Routine bound to it
   goes on stand-by instead of waiting: it brings `docs/STATUS.md` up to date,
   renames itself `💤 <name>`, and ends its reply with one English line, "This
-  HQ is going on stand-by; unarchive it when the project needs an HQ." It is
-  archived in a later turn, never in the turn that does this work: archiving
-  stops the container at once and cuts the rest of that turn, reply included
-  (all three HQs that archived themselves on 2026-10-17 lost their last
-  line). A session that asked for the stand-by archives it after that line
-  appears (`list_events`); an HQ that goes on stand-by by itself arms
-  `send_later` for a few minutes and makes `archive_session` the only action
-  of that turn. A stand-by HQ has no successor; handover is for one that
+  HQ is going on stand-by; unarchive it when the project needs an HQ." It
+  never archives itself: `archive_session` on its own session stops the
+  container mid-call, so the call stays pending and runs again as soon as
+  the session is unarchived (cooViewer HQ re-archived itself on waking,
+  2026-10-17), and the rest of the turn is lost. Another session archives it
+  once that line appears (`list_events`): the session that asked for the
+  stand-by, or Upstream HQ or Central HQ when the HQ asks with
+  `send_message`; otherwise the owner. A session that archived itself cannot
+  be woken; start a new HQ instead. A stand-by HQ has no successor; handover is for one that
   continues in a new session. When the project needs an HQ again, the owner
   or any session unarchives the `💤` HQ (`unarchive_session`) and sends the
   request; the next message starts a fresh container. The HQ then drops the
