@@ -8,6 +8,8 @@ description: Hand this cloud HQ (Central HQ, Upstream HQ, or a Project HQ) over 
 `docs/sessions.md` ("Context usage" and "Cloud sessions") is the rule;
 this is the procedure. It applies to cloud HQs only. A local TF wraps up
 instead (`/tf`, step 8).
+An HQ with no work left and no successor needed goes on stand-by
+(`💤`, "Stand-by" in `docs/sessions.md`) rather than handing over.
 
 1. **Find a natural break.** Finish or stop the current step so the handover
    stays short. Read the context usage with `get_session` (no session ID).

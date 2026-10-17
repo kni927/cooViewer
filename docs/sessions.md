@@ -48,7 +48,7 @@ skills (Skills, below).
   `<repo> TF #NN <what>` (`cooViewer TF #03 v1.6.5`), `Workspace <topic>`.
   No middle dot. The current session of a role carries the plain name. A
   finished session renames itself `✅ <name>`; one that handed over,
-  `✅ <name> (handover YYYY-MM-DD)`.
+  `✅ <name> (handover YYYY-MM-DD)`; a cloud HQ on stand-by, `💤 <name>`.
 - **Location mark first:** `☁️` cloud, `🖥️` local on the Mac mini, `💻` local
   on a MacBook (`pmset -g batt` shows `InternalBattery`). `✅` goes after the
   mark: `☁️ ✅ Upstream HQ (handover 2026-10-07)`. "The name" means the part
@@ -295,6 +295,19 @@ transcript, the newest `.jsonl` under `~/.claude/projects/<directory>/`.
   says "handover", with the `hq-handover` skill: the successor runs in the same
   environment from the same `source_url`, the Routines bound to the old
   session move to it, and the handover is sent, not committed.
+- **Stand-by:** a Project HQ with no work left and no Routine bound to it
+  goes on stand-by instead of waiting: it brings `docs/STATUS.md` up to date,
+  renames itself `💤 <name>`, ends with one English line, "This HQ is going on
+  stand-by; unarchive it when the project needs an HQ.", and archives itself
+  with `archive_session` (if that is refused, it says so and the owner
+  archives it). A stand-by HQ has no successor; handover is for one that
+  continues in a new session. When the project needs an HQ again, the owner
+  or any session unarchives the `💤` HQ (`unarchive_session`) and sends the
+  request; the next message starts a fresh container. The HQ then drops the
+  `💤`, pulls its repositories, and re-reads `docs/sessions.md`, its
+  `AGENTS.md` and `CLAUDE.md`, and `docs/STATUS.md` before it acts: rules
+  changed while it slept, and the files win over what its conversation
+  remembers. If its context is past the handover point, it hands over.
 
 ## Local sessions on the Mac
 
