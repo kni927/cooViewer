@@ -5,7 +5,7 @@ what comes next, what is on hold, and what waits on the owner. Rewrite it
 rather than append; keep it under about 40 lines. Rules are in `AGENTS.md`,
 decisions in `docs/DECISIONS.md`, and history in `docs/tasks/` and Git.
 
-Updated: 2026-10-15
+Updated: 2026-10-17
 
 ## Summary
 
@@ -52,7 +52,10 @@ Short-lived notes, dated. A note is a hint: check it before relying on it, and
 delete it when it is done or out of date.
 
 - 2026-10-06: QuickLook checks of a dev build count only when `ps` shows the
-  test copy's extension ran (`CLAUDE.md`, QuickLook step 4).
+  test copy's extension ran (`ql-check` skill).
+- 2026-10-17: the step lists of Releasing, On-Device Verification and Spread
+  Capture moved from `CLAUDE.md` to skills in `.agents/skills/` (`AGENTS.md`,
+  Skills). The HQ went on stand-by (`docs/sessions.md`, Stand-by).
 - 2026-10-12: computer use cannot type into save-panel accessory fields or
   secure input; run screen-operating subagents in the foreground
   (`device-check` skill).
