@@ -16,7 +16,7 @@ skills (Skills, below).
   active Mac mini HQ, or no local session at all, is listed; a warning at once
   when Mac mini HQ is disconnected; other sessions disconnected for a day are
   listed with their context size, with a reconnect asked only where work
-  waits. Does not implement.
+  waits and wrap-up suggested for the rest. Does not implement.
 - **Upstream HQ** (cloud): policy shared by all repositories. Changes
   `kni927/dotfiles` and `kni927/repo-template`, carries changes to the projects
   (`sync-projects`), and sends each policy change to the Project HQs itself.
@@ -52,8 +52,9 @@ skills (Skills, below).
 - **Location mark first:** `☁️` cloud, `🖥️` local on the Mac mini, `💻` local
   on a MacBook (`pmset -g batt` shows `InternalBattery`). `✅` goes after the
   mark: `☁️ ✅ Upstream HQ (handover 2026-10-07)`. "The name" means the part
-  after the marks. Routines carry the mark of where they run.
-- **TF numbers:** per repository from `#01`: the highest `#NN` among the
+  after the marks. Routines carry the mark of where they run. The marks date
+  from 2026-10-07; older titles without one are left as they are.
+- **TF numbers:** per repository from `#01` (HQs are not numbered): the highest `#NN` among the
   repository's TF titles in `ListAgents` or `list_sessions`, finished ones
   included, plus one. An HQ that offers a TF picks the number.
 - Names are unique, because local sessions address messages by name; copy a
@@ -65,8 +66,9 @@ skills (Skills, below).
   (`set_session_title`). A local session renames itself
   (`mcp__ccd_session_mgmt__set_session_title`, session `self`), and Mac mini HQ
   its Local Routines; a name set from the cloud may not appear in the Mac
-  app. The owner does not type local titles: the app asks before a session
-  replaces an owner-typed title, but not one a session set.
+  app. The owner does not type local titles: the app asks, even in auto mode,
+  before a session replaces an owner-typed title, but not one a session set;
+  after that one card the title counts as set by the session.
 - **Unmarked titles:** a session whose title has no location mark renames
   itself before its first reply: the mark, then its role name, otherwise a
   few English words naming the work (`☁️ Codex plugin research`). A cloud
@@ -88,8 +90,9 @@ Send each message only to the sessions that need it.
   verified, with a one-line pointer to what the TF waits on. It speaks in
   full only when the report and the state disagree, when a TF is blocked
   without having told the owner, or for decisions that belong in the HQ's
-  chat (release notes, version numbers, design). Central HQ reports only
-  stalled items.
+  chat (release notes, version numbers, design). Otherwise an HQ tells the
+  owner itself what waits on the owner. Central HQ reports only stalled
+  items.
 - **How to send:** cloud to cloud, `send_message` (claude-code-remote) to the
   session ID; reply to the received message's `from-session`. Cloud to a
   local TF, the same. Local to anyone, `SendMessage` to the name as
@@ -103,7 +106,8 @@ Send each message only to the sessions that need it.
 - **Read before asking:** a cloud session reads any session's transcript with
   `list_events`, local ones included; a local session reads a cloud session in
   the desktop app's built-in browser (`https://claude.ai/code/<session ID>`,
-  `get_page_text`, read only). So a message names the session and the topic
+  `get_page_text`, read only; only the latest messages load until "Load
+  earlier messages" is clicked). So a message names the session and the topic
   instead of copying context, and a session reads another's transcript or
   repository before asking about its state.
 - **Slash commands do not travel:** a message or a card's prompt arrives as
@@ -116,7 +120,8 @@ Send each message only to the sessions that need it.
 - **Receiving:** an HQ that receives a message starts its next reply to the
   owner with this heading and a summary, without saying "no reply needed".
   Each `---` stands alone with a blank line before and after it (directly
-  under text, Markdown turns that text into a heading). The owner does not
+  under text, Markdown turns that text into a heading); do not use `--` or
+  box-drawing characters. The owner does not
   see the message body; give the full text when asked.
 
   ```markdown
@@ -133,7 +138,7 @@ Send each message only to the sessions that need it.
   text under them in Japanese. Text for the owner to type or paste elsewhere
   (a prompt, an approval line, a message) is in English.
 - A message holds at most 64 KB; `&` and angle brackets may arrive as HTML
-  character references.
+  character references, so check them before using the text in code.
 
 ### Approvals
 
@@ -188,15 +193,19 @@ asked.
   template rule. Say what it does, what it saves, and where it lives: the
   project's `.claude/skills/`, `kni927/repo-template` for every project, or
   `kni927/dotfiles` for the Macs and local sessions. A cloud session sees only
-  its repository's skills.
+  its repository's skills, so a skill for HQs lives in the repositories they
+  run in.
 - **To whom:** the owner; rules for every repository also go to Upstream HQ;
   a TF sends its proposals with its report.
 - **Proposing is not doing:** build it after the owner agrees. Editing the
-  prose of an existing skill needs no approval; report it.
+  prose of an existing skill needs no approval; report it. New skills,
+  `CLAUDE.md`, `AGENTS.md`, settings files, and scripts keep their own
+  approval rules.
 - **Rules belong in files:** an owner instruction that reads like a standing
   rule goes to the HQ (and from there to Upstream HQ), not only into memory.
 - **Who builds a skill:** a local TF's sandbox cannot write `.claude/skills/`,
-  so a cloud session or the owner writes and commits it.
+  so a cloud session (the Project HQ, or Upstream HQ for shared ones) or the
+  owner writes and commits it.
 
 ## Skills
 
@@ -224,8 +233,9 @@ built-in summary, which loses detail. Locally the plugin compacts at its
 headless session has no `$.session.compact` yet), and Claude Code's own
 compaction at 80% (`CLAUDE_AUTOCOMPACT_PCT_OVERRIDE`) bypasses it; only a
 `/compact` the owner types runs through the plugin there. Usage: `get_session`
-without an ID (cloud), `get_usage` for `self` (local). Compactions are the
-`compact_boundary` entries in the session's own transcript.
+without an ID (cloud, `context_usage`), `get_usage` for `self` (local).
+Compactions are the `compact_boundary` entries in the session's own
+transcript, the newest `.jsonl` under `~/.claude/projects/<directory>/`.
 
 - **Checking:** check usage at natural breaks and before a step that would not
   fit; read the transcript for compactions only past the threshold below.
@@ -295,27 +305,35 @@ without an ID (cloud), `get_usage` for `self` (local). Compactions are the
   worktree) may run together but take turns with what the Mac has once: the
   installed app and its preferences, simulators and devices, signing, and
   releases.
-- **A TF in a worktree** works on a `claude/<name>` branch and merges into
-  `main` only when the TASK says so. The owner removes the worktree after
-  archiving the TF.
+- **A TF in a worktree** works in `.claude/worktrees/<name>/` on a
+  `claude/<name>` branch created from the main clone's local `HEAD`, and
+  merges into `main` only when the TASK says so. The owner removes the
+  worktree and its branch after archiving the TF.
 - **Lifetime:** after the Claude app restarts (by hand, an update, or a Mac
   restart), local sessions are disconnected from Remote Control and cloud
   messages wait until they reconnect (anthropics/claude-code#93288, #98711).
   The owner runs `/rc` in the base session, which wakes only the sessions the
   owner picks (`wake-local`). Waking costs a turn that re-reads the whole
   context, so wake a session only when work is about to go to it.
-- **How long a TF runs:** it keeps taking TASKs while they follow one another
-  and wraps up at a natural break: no TASK waiting, hours of idle ahead, or
-  Context usage. Every turn after an idle hour rewrites the whole context
+- **How long a TF runs:** it keeps taking TASKs while they follow one another,
+  a release after the change it ships included, and wraps up at a natural
+  break: no TASK waiting, hours of idle ahead, or Context usage. TASKs that
+  would conflict run in order in the same TF, or in subagents. Remaining work
+  that needs the Mac goes to a new TF offered by card; work that needs no Mac
+  GUI or device continues in a cloud session the Project HQ starts. Every turn after an idle hour rewrites the whole context
   into the prompt cache, so what the next TF needs goes into the repository;
   never keep sessions warm with periodic messages.
 - **Archiving:** the owner archives local sessions from the Mac app's
-  sidebar. No cloud session archives a local one, even when asked: the Web
-  and the app disagree (`docs/AGENT_PARITY.md` in `kni927/dotfiles`).
+  sidebar. No cloud session archives a local one, even when asked (server-mode
+  sessions excepted, `rc-server`): the Web and the app disagree
+  (`docs/AGENT_PARITY.md` in `kni927/dotfiles`). Tell the owner to archive it
+  in the Mac app instead, while the two disagree. A TF cannot archive itself
+  while its own turn and Remote Control connection are live.
 - **Screen operations:** before computer use, ask the owner in chat to stand
   by and wait. Right before each computer-use approval request, run
   `open -a Claude`, or the dialog stays hidden behind other apps. Screen work
   runs in the main session or a new foreground subagent, never a resumed
-  background one.
+  background one. Computer-use app access is granted per session, so a
+  long-lived TF asks for it once.
 - **Pushing:** several sessions may push to `main`; follow the fetch-and-merge
   rule in `AGENTS.md` before every push.

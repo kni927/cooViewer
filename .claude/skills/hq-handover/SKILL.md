@@ -37,20 +37,22 @@ instead (`/tf`, step 8).
    - `source_url`: the project's repository for a Project HQ,
      `https://github.com/kni927/dotfiles` for Upstream HQ,
      `https://github.com/kni927/HQ` for Central HQ;
-   - `source_revision`: `main` (without it the session lands in Other);
+   - `source_revision`: `main` (without it the session lands in Other); `source_url` takes one repository;
    - `title`: `☁️ ` and the plain name (for example `☁️ cooViewer HQ`);
    - `prompt`: the handover.
    Upstream HQ's successor then attaches its other repositories with
    `add_repo`. A cloud session ignores allow rules in a repository's
    `.claude/settings.json`; the `Trusted` setup script allows `add_repo` in
-   the user settings (`docs/CLOUD_ENVIRONMENTS.md` in `kni927/dotfiles`).
+   the user settings (`docs/CLOUD_ENVIRONMENTS.md` in `kni927/dotfiles`),
+   in containers created after 2026-10-12.
    If auto mode refuses a call, tell the owner and keep working until it is
    resolved.
 5. **Move this session's Routines.** With `list_triggers`, find the Routines
    bound to this session (`persistent_session_id` is this session, or they
    resume it). Create each again with `create_trigger`: same name, schedule,
    and prompt, and `persistent_session_id` set to the successor. Then delete
-   the old one with `delete_trigger`. Routines that start a fresh session on
+   the old one with `delete_trigger`. A Routine is bound to one session and
+   cannot be rebound. Central HQ has at least the morning reconnect check. Routines that start a fresh session on
    each firing need no change.
 6. **Tell the others** with `send_message`, giving the successor's name and
    session ID: upstream (Central HQ; when Central HQ itself hands over,
@@ -58,4 +60,5 @@ instead (`/tf`, step 8).
 7. **Mark this session done.** Rename it with `set_session_title` to
    `☁️ ✅ <name> (handover YYYY-MM-DD)`, using the owner's local date. End the
    reply with the ready-to-archive block from `docs/sessions.md`, stop taking
-   work, and forward anything that still arrives to the successor.
+   work, and forward anything that still arrives to the successor. The owner
+   archives it.
