@@ -32,7 +32,8 @@ skills (Skills, below).
   `~/Projects/Local/MacMiniHQ`, `💻 MacBook HQ` in `~/Projects/Local/MacBookHQ`.
   After an app restart the owner runs `/rc` there and it runs `wake-local`;
   it holds that Mac's Local Routines and answers cloud HQs' questions about
-  the Mac. Does not implement.
+  the Mac. Does not implement. Central HQ's morning check covers Mac mini HQ
+  only, since the MacBook is often asleep or offline.
 - **Workspace session** (local): small investigations and fixes on a Mac
   that belong to no repository, in `~/Projects/Local/Workspace/<topic>/`
   (rules in that folder's `AGENTS.md`). It reports to the owner, takes no
