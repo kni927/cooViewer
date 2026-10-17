@@ -6,8 +6,8 @@ description: Run an on-device check of build/cooViewer.app (main app only) safel
 # On-device check of the main app
 
 `CLAUDE.md` ("On-Device Verification Procedure", "Main app only") is the
-rule; this is the procedure. QuickLook/Thumbnail checks follow the other
-case in `CLAUDE.md`; steps 2, 7 and 8 here still apply to them.
+rule; this is the procedure. QuickLook/Thumbnail checks use the
+`ql-check` skill; steps 2, 7 and 8 here still apply to them.
 
 `tools/device_check.sh` runs outside the sandbox through
 `sandbox.excludedCommands`, so call it from the repository root exactly as
@@ -98,12 +98,5 @@ do nothing.
 
 ## QuickLook / Thumbnail extensions
 
-Follow `CLAUDE.md` ("QuickLook / Thumbnail extensions") in one pass:
-
-1. `tools/device_check.sh ql-register` once. Read the extension paths it
-   lists at the end: they must be under `~/Applications`, not
-   `/Applications`; otherwise report that the Homebrew copy is resolved.
-2. Check in Finder (Icon/List view, Space bar). Finish every check first.
-3. `tools/device_check.sh ql-unregister` once. Do not register again in
-   the same session; if Finder misbehaves, stop and report (KNOWN_ISSUES
-   #15).
+Use the `ql-check` skill: register once, check everything in Finder,
+unregister once.

@@ -43,7 +43,7 @@ context.
    password code changed). Report the pass counts.
 6. **LaunchServices:** `xcodebuild` registers the intermediate products.
    After the task's on-device checks (or at once if there are none), run
-   `tools/device_check.sh unregister` (see the `device-check` skill).
+   `tools/device_check.sh unregister` (see the `device-check` skill, or `CLAUDE.md` ▸ On-Device Verification Procedure).
 
 Do not remove `<BUILD_TMP>`: it is outside the repository, the next build
 reuses it, and removing it needs a sandbox bypass.

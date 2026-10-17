@@ -146,6 +146,18 @@
 - Store additional third-party licenses and attribution documents under `docs/licenses/`.
 - Ensure added third-party code or assets comply with the project's licensing requirements.
 
+## Skills
+
+- Skills any agent can use live in `.agents/skills/<name>/SKILL.md`; `.claude/skills/<name>`
+  is a relative symlink to each of them, so Claude Code finds them too. Skills that only
+  Claude Code can use (computer use, session tools) live in `.claude/skills/` alone.
+- `CLAUDE.md` holds the rules; a skill holds the steps. When both cover a topic, the rule
+  wins, and the skill points to it.
+- Project skills: `build-app` (build and engine tests), `release` (a release, start to
+  finish), `ql-check` (Quick Look and thumbnails), `spread-compare` (render comparison);
+  Claude Code only: `device-check` (on-device check of the main app). The session skills
+  shared from `kni927/repo-template` are listed in `docs/sessions.md`.
+
 ## Build
 
 - `build/` is git-ignored and holds only the final `cooViewer.app`. Remove stale contents

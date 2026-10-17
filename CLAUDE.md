@@ -63,27 +63,16 @@ Releases are built, signed, notarized, and published by CI — never locally.
 
 ### Verifying the release artifact
 
-This is a third case, distinct from the two in the On-Device Verification
-Procedure. The artifact under test is the notarized build from the tagged
-CI run, installed at `/Applications` via the tap — not a local build in
-`~/Applications`.
-
-1. `brew uninstall cooviewer`, then install the released version from the
-   tap.
-2. Confirm it launches and is Gatekeeper-clean without `xattr -cr`.
-3. For QuickLook/Thumbnail checks, follow steps 3a-5 of the On-Device
-   Verification Procedure, reading `/Applications` as the bundle under
-   test. Step 3a matters more here, not less: this install is the one
-   that should now win LaunchServices precedence.
-4. Cleanup: none. This install is the intended end state.
-
-That is the whole check: versions, Gatekeeper, launch, and Quick Look.
-Features were verified on the development build of the same commit, and CI
-builds that commit, so do not repeat feature checks on the release
-artifact. Re-check a feature only if app code changed after it was
-verified. During development, check on device only what the change
-touches; a change that leaves the render, save, or archive-reading paths
-alone does not re-test them (for example encrypted ZIPs or Export).
+The artifact under test is the notarized build from the tagged CI run,
+installed at `/Applications` via the tap, not a local build. The check is
+versions, Gatekeeper (without `xattr -cr`), launch, and Quick Look; the
+`release` skill gives the steps. Features were verified on the development
+build of the same commit, and CI builds that commit, so do not repeat
+feature checks on the release artifact. Re-check a feature only if app code
+changed after it was verified. During development, check on device only
+what the change touches; a change that leaves the render, save, or
+archive-reading paths alone does not re-test them (for example encrypted
+ZIPs or Export).
 
 ### Credentials — never ask for these
 
@@ -132,7 +121,7 @@ interrupted work — apply the non-idempotent operation rule in
 `docs/task-workflow.md`: confirm the intended result does not already
 exist (`git tag -l`, `gh release view`, uploaded assets).
 
-Full procedural precedent: `docs/tasks/2026-07-26-02-release-v1.5.2.md`.
+Procedure: the `release` skill; precedent `docs/tasks/2026-10-15-03-release-v1.6.9.md`.
 
 ## Project-specific (cooViewer)
 - Vendored libs (one-time): `vendor/build-libs.sh` (needs cmake).
@@ -241,113 +230,44 @@ Full procedural precedent: `docs/tasks/2026-07-26-02-release-v1.5.2.md`.
 
 ## On-Device Verification Procedure
 
-Use this procedure whenever a build needs to be exercised as a real user
-would — main app launch, or QuickLook/Thumbnail extension behaviour. Follow
-it exactly and in one pass; see `docs/KNOWN_ISSUES.md` #15 for why repeated
-install/register cycles are risky.
+Use this whenever a build is exercised as a real user would: the main app,
+or the QuickLook/Thumbnail extensions. The `device-check` skill (main app)
+and the `ql-check` skill (extensions) give the steps; these are the rules.
+Repeated install/register cycles have left LaunchServices and QuickLook
+broken until a reboot (`docs/KNOWN_ISSUES.md` #15).
 
-### Main app only (no QuickLook/Thumbnail)
-
-1. `tools/device_check.sh prefs-backup` if the check may change
-   preferences, then `tools/device_check.sh launch` (or
-   `open build/cooViewer.app`).
-2. Exercise the app.
-3. Quit it: `tools/device_check.sh quit`, `Cmd+Q`, or `kill`.
-4. `tools/device_check.sh prefs-restore` if step 1 saved a backup.
-5. `tools/device_check.sh unregister`, which runs `lsregister -u` for
-   `build/cooViewer.app` and for the intermediate product under
-   `$BUILD_TMP` if it still exists. Launching registers
-   `build/cooViewer.app` with LaunchServices under the production bundle
-   IDs, and `xcodebuild` registers the intermediate products too
-   (`docs/KNOWN_ISSUES.md` #15).
-
-Do not touch `/Applications` (the Homebrew-managed install) or `~/Applications`
-for this case.
-
-### QuickLook / Thumbnail extensions
-
-Perform steps 1-6 in a single session, without repeating installs.
-
-1-3. `tools/device_check.sh ql-register`: copies `build/cooViewer.app` to
-   `~/Applications/` (never `/Applications`), runs
-   `lsregister -f ~/Applications/cooViewer.app`, and `pluginkit -a` for the
-   Preview and Thumbnail extensions. It refuses if the copy already exists.
-4. Confirm which bundle's extension Finder actually resolved — LaunchServices
-    deduplicates by bundle ID, so if `/Applications` (the Homebrew build)
-    is also registered, it may take priority over the `~/Applications` test
-    build even after `lsregister -f`. `ql-register` ends by listing each
-    extension with `pluginkit -m -v -i <id>`; read the path there before
-    relying on the result. If the
-    Homebrew build is being resolved instead, this step is not exercising
-    the new binary — report it rather than treating the check as passed.
-    It also prints `pluginkit -mADv` for each extension: every registered
-    copy, duplicates included. With several copies of the same version,
-    Finder may use any of them; check which one actually ran (for example
-    with `ps`), and report a check served by the `/Applications` copy as
-    not verified — the release artifact verification covers it.
-5. Verify via Finder directly — Icon/List view for thumbnails, Space bar for
-   Quick Look preview. Prefer this over `qlmanage`; on this machine
-   `qlmanage -t`/`-p` have hung even on non-encrypted files in past
-   sessions. If `qlmanage` is used, one attempt only; on a hang, force-quit
-   and switch to Finder rather than retrying.
-6. Complete all checks needed before cleanup — do not do a partial check,
-   clean up, then come back for more in the same session.
-7. Clean up: `tools/device_check.sh ql-unregister` (`pluginkit -r` for the
-   extensions, `lsregister -u`, then deletes `~/Applications/cooViewer.app`).
-   Do **not** delete any `defaults` keys or
-   `NSUserDefaults` entries — only remove the app bundle and QuickLook
-   registrations.
-
-### If something goes wrong
-
-If Finder's thumbnail/preview behaviour becomes unresponsive or wrong
-during or after this procedure, stop — do not attempt further
-install/register cycles to fix it. Report it. A recurrence of #15 requires
-a reboot, not more registration attempts.
+- **Main app only:** back up preferences with
+  `tools/device_check.sh prefs-backup` if the check may change them, launch
+  the build by path, quit only the build's copy, restore with
+  `prefs-restore`, and finish with `tools/device_check.sh unregister`
+  (launching and `xcodebuild` register the build and the intermediate
+  products under the production bundle IDs). Do not touch `/Applications`
+  or `~/Applications` for this case.
+- **QuickLook / Thumbnail:** one pass in one session:
+  `tools/device_check.sh ql-register` once (it copies the build to
+  `~/Applications`, never `/Applications`), finish every check in Finder,
+  then `tools/device_check.sh ql-unregister` once. Confirm which copy
+  Finder resolved (`pluginkit -m -v`, `pluginkit -mADv`, then `ps` for the
+  process that ran); a check served by the `/Applications` copy is not
+  verified, and the release artifact verification covers it. Prefer Finder
+  to `qlmanage`, which has hung here. Do not delete any `defaults` keys.
+- **If something goes wrong:** if Finder's thumbnails or previews become
+  unresponsive or wrong, stop and report. Do not register or install again
+  to fix it; a recurrence of #15 needs a reboot.
 
 ## Spread Capture & Comparison Methodology
 
-Use this whenever a change needs to be verified as visually identical
-(or intentionally different) to a baseline, e.g. confirming the render
-path wasn't affected by an unrelated change.
+Use this whenever a change must be shown to render identically (or
+intentionally differently) to a baseline; the `spread-compare` skill gives
+the steps and pitfalls.
 
-### Known pitfalls (apply every time)
-
-- Capture both sides of a comparison in the **same session**. A spread
-  region's exact bytes are not stable cross-session (window-corner
-  anti-aliasing, compositor state).
-- Region capture grabs whichever window is **frontmost** at the moment
-  of capture. Position windows non-overlapping, and if a test forces a
-  redraw (e.g. via a page-nav round trip) between captures, re-assert
-  frontmost immediately before each capture — a forced-redraw test can
-  let a different window (e.g. an unrelated Preview/PDF window) become
-  frontmost in between. See
-  `docs/tasks/2026-07-31-04-investigate-byte-identity-gate.md` for a
-  concrete case.
-- A screenshot taken immediately after launch can be black before first
-  render.
-- A keystroke expected to produce "no change" needs independent proof
-  it was delivered, not just an unchanged reading.
-- Screen Recording permission must be granted to the actual capturing
-  process (e.g. `tmux`), not the visible terminal app.
-- **Anti-aliased edges (text/vector content) are not bit-reproducible
-  across independent redraws**, even with zero code change — confirmed
-  as a system-level rendering behavior (reproduced in Apple's own
-  Preview.app under an equivalent test), not a cooViewer defect. Solid-
-  fill regions ARE exactly reproducible byte-for-byte.
-- Prefer a fresh single-draw capture over a page-navigation-forced
-  redraw when a choice exists — the latter introduces more opportunity
-  for the frontmost-window and edge-AA pitfalls above.
-
-### Comparison method
-
+- Capture both sides in the same session, with the window under test
+  frontmost right before each capture.
 - **Solid-fill region:** exact SHA-256 match is valid and expected.
-- **Region containing text/vector content:** use `tools/spread_diff.py`
-  (tolerance-based: bounded max per-channel difference + edge-adjacency
-  check) instead of exact hashing. Exact hashing on such a region WILL
-  show spurious diffs even with no code change — do not treat that as
-  a failure, and do not treat it as a pass just because "it usually
-  looks the same."
+- **Region with text/vector content:** use `tools/spread_diff.py`.
+  Anti-aliased edges are not bit-reproducible across redraws even with no
+  code change, so exact hashing there is neither a failure nor, when it
+  "looks the same", a pass.
 
 ## Repository Layout
 - Repository root contains only dotfiles, top-level directories, `*.md`,
