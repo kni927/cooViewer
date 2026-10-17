@@ -191,7 +191,8 @@ asked.
   procedure would prevent.
 - **What:** usually a skill; otherwise a script, a hook, a setting, or a
   template rule. Say what it does, what it saves, and where it lives: the
-  project's `.claude/skills/`, `kni927/repo-template` for every project, or
+  project's `.agents/skills/` (linked from `.claude/skills/`; Claude-only
+  skills in `.claude/skills/` alone, `AGENTS.md`, Skills), `kni927/repo-template` for every project, or
   `kni927/dotfiles` for the Macs and local sessions. A cloud session sees only
   its repository's skills, so a skill for HQs lives in the repositories they
   run in.
