@@ -25,6 +25,9 @@
 #   capture [x,y,w,h]
 #                  screenshot (whole screen, or that rectangle in points) to
 #                  a new file outside the repository; prints its path
+#   appearance get|light|dark|restore
+#                  read or switch the system appearance for a check; the first
+#                  switch saves the current setting, restore puts it back
 #
 # The real (Homebrew) copy in /Applications shares the bundle id and the
 # preferences domain; nothing here launches, quits or unregisters it.
@@ -322,6 +325,34 @@ cmd_capture() {
     echo "$out"
 }
 
+# System appearance (Light/Dark) for checks of the app in both modes. Uses
+# System Events, so macOS asks once for Automation permission for the
+# process that runs this.
+APPEARANCE_SAVED="$STATE_DIR/appearance-before"
+appearance_is_dark() {
+    osascript -e 'tell application "System Events" to tell appearance preferences to get dark mode'
+}
+appearance_set_dark() {
+    osascript -e "tell application \"System Events\" to tell appearance preferences to set dark mode to $1" >/dev/null
+}
+cmd_appearance() {
+    case "${1:-}" in
+        get)
+            if [ "$(appearance_is_dark)" = true ]; then echo dark; else echo light; fi ;;
+        light|dark)
+            mkdir -p "$STATE_DIR"
+            [ -f "$APPEARANCE_SAVED" ] || appearance_is_dark > "$APPEARANCE_SAVED"
+            if [ "$1" = dark ]; then appearance_set_dark true; else appearance_set_dark false; fi
+            echo "appearance: $1 (previous setting saved; run 'appearance restore' afterwards)" ;;
+        restore)
+            [ -f "$APPEARANCE_SAVED" ] || { echo "no saved appearance; nothing to restore"; return 0; }
+            appearance_set_dark "$(cat "$APPEARANCE_SAVED")"
+            rm -f "$APPEARANCE_SAVED"
+            if [ "$(appearance_is_dark)" = true ]; then echo "restored: dark"; else echo "restored: light"; fi ;;
+        *) die "appearance: use get, light, dark or restore" ;;
+    esac
+}
+
 case "${1:-}" in
     status)        cmd_status ;;
     prefs-backup)  cmd_prefs_backup ;;
@@ -335,5 +366,6 @@ case "${1:-}" in
     ql-register)   cmd_ql_register ;;
     ql-unregister) cmd_ql_unregister ;;
     capture)       cmd_capture "${2:-}" ;;
-    *) sed -n '2,30p' "$0" | sed 's/^# \{0,1\}//'; exit 2 ;;
+    appearance)    cmd_appearance "${2:-}" ;;
+    *) sed -n '2,33p' "$0" | sed 's/^# \{0,1\}//'; exit 2 ;;
 esac

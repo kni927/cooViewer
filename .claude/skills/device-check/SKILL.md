@@ -49,6 +49,9 @@ do nothing.
    - Screenshots: `tools/device_check.sh capture` (or `capture x,y,w,h`
      for a region) writes a new PNG outside the repository and prints its
      path; use it instead of calling `screencapture` directly.
+   - Light and dark mode: `tools/device_check.sh appearance dark` (or `light`),
+     and `tools/device_check.sh appearance restore` before quitting, so the
+     owner's setting comes back. Never switch it with `osascript` directly.
    - "user interrupt" without any owner input means the parent session's
      turn is not running (found 2026-10-12 in the Claude desktop app
      code). Computer use treats an idle parent as aborted, so a background

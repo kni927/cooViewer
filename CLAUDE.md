@@ -206,11 +206,14 @@ Procedure: the `release` skill; precedent `docs/tasks/2026-10-15-03-release-v1.6
   domain is fixed in the script and a backup must exist), and
   `ql-register` / `ql-unregister` (the QuickLook procedure below), and
   `capture [x,y,w,h]` (a screenshot into a new file outside the
-  repository, for checks and the spread comparison below). Agents
+  repository, for checks and the spread comparison below), and
+  `appearance get|light|dark|restore` (switch the system appearance for a
+  check in both modes; the first switch saves the setting and `restore`
+  puts it back, so end every check that switched with `restore`). Agents
   and their subagents may run these without asking each time. Use them
-  instead of calling `defaults write`, `lsregister` or `pluginkit -a/-r`
-  directly. The `device-check` and `build-app` skills give the
-  order of steps.
+  instead of calling `defaults write`, `lsregister`, `pluginkit -a/-r`
+  or `osascript` for the appearance directly. The `device-check` and
+  `build-app` skills give the order of steps.
 - Commands that the global or project settings already run outside the
   sandbox (`tools/device_check.sh`, `tools/update_tap.sh`, `xcodebuild`,
   `pluginkit -m`, `codesign -dvv`, `ps`, `top`, `pgrep`, `sysctl`, `sample`, `log show`)
