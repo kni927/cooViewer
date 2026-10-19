@@ -2,20 +2,29 @@
 # Setup script of the Trusted cloud environment, shared by every repository
 # (kni927/repo-template, scripts/copy-shared.sh). The environment's Setup
 # script field holds one line that runs the first copy it finds:
-#   for f in /home/user/*/.claude/cloud-setup.sh; do [ -f "$f" ] && exec bash "$f"; done; true  # rev 2
+#   for f in /home/user/*/.claude/cloud-setup.sh; do [ -f "$f" ] && exec bash "$f"; done; true  # rev 3
 # (no repository attached: nothing to run, and the session still starts).
-# Its result is cached for about seven days. After changing this file, raise
-# the rev number in the field so new sessions run it again.
+# The environment caches its result for about seven days, so it also
+# registers a SessionStart hook that runs this file again with --refresh at
+# every session start: a change synced to the repositories applies there
+# without touching the field. Only a plugin change needs the rev raised,
+# because plugins load before the hook runs.
 # The repositories are already cloned when it runs, but GitHub is not yet
 # reachable. kni927/dotfiles docs/CLOUD_ENVIRONMENTS.md explains each part.
-claude plugin marketplace add kni927/fast-jev-compaction
-claude plugin install fast-jev-compaction@fast-jev-compaction
+version=2026-10-20.1
+refresh=0; [ "${1:-}" = --refresh ] && refresh=1
+
+if [ $refresh = 0 ]; then
+    claude plugin marketplace add kni927/fast-jev-compaction
+    claude plugin install fast-jev-compaction@fast-jev-compaction
+fi
 
 # Merge on a diverged pull, as the repositories' rules require.
 git config --global pull.rebase false
 # Lint for the repositories' bash scripts; not needed to start a session.
 # From PyPI (seconds; apt-get update stalled for minutes in a session).
-timeout 120 python3 -m pip install -q --user shellcheck-py >/dev/null 2>&1 || true
+command -v shellcheck >/dev/null ||
+    timeout 120 python3 -m pip install -q --user shellcheck-py >/dev/null 2>&1 || true
 
 mkdir -p ~/.claude/hooks
 cat > ~/.claude/hooks/context-alert.py <<'PY'
@@ -75,10 +84,18 @@ for t in [
 ]:
     if t not in allow:
         allow.append(t)
-hook = {"type": "command", "command": "python3 -I ~/.claude/hooks/context-alert.py", "timeout": 10}
-groups = d.setdefault("hooks", {}).setdefault("UserPromptSubmit", [])
-if not any(hook in g.get("hooks", []) for g in groups):
-    groups.append({"hooks": [hook]})
+refresh = ('for f in /home/user/*/.claude/cloud-setup.sh; do [ -f "$f" ] && '
+           'exec bash "$f" --refresh >/dev/null 2>&1; done; true')
+for event, hook in [
+    ("UserPromptSubmit", {"type": "command", "command": "python3 -I ~/.claude/hooks/context-alert.py", "timeout": 10}),
+    ("SessionStart", {"type": "command", "command": refresh, "timeout": 120}),
+]:
+    groups = d.setdefault("hooks", {}).setdefault(event, [])
+    if not any(hook in g.get("hooks", []) for g in groups):
+        groups.append({"hooks": [hook]})
 os.makedirs(os.path.dirname(p), exist_ok=True)
 json.dump(d, open(p, "w"), indent=2)
 PY
+
+# Which copy ran last, for checking a session.
+echo "$version $(date -u +%FT%TZ) refresh=$refresh" > ~/.claude/cloud-setup.version
