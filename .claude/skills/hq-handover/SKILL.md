@@ -59,6 +59,10 @@ An HQ with no work left and no successor needed goes on stand-by
 6. **Tell the others** with `send_message`, giving the successor's name and
    session ID: upstream (Central HQ; when Central HQ itself hands over,
    Upstream HQ) and downstream (the Project HQs or TFs it coordinates).
+   Upstream HQ also asks the owner, in its reply, to change `session=` in
+   `~/.config/automation/claude-app-watch.conf` on each Mac to the
+   successor's session ID (`docs/AUTOMATIONS.md` in `kni927/dotfiles`,
+   Claude Desktop restarts), with the line ready to paste.
 7. **Mark this session done.** Rename it with `set_session_title` to
    `☁️ ✅ <name> (handover YYYY-MM-DD)`, using the owner's local date. End the
    reply with the ready-to-archive block from `docs/sessions.md`, stop taking
