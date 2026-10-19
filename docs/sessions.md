@@ -247,6 +247,10 @@ transcript, the newest `.jsonl` under `~/.claude/projects/<directory>/`.
 - **Checking:** check usage at natural breaks and before a step that would not
   fit; read the transcript for compactions only past the threshold below.
   Report usage only when handing over or wrapping up.
+  In a `Trusted` cloud session a hook adds a `Context usage: NN% …` line to
+  the turn once usage reaches 75%; that line is the check, so no
+  `get_session` call is needed for it (`docs/CLOUD_ENVIRONMENTS.md` in
+  `kni927/dotfiles`).
 - **Ask for `/compact` (cloud HQ):** before its first compaction, a cloud HQ
   past 70% ends its reply at the next natural break with one English line
   asking the owner to type `/compact`, once per crossing.
