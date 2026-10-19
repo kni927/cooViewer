@@ -80,8 +80,9 @@ skills (Skills, below).
 Send each message only to the sessions that need it.
 
 - **Who gets what:** a TF's reports go to its Project HQ only. Upstream HQ
-  sends a policy change to every current Project HQ and a one-line summary
-  to Central HQ. Reference information goes to the HQs it concerns. Central
+  sends a policy change to every active Project HQ and a one-line summary
+  to Central HQ; an HQ on stand-by (`💤`) gets nothing, since it re-reads
+  `docs/sessions.md` when it wakes. Reference information goes to the HQs it concerns. Central
   HQ receives only messages between projects, reports that lost their
   recipient, HQ handovers, and policy summaries.
 - **Owner steps once:** the session doing the work gives the owner each step
