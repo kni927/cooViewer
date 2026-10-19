@@ -227,6 +227,10 @@ repository's `.claude/skills/` like this file:
   and close that setup.
 - `find-session`: find the session where something was discussed or changed.
 
+`.claude/cloud-setup.sh`, copied the same way, is the `Trusted` cloud
+environment's setup script; the environment runs the first copy it finds
+(`docs/CLOUD_ENVIRONMENTS.md` in `kni927/dotfiles`).
+
 On the Macs, from `kni927/dotfiles`: `/tf` (start and run a TF, wrap it up),
 `wake-local` (reconnect local sessions after an app restart), and
 `mac-sandbox` (the local sandbox).

@@ -1,0 +1,76 @@
+#!/bin/bash
+# Setup script of the Trusted cloud environment, shared by every repository
+# (kni927/repo-template, scripts/copy-shared.sh). The environment's Setup
+# script field holds one line that runs the first copy it finds:
+#   for f in /home/user/*/.claude/cloud-setup.sh; do [ -f "$f" ] && exec bash "$f"; done; true
+# (no repository attached: nothing to run, and the session still starts).
+# The repositories are already cloned when it runs, but GitHub is not yet
+# reachable. kni927/dotfiles docs/CLOUD_ENVIRONMENTS.md explains each part.
+claude plugin marketplace add kni927/fast-jev-compaction
+claude plugin install fast-jev-compaction@fast-jev-compaction
+
+mkdir -p ~/.claude/hooks
+cat > ~/.claude/hooks/context-alert.py <<'PY'
+# UserPromptSubmit hook for Trusted cloud sessions (setup script). Past 75% of
+# the context window it adds one line with the usage, so the session applies
+# docs/sessions.md "Context usage" without calling get_session. Silent below.
+import json, os, sys
+
+WINDOW = int(os.environ.get("CONTEXT_WINDOW_TOKENS", "1000000"))
+try:
+    path = json.load(sys.stdin).get("transcript_path") or ""
+    with open(path, "rb") as f:
+        f.seek(0, 2)
+        f.seek(max(0, f.tell() - 4_000_000))
+        lines = f.read().splitlines()
+except Exception:
+    sys.exit(0)
+for raw in reversed(lines):
+    try:
+        e = json.loads(raw)
+    except ValueError:
+        continue
+    if e.get("subtype") == "compact_boundary":
+        break
+    if e.get("type") != "assistant" or e.get("isSidechain"):
+        continue
+    u = (e.get("message") or {}).get("usage") or {}
+    used = sum(u.get(k) or 0 for k in ("input_tokens", "cache_creation_input_tokens", "cache_read_input_tokens"))
+    if used:
+        if used * 4 >= WINDOW * 3:
+            print(f"Context usage: {used * 100 // WINDOW}% ({used:,} / {WINDOW:,} tokens), "
+                  'past the 75% threshold in docs/sessions.md "Context usage".')
+        break
+PY
+
+python3 - <<'PY'
+import json, os
+
+p = os.path.expanduser("~/.claude/settings.json")
+d = json.load(open(p)) if os.path.exists(p) else {}
+d.setdefault("pluginConfigs", {})["fast-jev-compaction@fast-jev-compaction"] = {"options": {"compactAtPercent": 78}}
+d["attribution"] = {"commit": "", "pr": "", "sessionUrl": True}
+allow = d.setdefault("permissions", {}).setdefault("allow", [])
+for t in [
+    "mcp__claude-code-remote__add_repo",
+    "mcp__Google_Drive__search_files", "mcp__Google_Drive__read_file_content",
+    "mcp__Google_Drive__get_file_metadata", "mcp__Google_Drive__download_file_content",
+    "mcp__Google_Drive__list_recent_files", "mcp__Google_Drive__create_file",
+    "mcp__Google_Drive__copy_file", "mcp__Google_Drive__update_file",
+    "mcp__Google_Sheets__get_spreadsheet", "mcp__Google_Sheets__get_values",
+    "mcp__Google_Sheets__update_values", "mcp__Google_Sheets__append_values",
+    "mcp__Google_Sheets__insert_dimension", "mcp__Google_Sheets__update_formulas",
+    "mcp__Google_Sheets__update_spreadsheet",
+    "mcp__Google_Docs__read_doc", "mcp__Google_Docs__update_doc",
+    "mcp__Dropbox__list_folder", "mcp__Dropbox__search", "mcp__Dropbox__fetch",
+    "mcp__Dropbox__get_file_metadata", "mcp__Dropbox__create_file", "mcp__Dropbox__create_folder",
+]:
+    if t not in allow:
+        allow.append(t)
+hook = {"type": "command", "command": "python3 -I ~/.claude/hooks/context-alert.py", "timeout": 10}
+groups = d.setdefault("hooks", {}).setdefault("UserPromptSubmit", [])
+if not any(hook in g.get("hooks", []) for g in groups):
+    groups.append({"hooks": [hook]})
+os.makedirs(os.path.dirname(p), exist_ok=True)
+json.dump(d, open(p, "w"), indent=2)
+PY
