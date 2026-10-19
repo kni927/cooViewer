@@ -2,12 +2,20 @@
 # Setup script of the Trusted cloud environment, shared by every repository
 # (kni927/repo-template, scripts/copy-shared.sh). The environment's Setup
 # script field holds one line that runs the first copy it finds:
-#   for f in /home/user/*/.claude/cloud-setup.sh; do [ -f "$f" ] && exec bash "$f"; done; true
+#   for f in /home/user/*/.claude/cloud-setup.sh; do [ -f "$f" ] && exec bash "$f"; done; true  # rev 2
 # (no repository attached: nothing to run, and the session still starts).
+# Its result is cached for about seven days. After changing this file, raise
+# the rev number in the field so new sessions run it again.
 # The repositories are already cloned when it runs, but GitHub is not yet
 # reachable. kni927/dotfiles docs/CLOUD_ENVIRONMENTS.md explains each part.
 claude plugin marketplace add kni927/fast-jev-compaction
 claude plugin install fast-jev-compaction@fast-jev-compaction
+
+# Merge on a diverged pull, as the repositories' rules require.
+git config --global pull.rebase false
+# Lint for the repositories' bash scripts; not needed to start a session.
+# From PyPI (seconds; apt-get update stalled for minutes in a session).
+timeout 120 python3 -m pip install -q --user shellcheck-py >/dev/null 2>&1 || true
 
 mkdir -p ~/.claude/hooks
 cat > ~/.claude/hooks/context-alert.py <<'PY'
