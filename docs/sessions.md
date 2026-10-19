@@ -98,8 +98,13 @@ Send each message only to the sessions that need it.
   local TF, the same. Local to anyone, `SendMessage` to the name as
   `ListAgents` lists it; its "one-way" result is anthropics/claude-code#98897
   and the message arrives. Once that is fixed, reply to `from-session`
-  instead. If a Project HQ cannot be reached, send to `Central HQ`, which
-  forwards to a successor.
+  instead. When `SendMessage` cannot reach a cloud session (the desktop
+  app's `send_message` answers "session not found" for one), a local
+  session sends with Bash: `claude -p "<message>" --cloud <session ID>`,
+  which needs the Mac's `claude` signed in with the claude.ai account and
+  arrives as a turn that looks typed by the owner, so the message starts
+  with the sender's name. If a Project HQ cannot be reached, send to
+  `Central HQ`, which forwards to a successor.
 - **Say where it went:** after a send, tell the owner in one English line
   (`Sent to: 🖥️ Mac mini HQ (SendMessage)`), without saying whether it was read
   or one-way. Receipts are not acknowledged.
