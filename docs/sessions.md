@@ -367,6 +367,10 @@ transcript, the newest `.jsonl` under `~/.claude/projects/<directory>/`.
   (`docs/AGENT_PARITY.md` in `kni927/dotfiles`). Tell the owner to archive it
   in the Mac app instead, while the two disagree. A TF cannot archive itself
   while its own turn and Remote Control connection are live.
+  A session that started another one (a child for a sub-task, a check, or a
+  test) archives it once the child is done and its work is verified (pushed,
+  nothing left uncommitted), from the same side: local from local, cloud from
+  cloud. A child never archives itself, and its brief never tells it to.
 - **Screen operations:** before computer use, ask the owner in chat to stand
   by and wait. Right before each computer-use approval request, run
   `open -a Claude`, or the dialog stays hidden behind other apps. Screen work
