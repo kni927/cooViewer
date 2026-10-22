@@ -93,7 +93,9 @@ Send each message only to the sessions that need it.
   HQ receives only messages between projects, reports that lost their
   recipient, HQ handovers, and policy summaries.
 - **Owner steps once:** the session doing the work gives the owner each step
-  the owner takes (tag commands, approvals, stand-by). On a TF's report, its
+  the owner takes (tag commands, approvals, stand-by). Before asking for a
+  step on a Mac (such as `/rc`), check the current state in the same turn and
+  ask only if the step is still needed. On a TF's report, its
   HQ checks the repository and GitHub and tells the owner only that it is
   verified, with a one-line pointer to what the TF waits on. It speaks in
   full only when the report and the state disagree, when a TF is blocked
