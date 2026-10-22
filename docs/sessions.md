@@ -33,7 +33,14 @@ skills (Skills, below).
   After an app restart the owner runs `/rc` there and it runs `wake-local`;
   it holds that Mac's Local Routines and answers cloud HQs' questions about
   the Mac. Does not implement. Central HQ's morning check covers Mac mini HQ
-  only, since the MacBook is often asleep or offline.
+  only, since the MacBook is often asleep or offline. It finds Mac mini HQ by
+  the name of the one file `mac-mini-hq.<session ID>` in Google Drive
+  `AI/Status/Sessions/`, since `list_sessions` pages by creation and a
+  long-lived session falls off the first page. A `/rc` reconnect keeps the
+  ID. When a new Mac mini HQ replaces the old one, it tells Central HQ, which
+  renames the file (`update_file`, `title`); Central HQ also renames it when
+  its morning check finds the file pointing at an archived or `✅` session
+  and a new Mac mini HQ is listed (owner's decision, 2026-10-23).
 - **Workspace session** (local): small investigations and fixes on a Mac
   that belong to no repository, in `~/Projects/Local/Workspace/<topic>/`
   (rules in that folder's `AGENTS.md`). It reports to the owner, takes no
