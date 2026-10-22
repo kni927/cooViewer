@@ -22,8 +22,9 @@ An HQ with no work left and no successor needed goes on stand-by
 3. **Write the handover** in the owner's language, as the successor's first
    prompt. Include:
    - the role, the plain name, and the repositories it works in;
-   - what to do first, including each `add_repo` that needs the owner's
-     approval (the successor asks for it in its first reply);
+   - what to do first: "Successor's first turn" below, and the repositories
+     it attaches with `add_repo` without asking the owner (owner's decision,
+     2026-10-22);
    - a pointer to the status files for open items and what waits on the
      owner, plus only what they cannot hold (session IDs, chat-only
      context);
@@ -43,10 +44,11 @@ An HQ with no work left and no successor needed goes on stand-by
    - `title`: `☁️ ` and the plain name (for example `☁️ cooViewer HQ`);
    - `prompt`: the handover.
    Upstream HQ's successor then attaches its other repositories with
-   `add_repo`. A cloud session ignores allow rules in a repository's
-   `.claude/settings.json`; the `Trusted` setup script allows `add_repo` in
-   the user settings (`docs/CLOUD_ENVIRONMENTS.md` in `kni927/dotfiles`),
-   in containers created after 2026-10-12.
+   `add_repo` in its first turn, without asking the owner. A cloud session
+   ignores allow rules in a repository's `.claude/settings.json`; the
+   `Trusted` setup script allows `add_repo` in the user settings
+   (`docs/CLOUD_ENVIRONMENTS.md` in `kni927/dotfiles`), in containers
+   created after 2026-10-12.
    If auto mode refuses a call, tell the owner and keep working until it is
    resolved.
 5. **Move this session's Routines.** With `list_triggers`, find the Routines
@@ -59,12 +61,29 @@ An HQ with no work left and no successor needed goes on stand-by
 6. **Tell the others** with `send_message`, giving the successor's name and
    session ID: upstream (Central HQ; when Central HQ itself hands over,
    Upstream HQ) and downstream (the Project HQs or TFs it coordinates).
-   Upstream HQ also asks the owner, in its reply, to change `session=` in
-   `~/.config/automation/claude-app-watch.conf` on each Mac to the
-   successor's session ID (`docs/AUTOMATIONS.md` in `kni927/dotfiles`,
-   Claude Desktop restarts), with the line ready to paste.
+   The Macs need nothing: Upstream HQ's successor points claude-app-watch
+   at itself (below).
 7. **Mark this session done.** Rename it with `set_session_title` to
    `☁️ ✅ <name> (handover YYYY-MM-DD)`, using the owner's local date. End the
-   reply with the ready-to-archive block from `docs/sessions.md`, stop taking
-   work, and forward anything that still arrives to the successor. The owner
-   archives it.
+   reply with the ready-to-archive block from `docs/sessions.md`, and send
+   the successor one line saying the handover is done (Routines moved, others
+   told, repositories pushed). Then stop taking work. The successor archives
+   this session (owner's decision, 2026-10-22); never archive it yourself
+   (`docs/sessions.md`, Stand-by).
+
+## Successor's first turn
+
+The owner decided on 2026-10-22 that a successor does these without asking,
+as part of the handover.
+
+1. Attach the repositories the handover lists with `add_repo`, clone each
+   one at a time, and `register_repo_root` it.
+2. Upstream HQ only: in Google Drive `AI/Status/Sessions/`, rename the one
+   `upstream-hq.<session ID>` file (`update_file`, `title`) to carry this
+   session's ID, and check that it is the only such file. claude-app-watch
+   on the Macs sends its notices to the ID in that name.
+3. When the predecessor's "handover done" line arrives, check that its title
+   carries `✅`, that `list_triggers` shows no Routine bound to it, and that
+   its repositories have nothing unpushed; then archive it with
+   `archive_session` and tell the owner in one line. If something is
+   missing, ask the predecessor with `send_message` before archiving.

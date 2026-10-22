@@ -308,7 +308,9 @@ transcript, the newest `.jsonl` under `~/.claude/projects/<directory>/`.
 - **Handover:** a cloud HQ hands over when Context usage says so or the owner
   says "handover", with the `hq-handover` skill: the successor runs in the same
   environment from the same `source_url`, the Routines bound to the old
-  session move to it, and the handover is sent, not committed.
+  session move to it, and the handover is sent, not committed. The successor
+  attaches its repositories with `add_repo` and archives its predecessor
+  without asking the owner (owner's decision, 2026-10-22).
 - **Stand-by:** a Project HQ with no work left and no Routine bound to it
   goes on stand-by instead of waiting: it brings `docs/STATUS.md` up to date,
   renames itself `💤 <name>`, and ends its reply with one English line, "This
@@ -370,7 +372,8 @@ transcript, the newest `.jsonl` under `~/.claude/projects/<directory>/`.
   A session that started another one (a child for a sub-task, a check, or a
   test) archives it once the child is done and its work is verified (pushed,
   nothing left uncommitted), from the same side: local from local, cloud from
-  cloud. A child never archives itself, and its brief never tells it to.
+  cloud. A child never archives itself, and its brief never tells it to. An
+  HQ's successor archives its predecessor (Handover).
 - **Screen operations:** before computer use, ask the owner in chat to stand
   by and wait. Right before each computer-use approval request, run
   `open -a Claude`, or the dialog stays hidden behind other apps. Screen work
