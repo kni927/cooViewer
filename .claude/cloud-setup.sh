@@ -11,7 +11,7 @@
 # because plugins load before the hook runs.
 # The repositories are already cloned when it runs, but GitHub is not yet
 # reachable. kni927/dotfiles docs/CLOUD_ENVIRONMENTS.md explains each part.
-version=2026-10-20.2
+version=2026-10-23.1
 refresh=0; [ "${1:-}" = --refresh ] && refresh=1
 
 if [ $refresh = 0 ]; then
@@ -84,6 +84,13 @@ for t in [
 ]:
     if t not in allow:
         allow.append(t)
+# Gmail sends nothing yet (drafts only); deleting a calendar event asks.
+for key, tools in [
+    ("deny", ["mcp__Gmail__send_message", "mcp__Gmail__reply", "mcp__Gmail__forward"]),
+    ("ask", ["mcp__Google_Calendar__delete_event"]),
+]:
+    rules = d["permissions"].setdefault(key, [])
+    rules.extend(t for t in tools if t not in rules)
 refresh = ('for f in /home/user/*/.claude/cloud-setup.sh; do [ -f "$f" ] && '
            'exec bash "$f" --refresh >/dev/null 2>&1; done; true')
 for event, hook in [
