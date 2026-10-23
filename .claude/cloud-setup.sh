@@ -11,7 +11,7 @@
 # because plugins load before the hook runs.
 # The repositories are already cloned when it runs, but GitHub is not yet
 # reachable. kni927/dotfiles docs/CLOUD_ENVIRONMENTS.md explains each part.
-version=2026-10-23.1
+version=2026-10-23.2
 refresh=0; [ "${1:-}" = --refresh ] && refresh=1
 
 if [ $refresh = 0 ]; then
@@ -84,13 +84,39 @@ for t in [
 ]:
     if t not in allow:
         allow.append(t)
-# Gmail sends nothing yet (drafts only); deleting a calendar event asks.
-for key, tools in [
-    ("deny", ["mcp__Gmail__send_message", "mcp__Gmail__reply", "mcp__Gmail__forward"]),
-    ("ask", ["mcp__Google_Calendar__delete_event"]),
+# Connectors (kni927/dotfiles DECISIONS 2026-10-23). With a kni927/dotfiles
+# clone, its connector-guard hook and lists decide Gmail send and the AI
+# calendar, as on the Macs. Without one, send is denied and a calendar delete
+# asks. Reply and forward are denied either way.
+src = "/home/user/dotfiles"
+guard_src = f"{src}/dot_local/bin/claude-hooks/executable_connector-guard"
+guarded = os.path.isfile(guard_src)
+guard = os.path.expanduser("~/.claude/hooks/connector-guard")
+if guarded:
+    import shutil
+    shutil.copyfile(guard_src, guard)
+    os.chmod(guard, 0o755)
+    conf = os.path.expanduser("~/.config/claude-hooks")
+    os.makedirs(conf, exist_ok=True)
+    for name in ("mail-recipients", "ai-calendars"):
+        shutil.copyfile(f"{src}/dot_config/claude-hooks/{name}", f"{conf}/{name}")
+perms = d["permissions"]
+for key, tool, wanted in [
+    ("deny", "mcp__Gmail__reply", True),
+    ("deny", "mcp__Gmail__forward", True),
+    ("deny", "mcp__Gmail__send_message", not guarded),
+    ("ask", "mcp__Google_Calendar__delete_event", not guarded),
 ]:
-    rules = d["permissions"].setdefault(key, [])
-    rules.extend(t for t in tools if t not in rules)
+    rules = perms.setdefault(key, [])
+    if wanted and tool not in rules:
+        rules.append(tool)
+    if not wanted and tool in rules:
+        rules.remove(tool)
+pre = d.setdefault("hooks", {}).setdefault("PreToolUse", [])
+pre[:] = [g for g in pre if guard not in json.dumps(g)]
+if guarded:
+    pre.append({"matcher": "mcp__.*(Gmail__send_message|Google_Calendar__(create|update|delete)_event)",
+                "hooks": [{"type": "command", "command": guard, "timeout": 10}]})
 refresh = ('for f in /home/user/*/.claude/cloud-setup.sh; do [ -f "$f" ] && '
            'exec bash "$f" --refresh >/dev/null 2>&1; done; true')
 for event, hook in [
