@@ -11,7 +11,7 @@
 # because plugins load before the hook runs.
 # The repositories are already cloned when it runs, but GitHub is not yet
 # reachable. kni927/dotfiles docs/CLOUD_ENVIRONMENTS.md explains each part.
-version=2026-10-23.2
+version=2026-10-23.3
 refresh=0; [ "${1:-}" = --refresh ] && refresh=1
 
 if [ $refresh = 0 ]; then
@@ -101,21 +101,24 @@ if guarded:
     for name in ("mail-recipients", "ai-calendars"):
         shutil.copyfile(f"{src}/dot_config/claude-hooks/{name}", f"{conf}/{name}")
 perms = d["permissions"]
-for key, tool, wanted in [
-    ("deny", "mcp__Gmail__reply", True),
-    ("deny", "mcp__Gmail__forward", True),
-    ("deny", "mcp__Gmail__send_message", not guarded),
-    ("ask", "mcp__Google_Calendar__delete_event", not guarded),
+# The same connectors appear under readable names or under their UUID.
+gmail = ["mcp__Gmail__", "mcp__2e96074d-f9a9-46b6-ba7f-03f3f1fd2fe5__"]
+calendar = ["mcp__Google_Calendar__", "mcp__3a55ff32-6a11-4191-bb2c-b9c58d7989e9__"]
+for key, tools, wanted in [
+    ("deny", [g + t for g in gmail for t in ("reply", "forward")], True),
+    ("deny", [g + "send_message" for g in gmail], not guarded),
+    ("ask", [c + "delete_event" for c in calendar], not guarded),
 ]:
     rules = perms.setdefault(key, [])
-    if wanted and tool not in rules:
-        rules.append(tool)
-    if not wanted and tool in rules:
-        rules.remove(tool)
+    for tool in tools:
+        if wanted and tool not in rules:
+            rules.append(tool)
+        if not wanted and tool in rules:
+            rules.remove(tool)
 pre = d.setdefault("hooks", {}).setdefault("PreToolUse", [])
 pre[:] = [g for g in pre if guard not in json.dumps(g)]
 if guarded:
-    pre.append({"matcher": "mcp__.*(Gmail__send_message|Google_Calendar__(create|update|delete)_event)",
+    pre.append({"matcher": "mcp__.*__(send_message|reply|forward|create_event|update_event|delete_event)",
                 "hooks": [{"type": "command", "command": guard, "timeout": 10}]})
 refresh = ('for f in /home/user/*/.claude/cloud-setup.sh; do [ -f "$f" ] && '
            'exec bash "$f" --refresh >/dev/null 2>&1; done; true')
