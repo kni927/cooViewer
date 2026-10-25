@@ -91,6 +91,12 @@ Send each message only to the sessions that need it.
   `list_events`; a local one reads a cloud session at
   `https://claude.ai/code/<session ID>` in the built-in browser. So a message
   names the session and topic instead of copying context.
+- **Files and documents:** share a Claude doc or artifact by its link in the
+  message; files between sessions go through Google Drive
+  `AI/Handoff/<Project>/`. Documents, slides, spreadsheets, and designs
+  follow the `kni Design System` (the owner's default in Claude, edited in
+  place, never renamed per version); for Google Docs, Sheets, and Slides,
+  match its type, colours, and spacing.
 - Slash commands do not travel in a message; ask the session to read the
   skill's `SKILL.md`, and leave built-in commands such as `/compact` to the
   owner.
