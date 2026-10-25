@@ -149,6 +149,10 @@ next, what is on hold, what waits on the owner, and short-lived notes.
 - Rewrite rather than append, about 40 lines; nothing recorded elsewhere,
   no secrets, no session IDs, nothing personal in a public repository.
 - A session starting work in a repository reads it first.
+- **Owner steps count as done** once given, unless the step is critical,
+  urgent, or a next step depends on it, or the owner says it is pending. Only
+  those stay under "Waiting on owner"; do not ask the owner to report the
+  rest.
 - Before an item goes to the owner or stays under "Waiting on owner", check
   whether it is already done (`list_sessions`, `git log`, GitHub, the
   Google Drive connector, `list_events`), unless checking costs far more than
