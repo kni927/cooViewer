@@ -156,7 +156,8 @@ next, what is on hold, what waits on the owner, and short-lived notes.
   `text`, `repo`, `kind` `waiting`/`onhold`, `added_by`, `added`, `done`),
   added with `ArtifactData`; the owner ticks them off there. "Waiting on
   owner" in a STATUS file points to the Checklist. Do not ask the owner to
-  report the rest.
+  report the rest. Read the Checklist at the start of a turn that follows up
+  an owner step: a ticked row is done; do not ask about it.
 - Before an item goes to the owner or stays under "Waiting on owner", check
   whether it is already done (`list_sessions`, `git log`, GitHub, the
   Google Drive connector, `list_events`), unless checking costs far more than
