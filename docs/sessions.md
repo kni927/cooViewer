@@ -47,6 +47,10 @@ procedures are in skills (Skills, below); the reasons are in
 - **Location mark first:** `☁️` cloud, `🖥️` the Mac mini, `💻` a MacBook
   (`pmset -g batt` shows `InternalBattery`); `✅` and `💤` follow it. Routines
   carry the mark of where they run.
+- **Private sessions:** `🔒` (instead of `☁️`) marks a session in the
+  `Private` cloud environment (`kni927/private`), which works on personal data.
+  Other sessions do not read its transcript (`list_events`, `get_event`) or
+  message it unless the owner asks.
 - **Unmarked titles:** a session without a mark renames itself before its
   first reply: the mark, then its role name or a few English words naming
   the work. A cloud session finds its own ID with `get_session`.
