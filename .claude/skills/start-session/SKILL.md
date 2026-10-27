@@ -18,7 +18,8 @@ into repository files.
 
 1. `create_session` (claude-code-remote) in `Trusted`: no `environment_id`
    when this session runs in `Trusted` (it inherits), otherwise `Trusted`'s
-   ID.
+   ID. Set `permission_mode` to `auto`: left out, the session starts in
+   `default` and asks for every write (2026-10-28).
 2. `source_url`: the project's repository (for example
    `https://github.com/kni927/cooViewer`); `source_revision`: `main`;
    `title`: `☁️ <repo> HQ`; `prompt`: its role, what to do first, and a
@@ -29,7 +30,7 @@ into repository files.
 ## An everyday or gateway session
 
 1. Look up `Full`'s ID with `list_environments` and pass it as
-   `environment_id`.
+   `environment_id`; `permission_mode`: `auto`, as above.
 2. `source_url`: `https://github.com/kni927/gateway`; `source_revision`:
    `main`; `title`: `☁️ <a few English words>`. `kni927/HQ` is for Central HQ
    only.

@@ -37,6 +37,8 @@ An HQ with no work left and no successor needed goes on stand-by
    tone).
 4. **Start the successor** with `create_session` (claude-code-remote):
    - no `environment_id`, so it inherits this environment;
+   - `permission_mode`: `auto`. Left out, the session starts in `default`
+     and asks for every write and every `add_repo` (2026-10-28);
    - `source_url`: the project's repository for a Project HQ,
      `https://github.com/kni927/dotfiles` for Upstream HQ,
      `https://github.com/kni927/HQ` for Central HQ;
