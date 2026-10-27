@@ -11,7 +11,7 @@
 # because plugins load before the hook runs.
 # The repositories are already cloned when it runs, but GitHub is not yet
 # reachable. kni927/dotfiles docs/CLOUD_ENVIRONMENTS.md explains each part.
-version=2026-10-23.3
+version=2026-10-27.1
 refresh=0; [ "${1:-}" = --refresh ] && refresh=1
 
 if [ $refresh = 0 ]; then
@@ -68,19 +68,22 @@ d = json.load(open(p)) if os.path.exists(p) else {}
 d.setdefault("pluginConfigs", {})["fast-jev-compaction@fast-jev-compaction"] = {"options": {"compactAtPercent": 78}}
 d["attribution"] = {"commit": "", "pr": "", "sessionUrl": True}
 allow = d.setdefault("permissions", {}).setdefault("allow", [])
-for t in [
-    "mcp__claude-code-remote__add_repo",
-    "mcp__Google_Drive__search_files", "mcp__Google_Drive__read_file_content",
-    "mcp__Google_Drive__get_file_metadata", "mcp__Google_Drive__download_file_content",
-    "mcp__Google_Drive__list_recent_files", "mcp__Google_Drive__create_file",
-    "mcp__Google_Drive__copy_file", "mcp__Google_Drive__update_file",
-    "mcp__Google_Sheets__get_spreadsheet", "mcp__Google_Sheets__get_values",
-    "mcp__Google_Sheets__update_values", "mcp__Google_Sheets__append_values",
-    "mcp__Google_Sheets__insert_dimension", "mcp__Google_Sheets__update_formulas",
-    "mcp__Google_Sheets__update_spreadsheet",
-    "mcp__Google_Docs__read_doc", "mcp__Google_Docs__update_doc",
-    "mcp__Dropbox__list_folder", "mcp__Dropbox__search", "mcp__Dropbox__fetch",
-    "mcp__Dropbox__get_file_metadata", "mcp__Dropbox__create_file", "mcp__Dropbox__create_folder",
+# A connector appears under its readable name or under its UUID (a session
+# that starts before the names resolve gets the UUID), so allow both.
+connectors = [
+    (["mcp__Google_Drive__", "mcp__ca13bbc7-3ace-4182-a80a-b7d9af123922__"],
+     ["search_files", "read_file_content", "get_file_metadata", "download_file_content",
+      "list_recent_files", "create_file", "copy_file", "update_file"]),
+    (["mcp__Google_Sheets__", "mcp__2d95d009-6258-4f5b-abda-f43840ca0f1e__"],
+     ["get_spreadsheet", "get_values", "update_values", "append_values",
+      "insert_dimension", "update_formulas", "update_spreadsheet"]),
+    (["mcp__Google_Docs__", "mcp__103325ab-b59c-4104-8fa2-2268c2d45ec3__"],
+     ["read_doc", "update_doc"]),
+    (["mcp__Dropbox__", "mcp__66031e7b-6d10-46d4-8e1b-9e116400fb26__"],
+     ["list_folder", "search", "fetch", "get_file_metadata", "create_file", "create_folder"]),
+]
+for t in ["mcp__claude-code-remote__add_repo"] + [
+    pre + tool for prefixes, tools in connectors for pre in prefixes for tool in tools
 ]:
     if t not in allow:
         allow.append(t)
@@ -101,7 +104,6 @@ if guarded:
     for name in ("mail-recipients", "ai-calendars"):
         shutil.copyfile(f"{src}/dot_config/claude-hooks/{name}", f"{conf}/{name}")
 perms = d["permissions"]
-# The same connectors appear under readable names or under their UUID.
 gmail = ["mcp__Gmail__", "mcp__2e96074d-f9a9-46b6-ba7f-03f3f1fd2fe5__"]
 calendar = ["mcp__Google_Calendar__", "mcp__3a55ff32-6a11-4191-bb2c-b9c58d7989e9__"]
 for key, tools, wanted in [
