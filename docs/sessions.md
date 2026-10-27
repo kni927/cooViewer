@@ -176,7 +176,9 @@ next, what is on hold, what waits on the owner, and short-lived notes.
 - Before an item goes to the owner or stays under "Waiting on owner", check
   whether it is already done (`list_sessions`, `git log`, GitHub, the
   Google Drive connector, `list_events`), unless checking costs far more than
-  asking.
+  asking. Check in the turn that asks; an earlier check does not count. For
+  asks about a session, the `owner-ask-check` Stop hook (dotfiles) holds a
+  reply once until the turn has read that session's state.
 
 ## Proposing improvements
 

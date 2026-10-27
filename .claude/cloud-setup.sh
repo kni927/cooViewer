@@ -11,7 +11,7 @@
 # because plugins load before the hook runs.
 # The repositories are already cloned when it runs, but GitHub is not yet
 # reachable. kni927/dotfiles docs/CLOUD_ENVIRONMENTS.md explains each part.
-version=2026-10-27.1
+version=2026-10-28.1
 refresh=0; [ "${1:-}" = --refresh ] && refresh=1
 
 if [ $refresh = 0 ]; then
@@ -122,6 +122,15 @@ pre[:] = [g for g in pre if guard not in json.dumps(g)]
 if guarded:
     pre.append({"matcher": "mcp__.*__(send_message|reply|forward|create_event|update_event|delete_event)",
                 "hooks": [{"type": "command", "command": guard, "timeout": 10}]})
+ask_src = f"{src}/dot_local/bin/claude-hooks/executable_owner-ask-check"
+ask_check = os.path.expanduser("~/.claude/hooks/owner-ask-check")
+stop = d.setdefault("hooks", {}).setdefault("Stop", [])
+stop[:] = [g for g in stop if ask_check not in json.dumps(g)]
+if os.path.isfile(ask_src):
+    import shutil
+    shutil.copyfile(ask_src, ask_check)
+    os.chmod(ask_check, 0o755)
+    stop.append({"hooks": [{"type": "command", "command": ask_check, "timeout": 10}]})
 refresh = ('for f in /home/user/*/.claude/cloud-setup.sh; do [ -f "$f" ] && '
            'exec bash "$f" --refresh >/dev/null 2>&1; done; true')
 for event, hook in [
