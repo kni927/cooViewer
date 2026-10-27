@@ -22,7 +22,8 @@ procedure.
    - `tldr`: one or two sentences in the owner's language on what the TF
      will do;
    - `prompt`, starting with exactly this line, then any context the TF
-     needs:
+     needs and, while cloud-to-local messages are refused (`docs/sessions.md`,
+     Messages), the whole first TASK under a `TASK:` line:
 
      ```
      Start this session as a TF: read `~/.claude/skills/tf/SKILL.md` and follow it exactly as if I had typed `/tf <what>`, so `$ARGUMENTS` is `<what>`.
@@ -36,7 +37,8 @@ procedure.
    card shows in the app on every Mac; the owner presses it on the Mac that
    should do the work (the MacBook has more memory, the Mac mini is always
    on). When the TF announces itself, send the TASK to the `from-session` of
-   that message, and tell the owner in one line to close the card on the
+   that message (while that is refused, the TASK is already in the prompt;
+   give a later TASK to the owner as English text to paste), and tell the owner in one line to close the card on the
    other Mac without starting it: once started, the card stays there and
    `dismiss_task` reports no pending task.
 6. If a second TF announces itself for the same card, send it no TASK; tell

@@ -89,6 +89,17 @@ Send each message only to the sessions that need it.
   (the Mac's `claude` signed in); it arrives looking typed by the owner, so
   start with the sender's name. If a Project HQ cannot be reached, send to
   Central HQ.
+- **Cloud to Mac is refused:** since about 2026-10-20 the server refuses
+  `send_message` from a cloud session into a local one
+  (`elevated_session_untrusted_device`, anthropics/claude-code#103864); Mac
+  to cloud and cloud to cloud still arrive. Never approve the card that
+  offers to let a cloud session "use your computers and other sessions": it
+  cannot be undone, and the session then asks on every send to the Mac,
+  can no longer exchange messages with other cloud sessions, and needs a
+  fresh sign-in on the Web. Until the refusal is lifted, an HQ puts what a TF
+  needs in its start prompt (`offer-tf`) or the repository, or writes an
+  English message for the owner to paste into the local session; TFs report
+  to their HQ as before.
 - **Say where it went:** one English line, `Sent to: 🖥️ Mac mini HQ
   (SendMessage)`. Receipts are not acknowledged.
 - **Read before asking:** a cloud session reads any transcript with
