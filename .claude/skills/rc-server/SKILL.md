@@ -6,7 +6,10 @@ description: Start local TFs from a cloud HQ through Remote Control server mode 
 # TFs through Remote Control server mode
 
 `docs/sessions.md` (Local sessions on the Mac) is the rule; this is the
-procedure. The owner starts the server only when this is wanted.
+procedure. The owner starts the server only when this is wanted. The Mac
+mini also runs an always-on server in `~/Projects/Local/MacMiniHQ`
+(kni927/dotfiles `docs/AUTOMATIONS.md`, "Remote Control server"); it is
+not for TFs.
 
 ## Starting TFs
 
@@ -21,14 +24,14 @@ procedure. The owner starts the server only when this is wanted.
    `set_session_title` if needed; no approval card appears.
 3. Each such session works in its own worktree
    (`.claude/worktrees/bridge-<id>/`), so several can run at once. They have
-   the `claude-code-remote` tools but not the desktop app's session tools,
-   and they do not appear in the Mac app.
+   the `claude-code-remote` tools but not the desktop app's session tools.
+   They show in the Mac app, on the Web and on the phone (2026-10-28).
 4. They stop answering when the server stops; running `claude remote-control`
    in the same folder within about four hours brings them back.
 5. Archiving such a session removes its worktree at once, and unarchiving
    brings back neither the worktree nor the connection (2026-10-07). So a TF
    commits and merges or pushes before it is archived. Because these sessions
-   are not in the Mac app, they may be archived from the cloud: a TF started
+   were started from the cloud, they may be archived from the cloud: a TF started
    this way can hand over to a successor started the same way, which archives
    it once the work is committed.
 
