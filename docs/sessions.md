@@ -30,6 +30,13 @@ procedures are in skills (Skills, below); the reasons are in
   `mac-mini-hq.<session ID>` in Google Drive `AI/Status/Sessions/`; `/rc`
   keeps the ID. A new Mac mini HQ tells Central HQ, which renames the file
   (also when its morning check finds the file pointing at a finished one).
+- **Mac mini Gate** (local, always on): `🖥️ Mac mini Gate`, the session of
+  the Remote Control server that launchd keeps running in
+  `~/Projects/Local/MacMiniHQ` (kni927/dotfiles `docs/AUTOMATIONS.md`). It
+  stays reachable from the Web and the phone when Claude Desktop restarts or
+  loses its sign-in, takes relayed messages while Mac mini HQ is gone, and
+  tells the owner when Mac mini HQ needs a sign-in or `/rc`. It has no Desktop
+  tools, so Mac mini HQ stays the base session. Does not implement.
 - **Workspace session** (local): small work on a Mac that belongs to no
   repository, in `~/Projects/Local/Workspace/<topic>/` (that folder's
   `AGENTS.md`). Reports to the owner only.
@@ -103,7 +110,7 @@ Send each message only to the sessions that need it.
   mini, write one Markdown file to Google Drive `AI/Handoff/Inbox/` (the
   connector's `create_file`, `contentMimeType` `text/markdown`,
   `disableConversionToGoogleType` true), named
-  `YYYYMMDD-HHMMSS-<topic>.md`, with `To: <the session's name>`,
+  `YYYYMMDD-HHMMSS-<topic>.md`, with `To: <the session's name>` (alternatives separated by ` | `, a trailing `*` for a name prefix; the Gate is `🖥️ Mac mini Gate | macminihq-*`, because `ListAgents` shows a server session under a local name),
   `From: <your name> (<your session ID>)`, a `---` line, then the message.
   `handoff-relay` on the Mac mini (dotfiles `docs/AUTOMATIONS.md`) delivers
   it within about five minutes with a local `SendMessage` and moves the file
