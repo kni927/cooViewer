@@ -110,7 +110,9 @@ Send each message only to the sessions that need it.
   to `done/`; a file it cannot deliver goes to `failed/` and the owner gets
   an alert. The receiver replies to your session directly. A MacBook session
   is not reached this way; there, or when the file is still in the inbox
-  after ten minutes, write an English message for the owner to paste.
+  after ten minutes (check its parent with `get_file_metadata`; title
+  search lags behind a move), write an English message for the owner to
+  paste.
 - **Say where it went:** one English line, `Sent to: 🖥️ Mac mini HQ
   (SendMessage)`. Receipts are not acknowledged.
 - **Read before asking:** a cloud session reads any transcript with
