@@ -110,7 +110,7 @@ Send each message only to the sessions that need it.
   mini, write one Markdown file to Google Drive `AI/Handoff/Inbox/` (the
   connector's `create_file`, `contentMimeType` `text/markdown`,
   `disableConversionToGoogleType` true), named
-  `YYYYMMDD-HHMMSS-<topic>.md`, with `To: <the session's name>` (alternatives separated by ` | `, a trailing `*` for a name prefix; the Gate is `🖥️ Mac mini Gate | macminihq-*`, because `ListAgents` shows a server session under a local name),
+  `YYYYMMDD-HHMMSS-<topic>.md`, with `To: <the session's name>` (alternatives separated by ` | `, a trailing `*` for a name prefix; the Gate is `🖥️ Mac mini Gate | macminihq-*`, because `ListAgents` names a server session by the server's `--name` or a folder-based name, and `set_session_title` from the cloud changes only the claude.ai title, never the name on the Mac),
   `From: <your name> (<your session ID>)`, a `---` line, then the message.
   `handoff-relay` on the Mac mini (dotfiles `docs/AUTOMATIONS.md`) delivers
   it within about five minutes with a local `SendMessage` and moves the file
