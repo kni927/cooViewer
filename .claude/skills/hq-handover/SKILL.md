@@ -63,8 +63,9 @@ An HQ with no work left and no successor needed goes on stand-by
 6. **Tell the others** with `send_message`, giving the successor's name and
    session ID: upstream (Central HQ; when Central HQ itself hands over,
    Upstream HQ) and downstream (the Project HQs or TFs it coordinates; a TF
-   on the Mac cannot be reached from the cloud while that is refused, so give
-   the owner one English line to paste into it).
+   on the Mac cannot be reached from the cloud while that is refused, so use
+   the Mac mini relay in `docs/sessions.md`, or give the owner one English
+   line to paste into it).
    The Macs need nothing: Upstream HQ's successor points claude-app-watch
    at itself (below).
 7. **Mark this session done.** Rename it with `set_session_title` to

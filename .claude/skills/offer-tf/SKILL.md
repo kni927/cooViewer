@@ -38,7 +38,8 @@ procedure.
    should do the work (the MacBook has more memory, the Mac mini is always
    on). When the TF announces itself, send the TASK to the `from-session` of
    that message (while that is refused, the TASK is already in the prompt;
-   give a later TASK to the owner as English text to paste), and tell the owner in one line to close the card on the
+   send a later TASK through the Mac mini relay in `docs/sessions.md`, or as
+   English text for the owner to paste), and tell the owner in one line to close the card on the
    other Mac without starting it: once started, the card stays there and
    `dismiss_task` reports no pending task.
 6. If a second TF announces itself for the same card, send it no TASK; tell

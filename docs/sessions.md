@@ -97,9 +97,20 @@ Send each message only to the sessions that need it.
   cannot be undone, and the session then asks on every send to the Mac,
   can no longer exchange messages with other cloud sessions, and needs a
   fresh sign-in on the Web. Until the refusal is lifted, an HQ puts what a TF
-  needs in its start prompt (`offer-tf`) or the repository, or writes an
-  English message for the owner to paste into the local session; TFs report
-  to their HQ as before.
+  needs in its start prompt (`offer-tf`) or the repository; TFs report to
+  their HQ as before.
+- **Mac mini relay:** for a later message to a local session on the Mac
+  mini, write one Markdown file to Google Drive `AI/Handoff/Inbox/` (the
+  connector's `create_file`, `contentMimeType` `text/markdown`,
+  `disableConversionToGoogleType` true), named
+  `YYYYMMDD-HHMMSS-<topic>.md`, with `To: <the session's name>`,
+  `From: <your name> (<your session ID>)`, a `---` line, then the message.
+  `handoff-relay` on the Mac mini (dotfiles `docs/AUTOMATIONS.md`) delivers
+  it within about five minutes with a local `SendMessage` and moves the file
+  to `done/`; a file it cannot deliver goes to `failed/` and the owner gets
+  an alert. The receiver replies to your session directly. A MacBook session
+  is not reached this way; there, or when the file is still in the inbox
+  after ten minutes, write an English message for the owner to paste.
 - **Say where it went:** one English line, `Sent to: 🖥️ Mac mini HQ
   (SendMessage)`. Receipts are not acknowledged.
 - **Read before asking:** a cloud session reads any transcript with
