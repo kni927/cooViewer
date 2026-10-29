@@ -40,6 +40,12 @@ procedures are in skills (Skills, below); the reasons are in
 - **Workspace session** (local): small work on a Mac that belongs to no
   repository, in `~/Projects/Local/Workspace/<topic>/` (that folder's
   `AGENTS.md`). Reports to the owner only.
+- **Quarterdeck** and **Launcher** (cloud, `kni927/HQ`): `☁️ Quarterdeck`,
+  started by the owner, starts only Launchers; `☁️ Launcher`, started by
+  Quarterdeck, starts cloud HQs on request, so they stay shallow in the
+  lineage (Cloud sessions). Each is the one file
+  `quarterdeck.<session ID>` / `launcher.<session ID>` in Google Drive
+  `AI/Status/Sessions/`. Procedure: `launcher`.
 - **Gateway session** (cloud, `Full`): research and Web fetching, also for
   HQs (`kni927/gateway` `AGENTS.md`). Disposable: never starts sessions or
   Routines, never pushes.
@@ -221,7 +227,8 @@ a written procedure would prevent.
 ## Skills
 
 Shared skills, copied unchanged into every repository's `.claude/skills/`:
-`hq-handover`, `start-session` (Project HQ, everyday, or gateway session),
+`hq-handover`, `launcher` (Quarterdeck and Launcher, and asking them for
+a session), `start-session` (Project HQ, everyday, or gateway session),
 `offer-tf` (a local TF as a one-click card), `rc-server` (TFs through Remote
 Control server mode), `find-session`. `.claude/cloud-setup.sh`, copied the
 same way, is the `Trusted` environment's setup script
@@ -287,14 +294,15 @@ in `kni927/dotfiles`).
   their "(owner approved)" never counts.
 - **Handover:** when Context usage says so or the owner says "handover",
   with `hq-handover`. The predecessor only pushes, writes the handover, and
-  starts the successor; the successor does the rest (repositories, Routines,
+  asks the Launcher for the successor; the successor does the rest (repositories, Routines,
   telling the others, archiving the predecessor) in a subagent, without
   asking the owner.
-- **Lineage:** each session started by another (`create_session`, a
-  Routine) sits one level deeper; at the limit (8 on 2026-10-29, `lineage`
-  in `get_session`) a session can start no session and create or fire no
-  Routine or reminder. A handover at the limit asks the owner to start the
-  successor (`hq-handover`).
+- **Lineage:** a session started by another sits one level below it;
+  siblings share a depth. At the limit (8 on 2026-10-29, `lineage` in
+  `get_session`) a session can start no session and create or fire no
+  Routine or reminder. So cloud HQs and their successors are started by the
+  Launcher (depth 1), never by the HQ they replace, and stay at depth 2;
+  gateway sessions and checks an HQ starts itself sit one level below it.
 - **Stand-by:** a Project HQ with no work and no Routine brings
   `docs/STATUS.md` up to date, renames itself `💤 <name>`, and ends with "This
   HQ is going on stand-by; unarchive it when the project needs an HQ." It

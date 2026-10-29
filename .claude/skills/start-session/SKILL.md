@@ -16,15 +16,14 @@ into repository files.
 
 ## A Project HQ
 
-1. `create_session` (claude-code-remote) in `Trusted`: no `environment_id`
-   when this session runs in `Trusted` (it inherits), otherwise `Trusted`'s
-   ID. Set `permission_mode` to `auto`: left out, the session starts in
-   `default` and asks for every write (2026-10-28).
-2. `source_url`: the project's repository (for example
-   `https://github.com/kni927/cooViewer`); `source_revision`: `main`;
-   `title`: `☁️ <repo> HQ`; `prompt`: its role, what to do first, and a
-   pointer to `docs/STATUS.md`.
-3. Tell Central HQ the new HQ's name. An HQ is archived once its TFs are
+1. Ask the Launcher (`launcher`, Asking the Launcher): title
+   `☁️ <repo> HQ`, repository the project's (for example
+   `https://github.com/kni927/cooViewer`), and a prompt with its role, what
+   to do first, and a pointer to `docs/STATUS.md`. The Launcher starts it in
+   `Trusted` in auto mode, two levels below Quarterdeck. Start it yourself with
+   `create_session` (`Trusted`, `permission_mode` `auto`, `source_revision`
+   `main`) only when the Launcher and Quarterdeck do not answer.
+2. Tell Central HQ the new HQ's name. An HQ is archived once its TFs are
    done; it may first be renamed with a version (`☁️ cooViewer v1.6.5 HQ`).
 
 ## An everyday or gateway session
@@ -32,8 +31,8 @@ into repository files.
 1. Look up `Full`'s ID with `list_environments` and pass it as
    `environment_id`; `permission_mode`: `auto`, as above.
 2. `source_url`: `https://github.com/kni927/gateway`; `source_revision`:
-   `main`; `title`: `☁️ <a few English words>`. `kni927/HQ` is for Central HQ
-   only.
+   `main`; `title`: `☁️ <a few English words>`. `kni927/HQ` is for Central HQ,
+   Quarterdeck, and the Launcher only.
 
 ## Asking a gateway session for a page
 

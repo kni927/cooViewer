@@ -35,25 +35,20 @@ An HQ with no work left and no successor needed goes on stand-by
    Leave out what the repositories already record and what the owner's
    personal preferences already say (how to address the owner, language,
    tone).
-4. **Start the successor** with `create_session` (claude-code-remote):
-   - no `environment_id`, so it inherits this environment;
-   - `permission_mode`: `auto`. Left out, the session starts in `default`
-     and asks for every write and every `add_repo` (2026-10-28);
-   - `source_url`: the project's repository for a Project HQ,
-     `https://github.com/kni927/dotfiles` for Upstream HQ,
-     `https://github.com/kni927/HQ` for Central HQ;
-   - `source_revision`: `main` (without it the session lands in Other); `source_url` takes one repository;
-   - `title`: `☁️ ` and the plain name (for example `☁️ cooViewer HQ`);
-   - `prompt`: the handover.
-   A session started by another sits one level deeper in its lineage, and
-   at the limit (`lineage` in `get_session`, 8 on 2026-10-29) it can start
-   no session or Routine. If `create_session` is refused for that, save the
-   handover to Google Drive `AI/Handoff/<Project>/handover-YYYY-MM-DD.md`
-   and ask the owner, in one English line, to start the successor in
-   claude.ai/code (`Trusted`, the `source_url` above, auto mode, the title
-   above) with the prompt "Read Google Drive AI/Handoff/<Project>/
-   handover-YYYY-MM-DD.md and follow it." An owner-started session is
-   expected to start a fresh lineage (not yet checked).
+4. **Start the successor** through the Launcher (`launcher`, Asking the
+   Launcher): title `☁️ ` and the plain name (for example `☁️ cooViewer HQ`),
+   repository the project's for a Project HQ,
+   `https://github.com/kni927/dotfiles` for Upstream HQ,
+   `https://github.com/kni927/HQ` for Central HQ, and the handover as the
+   prompt. The Launcher answers with the successor's ID. Starting it with
+   `create_session` here instead would put the successor one level below this
+   session; do that only when neither the Launcher nor Quarterdeck
+   answers, with `permission_mode` `auto` and `source_revision` `main`. At the lineage
+   limit with neither answering, save the handover to Google Drive
+   `AI/Handoff/<Project>/handover-YYYY-MM-DD.md` and ask the owner, in one
+   English line, to start the successor in claude.ai/code (`Trusted`, the
+   repository above, auto mode, the title above) with the prompt "Read
+   Google Drive AI/Handoff/<Project>/handover-YYYY-MM-DD.md and follow it."
    If auto mode refuses a call, tell the owner and keep working until it is
    resolved.
 5. **Mark this session done.** Rename it with `set_session_title` to
