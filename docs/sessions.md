@@ -301,7 +301,9 @@ in `kni927/dotfiles`).
   siblings share a depth. At the limit (8 on 2026-10-29, `lineage` in
   `get_session`) a session can start no session and create or fire no
   Routine or reminder. So cloud HQs and their successors are started by the
-  Launcher (depth 1), never by the HQ they replace, and stay at depth 2;
+  Launcher (depth 1), never by the HQ they replace, and stay at depth 2. A
+  session the Launcher started reports to the requester its first line
+  names, not to its parent;
   gateway sessions and checks an HQ starts itself sit one level below it.
 - **Stand-by:** a Project HQ with no work and no Routine brings
   `docs/STATUS.md` up to date, renames itself `💤 <name>`, and ends with "This
