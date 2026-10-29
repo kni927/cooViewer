@@ -73,10 +73,10 @@ claude-code-remote and connector tools (checked 2026-10-29). If a step is
 refused, it says which and why.
 
 1. Attach the repositories the handover lists with `add_repo`, clone each
-   one at a time, and `register_repo_root` it. `add_repo` is allowed in
-   settings (`cloud-setup.sh`), so a direct call passes auto mode; a
-   subagent asked to add repositories with push access was refused as
-   gaining access (2026-10-30), so this step stays out of the subagent.
+   one at a time, and `register_repo_root` it. `add_repo` is in the
+   `cloud-setup.sh` allow list by the owner's decision (2026-10-12); a
+   subagent asked to add repositories with push access was refused
+   (2026-10-30), so this step stays in this session.
 2. Upstream HQ only: in Google Drive `AI/Status/Sessions/`, rename the one
    `upstream-hq.<session ID>` file (`update_file`, `title`) to carry this
    session's ID, and check that it is the only such file. claude-app-watch

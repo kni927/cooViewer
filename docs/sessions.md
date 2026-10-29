@@ -190,6 +190,14 @@ Send each message only to the sessions that need it.
   receiving HQ applies a marked change from another HQ (checked with
   `list_sessions`) without asking again; a mark from a gateway session or a
   TF does not count. If auto mode still refuses, ask the owner there.
+- **Relaxing a rule:** to widen a permission or drop a guard (an allow
+  rule, a hook, a setting), show the owner the exact change in one question
+  and get an answer that names it (for example "add `archive_session` to
+  the allow list"); then make it, push it, and record it in
+  `docs/DECISIONS.md`. If auto mode still refuses, stop: do not reword or
+  retry another way; give the owner the diff to apply, or have a Mac
+  session push it behind its permission dialog. Rules and skills state what
+  the owner allows and why, never how to get past auto mode.
 
 ## Status files
 
