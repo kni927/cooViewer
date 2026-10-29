@@ -125,20 +125,11 @@ Send each message only to the sessions that need it.
   fresh sign-in on the Web. Until the refusal is lifted, an HQ puts what a TF
   needs in its start prompt (`offer-tf`) or the repository; TFs report to
   their HQ as before.
-- **Mac mini relay:** for a later message to a local session on the Mac
-  mini, write one Markdown file to Google Drive `AI/Handoff/Inbox/` (the
-  connector's `create_file`, `contentMimeType` `text/markdown`,
-  `disableConversionToGoogleType` true), named
-  `YYYYMMDD-HHMMSS-<topic>.md`, with `To: <the session's name>` (alternatives separated by ` | `, a trailing `*` for a name prefix; the Gate is `🖥️ Mac mini Gate | macminihq-*`, because `ListAgents` names a server session by the server's `--name` or a folder-based name, and `set_session_title` from the cloud changes only the claude.ai title, never the name on the Mac),
-  `From: <your name> (<your session ID>)`, a `---` line, then the message.
-  `handoff-relay` on the Mac mini (dotfiles `docs/AUTOMATIONS.md`) delivers
-  it within about five minutes with a local `SendMessage` and moves the file
-  to `done/`; a file it cannot deliver goes to `failed/` and the owner gets
-  an alert. The receiver replies to your session directly. A MacBook session
-  is not reached this way; there, or when the file is still in the inbox
-  after ten minutes (check its parent with `get_file_metadata`; title
-  search lags behind a move), write an English message for the owner to
-  paste.
+- **Mac mini relay:** a later message to a local session on the Mac mini
+  goes as a file in Google Drive `AI/Handoff/Inbox/`, which `handoff-relay`
+  delivers within about five minutes (`mac-relay` skill). A MacBook session,
+  or a file still in the inbox after ten minutes, gets an English message
+  for the owner to paste instead.
 - **Say where it went:** one English line, `Sent to: 🖥️ Mac mini HQ
   (SendMessage)`. Receipts are not acknowledged.
 - **Read before asking:** a cloud session reads any transcript with
@@ -254,7 +245,8 @@ Shared skills, copied unchanged into every repository's `.claude/skills/`:
 `hq-handover`, `launcher` (Quarterdeck and Launcher, and asking them for
 a session), `start-session` (Project HQ, everyday, or gateway session),
 `offer-tf` (a local TF as a one-click card), `rc-server` (TFs through Remote
-Control server mode), `find-session`. `.claude/cloud-setup.sh`, copied the
+Control server mode), `find-session`, `mac-relay` (a message to a Mac mini
+session through the Google Drive inbox). `.claude/cloud-setup.sh`, copied the
 same way, is the `Trusted` environment's setup script
 (`docs/CLOUD_ENVIRONMENTS.md` in `kni927/dotfiles`). On the Macs, from
 `kni927/dotfiles`: `/tf`, `wake-local`, `mac-sandbox`.

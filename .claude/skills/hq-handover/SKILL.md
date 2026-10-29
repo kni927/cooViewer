@@ -91,7 +91,7 @@ refused, it says which and why.
    ID, once: upstream (Central HQ; when Central HQ itself hands over,
    Upstream HQ) and downstream (the Project HQs or TFs it coordinates; a TF
    on the Mac cannot be reached from the cloud while that is refused, so use
-   the Mac mini relay in `docs/sessions.md`).
+   the Mac mini relay (`mac-relay` skill)).
 5. When the predecessor's "handover done" line has arrived and step 3 left
    no Routine bound to it, check that its title carries `✅` and that its
    repositories have nothing unpushed (each `main` on GitHub holds the
