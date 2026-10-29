@@ -82,10 +82,10 @@ Subagents can call the claude-code-remote and connector tools (checked
    session's ID, and check that it is the only such file. claude-app-watch
    on the Macs sends its notices to the ID in that name.
 3. **Routines.** With `list_triggers`, find those bound to the predecessor
-   (`persistent_session_id`). Create each again bound to this session
-   (same name, schedule, and prompt), then delete the old one. A Routine is
-   bound to one session and cannot be rebound; one that starts a fresh
-   session on each firing needs nothing. A session at the lineage limit
+   (`persistent_session_id`; Central HQ's morning check). Create each again
+   bound to this session (same name, schedule, and prompt), then delete the
+   old one. A Routine is bound to one session and cannot be rebound; the
+   owner's fresh-session Routines need nothing. A session at the lineage limit
    cannot create Routines: then leave the old ones, and the report says so.
 4. **Tell the others** with `send_message`, giving this session's name and
    ID, once: upstream (Central HQ; when Central HQ itself hands over,

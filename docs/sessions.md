@@ -268,9 +268,17 @@ in `kni927/dotfiles`).
   `Full` (full network, no secrets) for everyday and gateway sessions in
   `kni927/gateway`. Look IDs up with `list_environments`.
 - **Repositories:** from the owner in claude.ai/code, from `create_session`
-  with `source_url` and `source_revision` `main`, or `add_repo`. A chat, a
-  scheduled task, or a Routine cannot attach one, so scheduled work that
-  needs one wakes an existing HQ.
+  with `source_url` and `source_revision` `main`, or `add_repo`. A chat
+  cannot attach one.
+- **Routines:** scheduled work runs in a Routine the owner makes in the
+  claude.ai Routines page, which starts a fresh session each time with its
+  repository and connectors; that session can `add_repo` and use Google
+  Drive and Artifact, but has no session tools (`get_session`,
+  `send_message`, `create_session`), so its final reply is its report and it
+  compares with earlier runs through Google Drive files. A Routine made with
+  `create_trigger` gets no connectors, credentials, or session tools
+  (2026-10-29). Only work that needs session tools (Central HQ's morning
+  check) stays bound to an HQ.
 - **Bridge:** for a page outside its network, an HQ or TF tries WebSearch and
   connectors, then starts a gateway session (`start-session`) without
   asking, with a time limit (an hour unless less will do) and a request
