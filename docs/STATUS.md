@@ -5,14 +5,12 @@ what comes next, what is on hold, and what waits on the owner. Rewrite it
 rather than append; keep it under about 40 lines. Rules are in `AGENTS.md`,
 decisions in `docs/DECISIONS.md`, and history in `docs/tasks/` and Git.
 
-Updated: 2026-10-17
+Updated: 2026-10-30
 
 ## Summary
 
 cooViewer: macOS image and comic viewer, a maintained fork of coo-ona's original.
-Latest release v1.6.9 (2026-10-15), notarized and in the Homebrew tap: page
-bar size and Page Number settings, Fill title bar, status bar opacity, and
-the #47 fixes (`docs/tasks/2026-10-15-03-release-v1.6.9.md`).
+Latest release v1.6.9 (2026-10-15; `docs/tasks/2026-10-15-03-release-v1.6.9.md`).
 
 ## Next
 
@@ -24,17 +22,11 @@ the #47 fixes (`docs/tasks/2026-10-15-03-release-v1.6.9.md`).
   only); left unchanged on 2026-10-15, reasons in
   `docs/tasks/2026-10-15-01-page-bar-settings.md`.
 
-The next five were put on hold as minor (owner, 2026-10-08); details are in
-the files named.
-
-- Thumbnail panel and page-bar bubble still decode on the main thread; can
-  stall on large solid RAR books (`docs/KNOWN_ISSUES.md` #46).
-- An in-flight page decode cannot be cancelled (#46).
-- Solid RAR5 decode-ahead files are left behind after a crash
-  (`docs/DECISIONS.md`, per-book disk cache).
-- Unused `Resources/empty.png` (`docs/KNOWN_ISSUES.md`, unused resources).
-- Archives nested in archives, or in folder books, still load through the
-  modal path (`docs/KNOWN_ISSUES.md`, async loading).
+- Minor, on hold (owner, 2026-10-08): main-thread decode in the thumbnail
+  panel and page-bar bubble, and uncancellable page decodes (`docs/KNOWN_ISSUES.md`
+  #46); RAR5 decode-ahead files left after a crash (`docs/DECISIONS.md`, per-book
+  disk cache); unused `Resources/empty.png`; nested archives through the modal
+  path (`docs/KNOWN_ISSUES.md`).
 - Undecided (owner, moved here 2026-10-10): whether to support OPDS catalogues
   from a self-hosted server; Komga is favoured over Kavita.
 - Not implemented: EPUB to PDF to CBZ conversion. Chosen toolchain is LuaLaTeX
@@ -48,16 +40,5 @@ the files named.
 
 ## Notes
 
-Short-lived notes, dated. A note is a hint: check it before relying on it, and
-delete it when it is done or out of date.
-
-- 2026-10-06: QuickLook checks of a dev build count only when `ps` shows the
-  test copy's extension ran (`ql-check` skill).
-- 2026-10-17: the step lists of Releasing, On-Device Verification and Spread
-  Capture moved from `CLAUDE.md` to skills in `.agents/skills/` (`AGENTS.md`,
-  Skills). The HQ went on stand-by (`docs/sessions.md`, Stand-by).
-- 2026-10-12: computer use cannot type into save-panel accessory fields or
-  secure input; run screen-operating subagents in the foreground
-  (`device-check` skill).
-- 2026-10-15: run `open -a Claude` right before a computer-use approval
-  request so the owner sees the dialog (`device-check` skill).
+- None. Device, Quick Look and computer-use quirks live in the `device-check`
+  and `ql-check` skills.
