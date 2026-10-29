@@ -21,7 +21,8 @@ procedure.
    - `title`: `Start <repo> TF <what>`;
    - `tldr`: one or two sentences in the owner's language on what the TF
      will do;
-   - `prompt`, starting with exactly this line, then any context the TF
+   - `prompt`, starting with exactly this line, then the First lines
+     (`docs/sessions.md`, Messages; kind `tf`), then any context the TF
      needs and, while cloud-to-local messages are refused (`docs/sessions.md`,
      Messages), the whole first TASK under a `TASK:` line:
 

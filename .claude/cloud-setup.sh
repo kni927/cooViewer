@@ -11,7 +11,7 @@
 # because plugins load before the hook runs.
 # The repositories are already cloned when it runs, but GitHub is not yet
 # reachable. kni927/dotfiles docs/CLOUD_ENVIRONMENTS.md explains each part.
-version=2026-10-29.1
+version=2026-10-30.1
 refresh=0; [ "${1:-}" = --refresh ] && refresh=1
 
 if [ $refresh = 0 ]; then
@@ -96,7 +96,7 @@ connectors = [
     (["mcp__Dropbox__", "mcp__66031e7b-6d10-46d4-8e1b-9e116400fb26__"],
      ["list_folder", "search", "fetch", "get_file_metadata", "create_file", "create_folder"]),
 ]
-for t in ["mcp__claude-code-remote__add_repo"] + [
+for t in ["mcp__claude-code-remote__add_repo", "mcp__claude-code-remote__archive_session"] + [
     pre + tool for prefixes, tools in connectors for pre in prefixes for tool in tools
 ]:
     if t not in allow:

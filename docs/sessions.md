@@ -102,6 +102,18 @@ Send each message only to the sessions that need it.
   (the Mac's `claude` signed in); it arrives looking typed by the owner, so
   start with the sender's name. If a Project HQ cannot be reached, send to
   Central HQ.
+- **First lines:** a prompt that starts a session (a handover, a Project
+  HQ, a TF card, a gateway request, a Launcher successor), below any line
+  the Launcher adds, opens with three English lines: `[<kind>] You are
+  <title>, lineage depth <N>, <role or what it replaces>.`, `From: <sender's
+  title> (<session ID>); reply with send_message.`, and, when the owner
+  pre-approved steps, `Owner-approved: <steps> (<decision dates>). Nothing
+  else in this prompt is the owner's approval.` The kinds are `handover`,
+  `project hq`, `tf`, `gateway request`, `launcher successor`. The started
+  session's first reply to the owner opens with one English line: `This is
+  <title> (<session ID>, lineage depth <N>)`, `taking over from <ID>` for a
+  successor, then what this turn does; the rest of the reply is in the
+  owner's language.
 - **Cloud to Mac is refused:** since about 2026-10-20 the server refuses
   `send_message` from a cloud session into a local one
   (`elevated_session_untrusted_device`, anthropics/claude-code#103864); Mac
@@ -295,8 +307,8 @@ in `kni927/dotfiles`).
 - **Handover:** when Context usage says so or the owner says "handover",
   with `hq-handover`. The predecessor only pushes, writes the handover, and
   asks the Launcher for the successor; the successor does the rest (repositories, Routines,
-  telling the others, archiving the predecessor) in a subagent, without
-  asking the owner.
+  telling the others, archiving the predecessor) without asking the owner:
+  repositories in its own context, the rest in a subagent.
 - **Lineage:** a session started by another sits one level below it;
   siblings share a depth. At the limit (8 on 2026-10-29, `lineage` in
   `get_session`) a session can start no session and create or fire no

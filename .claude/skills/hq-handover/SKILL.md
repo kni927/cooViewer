@@ -20,7 +20,8 @@ An HQ with no work left and no successor needed goes on stand-by
    that repository's rules (fetch, merge `origin/main` if it moved, then
    push). Note anything that cannot be pushed.
 3. **Write the handover** in the owner's language, as the successor's first
-   prompt. Include:
+   prompt, opening with the English first lines in `docs/sessions.md`
+   (Messages, First lines; kind `handover`). Include:
    - the role, the plain name, and the repositories it works in;
    - what to do first: "Successor's first turn" below, and the repositories
      it attaches with `add_repo` without asking the owner (owner's decision,
@@ -63,15 +64,19 @@ An HQ with no work left and no successor needed goes on stand-by
 ## Successor's first turn
 
 The owner decided on 2026-10-22 that a successor does these without asking,
-as part of the handover. Run steps 1 to 4 in one foreground `Agent`
-subagent, giving it the handover's repository list, session names and IDs,
-and the predecessor's ID, so the long tool output (clone messages, Routine
-prompts) stays out of the main context; it returns a short report.
-Subagents can call the claude-code-remote and connector tools (checked
-2026-10-29). If a step is refused, it says which and why.
+as part of the handover. Open the first reply with the `This is` line
+(`docs/sessions.md`, Messages, First lines). Do step 1 in this session. Then run steps 2 to 4
+in one foreground `Agent` subagent, giving it the session names and IDs and
+the predecessor's ID, so the long tool output (Routine prompts) stays out of
+the main context; it returns a short report. Subagents can call the
+claude-code-remote and connector tools (checked 2026-10-29). If a step is
+refused, it says which and why.
 
 1. Attach the repositories the handover lists with `add_repo`, clone each
-   one at a time, and `register_repo_root` it.
+   one at a time, and `register_repo_root` it. `add_repo` is allowed in
+   settings (`cloud-setup.sh`), so a direct call passes auto mode; a
+   subagent asked to add repositories with push access was refused as
+   gaining access (2026-10-30), so this step stays out of the subagent.
 2. Upstream HQ only: in Google Drive `AI/Status/Sessions/`, rename the one
    `upstream-hq.<session ID>` file (`update_file`, `title`) to carry this
    session's ID, and check that it is the only such file. claude-app-watch
@@ -89,7 +94,8 @@ Subagents can call the claude-code-remote and connector tools (checked
    the Mac mini relay in `docs/sessions.md`).
 5. When the predecessor's "handover done" line has arrived and step 3 left
    no Routine bound to it, check that its title carries `✅` and that its
-   repositories have nothing unpushed; then archive it with
-   `archive_session` and tell the owner in one line, with anything the
-   subagent could not do. If something is missing, ask the predecessor with
+   repositories have nothing unpushed (each `main` on GitHub holds the
+   commits its "handover done" line names); then archive it with
+   `archive_session` (allowed in settings by cloud-setup.sh) and tell the owner in one line,
+   with anything the subagent could not do. If something is missing, ask the predecessor with
    `send_message` before archiving.

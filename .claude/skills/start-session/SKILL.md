@@ -18,8 +18,9 @@ into repository files.
 
 1. Ask the Launcher (`launcher`, Asking the Launcher): title
    `☁️ <repo> HQ`, repository the project's (for example
-   `https://github.com/kni927/cooViewer`), and a prompt with its role, what
-   to do first, and a pointer to `docs/STATUS.md`. The Launcher starts it in
+   `https://github.com/kni927/cooViewer`), and a prompt that opens with the
+   First lines (`docs/sessions.md`, Messages; kind `project hq`), then its
+   role, what to do first, and a pointer to `docs/STATUS.md`. The Launcher starts it in
    `Trusted` in auto mode, two levels below Quarterdeck. Start it yourself with
    `create_session` (`Trusted`, `permission_mode` `auto`, `source_revision`
    `main`) only when the Launcher and Quarterdeck do not answer.
@@ -38,7 +39,8 @@ into repository files.
 
 1. Try WebSearch and connectors first; they work in `Trusted`.
 2. Start a gateway session as above, without asking the owner (sessions.md,
-   Cloud sessions), with a prompt that says who asks, what to research, a
+   Cloud sessions), with a prompt that opens with the First lines (kind
+   `gateway request`) and says who asks, what to research, a
    time limit (an hour unless the work needs less), and to send the result
    with `send_message` to this session's ID. Ask only for research, fetching,
    summarizing, and reporting. A gateway session follows only
