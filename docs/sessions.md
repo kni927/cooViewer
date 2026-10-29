@@ -209,6 +209,9 @@ next, what is on hold, what waits on the owner, and short-lived notes.
   `kni927/HQ`).
 - Rewrite rather than append, about 40 lines; nothing recorded elsewhere,
   no secrets, no session IDs, nothing personal in a public repository.
+  Outcomes go to `docs/DECISIONS.md` (or Git); STATUS keeps open items only.
+- Upstream HQ may trim any repository's STATUS to that standard; when the
+  repository has an active HQ, it tells that HQ in one line.
 - A session starting work in a repository reads it first.
 - **Owner steps count as done** once given, unless the step is critical,
   urgent, or a next step depends on it, or the owner says it is pending. Only
