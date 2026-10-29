@@ -11,7 +11,7 @@
 # because plugins load before the hook runs.
 # The repositories are already cloned when it runs, but GitHub is not yet
 # reachable. kni927/dotfiles docs/CLOUD_ENVIRONMENTS.md explains each part.
-version=2026-10-28.1
+version=2026-10-29.1
 refresh=0; [ "${1:-}" = --refresh ] && refresh=1
 
 if [ $refresh = 0 ]; then
@@ -28,36 +28,50 @@ command -v shellcheck >/dev/null ||
 
 mkdir -p ~/.claude/hooks
 cat > ~/.claude/hooks/context-alert.py <<'PY'
-# UserPromptSubmit hook for Trusted cloud sessions (setup script). Past 75% of
-# the context window it adds one line with the usage, so the session applies
-# docs/sessions.md "Context usage" without calling get_session. Silent below.
+# UserPromptSubmit hook for Trusted cloud sessions (setup script). From 70%
+# of the context window, or always after a second compaction, it adds one
+# line with the usage, the compaction count, and the step docs/sessions.md
+# "Context usage" calls for, so the session need not work either out.
 import json, os, sys
 
 WINDOW = int(os.environ.get("CONTEXT_WINDOW_TOKENS", "1000000"))
 try:
     path = json.load(sys.stdin).get("transcript_path") or ""
+    compactions, used = 0, 0
     with open(path, "rb") as f:
-        f.seek(0, 2)
-        f.seek(max(0, f.tell() - 4_000_000))
-        lines = f.read().splitlines()
+        for raw in f:
+            if b'"compact_boundary"' in raw:
+                try:
+                    if json.loads(raw).get("subtype") == "compact_boundary":
+                        compactions, used = compactions + 1, 0
+                        continue
+                except ValueError:
+                    pass
+            if b'"usage"' not in raw or b'"assistant"' not in raw:
+                continue
+            try:
+                e = json.loads(raw)
+            except ValueError:
+                continue
+            if e.get("type") != "assistant" or e.get("isSidechain"):
+                continue
+            u = (e.get("message") or {}).get("usage") or {}
+            used = sum(u.get(k) or 0 for k in
+                       ("input_tokens", "cache_creation_input_tokens", "cache_read_input_tokens")) or used
 except Exception:
     sys.exit(0)
-for raw in reversed(lines):
-    try:
-        e = json.loads(raw)
-    except ValueError:
-        continue
-    if e.get("subtype") == "compact_boundary":
-        break
-    if e.get("type") != "assistant" or e.get("isSidechain"):
-        continue
-    u = (e.get("message") or {}).get("usage") or {}
-    used = sum(u.get(k) or 0 for k in ("input_tokens", "cache_creation_input_tokens", "cache_read_input_tokens"))
-    if used:
-        if used * 4 >= WINDOW * 3:
-            print(f"Context usage: {used * 100 // WINDOW}% ({used:,} / {WINDOW:,} tokens), "
-                  'past the 75% threshold in docs/sessions.md "Context usage".')
-        break
+pct = used * 100 // WINDOW
+if compactions == 0 and pct >= 70:
+    step = ("no compaction yet: a cloud HQ ends its reply with the one-line /compact "
+            "request and does not hand over")
+elif compactions == 1 and pct >= 75:
+    step = "compacted once: a cloud HQ hands over at the next natural break"
+elif compactions >= 2:
+    step = f"compacted {compactions} times: a cloud HQ hands over at the next natural break"
+else:
+    sys.exit(0)
+print(f'Context usage: {pct}% ({used:,} / {WINDOW:,} tokens); {step} '
+      '(docs/sessions.md "Context usage").')
 PY
 
 python3 - <<'PY'
