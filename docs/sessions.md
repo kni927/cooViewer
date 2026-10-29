@@ -114,6 +114,7 @@ Send each message only to the sessions that need it.
   <title> (<session ID>, lineage depth <N>)`, `taking over from <ID>` for a
   successor, then what this turn does; the rest of the reply is in the
   owner's language.
+- **Dates:** YYYY-MM-DD, or M/D if the year is not needed.
 - **Cloud to Mac is refused:** since about 2026-10-20 the server refuses
   `send_message` from a cloud session into a local one
   (`elevated_session_untrusted_device`, anthropics/claude-code#103864); Mac
