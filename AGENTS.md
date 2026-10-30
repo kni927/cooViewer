@@ -1,4 +1,4 @@
-<!-- Template synced: repo-template@d9179f8 on 2026-10-30. -->
+<!-- Template synced: repo-template@2252f0d on 2026-10-30. -->
 # Project Instructions
 
 ## Project Origin
@@ -138,6 +138,9 @@
 - Project documentation is written in English by default.
 - Use Japanese documentation only when explicitly required by the project.
 - Preserve the existing language and style when editing established documentation.
+- For dates, use YYYY-MM-DD, or M/D if the year is not needed.
+- In Japanese text, put no space between Japanese characters and adjacent Latin
+  letters, digits, or inline code (「Claude Codeの設定」, not 「Claude Code の設定」).
 
 ## Licensing
 
