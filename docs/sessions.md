@@ -115,6 +115,8 @@ Send each message only to the sessions that need it.
   successor, then what this turn does; the rest of the reply is in the
   owner's language.
 - **Dates:** YYYY-MM-DD, or M/D if the year is not needed.
+- **Japanese text:** no space between Japanese characters and adjacent Latin
+  letters, digits, or inline code (「Claude Codeの設定」, not 「Claude Code の設定」).
 - **Cloud to Mac is refused:** since about 2026-10-20 the server refuses
   `send_message` from a cloud session into a local one
   (`elevated_session_untrusted_device`, anthropics/claude-code#103864); Mac
