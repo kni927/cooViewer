@@ -211,13 +211,19 @@ next, what is on hold, what waits on the owner, and short-lived notes.
 - A session starting work in a repository reads it first.
 - **Owner steps count as done** once given, unless the step is critical,
   urgent, or a next step depends on it, or the owner says it is pending. Only
-  those are kept, as rows in the owner's **Checklist** artifact
-  (https://claude.ai/artifact/BfRA69hSfCditT5eUz8fzY, collection `items`:
-  `text`, `repo`, `kind` `waiting`/`onhold`, `added_by`, `added`, `done`),
-  added with `ArtifactData`; the owner ticks them off there. "Waiting on
-  owner" in a STATUS file points to the Checklist. Do not ask the owner to
-  report the rest. Read the Checklist at the start of a turn that follows up
-  an owner step: a ticked row is done; do not ask about it.
+  those are kept, as tasks in the owner's Todoist project **Checklist**
+  (`6hv5QRGXXcX7vqRR`; section Waiting `6hv5QRWwJPh6FVFR` when a next step
+  depends on it, else On hold `6hv5QRVX8HMhVRX2`; one label naming the
+  repository), added with the Todoist connector (`add-tasks`): a short
+  `content`, and the steps in `description` as a bulleted list, one command
+  per line, starting with "Added by <session>, <date>." Erga kai Hemerai
+  (https://claude.ai/artifact/BfRA69hSfCditT5eUz8fzY) shows it, and the
+  owner completes them there or in Todoist. The artifact's database is not
+  used: its writes raise a dialog. "Waiting on owner" in a STATUS file
+  points to the Checklist. Do not ask the owner to report the rest. Read the
+  Checklist (`find-tasks` with that project) at the start of a turn that
+  follows up an owner step: a task no longer open is done; do not ask about
+  it.
 - Before an item goes to the owner or stays under "Waiting on owner", check
   whether it is already done (`list_sessions`, `git log`, GitHub, the
   Google Drive connector, `list_events`), unless checking costs far more than
