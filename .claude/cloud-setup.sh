@@ -11,7 +11,7 @@
 # because plugins load before the hook runs.
 # The repositories are already cloned when it runs, but GitHub is not yet
 # reachable. kni927/dotfiles docs/CLOUD_ENVIRONMENTS.md explains each part.
-version=2026-10-30.1
+version=2026-10-31.1
 refresh=0; [ "${1:-}" = --refresh ] && refresh=1
 
 if [ $refresh = 0 ]; then
@@ -28,10 +28,11 @@ command -v shellcheck >/dev/null ||
 
 mkdir -p ~/.claude/hooks
 cat > ~/.claude/hooks/context-alert.py <<'PY'
-# UserPromptSubmit hook for Trusted cloud sessions (setup script). From 70%
-# of the context window, or always after a second compaction, it adds one
-# line with the usage, the compaction count, and the step docs/sessions.md
-# "Context usage" calls for, so the session need not work either out.
+# UserPromptSubmit hook for Trusted cloud sessions (setup script). When a
+# step of docs/sessions.md "Context usage" first applies (70% before any
+# compaction, 75% after one, each later compaction), it adds one line with
+# the usage, the compaction count, and that step; later prompts in the same
+# step stay silent (owner, 2026-10-31: the session rail shows usage).
 import json, os, sys
 
 WINDOW = int(os.environ.get("CONTEXT_WINDOW_TOKENS", "1000000"))
@@ -70,6 +71,18 @@ elif compactions >= 2:
     step = f"compacted {compactions} times: a cloud HQ hands over at the next natural break"
 else:
     sys.exit(0)
+stage, mark = str(min(compactions, 99)), path + ".context-alert"
+try:
+    with open(mark) as f:
+        if f.read().strip() == stage:
+            sys.exit(0)
+except OSError:
+    pass
+try:
+    with open(mark, "w") as f:
+        f.write(stage)
+except OSError:
+    pass
 print(f'Context usage: {pct}% ({used:,} / {WINDOW:,} tokens); {step} '
       '(docs/sessions.md "Context usage").')
 PY
