@@ -129,7 +129,7 @@
   commands, behaviour), update it in the same change. Do not rewrite unrelated
   sections or change its tone and structure unless the project owner asks.
 
-## Language
+## Language and notation
 
 - Write everything addressed to the project owner in polite Japanese, including the
   Completion Report, even when task files, documents, and tool output are in English.
