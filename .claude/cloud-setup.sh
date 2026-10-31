@@ -11,7 +11,7 @@
 # because plugins load before the hook runs.
 # The repositories are already cloned when it runs, but GitHub is not yet
 # reachable. kni927/dotfiles docs/CLOUD_ENVIRONMENTS.md explains each part.
-version=2026-10-31.2
+version=2026-11-01.1
 refresh=0; [ "${1:-}" = --refresh ] && refresh=1
 
 if [ $refresh = 0 ]; then
@@ -138,6 +138,8 @@ for key, tools, wanted in [
     ("deny", [g + t for g in gmail for t in ("reply", "forward")], True),
     ("deny", [g + "send_message" for g in gmail], not guarded),
     ("ask", [c + "delete_event" for c in calendar], not guarded),
+    # Exa's agent_run is metered (up to $5 a run by default); search and fetch stay free of a dialog.
+    ("ask", ["mcp__Exa__agent_run"], True),
 ]:
     rules = perms.setdefault(key, [])
     for tool in tools:
