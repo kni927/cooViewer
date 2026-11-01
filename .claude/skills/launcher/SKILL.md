@@ -39,6 +39,11 @@ Both live in Google Drive `AI/Status/Sessions/` as one file each,
 
 ## As the Launcher
 
+Before checking each request, run `git pull` in the clone of `kni927/HQ` and
+follow this skill as it then reads: the clone dates from the Launcher's
+start, and a rule changed since would otherwise be missed. If the pull
+fails, say so in the answer and go on with the copy you have.
+
 Take a request only when all of these hold; otherwise answer the reason and
 do nothing else:
 
@@ -69,7 +74,8 @@ ID. Keep taking requests until the successor archives you.
 ## As Quarterdeck
 
 Quarterdeck answers only `[launcher successor]` from the current Launcher and
-`[launch request]` (checked as above) when the Launcher is gone. For a
+`[launch request]` (checked as above) when the Launcher is gone, after the
+same `git pull`. For a
 successor, `create_session` as above with title `☁️ Launcher`, repository
 `https://github.com/kni927/HQ`, and the prompt "You are the Launcher; your
 predecessor is <ID>. Follow the launcher skill: As the Launcher, and First
