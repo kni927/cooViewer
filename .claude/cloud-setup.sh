@@ -11,7 +11,7 @@
 # because plugins load before the hook runs.
 # The repositories are already cloned when it runs, but GitHub is not yet
 # reachable. kni927/dotfiles docs/CLOUD_ENVIRONMENTS.md explains each part.
-version=2026-11-01.6
+version=2026-11-01.7
 refresh=0; [ "${1:-}" = --refresh ] && refresh=1
 
 if [ $refresh = 0 ]; then
@@ -91,6 +91,137 @@ PY
 # replies are checked afterwards by the Friday cloud dialog count (2026-11-01).
 rm -f ~/.claude/hooks/notation-check
 
+# MessageDisplay hook: notation-display, a verbatim copy of kni927/dotfiles
+# dot_local/bin/claude-hooks/executable_notation-display (change it there and
+# copy it here), so every cloud session shows replies with the owner's notation.
+cat > ~/.claude/hooks/notation-display <<'PY'
+#!/usr/bin/env python3
+"""MessageDisplay hook: show replies with the owner's notation, once.
+
+The Notation rules (custom instructions, AGENTS.md "Language and notation")
+say dates are YYYY-MM-DD or M/D and Japanese text has no space next to Latin
+letters, digits or inline code. This hook rewrites what is displayed: a
+year-less MM-DD date becomes M/D ("11-01" -> "11/1") and such a space is
+removed. It is display-only (the transcript and what Claude reads keep the
+original), so a reply is shown once, corrected, where a Stop hook could
+only add a second display (owner, 2026-11-01).
+
+Claude Code calls it for each batch of newly completed lines of an
+assistant message. Fenced code blocks can span batches, so whether a batch
+starts inside a fence is kept in a small state file per message. Inline
+code, link text, URLs and 「」『』 quotations are left as written; a space
+next to inline code is still removed. On a Mac each batch it changed adds a
+JSON line to ~/Library/Logs/claude-notation-check.log ("hook": "display").
+Any error prints nothing, so the original text is shown.
+"""
+
+import json
+import os
+import re
+import sys
+import tempfile
+import time
+
+JP = "\u3040-\u30ff\u3400-\u9fff"
+# Placeholders for protected spans: \ue000..\ue001 stands for inline code and
+# counts as Latin for the space rule; \ue002..\ue003 is neutral.
+LAT = "A-Za-z0-9`*\ue000\ue001"
+SPACE_A = re.compile(rf"([{JP}]) +(?=[{LAT}])")
+SPACE_B = re.compile(rf"([{LAT}]) +(?=[{JP}])")
+MMDD = re.compile(r"(?<![\d.:/\-])(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])(?![\d:/\-])")
+INLINE = re.compile(r"`[^`\n]*`")
+OTHER = re.compile(r"\[[^\]\n]*\]\([^)\s]*\)|https?://\S+|「[^」\n]*」|『[^』\n]*』")
+FENCE = re.compile(r"^\s*(```|~~~)")
+
+
+def fix_line(line, found):
+    kept = []
+
+    def hold(kind):
+        def sub(m):
+            kept.append(m.group(0))
+            n = len(kept) - 1
+            return f"\ue000{n}\ue001" if kind == "code" else f"\ue002{n}\ue003"
+        return sub
+
+    text = INLINE.sub(hold("code"), line)
+    text = OTHER.sub(hold("other"), text)
+
+    def date(m):
+        found["dates"].append(m.group(0))
+        return f"{int(m.group(1))}/{int(m.group(2))}"
+
+    text = MMDD.sub(date, text)
+    for rx in (SPACE_A, SPACE_B):
+        text, n = rx.subn(r"\1", text)
+        found["spaces"] += n
+    return re.sub(r"[\ue000\ue002](\d+)[\ue001\ue003]", lambda m: kept[int(m.group(1))], text)
+
+
+def main():
+    try:
+        data = json.load(sys.stdin)
+        delta = data.get("delta", "")
+        msg = re.sub(r"[^A-Za-z0-9-]", "", str(data.get("message_id", "")))[:64]
+        final = bool(data.get("final"))
+    except Exception:
+        return
+    if not delta and not final:
+        return
+
+    state = os.path.join(tempfile.gettempdir(), f"claude-notation-display.{msg}")
+    in_fence = False
+    if data.get("index", 0) and os.path.exists(state):
+        in_fence = True
+    found = {"dates": [], "spaces": 0}
+    out = []
+    for line in delta.splitlines(keepends=True):
+        if FENCE.match(line):
+            in_fence = not in_fence
+            out.append(line)
+        elif in_fence:
+            out.append(line)
+        else:
+            out.append(fix_line(line, found))
+    try:
+        if in_fence and not final:
+            open(state, "w").close()
+        elif os.path.exists(state):
+            os.remove(state)
+    except OSError:
+        pass
+
+    shown = "".join(out)
+    if shown == delta:
+        return
+    logs = os.path.expanduser("~/Library/Logs")
+    if os.path.isdir(logs):
+        try:
+            with open(os.path.join(logs, "claude-notation-check.log"), "a", encoding="utf-8") as f:
+                f.write(json.dumps({
+                    "time": time.strftime("%Y-%m-%dT%H:%M:%S%z"),
+                    "hook": "display",
+                    "cwd": data.get("cwd", ""),
+                    "session": data.get("session_id", ""),
+                    "message": msg,
+                    "dates": found["dates"],
+                    "spaces": found["spaces"],
+                }, ensure_ascii=False) + "\n")
+        except OSError:
+            pass
+    print(json.dumps({"hookSpecificOutput": {
+        "hookEventName": "MessageDisplay", "displayContent": shown}}, ensure_ascii=False))
+
+
+if __name__ == "__main__":
+    try:
+        main()
+    except Exception:
+        pass
+    sys.exit(0)
+PY
+chmod 755 ~/.claude/hooks/notation-display
+
 python3 - <<'PY'
 import json, os
 
@@ -164,15 +295,10 @@ stop[:] = [g for g in stop if ask_check not in json.dumps(g)]
 # scans cloud transcripts with it instead (2026-11-01).
 if os.path.exists(ask_check):
     os.remove(ask_check)
-display_src = f"{src}/dot_local/bin/claude-hooks/executable_notation-display"
 display = os.path.expanduser("~/.claude/hooks/notation-display")
 shown = d.setdefault("hooks", {}).setdefault("MessageDisplay", [])
 shown[:] = [g for g in shown if display not in json.dumps(g)]
-if os.path.isfile(display_src):  # trial: does an app show a cloud session's fix?
-    import shutil
-    shutil.copyfile(display_src, display)
-    os.chmod(display, 0o755)
-    shown.append({"hooks": [{"type": "command", "command": display, "timeout": 5}]})
+shown.append({"hooks": [{"type": "command", "command": display, "timeout": 5}]})
 notation = os.path.expanduser("~/.claude/hooks/notation-check")
 stop[:] = [g for g in stop if notation not in json.dumps(g)]
 refresh = ('for f in /home/user/*/.claude/cloud-setup.sh; do [ -f "$f" ] && '
