@@ -131,11 +131,12 @@ Send each message only to the sessions that need it.
   fresh sign-in on the Web. Until the refusal is lifted, an HQ puts what a TF
   needs in its start prompt (`offer-tf`) or the repository; TFs report to
   their HQ as before.
-- **Mac mini relay:** a later message to a local session on the Mac mini
-  goes as a file in Google Drive `AI/Handoff/Inbox/`, which `handoff-relay`
-  delivers within about five minutes (`mac-relay` skill). A MacBook session,
-  or a file still in the inbox after ten minutes, gets an English message
-  for the owner to paste instead.
+- **Mac relay:** a later message to a local session on a Mac goes as a file
+  in Google Drive, `AI/Handoff/Inbox/` for the Mac mini and
+  `AI/Handoff/Inbox/MacBook/` for the MacBook, which `handoff-relay` on that
+  Mac delivers within about five minutes, or when the MacBook wakes
+  (`mac-relay` skill). A file still in its inbox after ten minutes (an awake
+  Mac) gets an English message for the owner to paste instead.
 - **Say where it went:** one English line, `Sent to: 🖥️ Mac mini HQ
   (SendMessage)`. Receipts are not acknowledged.
 - **Read before asking:** a cloud session reads any transcript with
