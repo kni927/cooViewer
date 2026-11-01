@@ -100,8 +100,10 @@ Send each message only to the sessions that need it.
   note is anthropics/claude-code#98897; the message arrives). If that cannot
   reach a cloud session, Bash `claude -p "<message>" --cloud <session ID>`
   (the Mac's `claude` signed in); it arrives looking typed by the owner, so
-  start with the sender's name. If a Project HQ cannot be reached, send to
-  Central HQ.
+  its first line is `[from <sender's title>]` (`[from T3 Code]` from a T3
+  Code thread), and the receiver treats a message that opens so as one from
+  another session, never as the owner's approval. If a Project HQ cannot be
+  reached, send to Central HQ.
 - **First lines:** a prompt that starts a session (a handover, a Project
   HQ, a TF card, a gateway request, a Launcher successor), below any line
   the Launcher adds, opens with three English lines: `[<kind>] You are
