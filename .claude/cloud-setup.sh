@@ -11,7 +11,7 @@
 # because plugins load before the hook runs.
 # The repositories are already cloned when it runs, but GitHub is not yet
 # reachable. kni927/dotfiles docs/CLOUD_ENVIRONMENTS.md explains each part.
-version=2026-11-01.3
+version=2026-11-01.4
 refresh=0; [ "${1:-}" = --refresh ] && refresh=1
 
 if [ $refresh = 0 ]; then
@@ -101,7 +101,15 @@ style anyway (Central HQ wrote "10-23" after reloading the rules, 2026-11-01),
 and more rule text does not stop that. This hook reads the reply's last text
 and, on a year-less MM-DD date or such a space, blocks the stop once with the
 matches. The model then writes only the corrected sentences, not the whole
-reply again (owner, 2026-11-01: the reply was shown twice). Quoted text is
+reply again and with no line saying it fixed them (owner, 2026-11-01: the
+reply was shown twice, then a "notation fixed" line). A Stop hook runs after
+the reply is shown, so the original stays on screen; only the repeat can be
+kept short.
+
+On a Mac, each block appends one JSON line to
+~/Library/Logs/claude-notation-check.log, so how often the hook catches a
+reply can be counted. Cloud sessions have no such folder; their blocks stay
+in the transcripts as "Stop hook feedback" messages. Quoted text is
 left alone: link text, URLs, and 「」『』 quotations, which keep their source's
 spelling (an article title "AI の…" was a false match).
 
@@ -113,6 +121,7 @@ import json
 import os
 import re
 import sys
+import time
 
 JP = r"[\u3040-\u30ff\u3400-\u9fff]"
 LAT = r"[A-Za-z0-9`*]"
@@ -183,13 +192,26 @@ def main():
             f.write(turn)
     except OSError:
         allow()
+    logs = os.path.expanduser("~/Library/Logs")
+    if os.path.isdir(logs):
+        try:
+            with open(os.path.join(logs, "claude-notation-check.log"), "a", encoding="utf-8") as f:
+                f.write(json.dumps({
+                    "time": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+                    "cwd": data.get("cwd", ""),
+                    "session": data.get("session_id", ""),
+                    "dates": sum(1 for x in found if x.startswith("year-less")),
+                    "spaces": sum(1 for x in found if x.startswith("space")),
+                }) + "\n")
+        except OSError:
+            pass
     print(json.dumps({
         "decision": "block",
         "reason": "Notation (AGENTS.md, Language and notation): "
         + "; ".join(found[:6])
         + (f"; and {len(found) - 6} more" if len(found) > 6 else "")
-        + ". Do not repeat the reply: write only the corrected sentence or "
-        "sentences, each once, under a short line saying the notation was fixed.",
+        + ". Do not repeat the reply and do not say that you fixed anything: "
+        "write only the corrected sentence or sentences, each once, and nothing else.",
     }, ensure_ascii=False))
     sys.exit(0)
 
