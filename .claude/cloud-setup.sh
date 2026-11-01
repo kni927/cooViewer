@@ -11,7 +11,7 @@
 # because plugins load before the hook runs.
 # The repositories are already cloned when it runs, but GitHub is not yet
 # reachable. kni927/dotfiles docs/CLOUD_ENVIRONMENTS.md explains each part.
-version=2026-11-01.5
+version=2026-11-01.6
 refresh=0; [ "${1:-}" = --refresh ] && refresh=1
 
 if [ $refresh = 0 ]; then
@@ -160,11 +160,19 @@ ask_src = f"{src}/dot_local/bin/claude-hooks/executable_owner-ask-check"
 ask_check = os.path.expanduser("~/.claude/hooks/owner-ask-check")
 stop = d.setdefault("hooks", {}).setdefault("Stop", [])
 stop[:] = [g for g in stop if ask_check not in json.dumps(g)]
-if os.path.isfile(ask_src):
+# owner-ask-check records only on the Macs; the Friday cloud dialog count
+# scans cloud transcripts with it instead (2026-11-01).
+if os.path.exists(ask_check):
+    os.remove(ask_check)
+display_src = f"{src}/dot_local/bin/claude-hooks/executable_notation-display"
+display = os.path.expanduser("~/.claude/hooks/notation-display")
+shown = d.setdefault("hooks", {}).setdefault("MessageDisplay", [])
+shown[:] = [g for g in shown if display not in json.dumps(g)]
+if os.path.isfile(display_src):  # trial: does an app show a cloud session's fix?
     import shutil
-    shutil.copyfile(ask_src, ask_check)
-    os.chmod(ask_check, 0o755)
-    stop.append({"hooks": [{"type": "command", "command": ask_check, "timeout": 10}]})
+    shutil.copyfile(display_src, display)
+    os.chmod(display, 0o755)
+    shown.append({"hooks": [{"type": "command", "command": display, "timeout": 5}]})
 notation = os.path.expanduser("~/.claude/hooks/notation-check")
 stop[:] = [g for g in stop if notation not in json.dumps(g)]
 refresh = ('for f in /home/user/*/.claude/cloud-setup.sh; do [ -f "$f" ] && '
