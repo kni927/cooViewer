@@ -11,7 +11,7 @@
 # because plugins load before the hook runs.
 # The repositories are already cloned when it runs, but GitHub is not yet
 # reachable. kni927/dotfiles docs/CLOUD_ENVIRONMENTS.md explains each part.
-version=2026-11-01.1
+version=2026-11-01.2
 refresh=0; [ "${1:-}" = --refresh ] && refresh=1
 
 if [ $refresh = 0 ]; then
@@ -87,6 +87,112 @@ print(f'Context usage: {pct}% ({used:,} / {WINDOW:,} tokens); {step} '
       '(docs/sessions.md "Context usage").')
 PY
 
+# Stop hook: notation-check, a verbatim copy of kni927/dotfiles
+# dot_local/bin/claude-hooks/executable_notation-check (change it there and
+# copy it here), so sessions without a dotfiles clone get it too.
+cat > ~/.claude/hooks/notation-check <<'PY'
+#!/usr/bin/env python3
+"""Stop hook: catch notation drift in the reply before it reaches the owner.
+
+The Notation rules (custom instructions, AGENTS.md "Language and notation")
+say dates are YYYY-MM-DD or M/D and Japanese text has no space next to Latin
+letters, digits or inline code. Long sessions drift back to their own earlier
+style anyway (Central HQ wrote "10-23" after reloading the rules, 2026-11-01),
+and more rule text does not stop that. This hook reads the reply's last text
+and, on a year-less MM-DD date or such a space, blocks the stop once with the
+matches, so the model rewrites them.
+
+It blocks at most once per reply (a marker beside the transcript keyed by the
+owner's last message), and any read error allows the stop.
+"""
+
+import json
+import os
+import re
+import sys
+
+JP = r"[\u3040-\u30ff\u3400-\u9fff]"
+LAT = r"[A-Za-z0-9`*]"
+SPACE = re.compile(rf"{JP} +{LAT}|{LAT} +{JP}")
+MMDD = re.compile(r"(?<![\d.:/\-])(?:0[1-9]|1[0-2])-(?:0[1-9]|[12]\d|3[01])(?![\d:/\-])")
+FENCE = re.compile(r"```.*?```", re.DOTALL)
+INLINE = re.compile(r"`[^`\n]*`")
+NAME = "notation-check"
+
+
+def allow():
+    sys.exit(0)
+
+
+def is_owner_message(entry):
+    if entry.get("type") != "user" or entry.get("isMeta"):
+        return False
+    content = entry.get("message", {}).get("content")
+    if isinstance(content, str):
+        return True
+    if isinstance(content, list):
+        return any(b.get("type") == "text" for b in content if isinstance(b, dict))
+    return False
+
+
+def main():
+    try:
+        data = json.load(sys.stdin)
+        path = data["transcript_path"]
+        with open(path, encoding="utf-8") as f:
+            entries = [json.loads(line) for line in f if line.strip()]
+    except Exception:
+        allow()
+
+    owner = [i for i, e in enumerate(entries) if is_owner_message(e)]
+    turn = entries[owner[-1]].get("uuid", str(owner[-1])) if owner else "start"
+    mark = f"{path}.{NAME}"
+    try:
+        with open(mark, encoding="utf-8") as f:
+            if f.read().strip() == turn:
+                allow()
+    except OSError:
+        pass
+
+    text = ""
+    for e in entries[(owner[-1] + 1) if owner else 0:]:
+        if e.get("type") != "assistant":
+            continue
+        for b in e.get("message", {}).get("content") or []:
+            if isinstance(b, dict) and b.get("type") == "text" and b.get("text", "").strip():
+                text = b["text"]
+    if not text:
+        allow()
+
+    plain = INLINE.sub("`x`", FENCE.sub(" ", text))
+    found = []
+    for m in MMDD.finditer(INLINE.sub(" ", FENCE.sub(" ", text))):
+        found.append(f'year-less date "{m.group(0)}" (write YYYY-MM-DD, or M/D)')
+    for m in SPACE.finditer(plain):
+        found.append(f'space between Japanese and Latin text: "{m.group(0)}"')
+    if not found:
+        allow()
+
+    try:
+        with open(mark, "w", encoding="utf-8") as f:
+            f.write(turn)
+    except OSError:
+        allow()
+    print(json.dumps({
+        "decision": "block",
+        "reason": "Notation (AGENTS.md, Language and notation): "
+        + "; ".join(found[:6])
+        + (f"; and {len(found) - 6} more" if len(found) > 6 else "")
+        + ". Rewrite the reply with these fixed; change nothing else.",
+    }, ensure_ascii=False))
+    sys.exit(0)
+
+
+if __name__ == "__main__":
+    main()
+PY
+chmod 755 ~/.claude/hooks/notation-check
+
 python3 - <<'PY'
 import json, os
 
@@ -161,6 +267,9 @@ if os.path.isfile(ask_src):
     shutil.copyfile(ask_src, ask_check)
     os.chmod(ask_check, 0o755)
     stop.append({"hooks": [{"type": "command", "command": ask_check, "timeout": 10}]})
+notation = os.path.expanduser("~/.claude/hooks/notation-check")
+stop[:] = [g for g in stop if notation not in json.dumps(g)]
+stop.append({"hooks": [{"type": "command", "command": notation, "timeout": 10}]})
 refresh = ('for f in /home/user/*/.claude/cloud-setup.sh; do [ -f "$f" ] && '
            'exec bash "$f" --refresh >/dev/null 2>&1; done; true')
 for event, hook in [
