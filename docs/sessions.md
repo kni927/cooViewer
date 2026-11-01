@@ -257,7 +257,9 @@ a session), `start-session` (Project HQ, everyday, or gateway session),
 `offer-tf` (a local TF as a one-click card), `rc-server` (TFs through Remote
 Control server mode), `find-session`, `mac-relay` (a message to a Mac mini
 session through the Google Drive inbox), `reload-instructions` (bring a
-running session's instructions up to date). `.claude/cloud-setup.sh`, copied the
+running session's instructions up to date), `explain-before-shorten` (rewrite a
+Japanese explanation so it is understood, then shorten it; copied text with no
+license, so not in public repositories). `.claude/cloud-setup.sh`, copied the
 same way, is the `Trusted` environment's setup script
 (`docs/CLOUD_ENVIRONMENTS.md` in `kni927/dotfiles`). On the Macs, from
 `kni927/dotfiles`: `/tf`, `wake-local`, `mac-sandbox`.
