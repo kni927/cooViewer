@@ -302,6 +302,10 @@ the steps and pitfalls.
   exclusions apply. Project-specific exclusions live in `.claude/settings.json`
   under `sandbox.excludedCommands`; list them under
   "Project-specific (cooViewer)".
+- Write each entry as `<script> *`: an entry without ` *` matches only the
+  bare command, so `scripts/check.sh` does not cover `scripts/check.sh install`
+  (Claude Code sandboxing docs; FrameSheet, 2026-11-02). A call with any
+  redirect (`2>&1` included), pipe, `cd` or `$(...)` stays sandboxed.
 - An operation that tasks need outside the sandbox again and again (saving and
   restoring preferences, unregistering an app, and the like) goes into a project
   script listed in `sandbox.excludedCommands`, with its step under
