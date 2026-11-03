@@ -126,7 +126,7 @@
   what other documents or the repository already record. Never write secrets or session IDs.
 - Avoid duplicating the same information across these files.
 - Keep `README.md` current: when a change alters what it describes (setup, usage,
-  commands, behaviour), update it in the same change. Do not rewrite unrelated
+  commands, behavior), update it in the same change. Do not rewrite unrelated
   sections or change its tone and structure unless the project owner asks.
 
 ## Language and notation
@@ -142,6 +142,7 @@
 - Always express times in JST (Asia/Tokyo), converting from other time zones as needed.
 - In Japanese text, put no space between Japanese characters and adjacent Latin
   letters, digits, or inline code (「Claude Codeの設定」, not 「Claude Code の設定」).
+- Use American English spelling in all code, UI text, comments, and documentation.
 
 ## Licensing
 
