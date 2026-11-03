@@ -461,6 +461,15 @@ LSREGISTER=/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchSe
    単体のヘルパー成果物があればそれも)。
 3. 上の確認方法で、`/Applications`だけが残っていることを確かめる。
 
+**`build/`に残したアプリは、OSのアップデートで再登録される(2026-11-03)**:
+作業の終わりに`unregister`で登録を外しても、`build/cooViewer.app`が
+ディスクに残っていると、macOSのアップデート(27.2)でLaunchServicesの
+登録が作り直されたときに再び拾われた。Finderの「このアプリケーションで開く」に
+古い版(1.6.8)が並び、`/Applications`のヘルパーが外れて
+`cooViewer (New Window)`が消えた。オーナーが`build/`の古いアプリを消し、
+`lsregister -f -R /Applications/cooViewer.app`と`killall Finder`で直った。
+デバイス確認を終えたら、登録解除に加えて`build/`を空にする。
+
 **`/Applications`は決して登録解除しない。** Homebrewで管理される
 インストールであり、QuickLook/Thumbnail/Open Withの正規の提供元である
 (本項と#18を参照)。誤って解除した場合も、再登録を繰り返さずに報告する。
