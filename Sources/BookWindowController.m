@@ -1931,7 +1931,7 @@ static NSString * const kBookViewModeKey = @"cooViewerBookViewMode";
 	 * loader; pendingArchiveLoader is nil for the synchronous path. */
 	atomic_store(&archiveLoadCancelled, 1);
 	[pendingArchiveLoader cancelArchiveRead];
-	[archiveProgressLabel setStringValue:NSLocalizedString(@"Cancelling…", @"")];
+	[archiveProgressLabel setStringValue:NSLocalizedString(@"Canceling…", @"")];
 	[archiveProgressCancelButton setEnabled:NO];
 }
 

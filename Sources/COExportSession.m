@@ -501,7 +501,7 @@ static NSArray *COExportSessionModes(void)
 - (IBAction)cancel:(id)sender
 {
 	atomic_store(&cancelled, 1);
-	[progressLabel setStringValue:NSLocalizedString(@"Cancelling…", @"")];
+	[progressLabel setStringValue:NSLocalizedString(@"Canceling…", @"")];
 	[cancelButton setEnabled:NO];
 }
 

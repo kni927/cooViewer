@@ -420,7 +420,7 @@
 "Opening “%@”…" = "“%@” を開いています…";
 
 /* No comment provided by engineer. */
-"Cancelling…" = "キャンセルしています…";
+"Canceling…" = "キャンセルしています…";
 
 /* Solid RAR4 refused at open (KNOWN_ISSUES #39). */
 "Cannot open \"%@\"." = "\"%@\" を開けません。";
