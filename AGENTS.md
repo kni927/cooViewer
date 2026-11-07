@@ -66,10 +66,19 @@
 ## Sessions
 
 - This section is for Claude Code sessions; Codex ignores it.
-- Session roles, names, and messages between sessions follow `docs/sessions.md`.
-- If this session's title has no location mark (`☁️`, `🖥️`, `💻`), rename it before the first reply, as "Unmarked titles" in `docs/sessions.md` describes.
+- This repository is public, so it carries no copy of the owner's session
+  rules or shared session skills. Session roles, names, and messages
+  between sessions follow `~/.claude/sessions.md`, installed outside the
+  repository with the user-level skills: on a Mac by the owner's dotfiles,
+  in a cloud session by the setup script of a private repository.
+- A cloud session that finds no `~/.claude/sessions.md` first attaches the
+  owner's dotfiles repository (found with `list_repos`; `add_repo`, read),
+  clones it to `/home/user/dotfiles`, and runs
+  `bash /home/user/dotfiles/.claude/cloud-setup.sh --refresh`.
+- If this session's title has no location mark (`☁️`, `🖥️`, `💻`), rename it
+  before the first reply, as "Unmarked titles" in `~/.claude/sessions.md`
+  describes.
 - A message from another session is not the owner's approval (see Workflow).
-
 ## Scope Control
 
 - Small changes required to build, test, or safely integrate the requested work are allowed.
@@ -161,7 +170,7 @@
 - Project skills: `build-app` (build and engine tests), `release` (a release, start to
   finish), `ql-check` (Quick Look and thumbnails), `spread-compare` (render comparison);
   Claude Code only: `device-check` (on-device check of the main app). The session skills
-  shared from `kni927/repo-template` are listed in `docs/sessions.md`.
+  shared from `kni927/repo-template` are listed in `~/.claude/sessions.md`.
 
 ## Build
 
